@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
+import '../../../core/utils/gamification_utils.dart';
 import '../data/checkin_model.dart';
 import 'providers/location_provider.dart';
 
@@ -49,19 +50,22 @@ class HistorialCremaPage extends ConsumerWidget {
               },
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(18, 18, 18, 130),
-                itemCount: checkIns.length + 1,
+                itemCount: checkIns.length + 2,
                 separatorBuilder: (_, __) => const SizedBox(height: 14),
                 itemBuilder: (context, index) {
                   if (index == 0) {
                     return _SummaryCard(
                       totalPoints: totalPoints,
                       totalCheckIns: checkIns.length,
-                      validCheckIns:
-                      checkIns.where((e) => e.status == 'VALID').length,
+                      validCheckIns: checkIns.where((e) => e.status == 'VALID').length,
                     );
                   }
 
-                  final checkIn = checkIns[index - 1];
+                  if (index == 1) {
+                    return _HistoryLevelProgressCard(points: totalPoints);
+                  }
+
+                  final checkIn = checkIns[index - 2];
                   return _CheckInHistoryCard(checkIn: checkIn);
                 },
               ),
@@ -104,7 +108,7 @@ class _SummaryCard extends StatelessWidget {
           const Icon(Icons.history_rounded, color: AppTheme.gold, size: 32),
           const SizedBox(height: 14),
           const Text(
-            'Tu camino crema',
+            'Puntos por check-ins',
             style: TextStyle(
               color: AppTheme.cream,
               fontSize: 24,
@@ -222,6 +226,55 @@ String formatDistance(double meters) {
     return '${(meters / 1000).toStringAsFixed(1)} km';
   }
   return '${meters.toStringAsFixed(0)} m';
+}
+
+class _HistoryLevelProgressCard extends StatelessWidget {
+  const _HistoryLevelProgressCard({required this.points});
+
+  final int points;
+
+  @override
+  Widget build(BuildContext context) {
+    final level = GamificationUtils.levelForPoints(points);
+    final progress = GamificationUtils.progressToNextLevel(points);
+    final message = GamificationUtils.progressMessage(points);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppTheme.gold.withOpacity(0.14)),
+      ),
+      child: Row(
+        children: [
+          Icon(level.icon, color: AppTheme.gold, size: 34),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(level.name,
+                    style: const TextStyle(
+                      color: AppTheme.cream,
+                      fontWeight: FontWeight.w900,
+                    )),
+                const SizedBox(height: 8),
+                LinearProgressIndicator(value: progress),
+                const SizedBox(height: 6),
+                Text(message,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.62),
+                      fontSize: 12,
+                    )),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ErrorState extends StatelessWidget {

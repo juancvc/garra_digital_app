@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../../matches/presentation/providers/matches_provider.dart';
 import '../../predictions/presentation/providers/prediction_provider.dart';
 import '../../ranking/presentation/providers/ranking_provider.dart';
+import '../../../core/utils/gamification_utils.dart';
+
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -114,6 +115,11 @@ class HomePage extends ConsumerWidget {
                           userAsync: userAsync,
                           isMobile: isMobile,
                           isDesktop: _isDesktop(width),
+                        ),
+                        const SizedBox(height: 12),
+                        _HomeLevelProgressCard(
+                          rankingAsync: rankingAsync,
+                          isMobile: isMobile,
                         ),
                         SizedBox(height: isMobile ? 18 : 24),
                         _NextMatchSection(
@@ -872,6 +878,116 @@ class _CompactMessageCard extends StatelessWidget {
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.58),
                     fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeLevelProgressCard extends StatelessWidget {
+  const _HomeLevelProgressCard({
+    required this.rankingAsync,
+    required this.isMobile,
+  });
+
+  final AsyncValue<dynamic> rankingAsync;
+  final bool isMobile;
+
+  @override
+  Widget build(BuildContext context) {
+    final points = rankingAsync.maybeWhen(
+      data: (ranking) {
+        if (ranking.isEmpty) return 0;
+
+        try {
+          return ranking.first.loyaltyPoints as int;
+        } catch (_) {
+          return 0;
+        }
+      },
+      orElse: () => 0,
+    );
+
+    final level = GamificationUtils.levelForPoints(points);
+    final progress = GamificationUtils.progressToNextLevel(points);
+    final message = GamificationUtils.progressMessage(points);
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isMobile ? 14 : 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: AppTheme.gold.withOpacity(0.14),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: isMobile ? 42 : 48,
+            height: isMobile ? 42 : 48,
+            decoration: BoxDecoration(
+              color: AppTheme.gold.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              level.icon,
+              color: AppTheme.gold,
+              size: isMobile ? 22 : 25,
+            ),
+          ),
+          SizedBox(width: isMobile ? 12 : 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  level.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppTheme.cream,
+                    fontSize: isMobile ? 15 : 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$points puntos crema',
+                  style: const TextStyle(
+                    color: AppTheme.gold,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 7,
+                    backgroundColor: Colors.white.withOpacity(0.10),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppTheme.gold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  message,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.62),
+                    fontSize: 11,
+                    height: 1.25,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

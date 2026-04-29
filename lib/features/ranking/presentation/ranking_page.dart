@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/gamification_utils.dart';
 import 'providers/ranking_provider.dart';
 import 'package:go_router/go_router.dart';
 
@@ -253,6 +254,14 @@ class _TopOneCard extends StatelessWidget {
                 icon: Icons.local_fire_department_rounded,
                 label: '${item.loyaltyPoints} pts',
               ),
+              _DarkChip(
+                icon: GamificationUtils
+                    .levelForPoints(item.loyaltyPoints)
+                    .icon,
+                label: GamificationUtils
+                    .levelForPoints(item.loyaltyPoints)
+                    .name,
+              ),
             ],
           ),
         ],
@@ -320,6 +329,8 @@ class _TopSmallCard extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
+                  const SizedBox(height: 6),
+                  _LevelInlineBadge(points: item.loyaltyPoints),
                 ],
               ),
             ),
@@ -406,6 +417,8 @@ class _RankingListItem extends StatelessWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 6),
+                  _LevelInlineBadge(points: item.loyaltyPoints),
                 ],
               ),
             ),
@@ -431,6 +444,56 @@ class _RankingListItem extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ... existing code ...
+
+class _LevelInlineBadge extends StatelessWidget {
+  const _LevelInlineBadge({
+    required this.points,
+  });
+
+  final int points;
+
+  @override
+  Widget build(BuildContext context) {
+    final level = GamificationUtils.levelForPoints(points);
+
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 180),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppTheme.gold.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: AppTheme.gold.withOpacity(0.22),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            level.icon,
+            color: AppTheme.gold,
+            size: 13,
+          ),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              level.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppTheme.gold,
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
