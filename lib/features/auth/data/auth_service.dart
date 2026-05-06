@@ -5,6 +5,8 @@ import '../../../core/storage/secure_storage_service.dart';
 import 'auth_user.dart';
 import 'register_request.dart';
 import 'register_response.dart';
+import 'google_auth_service.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthService {
   AuthService({
@@ -93,6 +95,7 @@ class AuthService {
   }
 
   Future<void> logout() async {
+    await GoogleAuthService().signOut();
     await _storage.clearToken();
   }
 
@@ -113,6 +116,84 @@ class AuthService {
 
     return message;
   }
+
+  Future<LoginResult> loginWithGoogle() async {
+    try {
+      final firebaseIdToken = await GoogleAuthService().signInWithGoogle();
+
+      if (firebaseIdToken == null) {
+        return LoginResult.failure('Inicio con Google cancelado');
+      }
+
+      final response = await _dio.post(
+        '/auth/google',
+        data: {
+          'idToken': firebaseIdToken,
+        },
+      );
+
+      final data = response.data['data'] as Map<String, dynamic>;
+      final token = data['token'] as String;
+
+      await _storage.saveToken(token);
+
+      return LoginResult.success(
+        user: AuthUser.fromJson(data),
+      );
+    } on DioException catch (e) {
+      final message = e.response?.data is Map<String, dynamic>
+          ? e.response?.data['message']?.toString()
+          : null;
+
+      return LoginResult.failure(message ?? 'No se pudo iniciar con Google');
+    } catch (e, stack) {
+      debugPrint('❌ GOOGLE LOGIN ERROR: $e');
+      debugPrint('❌ GOOGLE LOGIN STACK: $stack');
+
+      return LoginResult.failure('Ocurrió un error con Google Login: $e');
+    }
+  }
+
+  Future<AuthActionResult<void>> completeProfile({
+    required String username,
+    required String favoriteStand,
+    required String favoritePlayer,
+    required bool cremaDeclarationAccepted,
+  }) async {
+    try {
+      final response = await _dio.patch(
+        '/auth/complete-profile',
+        data: {
+          "username": username.trim(),
+          "favoriteStand": favoriteStand,
+          "favoritePlayer": favoritePlayer,
+          "cremaDeclarationAccepted": cremaDeclarationAccepted,
+        },
+      );
+
+      final data = response.data['data'] as Map<String, dynamic>;
+      final token = data['token'] as String;
+
+      // 🔥 IMPORTANTE: guardar nuevo JWT
+      await _storage.saveToken(token);
+
+      return AuthActionResult.success(
+        message: 'Perfil completado',
+      );
+    } on DioException catch (e) {
+      final message = e.response?.data is Map<String, dynamic>
+          ? e.response?.data['message']?.toString()
+          : null;
+
+      return AuthActionResult.failure(
+        message ?? 'No se pudo completar el perfil',
+      );
+    } catch (_) {
+      return AuthActionResult.failure('Error inesperado');
+    }
+  }
+
+
 }
 
 class LoginResult {
@@ -172,4 +253,7 @@ class AuthActionResult<T> {
       message: message,
     );
   }
+
+
+
 }

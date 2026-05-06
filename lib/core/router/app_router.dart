@@ -1,3 +1,4 @@
+import 'package:garra_digital_app/features/auth/presentation/complete_profile_page.dart';
 import 'package:garra_digital_app/features/community/presentation/muro_crema_page.dart';
 import 'package:go_router/go_router.dart';
 
@@ -54,6 +55,10 @@ final GoRouter appRouter = GoRouter(
       name: 'register',
       builder: (context, state) => const RegisterPage(),
     ),
+    GoRoute(
+      path: '/complete-profile',
+      builder: (context, state) => const CompleteProfilePage(),
+    ),
     ShellRoute(
       builder: (context, state, child) {
         return MainShell(child: child);
@@ -94,6 +99,7 @@ final GoRouter appRouter = GoRouter(
           name: 'historial-crema',
           builder: (context, state) => const HistorialCremaPage(),
         ),
+
       ],
     ),
   ],

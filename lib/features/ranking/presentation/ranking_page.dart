@@ -217,19 +217,6 @@ class _TopOneCard extends StatelessWidget {
             foregroundColor: AppTheme.cream,
             icon: Icons.emoji_events_rounded,
           ),
-          const SizedBox(height: 18),
-          Text(
-            item.fullName,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.background,
-              fontSize: 25,
-              height: 1.05,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.7,
-            ),
-          ),
           const SizedBox(height: 6),
           Text(
             '@${item.username}',
@@ -298,16 +285,6 @@ class _TopSmallCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    item.fullName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.cream,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
                   const SizedBox(height: 4),
                   Text(
                     '@${item.username}',
@@ -373,16 +350,6 @@ class _RankingListItem extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    item.fullName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.cream,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
                   const SizedBox(height: 3),
                   Text(
                     '@${item.username}',

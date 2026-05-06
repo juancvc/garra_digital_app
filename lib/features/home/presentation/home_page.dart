@@ -67,9 +67,44 @@ class HomePage extends ConsumerWidget {
             tooltip: 'Cerrar sesión',
             icon: const Icon(Icons.logout_rounded),
             onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (dialogContext) {
+                  return AlertDialog(
+                    backgroundColor: const Color(0xFF1A1A1A),
+                    title: const Text(
+                      'Cerrar sesión',
+                      style: TextStyle(color: AppTheme.cream),
+                    ),
+                    content: const Text(
+                      '¿Estás seguro que deseas cerrar sesión?',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(false),
+                        child: const Text('Cancelar'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(true),
+                        child: const Text(
+                          'Cerrar sesión',
+                          style: TextStyle(color: AppTheme.gold),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              );
+
+              if (confirm != true) return;
+
               final authService = ref.read(authServiceProvider);
               await authService.logout();
-
+              ref.invalidate(currentUserProvider);
+              ref.invalidate(upcomingMatchesProvider);
+              ref.invalidate(myPredictionsProvider);
+              ref.invalidate(rankingProvider);
               if (context.mounted) {
                 context.go('/login');
               }
@@ -211,7 +246,7 @@ class _HeaderSection extends StatelessWidget {
         isDesktop: isDesktop,
       ),
       data: (user) => _HeaderContent(
-        fullName: user?.fullName ?? 'crema',
+        fullName: user?.username ?? 'crema',
         isMobile: isMobile,
         isDesktop: isDesktop,
       ),

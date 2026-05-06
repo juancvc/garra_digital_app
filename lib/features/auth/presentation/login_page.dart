@@ -42,6 +42,33 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
   }
 
+  Future<void> _loginWithGoogle() async {
+    setState(() => _loading = true);
+
+    final authService = ref.read(authServiceProvider);
+    final result = await authService.loginWithGoogle();
+
+    setState(() => _loading = false);
+
+    if (!result.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.message),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final status = result.user?.status;
+
+    if (status == 'PENDING_PROFILE') {
+      context.go('/complete-profile');
+    } else {
+      context.go('/home');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -146,6 +173,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                   ),
                                 )
                                     : const Text('Iniciar sesión'),
+                              ),
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: _loading ? null : _loginWithGoogle,
+                                icon: const Icon(Icons.login),
+                                label: const Text('Continuar con Google'),
                               ),
                             ),
 
