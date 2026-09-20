@@ -7,6 +7,7 @@ class PassportModel {
     required this.profileVisibility,
     required this.viewerIsOwner,
     this.primaryClan,
+    this.currentYearSummary,
   });
 
   final PassportIdentity identity;
@@ -16,6 +17,7 @@ class PassportModel {
   final String profileVisibility;
   final bool viewerIsOwner;
   final PassportClanSummary? primaryClan;
+  final PassportCurrentYearSummary? currentYearSummary;
 
   factory PassportModel.fromJson(Map<String, dynamic> json) {
     return PassportModel(
@@ -36,6 +38,46 @@ class PassportModel {
           : PassportClanSummary.fromJson(
               Map<String, dynamic>.from(json['primaryClan'] as Map),
             ),
+      currentYearSummary: json['currentYearSummary'] == null
+          ? null
+          : PassportCurrentYearSummary.fromJson(
+              Map<String, dynamic>.from(json['currentYearSummary'] as Map),
+            ),
+    );
+  }
+}
+
+/// Compact year summary nested on Passport — bounded query.
+class PassportCurrentYearSummary {
+  const PassportCurrentYearSummary({
+    required this.year,
+    this.pointsEarned = 0,
+    this.matchdaysParticipated = 0,
+    this.predictionsSubmitted = 0,
+    this.missionsCompleted = 0,
+  });
+
+  final int year;
+  final int pointsEarned;
+  final int matchdaysParticipated;
+  final int predictionsSubmitted;
+  final int missionsCompleted;
+
+  bool get hasActivity =>
+      pointsEarned > 0 ||
+      matchdaysParticipated > 0 ||
+      predictionsSubmitted > 0 ||
+      missionsCompleted > 0;
+
+  factory PassportCurrentYearSummary.fromJson(Map<String, dynamic> json) {
+    return PassportCurrentYearSummary(
+      year: (json['year'] as num?)?.toInt() ?? DateTime.now().year,
+      pointsEarned: (json['pointsEarned'] as num?)?.toInt() ?? 0,
+      matchdaysParticipated:
+          (json['matchdaysParticipated'] as num?)?.toInt() ?? 0,
+      predictionsSubmitted:
+          (json['predictionsSubmitted'] as num?)?.toInt() ?? 0,
+      missionsCompleted: (json['missionsCompleted'] as num?)?.toInt() ?? 0,
     );
   }
 }

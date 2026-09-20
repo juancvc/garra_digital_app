@@ -228,6 +228,10 @@ class _PassportBody extends StatelessWidget {
         const SizedBox(height: GarraSpacing.lg),
         _PassportClanSection(clan: passport.primaryClan),
         const SizedBox(height: GarraSpacing.lg),
+        _PassportHistorySection(
+          yearSummary: passport.currentYearSummary,
+        ),
+        const SizedBox(height: GarraSpacing.lg),
         GarraCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -288,6 +292,63 @@ class _PassportBody extends StatelessWidget {
       default:
         return 'Público';
     }
+  }
+}
+
+class _PassportHistorySection extends StatelessWidget {
+  const _PassportHistorySection({this.yearSummary});
+
+  final PassportCurrentYearSummary? yearSummary;
+
+  @override
+  Widget build(BuildContext context) {
+    final year = yearSummary?.year ?? DateTime.now().year;
+
+    return GarraCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const GarraSectionHeader(
+            title: 'Tu historia',
+            subtitle: 'Momentos y tu año con la U.',
+          ),
+          const SizedBox(height: GarraSpacing.md),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(
+              Icons.auto_stories_rounded,
+              color: Color(GarraColors.gold),
+            ),
+            title: const Text('Mi Historia Crema'),
+            subtitle: const Text('Tu línea de tiempo crema'),
+            trailing: const Icon(
+              Icons.chevron_right,
+              color: Color(GarraColors.gold),
+            ),
+            onTap: () => context.push('/history'),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(
+              Icons.calendar_month_rounded,
+              color: Color(GarraColors.gold),
+            ),
+            title: Text('Mi Año Crema $year'),
+            subtitle: yearSummary != null && yearSummary!.hasActivity
+                ? Text(
+                    '${yearSummary!.matchdaysParticipated} fechas · '
+                    '${yearSummary!.pointsEarned} pts',
+                  )
+                : const Text('Tu recap del año'),
+            trailing: const Icon(
+              Icons.chevron_right,
+              color: Color(GarraColors.gold),
+            ),
+            onTap: () => context.push('/history/year/$year'),
+          ),
+        ],
+      ),
+    );
   }
 }
 

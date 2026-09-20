@@ -8,6 +8,8 @@ import 'package:garra_digital_app/features/clans/presentation/clan_tribuna_page.
 import 'package:garra_digital_app/features/clans/presentation/clans_page.dart';
 import 'package:garra_digital_app/features/community/presentation/muro_crema_page.dart';
 import 'package:garra_digital_app/features/community/presentation/post_detail_screen.dart';
+import 'package:garra_digital_app/features/history/presentation/history_page.dart';
+import 'package:garra_digital_app/features/history/presentation/year_recap_page.dart';
 import 'package:garra_digital_app/features/missions/presentation/missions_page.dart';
 import 'package:garra_digital_app/features/notifications/presentation/notifications_screen.dart';
 import 'package:garra_digital_app/features/passport/presentation/passport_screen.dart';
@@ -91,6 +93,20 @@ final GoRouter appRouter = GoRouter(
           path: '/passport/edit',
           name: 'passport-edit',
           builder: (context, state) => const ProfileEditScreen(),
+        ),
+        GoRoute(
+          path: '/history',
+          name: 'history',
+          builder: (context, state) => const HistoryPage(),
+        ),
+        GoRoute(
+          path: '/history/year/:year',
+          name: 'history-year',
+          builder: (context, state) {
+            final raw = state.pathParameters['year'] ?? '';
+            final year = int.tryParse(raw) ?? DateTime.now().year;
+            return YearRecapPage(year: year);
+          },
         ),
         GoRoute(
           path: '/notifications',
