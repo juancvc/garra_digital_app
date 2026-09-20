@@ -1,5 +1,7 @@
 import 'package:garra_digital_app/features/auth/presentation/complete_profile_page.dart';
 import 'package:garra_digital_app/features/community/presentation/muro_crema_page.dart';
+import 'package:garra_digital_app/features/passport/presentation/passport_screen.dart';
+import 'package:garra_digital_app/features/passport/presentation/profile_edit_screen.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/login_page.dart';
@@ -70,6 +72,16 @@ final GoRouter appRouter = GoRouter(
           builder: (context, state) => const HomePage(),
         ),
         GoRoute(
+          path: '/passport',
+          name: 'passport',
+          builder: (context, state) => const PassportScreen(),
+        ),
+        GoRoute(
+          path: '/passport/edit',
+          name: 'passport-edit',
+          builder: (context, state) => const ProfileEditScreen(),
+        ),
+        GoRoute(
           path: '/polla',
           name: 'polla',
           builder: (context, state) => const PollaPage(),
@@ -99,7 +111,6 @@ final GoRouter appRouter = GoRouter(
           name: 'historial-crema',
           builder: (context, state) => const HistorialCremaPage(),
         ),
-
       ],
     ),
   ],

@@ -64,6 +64,11 @@ class HomePage extends ConsumerWidget {
         ),
         actions: [
           IconButton(
+            tooltip: 'Pasaporte Crema',
+            icon: const Icon(Icons.badge_outlined),
+            onPressed: () => context.push('/passport'),
+          ),
+          IconButton(
             tooltip: 'Cerrar sesión',
             icon: const Icon(Icons.logout_rounded),
             onPressed: () async {
@@ -269,7 +274,12 @@ class _HeaderContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final titleSize = isDesktop ? 34.0 : (isMobile ? 24.0 : 30.0);
 
-    return Container(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => context.push('/passport'),
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
       width: double.infinity,
       padding: EdgeInsets.all(isMobile ? 18 : 22),
       decoration: BoxDecoration(
@@ -338,6 +348,8 @@ class _HeaderContent extends StatelessWidget {
             ),
           ),
         ],
+      ),
+        ),
       ),
     );
   }
