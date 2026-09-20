@@ -1,5 +1,6 @@
 import 'package:garra_digital_app/features/auth/presentation/complete_profile_page.dart';
 import 'package:garra_digital_app/features/community/presentation/muro_crema_page.dart';
+import 'package:garra_digital_app/features/community/presentation/post_detail_screen.dart';
 import 'package:garra_digital_app/features/notifications/presentation/notifications_screen.dart';
 import 'package:garra_digital_app/features/passport/presentation/passport_screen.dart';
 import 'package:garra_digital_app/features/passport/presentation/profile_edit_screen.dart';
@@ -101,6 +102,14 @@ final GoRouter appRouter = GoRouter(
           path: '/muro-crema',
           name: 'muro-crema',
           builder: (context, state) => const MuroCremaPage(),
+        ),
+        GoRoute(
+          path: '/muro-crema/posts/:id',
+          name: 'muro-crema-post-detail',
+          builder: (context, state) {
+            final postId = state.pathParameters['id'] ?? '';
+            return PostDetailScreen(postId: postId);
+          },
         ),
         GoRoute(
           path: '/ranking',

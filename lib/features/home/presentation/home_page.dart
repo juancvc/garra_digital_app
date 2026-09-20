@@ -14,6 +14,7 @@ import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
+import '../../community/presentation/widgets/garra_reaction_bar.dart';
 import '../../matches/presentation/providers/matches_provider.dart';
 import '../../predictions/presentation/providers/prediction_provider.dart';
 import '../../ranking/presentation/providers/ranking_provider.dart';
@@ -638,6 +639,7 @@ class _CommunityPreview extends StatelessWidget {
             (post) => Padding(
               padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
               child: GarraCard(
+                onTap: () => context.push('/muro-crema/posts/${post.id}'),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -665,6 +667,13 @@ class _CommunityPreview extends StatelessWidget {
                               _relativeTime(post.createdAt),
                             ].join(' · '),
                             style: Theme.of(context).textTheme.labelSmall,
+                          ),
+                          const SizedBox(height: GarraSpacing.sm),
+                          GarraReactionBar(
+                            reactionSummary: post.reactionSummary,
+                            reactionCount: post.reactionCount,
+                            commentCount: post.commentCount,
+                            myReaction: post.myReaction,
                           ),
                         ],
                       ),

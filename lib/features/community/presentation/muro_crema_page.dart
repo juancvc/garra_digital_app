@@ -5,9 +5,13 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
 import '../data/create_wall_post_request.dart';
+import '../data/engagement_utils.dart';
+import '../data/reaction_type.dart';
 import '../data/wall_post_model.dart';
 import '../data/wall_status_model.dart';
 import 'providers/community_provider.dart';
+import 'widgets/garra_reaction_bar.dart';
+import 'widgets/garra_reaction_picker.dart';
 
 class MuroCremaPage extends ConsumerStatefulWidget {
   const MuroCremaPage({super.key});
@@ -157,6 +161,9 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
                                     onReport: () => _openReportDialog(
                                       postId: post.id,
                                       params: params,
+                                    ),
+                                    onOpenDetail: () => context.push(
+                                      '/muro-crema/posts/${post.id}',
                                     ),
                                   ),
                                 ),
@@ -691,19 +698,111 @@ class _CreatePostCard extends StatelessWidget {
   }
 }
 
-class _WallPostCard extends StatelessWidget {
+class _WallPostCard extends ConsumerStatefulWidget {
   const _WallPostCard({
     required this.post,
     required this.isMobile,
     required this.onReport,
+    required this.onOpenDetail,
   });
 
   final WallPostModel post;
   final bool isMobile;
   final VoidCallback onReport;
+  final VoidCallback onOpenDetail;
+
+  @override
+  ConsumerState<_WallPostCard> createState() => _WallPostCardState();
+}
+
+class _WallPostCardState extends ConsumerState<_WallPostCard> {
+  late WallPostModel _post;
+  bool _reacting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _post = widget.post;
+  }
+
+  @override
+  void didUpdateWidget(covariant _WallPostCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.post.id != widget.post.id ||
+        oldWidget.post.reactionCount != widget.post.reactionCount ||
+        oldWidget.post.commentCount != widget.post.commentCount ||
+        oldWidget.post.myReaction != widget.post.myReaction) {
+      _post = widget.post;
+    }
+  }
+
+  Future<void> _react() async {
+    if (_reacting) return;
+
+    final selected = await showGarraReactionPicker(
+      context,
+      currentReaction: _post.myReaction,
+    );
+    if (selected == null || !mounted) return;
+
+    final previous = _post;
+    final same = _post.myReaction != null &&
+        _post.myReaction!.toUpperCase() == selected.apiValue;
+    final optimistic = applyOptimisticReaction(
+      _post,
+      same ? null : selected.apiValue,
+    );
+
+    setState(() {
+      _post = optimistic;
+      _reacting = true;
+    });
+
+    final service = ref.read(communityServiceProvider);
+    final result = same
+        ? await service.removeReaction(_post.id)
+        : await service.upsertReaction(
+            postId: _post.id,
+            type: selected.apiValue,
+          );
+
+    if (!mounted) return;
+
+    if (!result.success) {
+      setState(() {
+        _post = previous;
+        _reacting = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No se pudo actualizar la reacción. Inténtalo de nuevo.',
+          ),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      if (result.reactionSummary != null && result.reactionCount != null) {
+        _post = applyReactionResponse(
+          post: optimistic,
+          myReaction: result.myReaction,
+          reactionSummary: result.reactionSummary!,
+          reactionCount: result.reactionCount!,
+        );
+      }
+      _reacting = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = widget.isMobile;
+    final post = _post;
+
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -711,111 +810,154 @@ class _WallPostCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: isMobile ? 17 : 20,
-                  backgroundColor: AppTheme.burgundy,
-                  child: Text(
-                    post.username.isNotEmpty
-                        ? post.username[0].toUpperCase()
-                        : 'U',
-                    style: const TextStyle(
-                      color: AppTheme.cream,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 1),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          post.fullName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+            InkWell(
+              onTap: widget.onOpenDetail,
+              borderRadius: BorderRadius.circular(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: isMobile ? 17 : 20,
+                        backgroundColor: AppTheme.burgundy,
+                        child: Text(
+                          post.username.isNotEmpty
+                              ? post.username[0].toUpperCase()
+                              : 'U',
                           style: const TextStyle(
                             color: AppTheme.cream,
                             fontWeight: FontWeight.w900,
-                            fontSize: 14,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '@${post.username}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.55),
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 1),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                post.fullName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AppTheme.cream,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '@${post.username}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.55),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
+                      ),
+                      SizedBox(
+                        width: 34,
+                        height: 34,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: widget.onReport,
+                          tooltip: 'Reportar',
+                          icon: const Icon(
+                            Icons.flag_outlined,
+                            color: AppTheme.gold,
+                            size: 19,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    post.content,
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.86),
+                      fontSize: 14,
+                      height: 1.3,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-                SizedBox(
-                  width: 34,
-                  height: 34,
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: onReport,
-                    tooltip: 'Reportar',
-                    icon: const Icon(
-                      Icons.flag_outlined,
-                      color: AppTheme.gold,
-                      size: 19,
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 7,
+                    runSpacing: 7,
+                    children: [
+                      _Badge(
+                        label: _translateLocationTag(post.locationTag),
+                        color: AppTheme.gold,
+                        icon: Icons.place_rounded,
+                        compact: true,
+                      ),
+                      _Badge(
+                        label: _translatePostStatus(post.status),
+                        color: post.status == 'ACTIVE'
+                            ? Colors.green
+                            : Colors.orange,
+                        icon: Icons.info_outline_rounded,
+                        compact: true,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _safeFormatDateTime(post.createdAt),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.48),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              post.content,
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.86),
-                fontSize: 14,
-                height: 1.3,
-                fontWeight: FontWeight.w600,
+                ],
               ),
             ),
             const SizedBox(height: 10),
-            Wrap(
-              spacing: 7,
-              runSpacing: 7,
-              children: [
-                _Badge(
-                  label: _translateLocationTag(post.locationTag),
-                  color: AppTheme.gold,
-                  icon: Icons.place_rounded,
-                  compact: true,
-                ),
-                _Badge(
-                  label: _translatePostStatus(post.status),
-                  color: post.status == 'ACTIVE' ? Colors.green : Colors.orange,
-                  icon: Icons.info_outline_rounded,
-                  compact: true,
-                ),
-              ],
+            GarraReactionBar(
+              reactionSummary: post.reactionSummary,
+              reactionCount: post.reactionCount,
+              commentCount: post.commentCount,
+              myReaction: post.myReaction,
+              onTapReactions: _reacting ? null : _react,
+              onTapComments: widget.onOpenDetail,
             ),
             const SizedBox(height: 8),
-            Text(
-              _safeFormatDateTime(post.createdAt),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.48),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                key: ValueKey('react_cta_${post.id}'),
+                onPressed: _reacting ? null : _react,
+                icon: Text(
+                  post.myReaction != null
+                      ? ReactionType.emojiFor(post.myReaction!)
+                      : '👍',
+                  style: const TextStyle(fontSize: 16),
+                ),
+                label: Text(
+                  post.myReaction != null
+                      ? ReactionType.labelFor(post.myReaction!)
+                      : 'Reaccionar',
+                  style: const TextStyle(
+                    color: AppTheme.gold,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
             ),
           ],

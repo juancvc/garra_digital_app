@@ -206,6 +206,10 @@ class HomeCommunityPost {
     required this.content,
     this.locationTag,
     required this.createdAt,
+    this.reactionSummary = const {},
+    this.reactionCount = 0,
+    this.commentCount = 0,
+    this.myReaction,
   });
 
   final String id;
@@ -214,8 +218,21 @@ class HomeCommunityPost {
   final String content;
   final String? locationTag;
   final DateTime createdAt;
+  final Map<String, int> reactionSummary;
+  final int reactionCount;
+  final int commentCount;
+  final String? myReaction;
 
   factory HomeCommunityPost.fromJson(Map<String, dynamic> json) {
+    Map<String, int> summary = const {};
+    final rawSummary = json['reactionSummary'];
+    if (rawSummary is Map) {
+      summary = {
+        for (final entry in rawSummary.entries)
+          entry.key.toString(): (entry.value as num?)?.toInt() ?? 0,
+      };
+    }
+
     return HomeCommunityPost(
       id: json['id'].toString(),
       username: json['username'] as String? ?? '',
@@ -223,6 +240,10 @@ class HomeCommunityPost {
       content: json['content'] as String? ?? '',
       locationTag: json['locationTag'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
+      reactionSummary: summary,
+      reactionCount: (json['reactionCount'] as num?)?.toInt() ?? 0,
+      commentCount: (json['commentCount'] as num?)?.toInt() ?? 0,
+      myReaction: json['myReaction']?.toString(),
     );
   }
 }

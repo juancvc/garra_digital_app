@@ -2,7 +2,9 @@ import 'package:dio/dio.dart';
 
 import '../../../core/network/dio_client.dart';
 import 'create_wall_post_request.dart';
+import 'reaction_result.dart';
 import 'report_wall_post_request.dart';
+import 'wall_comment_model.dart';
 import 'wall_post_model.dart';
 import 'wall_status_model.dart';
 
@@ -19,6 +21,14 @@ class CommunityService {
     }
 
     return message;
+  }
+
+  String _dioMessage(DioException e, String fallback) {
+    final data = e.response?.data;
+    if (data is Map<String, dynamic>) {
+      return data['message']?.toString() ?? fallback;
+    }
+    return fallback;
   }
 
   final Dio _dio;
@@ -42,8 +52,8 @@ class CommunityService {
       '/community/wall/$matchId/posts',
       queryParameters: locationTag != null && locationTag != 'ALL'
           ? {
-        'locationTag': locationTag,
-      }
+              'locationTag': locationTag,
+            }
           : null,
     );
 
@@ -52,6 +62,12 @@ class CommunityService {
     return data
         .map((e) => WallPostModel.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<WallPostModel> getPost(String postId) async {
+    final response = await _dio.get('/community/posts/$postId');
+    final data = response.data['data'] ?? response.data;
+    return WallPostModel.fromJson(Map<String, dynamic>.from(data as Map));
   }
 
   Future<WallActionResult> createPost(CreateWallPostRequest request) async {
@@ -70,12 +86,10 @@ class CommunityService {
             : null,
       );
     } on DioException catch (e) {
-      final message = e.response?.data is Map<String, dynamic>
-          ? e.response?.data['message']?.toString()
-          : null;
-
       return WallActionResult.failure(
-        _normalizeWallError(message ?? 'No se pudo publicar en el muro'),
+        _normalizeWallError(
+          _dioMessage(e, 'No se pudo publicar en el muro'),
+        ),
       );
     } catch (_) {
       return WallActionResult.failure('Ocurrió un error inesperado');
@@ -110,15 +124,151 @@ class CommunityService {
             : null,
       );
     } on DioException catch (e) {
-      final message = e.response?.data is Map<String, dynamic>
-          ? e.response?.data['message']?.toString()
-          : null;
-
       return WallActionResult.failure(
-        message ?? 'No se pudo reportar la publicación',
+        _dioMessage(e, 'No se pudo reportar la publicación'),
       );
     } catch (_) {
       return WallActionResult.failure('Ocurrió un error inesperado');
+    }
+  }
+
+  Future<ReactionResult> upsertReaction({
+    required String postId,
+    required String type,
+  }) async {
+    try {
+      final response = await _dio.put(
+        '/community/posts/$postId/reaction',
+        data: {'type': type.toUpperCase()},
+      );
+
+      final payload = response.data['data'] ?? response.data;
+      if (payload is Map<String, dynamic>) {
+        return ReactionResult.fromPayload(
+          payload,
+          message:
+              response.data['message']?.toString() ?? 'Reacción actualizada',
+        );
+      }
+
+      return ReactionResult.success(message: 'Reacción actualizada');
+    } on DioException catch (e) {
+      return ReactionResult.failure(
+        _dioMessage(e, 'No se pudo registrar la reacción'),
+      );
+    } catch (_) {
+      return ReactionResult.failure('Ocurrió un error inesperado');
+    }
+  }
+
+  Future<ReactionResult> removeReaction(String postId) async {
+    try {
+      final response = await _dio.delete('/community/posts/$postId/reaction');
+      final payload = response.data['data'] ?? response.data;
+
+      if (payload is Map<String, dynamic>) {
+        return ReactionResult.fromPayload(
+          payload,
+          message:
+              response.data['message']?.toString() ?? 'Reacción eliminada',
+        );
+      }
+
+      return ReactionResult.success(
+        message: 'Reacción eliminada',
+        myReaction: null,
+        reactionSummary: null,
+        reactionCount: 0,
+      );
+    } on DioException catch (e) {
+      return ReactionResult.failure(
+        _dioMessage(e, 'No se pudo quitar la reacción'),
+      );
+    } catch (_) {
+      return ReactionResult.failure('Ocurrió un error inesperado');
+    }
+  }
+
+  Future<CommentsPageResult> listComments({
+    required String postId,
+    String? cursor,
+    int size = 20,
+  }) async {
+    final response = await _dio.get(
+      '/community/posts/$postId/comments',
+      queryParameters: {
+        'size': size,
+        if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+      },
+    );
+
+    final payload = response.data['data'] ?? response.data;
+    return CommentsPageResult.fromJson(
+      Map<String, dynamic>.from(payload as Map),
+    );
+  }
+
+  Future<CommentActionResult> createComment({
+    required String postId,
+    required String content,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/community/posts/$postId/comments',
+        data: {'content': content},
+      );
+
+      final data = response.data['data'];
+      return CommentActionResult.success(
+        message: response.data['message']?.toString() ?? 'Comentario publicado',
+        comment: data is Map
+            ? WallCommentModel.fromJson(Map<String, dynamic>.from(data))
+            : null,
+      );
+    } on DioException catch (e) {
+      return CommentActionResult.failure(
+        _dioMessage(e, 'No se pudo publicar el comentario'),
+      );
+    } catch (_) {
+      return CommentActionResult.failure('Ocurrió un error inesperado');
+    }
+  }
+
+  Future<CommentActionResult> deleteComment(String commentId) async {
+    try {
+      final response =
+          await _dio.delete('/community/comments/$commentId');
+      return CommentActionResult.success(
+        message:
+            response.data['message']?.toString() ?? 'Comentario eliminado',
+      );
+    } on DioException catch (e) {
+      return CommentActionResult.failure(
+        _dioMessage(e, 'No se pudo eliminar el comentario'),
+      );
+    } catch (_) {
+      return CommentActionResult.failure('Ocurrió un error inesperado');
+    }
+  }
+
+  Future<CommentActionResult> reportComment({
+    required String commentId,
+    required String reason,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/community/comments/$commentId/report',
+        data: {'reason': reason},
+      );
+      return CommentActionResult.success(
+        message: response.data['message']?.toString() ?? 'Reporte enviado',
+      );
+    } on DioException catch (e) {
+      return CommentActionResult.failure(
+        _dioMessage(e, 'No se pudo reportar el comentario'),
+      );
+    } catch (_) {
+      return CommentActionResult.failure('Ocurrió un error inesperado');
     }
   }
 }
@@ -147,6 +297,36 @@ class WallActionResult {
 
   factory WallActionResult.failure(String message) {
     return WallActionResult(
+      success: false,
+      message: message,
+    );
+  }
+}
+
+class CommentActionResult {
+  const CommentActionResult({
+    required this.success,
+    required this.message,
+    this.comment,
+  });
+
+  final bool success;
+  final String message;
+  final WallCommentModel? comment;
+
+  factory CommentActionResult.success({
+    required String message,
+    WallCommentModel? comment,
+  }) {
+    return CommentActionResult(
+      success: true,
+      message: message,
+      comment: comment,
+    );
+  }
+
+  factory CommentActionResult.failure(String message) {
+    return CommentActionResult(
       success: false,
       message: message,
     );
