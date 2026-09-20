@@ -57,6 +57,10 @@ class MarketplaceListing {
     this.isFavorite = false,
     this.store,
     this.createdAt,
+    this.imageUrl,
+    this.images = const [],
+    this.featured = false,
+    this.promotionId,
   });
 
   final String id;
@@ -73,10 +77,23 @@ class MarketplaceListing {
   final bool isFavorite;
   final MarketplaceStoreSummary? store;
   final DateTime? createdAt;
+  final String? imageUrl;
+  final List<MarketplaceListingImage> images;
+  final bool featured;
+  final String? promotionId;
 
-  bool get isPublished => status.toUpperCase() == 'PUBLISHED';
+  bool get isPublished =>
+      status.toUpperCase() == 'PUBLISHED' || status.toUpperCase() == 'ACTIVE';
   bool get isDraft => status.toUpperCase() == 'DRAFT';
-  bool get isPending => status.toUpperCase() == 'PENDING';
+  bool get isPending =>
+      status.toUpperCase() == 'PENDING' ||
+      status.toUpperCase() == 'PENDING_REVIEW';
+
+  String? get coverImageUrl {
+    if (imageUrl != null && imageUrl!.isNotEmpty) return imageUrl;
+    if (images.isNotEmpty) return images.first.imageUrl;
+    return null;
+  }
 
   String get priceLabel {
     if (priceOnRequest || price == null) return 'Consultar';
@@ -101,6 +118,10 @@ class MarketplaceListing {
     bool? isFavorite,
     MarketplaceStoreSummary? store,
     DateTime? createdAt,
+    String? imageUrl,
+    List<MarketplaceListingImage>? images,
+    bool? featured,
+    String? promotionId,
   }) {
     return MarketplaceListing(
       id: id ?? this.id,
@@ -117,6 +138,10 @@ class MarketplaceListing {
       isFavorite: isFavorite ?? this.isFavorite,
       store: store ?? this.store,
       createdAt: createdAt ?? this.createdAt,
+      imageUrl: imageUrl ?? this.imageUrl,
+      images: images ?? this.images,
+      featured: featured ?? this.featured,
+      promotionId: promotionId ?? this.promotionId,
     );
   }
 
@@ -125,6 +150,12 @@ class MarketplaceListing {
     if (json['store'] is Map) {
       store = MarketplaceStoreSummary.fromJson(
         Map<String, dynamic>.from(json['store'] as Map),
+      );
+    } else if (json['storeSlug'] != null || json['storeName'] != null) {
+      store = MarketplaceStoreSummary(
+        slug: json['storeSlug']?.toString() ?? '',
+        name: json['storeName'] as String? ?? '',
+        city: json['city'] as String?,
       );
     }
 
@@ -139,16 +170,33 @@ class MarketplaceListing {
       categorySlug = json['categorySlug']?.toString();
     }
 
+    final imagesRaw = json['images'];
+    final images = <MarketplaceListingImage>[];
+    if (imagesRaw is List) {
+      for (final e in imagesRaw) {
+        if (e is Map) {
+          images.add(
+            MarketplaceListingImage.fromJson(Map<String, dynamic>.from(e)),
+          );
+        }
+      }
+    }
+
+    final price = (json['price'] as num?)?.toDouble() ??
+        (json['priceAmount'] as num?)?.toDouble();
+
     return MarketplaceListing(
       id: json['id']?.toString() ?? '',
       slug: json['slug']?.toString() ?? '',
       title: json['title'] as String? ?? '',
       description: json['description'] as String?,
-      price: (json['price'] as num?)?.toDouble(),
+      price: price,
       priceOnRequest: json['priceOnRequest'] as bool? ??
           json['consultar'] as bool? ??
-          (json['price'] == null),
-      currency: json['currency'] as String? ?? 'PEN',
+          (price == null),
+      currency: json['currency'] as String? ??
+          json['currencyCode'] as String? ??
+          'PEN',
       category: categoryName,
       categorySlug: categorySlug,
       type: json['type']?.toString() ?? 'PRODUCT',
@@ -158,6 +206,10 @@ class MarketplaceListing {
           false,
       store: store,
       createdAt: _parseDateTime(json['createdAt']),
+      imageUrl: json['imageUrl'] as String?,
+      images: images,
+      featured: json['featured'] as bool? ?? false,
+      promotionId: json['promotionId']?.toString(),
     );
   }
 
@@ -170,6 +222,114 @@ class MarketplaceListing {
   }
 }
 
+class MarketplaceListingImage {
+  const MarketplaceListingImage({
+    required this.id,
+    this.imageUrl,
+    this.mediaAssetId,
+    this.sortOrder = 0,
+    this.altText,
+  });
+
+  final String id;
+  final String? imageUrl;
+  final String? mediaAssetId;
+  final int sortOrder;
+  final String? altText;
+
+  factory MarketplaceListingImage.fromJson(Map<String, dynamic> json) {
+    return MarketplaceListingImage(
+      id: json['id']?.toString() ?? '',
+      imageUrl: json['imageUrl'] as String?,
+      mediaAssetId: json['mediaAssetId']?.toString(),
+      sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
+      altText: json['altText'] as String?,
+    );
+  }
+}
+
+class FeaturedDiscovery {
+  const FeaturedDiscovery({
+    this.featuredListings = const [],
+    this.featuredStores = const [],
+    this.heroListings = const [],
+    this.heroStores = const [],
+  });
+
+  final List<MarketplaceListing> featuredListings;
+  final List<FeaturedStoreCard> featuredStores;
+  final List<MarketplaceListing> heroListings;
+  final List<FeaturedStoreCard> heroStores;
+
+  bool get hasHero => heroListings.isNotEmpty || heroStores.isNotEmpty;
+  bool get hasFeatured =>
+      featuredListings.isNotEmpty || featuredStores.isNotEmpty;
+
+  factory FeaturedDiscovery.fromJson(Map<String, dynamic> json) {
+    List<MarketplaceListing> parseFeaturedListings(dynamic raw) {
+      if (raw is! List) return const [];
+      return raw.map((e) {
+        final map = Map<String, dynamic>.from(e as Map);
+        final listingJson = map['listing'] is Map
+            ? Map<String, dynamic>.from(map['listing'] as Map)
+            : map;
+        final listing = MarketplaceListing.fromJson(listingJson);
+        return listing.copyWith(
+          featured: true,
+          promotionId: map['promotionId']?.toString() ?? listing.promotionId,
+        );
+      }).toList();
+    }
+
+    List<FeaturedStoreCard> parseStores(dynamic raw) {
+      if (raw is! List) return const [];
+      return raw
+          .map(
+            (e) => FeaturedStoreCard.fromJson(
+              Map<String, dynamic>.from(e as Map),
+            ),
+          )
+          .toList();
+    }
+
+    return FeaturedDiscovery(
+      featuredListings: parseFeaturedListings(json['featuredListings']),
+      featuredStores: parseStores(json['featuredStores']),
+      heroListings: parseFeaturedListings(json['heroListings']),
+      heroStores: parseStores(json['heroStores']),
+    );
+  }
+}
+
+class FeaturedStoreCard {
+  const FeaturedStoreCard({
+    required this.promotionId,
+    required this.storeSlug,
+    required this.storeName,
+    this.city,
+    this.logoUrl,
+    this.bannerUrl,
+  });
+
+  final String promotionId;
+  final String storeSlug;
+  final String storeName;
+  final String? city;
+  final String? logoUrl;
+  final String? bannerUrl;
+
+  factory FeaturedStoreCard.fromJson(Map<String, dynamic> json) {
+    return FeaturedStoreCard(
+      promotionId: json['promotionId']?.toString() ?? '',
+      storeSlug: json['storeSlug']?.toString() ?? '',
+      storeName: json['storeName'] as String? ?? '',
+      city: json['city'] as String?,
+      logoUrl: json['logoUrl'] as String?,
+      bannerUrl: json['bannerUrl'] as String?,
+    );
+  }
+}
+
 class MarketplaceStore {
   const MarketplaceStore({
     required this.slug,
@@ -179,6 +339,8 @@ class MarketplaceStore {
     this.whatsapp,
     this.listings = const [],
     this.status = 'ACTIVE',
+    this.logoUrl,
+    this.bannerUrl,
   });
 
   final String slug;
@@ -188,6 +350,8 @@ class MarketplaceStore {
   final String? whatsapp;
   final List<MarketplaceListing> listings;
   final String status;
+  final String? logoUrl;
+  final String? bannerUrl;
 
   factory MarketplaceStore.fromJson(Map<String, dynamic> json) {
     final rawListings = json['listings'];
@@ -210,6 +374,8 @@ class MarketplaceStore {
       whatsapp: json['whatsapp'] as String?,
       listings: listings,
       status: json['status']?.toString() ?? 'ACTIVE',
+      logoUrl: json['logoUrl'] as String?,
+      bannerUrl: json['bannerUrl'] as String?,
     );
   }
 }

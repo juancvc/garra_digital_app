@@ -256,7 +256,8 @@ final GoRouter appRouter = GoRouter(
           name: 'marketplace-listing',
           builder: (context, state) {
             final slug = state.pathParameters['slug'] ?? '';
-            return ListingDetailPage(slug: slug);
+            final promotionId = state.uri.queryParameters['promotionId'];
+            return ListingDetailPage(slug: slug, promotionId: promotionId);
           },
         ),
         GoRoute(

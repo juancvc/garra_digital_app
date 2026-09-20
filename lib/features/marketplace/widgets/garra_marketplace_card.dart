@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/design/garra_colors.dart';
@@ -14,38 +15,56 @@ class GarraMarketplaceCard extends StatelessWidget {
     this.onTap,
     this.onFavoriteTap,
     this.showFavorite = true,
+    this.onVisible,
   });
 
   final MarketplaceListing listing;
   final VoidCallback? onTap;
   final VoidCallback? onFavoriteTap;
   final bool showFavorite;
+  /// Fired once when featured card is built (caller dedupes).
+  final VoidCallback? onVisible;
 
   @override
   Widget build(BuildContext context) {
+    if (listing.featured) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        onVisible?.call();
+      });
+    }
+
+    final cover = listing.coverImageUrl;
+
     return GarraCard(
       onTap: onTap,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: const Color(GarraColors.garnet).withValues(alpha: 0.22),
-              borderRadius: BorderRadius.circular(GarraRadius.sm),
-              border: Border.all(color: const Color(GarraColors.borderSubtle)),
-            ),
-            child: const Icon(
-              Icons.storefront_outlined,
-              color: Color(GarraColors.gold),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(GarraRadius.sm),
+            child: SizedBox(
+              width: 72,
+              height: 72,
+              child: cover != null && cover.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: cover,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => const _FallbackThumb(),
+                      errorWidget: (_, __, ___) => const _FallbackThumb(),
+                    )
+                  : const _FallbackThumb(),
             ),
           ),
           const SizedBox(width: GarraSpacing.md),
           Expanded(
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (listing.featured) ...[
+                  const _DestacadoBadge(),
+                  const SizedBox(height: GarraSpacing.xs),
+                ],
                 Text(
                   listing.title,
                   style: Theme.of(context).textTheme.titleMedium,
@@ -99,6 +118,47 @@ class GarraMarketplaceCard extends StatelessWidget {
           ] else if (onTap != null)
             const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
         ],
+      ),
+    );
+  }
+}
+
+class _FallbackThumb extends StatelessWidget {
+  const _FallbackThumb();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(GarraColors.garnet).withValues(alpha: 0.22),
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.storefront_outlined,
+        color: Color(GarraColors.gold),
+      ),
+    );
+  }
+}
+
+class _DestacadoBadge extends StatelessWidget {
+  const _DestacadoBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: const Color(GarraColors.gold).withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(GarraRadius.pill),
+        border: Border.all(
+          color: const Color(GarraColors.gold).withValues(alpha: 0.45),
+        ),
+      ),
+      child: Text(
+        'Destacado',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: const Color(GarraColors.gold),
+              fontWeight: FontWeight.w700,
+            ),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,9 +15,10 @@ import '../data/marketplace_url_launcher.dart';
 import 'providers/marketplace_provider.dart';
 
 class ListingDetailPage extends ConsumerStatefulWidget {
-  const ListingDetailPage({super.key, required this.slug});
+  const ListingDetailPage({super.key, required this.slug, this.promotionId});
 
   final String slug;
+  final String? promotionId;
 
   @override
   ConsumerState<ListingDetailPage> createState() => _ListingDetailPageState();
@@ -26,6 +28,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
   MarketplaceListing? _localListing;
   bool _contacting = false;
   bool _favoriting = false;
+  int _galleryIndex = 0;
 
   Future<void> _toggleFavorite(MarketplaceListing listing) async {
     if (_favoriting) return;
@@ -65,9 +68,10 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
     if (_contacting) return;
     setState(() => _contacting = true);
     try {
-      final result = await ref
-          .read(marketplaceServiceProvider)
-          .contactListing(listing.slug);
+      final result = await ref.read(marketplaceServiceProvider).contactListing(
+            listing.slug,
+            promotionId: widget.promotionId ?? listing.promotionId,
+          );
       final uri = Uri.tryParse(result.whatsappUri);
       if (uri == null) {
         throw MarketplaceServiceException(
@@ -226,21 +230,10 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
               GarraSpacing.section,
             ),
             children: [
-              Container(
-                height: 160,
-                decoration: BoxDecoration(
-                  color: const Color(GarraColors.garnet).withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(GarraRadius.xl),
-                  border: Border.all(
-                    color: const Color(GarraColors.borderSubtle),
-                  ),
-                ),
-                child: const Center(
-                  child: Text(
-                    'Fotos disponibles próximamente',
-                    style: TextStyle(color: Color(GarraColors.textSecondary)),
-                  ),
-                ),
+              _ListingGallery(
+                listing: current,
+                index: _galleryIndex,
+                onPageChanged: (i) => setState(() => _galleryIndex = i),
               ),
               const SizedBox(height: GarraSpacing.xl),
               Text(
@@ -321,3 +314,88 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
     );
   }
 }
+
+class _ListingGallery extends StatelessWidget {
+  const _ListingGallery({
+    required this.listing,
+    required this.index,
+    required this.onPageChanged,
+  });
+
+  final MarketplaceListing listing;
+  final int index;
+  final ValueChanged<int> onPageChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final urls = <String>[];
+    if (listing.images.isNotEmpty) {
+      for (final img in listing.images) {
+        if (img.imageUrl != null && img.imageUrl!.isNotEmpty) {
+          urls.add(img.imageUrl!);
+        }
+      }
+    } else if (listing.coverImageUrl != null) {
+      urls.add(listing.coverImageUrl!);
+    }
+
+    if (urls.isEmpty) {
+      return Container(
+        height: 180,
+        decoration: BoxDecoration(
+          color: const Color(GarraColors.garnet).withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(GarraRadius.xl),
+          border: Border.all(color: const Color(GarraColors.borderSubtle)),
+        ),
+        child: const Center(
+          child: Icon(Icons.storefront_outlined, color: Color(GarraColors.gold), size: 40),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        SizedBox(
+          height: 220,
+          child: PageView.builder(
+            itemCount: urls.length,
+            onPageChanged: onPageChanged,
+            itemBuilder: (context, i) {
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(GarraRadius.xl),
+                child: CachedNetworkImage(
+                  imageUrl: urls[i],
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  placeholder: (_, __) => Container(
+                    color: const Color(GarraColors.surface),
+                    alignment: Alignment.center,
+                    child: const CircularProgressIndicator(
+                      color: Color(GarraColors.gold),
+                    ),
+                  ),
+                  errorWidget: (_, __, ___) => Container(
+                    color: const Color(GarraColors.garnet).withValues(alpha: 0.2),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.storefront_outlined,
+                      color: Color(GarraColors.gold),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        if (urls.length > 1) ...[
+          const SizedBox(height: GarraSpacing.sm),
+          Text(
+            '${index + 1} / ${urls.length}',
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+        ],
+      ],
+    );
+  }
+}
+

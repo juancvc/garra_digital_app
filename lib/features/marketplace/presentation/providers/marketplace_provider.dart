@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/marketplace_models.dart';
+import '../../data/marketplace_media_service.dart';
 import '../../data/marketplace_service.dart';
 
 final marketplaceServiceProvider = Provider<MarketplaceService>((ref) {
@@ -63,6 +64,15 @@ final marketplaceStoreProvider =
 final marketplaceFavoritesProvider =
     FutureProvider.autoDispose<List<MarketplaceListing>>((ref) {
   return ref.watch(marketplaceServiceProvider).getFavorites();
+});
+
+final marketplaceFeaturedProvider =
+    FutureProvider.autoDispose<FeaturedDiscovery>((ref) {
+  return ref.watch(marketplaceServiceProvider).getFeatured();
+});
+
+final marketplaceMediaServiceProvider = Provider<MarketplaceMediaService>((ref) {
+  return MarketplaceMediaService();
 });
 
 final sellerMeProvider =

@@ -1,8 +1,10 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
+import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
@@ -37,17 +39,76 @@ class StorePage extends ConsumerWidget {
               GarraSpacing.section,
             ),
             children: [
-              Text(
-                store.name,
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              if (store.city != null && store.city!.isNotEmpty) ...[
-                const SizedBox(height: GarraSpacing.xs),
-                Text(
-                  store.city!,
-                  style: Theme.of(context).textTheme.bodySmall,
+              if (store.bannerUrl != null && store.bannerUrl!.isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(GarraRadius.xl),
+                  child: SizedBox(
+                    height: 140,
+                    width: double.infinity,
+                    child: CachedNetworkImage(
+                      imageUrl: store.bannerUrl!,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => Container(
+                        color: const Color(GarraColors.garnet)
+                            .withValues(alpha: 0.2),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: const Color(GarraColors.garnet).withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(GarraRadius.xl),
+                  ),
                 ),
-              ],
+              const SizedBox(height: GarraSpacing.md),
+              Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(GarraRadius.md),
+                    child: SizedBox(
+                      width: 56,
+                      height: 56,
+                      child: store.logoUrl != null && store.logoUrl!.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: store.logoUrl!,
+                              fit: BoxFit.cover,
+                              errorWidget: (_, __, ___) => const ColoredBox(
+                                color: Color(GarraColors.surface),
+                                child: Icon(Icons.storefront_outlined,
+                                    color: Color(GarraColors.gold)),
+                              ),
+                            )
+                          : const ColoredBox(
+                              color: Color(GarraColors.surface),
+                              child: Icon(Icons.storefront_outlined,
+                                  color: Color(GarraColors.gold)),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: GarraSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          store.name,
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                        if (store.city != null && store.city!.isNotEmpty) ...[
+                          const SizedBox(height: GarraSpacing.xs),
+                          Text(
+                            store.city!,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
               if (store.description != null &&
                   store.description!.trim().isNotEmpty) ...[
                 const SizedBox(height: GarraSpacing.lg),

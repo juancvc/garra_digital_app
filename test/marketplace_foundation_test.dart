@@ -223,7 +223,19 @@ class FakeMarketplaceService extends MarketplaceService {
   Future<List<MarketplaceListing>> getFavorites() async => favorites;
 
   @override
-  Future<MarketplaceContactResult> contactListing(String slug) async {
+  Future<FeaturedDiscovery> getFeatured() async => const FeaturedDiscovery();
+
+  @override
+  Future<void> trackPromotionImpression(String promotionId) async {}
+
+  @override
+  Future<void> trackPromotionOpen(String promotionId) async {}
+
+  @override
+  Future<MarketplaceContactResult> contactListing(
+    String slug, {
+    String? promotionId,
+  }) async {
     contactCalls++;
     lastContactSlug = slug;
     return MarketplaceContactResult(whatsappUri: contactUri);
@@ -408,7 +420,7 @@ void main() {
     expect(find.text('Bandera Crema'), findsWidgets);
     expect(find.text('S/ 45'), findsOneWidget);
     expect(find.text('Contactar por WhatsApp'), findsOneWidget);
-    expect(find.text('Fotos disponibles próximamente'), findsOneWidget);
+    expect(find.byIcon(Icons.storefront_outlined), findsWidgets);
     expect(find.textContaining('Sin compra'), findsOneWidget);
     expect(find.text('Comprar'), findsNothing);
   });

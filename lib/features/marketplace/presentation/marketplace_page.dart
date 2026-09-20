@@ -26,6 +26,7 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
   Timer? _debounce;
   String _search = '';
   String? _categorySlug;
+  final Set<String> _impressedPromotions = {};
 
   @override
   void dispose() {
@@ -50,10 +51,34 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
   Future<void> _refresh() async {
     ref.invalidate(marketplaceCategoriesProvider);
     ref.invalidate(marketplaceListingsProvider(_query));
+    ref.invalidate(marketplaceFeaturedProvider);
     await Future.wait([
       ref.read(marketplaceCategoriesProvider.future),
       ref.read(marketplaceListingsProvider(_query).future),
+      ref.read(marketplaceFeaturedProvider.future),
     ]);
+  }
+
+  void _trackImpression(String? promotionId) {
+    if (promotionId == null || promotionId.isEmpty) return;
+    if (_impressedPromotions.contains(promotionId)) return;
+    _impressedPromotions.add(promotionId);
+    ref.read(marketplaceServiceProvider).trackPromotionImpression(promotionId);
+  }
+
+  Future<void> _openFeaturedListing(MarketplaceListing listing) async {
+    final promoId = listing.promotionId;
+    if (promoId != null && promoId.isNotEmpty) {
+      // Fire-and-forget; never block navigation.
+      unawaited(
+        ref.read(marketplaceServiceProvider).trackPromotionOpen(promoId),
+      );
+    }
+    if (!mounted) return;
+    final path = promoId == null || promoId.isEmpty
+        ? '/marketplace/listings/${listing.slug}'
+        : '/marketplace/listings/${listing.slug}?promotionId=$promoId';
+    context.push(path);
   }
 
   Future<void> _toggleFavorite(MarketplaceListing listing) async {
@@ -67,6 +92,7 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
       }
       ref.invalidate(marketplaceListingsProvider(_query));
       ref.invalidate(marketplaceFavoritesProvider);
+      ref.invalidate(marketplaceFeaturedProvider);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -81,6 +107,7 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(marketplaceCategoriesProvider);
     final listingsAsync = ref.watch(marketplaceListingsProvider(_query));
+    final featuredAsync = ref.watch(marketplaceFeaturedProvider);
 
     final isLoading = categoriesAsync.isLoading || listingsAsync.isLoading;
     final hasError = categoriesAsync.hasError && listingsAsync.hasError;
@@ -140,6 +167,53 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
                             });
                           },
                         ),
+                      ),
+                      featuredAsync.when(
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, _) => const SizedBox.shrink(),
+                        data: (featured) {
+                          if (!featured.hasHero && !featured.hasFeatured) {
+                            return const SizedBox.shrink();
+                          }
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (featured.hasHero) ...[
+                                const SizedBox(height: GarraSpacing.xl),
+                                const GarraSectionHeader(title: 'Destacados'),
+                                const SizedBox(height: GarraSpacing.md),
+                                for (final listing in featured.heroListings) ...[
+                                  GarraMarketplaceCard(
+                                    listing: listing,
+                                    showFavorite: false,
+                                    onVisible: () =>
+                                        _trackImpression(listing.promotionId),
+                                    onTap: () => _openFeaturedListing(listing),
+                                  ),
+                                  const SizedBox(height: GarraSpacing.md),
+                                ],
+                              ],
+                              if (featured.hasFeatured) ...[
+                                const SizedBox(height: GarraSpacing.xl),
+                                const GarraSectionHeader(title: 'Destacados'),
+                                const SizedBox(height: GarraSpacing.md),
+                                for (final listing
+                                    in featured.featuredListings) ...[
+                                  GarraMarketplaceCard(
+                                    listing: listing,
+                                    onVisible: () =>
+                                        _trackImpression(listing.promotionId),
+                                    onTap: () =>
+                                        _openFeaturedListing(listing),
+                                    onFavoriteTap: () =>
+                                        _toggleFavorite(listing),
+                                  ),
+                                  const SizedBox(height: GarraSpacing.md),
+                                ],
+                              ],
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: GarraSpacing.lg),
                       GarraCard(

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../../core/network/dio_client.dart';
 import 'marketplace_models.dart';
+import 'marketplace_media_service.dart';
 
 class MarketplaceService {
   MarketplaceService({Dio? dio}) : _dio = dio ?? DioClient.instance;
@@ -101,9 +102,18 @@ class MarketplaceService {
     return const [];
   }
 
-  Future<MarketplaceContactResult> contactListing(String slug) async {
+  Future<MarketplaceContactResult> contactListing(
+    String slug, {
+    String? promotionId,
+  }) async {
     try {
-      final response = await _dio.post('/marketplace/listings/$slug/contact');
+      final response = await _dio.post(
+        '/marketplace/listings/$slug/contact',
+        queryParameters: {
+          if (promotionId != null && promotionId.isNotEmpty)
+            'promotionId': promotionId,
+        },
+      );
       final data = response.data['data'];
       if (data is Map) {
         return MarketplaceContactResult.fromJson(
@@ -115,6 +125,41 @@ class MarketplaceService {
       );
     } on DioException catch (e) {
       throw MarketplaceServiceException(_friendlyContactError(e));
+    }
+  }
+
+  Future<FeaturedDiscovery> getFeatured() async {
+    final response = await _dio.get('/marketplace/featured');
+    final data = response.data['data'];
+    if (data is Map) {
+      return FeaturedDiscovery.fromJson(Map<String, dynamic>.from(data));
+    }
+    return const FeaturedDiscovery();
+  }
+
+  Future<void> trackPromotionImpression(String promotionId) async {
+    try {
+      await _dio.post(
+        '/marketplace/promotions/$promotionId/impression',
+        data: {
+          'sessionId': MarketplaceMediaService.analyticsSessionId(),
+        },
+      );
+    } catch (_) {
+      // Analytics must never block UX.
+    }
+  }
+
+  Future<void> trackPromotionOpen(String promotionId) async {
+    try {
+      await _dio.post(
+        '/marketplace/promotions/$promotionId/open',
+        data: {
+          'sessionId': MarketplaceMediaService.analyticsSessionId(),
+        },
+      );
+    } catch (_) {
+      // Analytics must never block navigation.
     }
   }
 
