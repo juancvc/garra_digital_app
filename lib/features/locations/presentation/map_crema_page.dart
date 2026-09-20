@@ -7,12 +7,16 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/location/location_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../data/checkin_model.dart';
 import '../data/crema_point_model.dart';
 import '../data/create_checkin_request.dart';
 import 'providers/location_provider.dart';
+import 'widgets/garra_checkin_success.dart';
 
 class MapCremaPage extends ConsumerStatefulWidget {
-  const MapCremaPage({super.key});
+  const MapCremaPage({super.key, this.matchId});
+
+  final String? matchId;
 
   @override
   ConsumerState<MapCremaPage> createState() => _MapCremaPageState();
@@ -150,15 +154,21 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
           cremaPointId: point.id,
           latitude: gpsResult.latitude!,
           longitude: gpsResult.longitude!,
+          matchId: widget.matchId,
+          accuracyMeters: gpsResult.accuracyMeters,
         ),
       );
 
       if (!mounted) return;
 
-      _showSnackBar(
-        message: _normalizeCheckInMessage(result.message),
-        backgroundColor: result.success ? Colors.green : Colors.orange,
-      );
+      if (result.success && result.checkIn != null) {
+        await _showCheckInSuccess(result.checkIn!);
+      } else {
+        _showSnackBar(
+          message: _normalizeCheckInMessage(result.message),
+          backgroundColor: Colors.orange,
+        );
+      }
 
       ref.invalidate(myCheckInsProvider);
       ref.invalidate(cremaPointsProvider);
@@ -242,6 +252,21 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
     }
 
     return message;
+  }
+
+  Future<void> _showCheckInSuccess(CheckInModel checkIn) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1A1A1A),
+          content: GarraCheckInSuccess(
+            checkIn: checkIn,
+            onDismiss: () => Navigator.of(ctx).pop(),
+          ),
+        );
+      },
+    );
   }
 
   void _showSnackBar({
@@ -336,6 +361,8 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
                       key: ValueKey(_selectedPoint!.id),
                       point: _selectedPoint!,
                       distanceMeters: _distanceToPoint(_selectedPoint!),
+                      matchContext: widget.matchId != null &&
+                          widget.matchId!.isNotEmpty,
                       checkingIn: _checkingIn,
                       onClose: () {
                         setState(() => _selectedPoint = null);
@@ -358,6 +385,7 @@ class _SelectedPointCard extends StatelessWidget {
   const _SelectedPointCard({
     required this.point,
     required this.distanceMeters,
+    required this.matchContext,
     required this.checkingIn,
     required this.onClose,
     required this.onDirections,
@@ -367,6 +395,7 @@ class _SelectedPointCard extends StatelessWidget {
 
   final CremaPointModel point;
   final double? distanceMeters;
+  final bool matchContext;
   final bool checkingIn;
   final VoidCallback onClose;
   final VoidCallback onDirections;
@@ -374,7 +403,8 @@ class _SelectedPointCard extends StatelessWidget {
 
   bool get _isInRange {
     final distance = distanceMeters;
-    return distance != null && distance <= 100;
+    final radius = point.checkinRadiusMeters;
+    return distance != null && distance <= radius;
   }
 
   @override
@@ -382,7 +412,7 @@ class _SelectedPointCard extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: Container(
-        constraints: const BoxConstraints(maxHeight: 292),
+        constraints: const BoxConstraints(maxHeight: 320),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: const Color(0xFF1A1A1A),
@@ -475,6 +505,18 @@ class _SelectedPointCard extends StatelessWidget {
                 icon: Icons.social_distance_rounded,
                 text: _formatDistance(distanceMeters),
               ),
+              const SizedBox(height: 8),
+              _InfoLine(
+                icon: Icons.radar_rounded,
+                text: 'Radio de check-in: ${point.checkinRadiusMeters} m',
+              ),
+              if (matchContext) ...[
+                const SizedBox(height: 8),
+                const _InfoLine(
+                  icon: Icons.sports_soccer_rounded,
+                  text: 'Check-in de fecha activa',
+                ),
+              ],
               const SizedBox(height: 11),
               Wrap(
                 spacing: 8,

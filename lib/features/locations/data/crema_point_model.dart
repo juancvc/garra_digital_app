@@ -12,6 +12,7 @@ class CremaPointModel {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
+    this.checkinRadiusMeters = 500,
   });
 
   final String id;
@@ -26,6 +27,7 @@ class CremaPointModel {
   final String status;
   final String createdAt;
   final String updatedAt;
+  final int checkinRadiusMeters;
 
   factory CremaPointModel.fromJson(Map<String, dynamic> json) {
     return CremaPointModel(
@@ -41,6 +43,8 @@ class CremaPointModel {
       status: json['status']?.toString() ?? '',
       createdAt: json['createdAt']?.toString() ?? '',
       updatedAt: json['updatedAt']?.toString() ?? '',
+      checkinRadiusMeters:
+          (json['checkinRadiusMeters'] as num?)?.toInt() ?? 500,
     );
   }
 }

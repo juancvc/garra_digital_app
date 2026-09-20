@@ -197,6 +197,30 @@ class _PassportBody extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: GarraSpacing.lg),
+              Row(
+                children: [
+                  Expanded(
+                    child: GarraStat(
+                      label: 'Racha Garra',
+                      value: numberFormat.format(stats.streakCurrent),
+                    ),
+                  ),
+                  Expanded(
+                    child: GarraStat(
+                      label: 'Mejor racha',
+                      value: numberFormat.format(stats.streakBest),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: GarraSpacing.sm),
+              Text(
+                'Participación en fechas',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: const Color(GarraColors.textSecondary),
+                    ),
+              ),
             ],
           ),
         ),

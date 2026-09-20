@@ -6,12 +6,14 @@ class LocationResult {
     required this.message,
     this.latitude,
     this.longitude,
+    this.accuracyMeters,
   });
 
   final bool success;
   final String message;
   final double? latitude;
   final double? longitude;
+  final double? accuracyMeters;
 }
 
 class AppLocationService {
@@ -56,6 +58,7 @@ class AppLocationService {
         message: 'Ubicación obtenida correctamente.',
         latitude: position.latitude,
         longitude: position.longitude,
+        accuracyMeters: position.accuracy,
       );
     } catch (_) {
       return const LocationResult(

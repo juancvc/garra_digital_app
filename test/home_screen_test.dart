@@ -15,6 +15,7 @@ HomeModel sampleHome({
   bool withMatch = true,
   String predictionState = 'NOT_PREDICTED',
   int unread = 3,
+  bool withMission = false,
 }) {
   return HomeModel(
     fan: const HomeFanSummary(
@@ -75,6 +76,19 @@ HomeModel sampleHome({
           : const [],
     ),
     notifications: HomeNotifications(unreadCount: unread),
+    mission: withMission
+        ? const HomeMissionSummary(
+            id: 'mission-1',
+            title: 'Fecha crema completa',
+            completedSteps: 1,
+            totalSteps: 3,
+            rewardPoints: 25,
+            completed: false,
+          )
+        : null,
+    streak: withMission
+        ? const HomeStreakSummary(current: 2, best: 4)
+        : null,
   );
 }
 
@@ -110,7 +124,14 @@ Widget pumpHome(HomeModel home) {
       ),
       GoRoute(
         path: '/mapa-crema',
-        builder: (context, state) => const Scaffold(body: Text('MAPA_ROUTE')),
+        builder: (context, state) => Scaffold(
+          body: Text('MAPA_ROUTE:${state.uri.queryParameters['matchId'] ?? ''}'),
+        ),
+      ),
+      GoRoute(
+        path: '/missions',
+        builder: (context, state) =>
+            const Scaffold(body: Text('MISSIONS_ROUTE')),
       ),
       GoRoute(
         path: '/muro-crema',
@@ -173,6 +194,9 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('Hacer check-in'), findsOneWidget);
+    await tester.tap(find.text('Hacer check-in'));
+    await tester.pumpAndSettle();
+    expect(find.text('MAPA_ROUTE:m1'), findsOneWidget);
   });
 
   testWidgets('HOME_LIVE_STATE', (tester) async {

@@ -1,6 +1,7 @@
 import 'package:garra_digital_app/features/auth/presentation/complete_profile_page.dart';
 import 'package:garra_digital_app/features/community/presentation/muro_crema_page.dart';
 import 'package:garra_digital_app/features/community/presentation/post_detail_screen.dart';
+import 'package:garra_digital_app/features/missions/presentation/missions_page.dart';
 import 'package:garra_digital_app/features/notifications/presentation/notifications_screen.dart';
 import 'package:garra_digital_app/features/passport/presentation/passport_screen.dart';
 import 'package:garra_digital_app/features/passport/presentation/profile_edit_screen.dart';
@@ -142,9 +143,20 @@ final GoRouter appRouter = GoRouter(
           builder: (context, state) => const RankingPage(),
         ),
         GoRoute(
+          path: '/missions',
+          name: 'missions',
+          builder: (context, state) {
+            final matchId = state.uri.queryParameters['matchId'];
+            return MissionsPage(matchId: matchId);
+          },
+        ),
+        GoRoute(
           path: '/mapa-crema',
           name: 'mapa-crema',
-          builder: (context, state) => const MapCremaPage(),
+          builder: (context, state) {
+            final matchId = state.uri.queryParameters['matchId'];
+            return MapCremaPage(matchId: matchId);
+          },
         ),
         GoRoute(
           path: '/historial-crema',

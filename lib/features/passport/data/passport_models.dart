@@ -108,12 +108,16 @@ class PassportStats {
     required this.predictions,
     required this.predictionPoints,
     required this.posts,
+    this.streakCurrent = 0,
+    this.streakBest = 0,
   });
 
   final int checkIns;
   final int predictions;
   final int predictionPoints;
   final int posts;
+  final int streakCurrent;
+  final int streakBest;
 
   factory PassportStats.fromJson(Map<String, dynamic> json) {
     return PassportStats(
@@ -121,6 +125,8 @@ class PassportStats {
       predictions: (json['predictions'] as num?)?.toInt() ?? 0,
       predictionPoints: (json['predictionPoints'] as num?)?.toInt() ?? 0,
       posts: (json['posts'] as num?)?.toInt() ?? 0,
+      streakCurrent: (json['streakCurrent'] as num?)?.toInt() ?? 0,
+      streakBest: (json['streakBest'] as num?)?.toInt() ?? 0,
     );
   }
 }

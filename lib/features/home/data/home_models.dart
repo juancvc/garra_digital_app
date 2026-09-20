@@ -9,6 +9,8 @@ class HomeModel {
     required this.notifications,
     this.mvpOpen = false,
     this.mvpPollId,
+    this.mission,
+    this.streak,
   });
 
   final HomeFanSummary fan;
@@ -20,6 +22,8 @@ class HomeModel {
   final HomeNotifications notifications;
   final bool mvpOpen;
   final String? mvpPollId;
+  final HomeMissionSummary? mission;
+  final HomeStreakSummary? streak;
 
   factory HomeModel.fromJson(Map<String, dynamic> json) {
     return HomeModel(
@@ -44,6 +48,16 @@ class HomeModel {
       ),
       mvpOpen: json['mvpOpen'] as bool? ?? false,
       mvpPollId: json['mvpPollId']?.toString(),
+      mission: json['mission'] == null
+          ? null
+          : HomeMissionSummary.fromJson(
+              Map<String, dynamic>.from(json['mission'] as Map),
+            ),
+      streak: json['streak'] == null
+          ? null
+          : HomeStreakSummary.fromJson(
+              Map<String, dynamic>.from(json['streak'] as Map),
+            ),
     );
   }
 
@@ -265,6 +279,59 @@ class HomeNotifications {
   factory HomeNotifications.fromJson(Map<String, dynamic> json) {
     return HomeNotifications(
       unreadCount: (json['unreadCount'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class HomeMissionSummary {
+  const HomeMissionSummary({
+    required this.id,
+    required this.title,
+    required this.completedSteps,
+    required this.totalSteps,
+    required this.rewardPoints,
+    required this.completed,
+  });
+
+  final String id;
+  final String title;
+  final int completedSteps;
+  final int totalSteps;
+  final int rewardPoints;
+  final bool completed;
+
+  double get progressFraction {
+    if (totalSteps <= 0) return completed ? 1.0 : 0.0;
+    return (completedSteps / totalSteps).clamp(0.0, 1.0);
+  }
+
+  factory HomeMissionSummary.fromJson(Map<String, dynamic> json) {
+    return HomeMissionSummary(
+      id: json['id']?.toString() ?? '',
+      title: json['title'] as String? ?? '',
+      completedSteps: (json['completedSteps'] as num?)?.toInt() ?? 0,
+      totalSteps: (json['totalSteps'] as num?)?.toInt() ?? 0,
+      rewardPoints: (json['rewardPoints'] as num?)?.toInt() ?? 0,
+      completed: json['completed'] as bool? ?? false,
+    );
+  }
+}
+
+class HomeStreakSummary {
+  const HomeStreakSummary({
+    required this.current,
+    required this.best,
+  });
+
+  final int current;
+  final int best;
+
+  bool get isActive => current > 0;
+
+  factory HomeStreakSummary.fromJson(Map<String, dynamic> json) {
+    return HomeStreakSummary(
+      current: (json['current'] as num?)?.toInt() ?? 0,
+      best: (json['best'] as num?)?.toInt() ?? 0,
     );
   }
 }

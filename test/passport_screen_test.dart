@@ -37,6 +37,8 @@ PassportModel samplePassport() {
       predictions: 5,
       predictionPoints: 21,
       posts: 2,
+      streakCurrent: 2,
+      streakBest: 5,
     ),
     globalRank: 12,
     profileVisibility: 'PUBLIC',

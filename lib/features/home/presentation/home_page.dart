@@ -16,6 +16,8 @@ import '../../../core/widgets/garra_ui.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../../community/presentation/widgets/garra_reaction_bar.dart';
 import '../../matches/presentation/providers/matches_provider.dart';
+import '../../missions/data/mission_models.dart';
+import '../../missions/presentation/widgets/garra_streak_card.dart';
 import '../../predictions/presentation/providers/prediction_provider.dart';
 import '../../ranking/presentation/providers/ranking_provider.dart';
 import '../data/home_models.dart';
@@ -155,7 +157,23 @@ class _HomeBody extends ConsumerWidget {
     }
 
     if (home.checkIn.showCheckInCta) {
-      children.add(_CheckInCard(checkIn: home.checkIn));
+      children.add(
+        _CheckInCard(
+          checkIn: home.checkIn,
+          matchId: home.match?.id,
+        ),
+      );
+      children.add(const SizedBox(height: GarraSpacing.lg));
+    }
+
+    if (home.mission != null || home.streak != null) {
+      children.add(
+        _MissionStreakSection(
+          mission: home.mission,
+          streak: home.streak,
+          matchId: home.match?.id,
+        ),
+      );
       children.add(const SizedBox(height: GarraSpacing.lg));
     }
 
@@ -612,12 +630,20 @@ class _PollaCard extends StatelessWidget {
 }
 
 class _CheckInCard extends StatelessWidget {
-  const _CheckInCard({required this.checkIn});
+  const _CheckInCard({
+    required this.checkIn,
+    this.matchId,
+  });
 
   final HomeCheckIn checkIn;
+  final String? matchId;
 
   @override
   Widget build(BuildContext context) {
+    final route = matchId != null && matchId!.isNotEmpty
+        ? '/mapa-crema?matchId=$matchId'
+        : '/mapa-crema';
+
     return GarraCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -629,10 +655,89 @@ class _CheckInCard extends StatelessWidget {
           const SizedBox(height: GarraSpacing.md),
           GarraSecondaryButton(
             label: checkIn.ctaLabel ?? 'Ir al mapa',
-            onPressed: () => context.push('/mapa-crema'),
+            onPressed: () => context.push(route),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MissionStreakSection extends StatelessWidget {
+  const _MissionStreakSection({
+    this.mission,
+    this.streak,
+    this.matchId,
+  });
+
+  final HomeMissionSummary? mission;
+  final HomeStreakSummary? streak;
+  final String? matchId;
+
+  @override
+  Widget build(BuildContext context) {
+    final missionsRoute = matchId != null && matchId!.isNotEmpty
+        ? '/missions?matchId=$matchId'
+        : '/missions';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (mission != null) ...[
+          GarraCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Misión',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: const Color(GarraColors.gold),
+                      ),
+                ),
+                const SizedBox(height: GarraSpacing.xs),
+                Text(
+                  mission!.title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: GarraSpacing.md),
+                Row(
+                  children: [
+                    Expanded(
+                      child: GarraProgressBar(
+                        progress: mission!.progressFraction,
+                      ),
+                    ),
+                    const SizedBox(width: GarraSpacing.md),
+                    Text(
+                      '${mission!.completedSteps}/${mission!.totalSteps}',
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: GarraSpacing.md),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => context.push(missionsRoute),
+                    child: const Text('Ver misión'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (streak != null) const SizedBox(height: GarraSpacing.md),
+        ],
+        if (streak != null)
+          GarraStreakCard(
+            streak: StreakSummary(
+              current: streak!.current,
+              best: streak!.best,
+            ),
+            compact: true,
+          ),
+      ],
     );
   }
 }
