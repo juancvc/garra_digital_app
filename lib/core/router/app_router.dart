@@ -1,5 +1,6 @@
 import 'package:garra_digital_app/features/auth/presentation/complete_profile_page.dart';
 import 'package:garra_digital_app/features/community/presentation/muro_crema_page.dart';
+import 'package:garra_digital_app/features/notifications/presentation/notifications_screen.dart';
 import 'package:garra_digital_app/features/passport/presentation/passport_screen.dart';
 import 'package:garra_digital_app/features/passport/presentation/profile_edit_screen.dart';
 import 'package:go_router/go_router.dart';
@@ -80,6 +81,11 @@ final GoRouter appRouter = GoRouter(
           path: '/passport/edit',
           name: 'passport-edit',
           builder: (context, state) => const ProfileEditScreen(),
+        ),
+        GoRoute(
+          path: '/notifications',
+          name: 'notifications',
+          builder: (context, state) => const NotificationsScreen(),
         ),
         GoRoute(
           path: '/polla',

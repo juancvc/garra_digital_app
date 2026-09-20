@@ -1,935 +1,479 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/date_utils.dart';
+import 'package:intl/intl.dart';
+
+import '../../../core/design/garra_colors.dart';
+import '../../../core/design/garra_radius.dart';
+import '../../../core/design/garra_spacing.dart';
+import '../../../core/design/garra_typography.dart';
+import '../../../core/widgets/garra_avatar.dart';
+import '../../../core/widgets/garra_card.dart';
+import '../../../core/widgets/garra_states.dart';
+import '../../../core/widgets/garra_ui.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../../matches/presentation/providers/matches_provider.dart';
 import '../../predictions/presentation/providers/prediction_provider.dart';
 import '../../ranking/presentation/providers/ranking_provider.dart';
-import '../../../core/utils/gamification_utils.dart';
-
+import '../data/home_models.dart';
+import 'providers/home_provider.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
-  static bool _isMobile(double width) => width < 600;
-
-  static bool _isTablet(double width) => width >= 600 && width < 1024;
-
-  static bool _isDesktop(double width) => width >= 1024;
-
-  static int _gridColumns(double width) {
-    if (_isDesktop(width)) return 4;
-    if (_isTablet(width)) return 3;
-    return 2;
-  }
-
-  static double _gridAspectRatio(double width) {
-    if (_isDesktop(width)) return 1.6;
-    if (_isTablet(width)) return 1.35;
-    return 1.15;
-  }
-
-  static double _pagePadding(double width) {
-    if (_isDesktop(width)) return 32;
-    if (_isTablet(width)) return 24;
-    return 16;
-  }
-
-  static double _maxContentWidth(double width) {
-    if (_isDesktop(width)) return 1180;
-    if (_isTablet(width)) return 860;
-    return double.infinity;
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final userAsync = ref.watch(currentUserProvider);
-    final matchesAsync = ref.watch(upcomingMatchesProvider);
-    final predictionsAsync = ref.watch(myPredictionsProvider);
-    final rankingAsync = ref.watch(rankingProvider);
+    final homeAsync = ref.watch(homeProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
-        title: const Text(
-          'GarraDigital',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: AppTheme.cream,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
+        title: const Text('Garra Digital'),
         actions: [
-          IconButton(
-            tooltip: 'Pasaporte Crema',
-            icon: const Icon(Icons.badge_outlined),
-            onPressed: () => context.push('/passport'),
+          homeAsync.maybeWhen(
+            data: (home) => _NotificationBell(
+              unreadCount: home.notifications.unreadCount,
+              onTap: () => context.push('/notifications'),
+            ),
+            orElse: () => IconButton(
+              tooltip: 'Notificaciones',
+              onPressed: () => context.push('/notifications'),
+              icon: const Icon(Icons.notifications_none_outlined),
+            ),
           ),
           IconButton(
             tooltip: 'Cerrar sesión',
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (dialogContext) {
-                  return AlertDialog(
-                    backgroundColor: const Color(0xFF1A1A1A),
-                    title: const Text(
-                      'Cerrar sesión',
-                      style: TextStyle(color: AppTheme.cream),
-                    ),
-                    content: const Text(
-                      '¿Estás seguro que deseas cerrar sesión?',
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(dialogContext).pop(false),
-                        child: const Text('Cancelar'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.of(dialogContext).pop(true),
-                        child: const Text(
-                          'Cerrar sesión',
-                          style: TextStyle(color: AppTheme.gold),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              );
-
-              if (confirm != true) return;
-
-              final authService = ref.read(authServiceProvider);
-              await authService.logout();
-              ref.invalidate(currentUserProvider);
-              ref.invalidate(upcomingMatchesProvider);
-              ref.invalidate(myPredictionsProvider);
-              ref.invalidate(rankingProvider);
-              if (context.mounted) {
-                context.go('/login');
-              }
-            },
+            onPressed: () => _confirmLogout(context, ref),
+            icon: const Icon(Icons.logout),
           ),
         ],
       ),
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final width = constraints.maxWidth;
-            final padding = _pagePadding(width);
-            final isMobile = _isMobile(width);
-
-            return RefreshIndicator(
-              color: AppTheme.gold,
-              backgroundColor: const Color(0xFF1A1A1A),
-              onRefresh: () async {
-                ref.invalidate(currentUserProvider);
-                ref.invalidate(upcomingMatchesProvider);
-                ref.invalidate(myPredictionsProvider);
-                ref.invalidate(rankingProvider);
-
-                await Future.wait([
-                  ref.read(currentUserProvider.future),
-                  ref.read(upcomingMatchesProvider.future),
-                  ref.read(myPredictionsProvider.future),
-                  ref.read(rankingProvider.future),
-                ]);
-              },
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.all(padding),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: _maxContentWidth(width),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _HeaderSection(
-                          userAsync: userAsync,
-                          isMobile: isMobile,
-                          isDesktop: _isDesktop(width),
-                        ),
-                        const SizedBox(height: 12),
-                        _HomeLevelProgressCard(
-                          rankingAsync: rankingAsync,
-                          isMobile: isMobile,
-                        ),
-                        SizedBox(height: isMobile ? 18 : 24),
-                        _NextMatchSection(
-                          matchesAsync: matchesAsync,
-                          predictionsAsync: predictionsAsync,
-                          isMobile: isMobile,
-                        ),
-                        SizedBox(height: isMobile ? 22 : 30),
-                        Text(
-                          'Accesos rápidos',
-                          style: TextStyle(
-                            color: AppTheme.cream,
-                            fontSize: isMobile ? 18 : 22,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        GridView.count(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisCount: _gridColumns(width),
-                          mainAxisSpacing: isMobile ? 12 : 16,
-                          crossAxisSpacing: isMobile ? 12 : 16,
-                          childAspectRatio: _gridAspectRatio(width),
-                          children: [
-                            _QuickAccessCard(
-                              title: 'La Polla',
-                              subtitle: 'Pronostica partidos',
-                              icon: Icons.fact_check_rounded,
-                              onTap: () => context.push('/polla'),
-                            ),
-                            _RankingAccessCard(
-                              rankingAsync: rankingAsync,
-                              onTap: () => context.go('/ranking'),
-                            ),
-                            _QuickAccessCard(
-                              title: 'Ruta al Templo',
-                              subtitle: 'Puntos crema',
-                              icon: Icons.map_rounded,
-                              onTap: () => context.push('/ruta-templo'),
-                            ),
-                            _QuickAccessCard(
-                              title: 'Muro Crema',
-                              subtitle: 'Alienta con la hinchada',
-                              icon: Icons.forum_rounded,
-                              onTap: () => context.push('/muro-crema'),
-                            ),
-                            _QuickAccessCard(
-                              title: 'Historial',
-                              subtitle: 'Tus puntos crema',
-                              icon: Icons.history_rounded,
-                              onTap: () => context.push('/historial-crema'),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 120),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
+      body: homeAsync.when(
+        loading: () => const GarraHomeSkeleton(),
+        error: (error, stackTrace) => GarraErrorState(
+          onRetry: () => ref.invalidate(homeProvider),
+        ),
+        data: (home) => RefreshIndicator(
+          color: const Color(GarraColors.gold),
+          onRefresh: () async => ref.invalidate(homeProvider),
+          child: _HomeBody(home: home),
         ),
       ),
     );
   }
+
+  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cerrar sesión'),
+        content: const Text('¿Seguro que quieres salir de Garra Digital?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Salir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    await ref.read(authServiceProvider).logout();
+    ref.invalidate(currentUserProvider);
+    ref.invalidate(homeProvider);
+    ref.invalidate(upcomingMatchesProvider);
+    ref.invalidate(myPredictionsProvider);
+    ref.invalidate(rankingProvider);
+    if (context.mounted) {
+      context.go('/login');
+    }
+  }
 }
 
-class _HeaderSection extends StatelessWidget {
-  const _HeaderSection({
-    required this.userAsync,
-    required this.isMobile,
-    required this.isDesktop,
+class _NotificationBell extends StatelessWidget {
+  const _NotificationBell({
+    required this.unreadCount,
+    required this.onTap,
   });
 
-  final AsyncValue<dynamic> userAsync;
-  final bool isMobile;
-  final bool isDesktop;
+  final int unreadCount;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return userAsync.when(
-      loading: () => const _HeaderSkeleton(),
-      error: (_, __) => _HeaderContent(
-        fullName: 'crema',
-        isMobile: isMobile,
-        isDesktop: isDesktop,
-      ),
-      data: (user) => _HeaderContent(
-        fullName: user?.username ?? 'crema',
-        isMobile: isMobile,
-        isDesktop: isDesktop,
+    return IconButton(
+      tooltip: 'Notificaciones',
+      onPressed: onTap,
+      icon: Badge(
+        isLabelVisible: unreadCount > 0,
+        label: Text(unreadCount > 99 ? '99+' : '$unreadCount'),
+        child: const Icon(Icons.notifications_none_outlined),
       ),
     );
   }
 }
 
-class _HeaderContent extends StatelessWidget {
-  const _HeaderContent({
-    required this.fullName,
-    required this.isMobile,
-    required this.isDesktop,
-  });
+class _HomeBody extends ConsumerWidget {
+  const _HomeBody({required this.home});
 
-  final String fullName;
-  final bool isMobile;
-  final bool isDesktop;
+  final HomeModel home;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final children = <Widget>[
+      _FanHeader(fan: home.fan),
+      const SizedBox(height: GarraSpacing.lg),
+    ];
+
+    if (home.hasMatch) {
+      children.add(_MatchHero(home: home));
+      children.add(const SizedBox(height: GarraSpacing.lg));
+    } else {
+      children.add(const _NoMatchCard());
+      children.add(const SizedBox(height: GarraSpacing.lg));
+      children.add(_PointsRankCard(fan: home.fan));
+      children.add(const SizedBox(height: GarraSpacing.lg));
+    }
+
+    if (home.hasMatch) {
+      children.add(_PollaCard(prediction: home.prediction));
+      children.add(const SizedBox(height: GarraSpacing.lg));
+    }
+
+    if (home.checkIn.showCheckInCta) {
+      children.add(_CheckInCard(checkIn: home.checkIn));
+      children.add(const SizedBox(height: GarraSpacing.lg));
+    }
+
+    if (home.hasMatch) {
+      children.add(_PointsRankCard(fan: home.fan));
+      children.add(const SizedBox(height: GarraSpacing.lg));
+    }
+
+    children.add(_CommunityPreview(community: home.community));
+    children.add(const SizedBox(height: GarraSpacing.xxl));
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        GarraSpacing.lg,
+        GarraSpacing.md,
+        GarraSpacing.lg,
+        GarraSpacing.xxl,
+      ),
+      children: children,
+    );
+  }
+}
+
+class _FanHeader extends StatelessWidget {
+  const _FanHeader({required this.fan});
+
+  final HomeFanSummary fan;
 
   @override
   Widget build(BuildContext context) {
-    final titleSize = isDesktop ? 34.0 : (isMobile ? 24.0 : 30.0);
-
-    return Material(
-      color: Colors.transparent,
+    return Semantics(
+      button: true,
+      label: 'Abrir pasaporte de ${fan.displayName}',
       child: InkWell(
         onTap: () => context.push('/passport'),
-        borderRadius: BorderRadius.circular(24),
-        child: Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(isMobile ? 18 : 22),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1A1A1A),
-            Color(0xFF23090D),
-          ],
-        ),
-        border: Border.all(
-          color: AppTheme.cream.withOpacity(0.08),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: isMobile ? 48 : 58,
-            height: isMobile ? 48 : 58,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppTheme.cream,
-            ),
-            child: Center(
-              child: Text(
-                'GD',
-                style: TextStyle(
-                  color: AppTheme.burgundy,
-                  fontSize: isMobile ? 16 : 20,
-                  fontWeight: FontWeight.w900,
+        borderRadius: BorderRadius.circular(GarraRadius.lg),
+        child: GarraCard(
+          child: Row(
+            children: [
+              GarraAvatar(
+                displayName: fan.displayName,
+                avatarUrl: fan.avatarUrl,
+                size: 56,
+              ),
+              const SizedBox(width: GarraSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      fan.displayName,
+                      style: Theme.of(context).textTheme.titleLarge,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: GarraSpacing.xs),
+                    Text(
+                      '@${fan.username}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: GarraSpacing.sm),
+                    GarraLevelBadge(
+                      levelNumber: fan.levelNumber,
+                      levelName: fan.levelName,
+                    ),
+                  ],
                 ),
               ),
-            ),
+              const Icon(
+                Icons.chevron_right,
+                color: Color(GarraColors.gold),
+              ),
+            ],
           ),
-          SizedBox(width: isMobile ? 14 : 18),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Hola, $fullName',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.68),
-                    fontSize: isMobile ? 13 : 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  'Bienvenido a tu tribuna digital',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppTheme.cream,
-                    fontSize: titleSize,
-                    height: 1.05,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.8,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
         ),
       ),
     );
   }
 }
 
-class _HeaderSkeleton extends StatelessWidget {
-  const _HeaderSkeleton();
+class _MatchHero extends StatefulWidget {
+  const _MatchHero({required this.home});
+
+  final HomeModel home;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 116,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: AppTheme.cream.withOpacity(0.08),
-        ),
-      ),
-      child: const Center(
-        child: CircularProgressIndicator(color: AppTheme.gold),
-      ),
-    );
-  }
+  State<_MatchHero> createState() => _MatchHeroState();
 }
 
-class _NextMatchSection extends StatelessWidget {
-  const _NextMatchSection({
-    required this.matchesAsync,
-    required this.predictionsAsync,
-    required this.isMobile,
-  });
-
-  final AsyncValue<dynamic> matchesAsync;
-  final AsyncValue<dynamic> predictionsAsync;
-  final bool isMobile;
+class _MatchHeroState extends State<_MatchHero> {
+  Timer? _ticker;
+  late Duration _remaining;
 
   @override
-  Widget build(BuildContext context) {
-    return matchesAsync.when(
-      loading: () => const _CompactLoadingCard(),
-      error: (_, __) => const _CompactMessageCard(
-        icon: Icons.error_outline_rounded,
-        title: 'No se pudo cargar el partido',
-        subtitle: 'Desliza hacia abajo para reintentar.',
-      ),
-      data: (matches) {
-        if (matches.isEmpty) {
-          return const _CompactMessageCard(
-            icon: Icons.sports_soccer_rounded,
-            title: 'No hay próximos partidos',
-            subtitle: 'Cuando exista uno, aparecerá aquí.',
-          );
-        }
-
-        final match = matches.first;
-
-        return predictionsAsync.when(
-          loading: () => _NextMatchCard(
-            isMobile: isMobile,
-            homeTeam: match.homeTeam,
-            awayTeam: match.awayTeam,
-            matchDateTime: match.matchDateTime,
-            stadium: match.stadium,
-            predictionText: null,
-          ),
-          error: (_, __) => _NextMatchCard(
-            isMobile: isMobile,
-            homeTeam: match.homeTeam,
-            awayTeam: match.awayTeam,
-            matchDateTime: match.matchDateTime,
-            stadium: match.stadium,
-            predictionText: null,
-          ),
-          data: (predictions) {
-            String? predictionText;
-
-            for (final prediction in predictions) {
-              if (prediction.matchId == match.id) {
-                predictionText =
-                '⚽ ${prediction.homeScore} - ${prediction.awayScore}';
-                break;
-              }
-            }
-
-            return _NextMatchCard(
-              isMobile: isMobile,
-              homeTeam: match.homeTeam,
-              awayTeam: match.awayTeam,
-              matchDateTime: match.matchDateTime,
-              stadium: match.stadium,
-              predictionText: predictionText,
-            );
-          },
-        );
-      },
-    );
+  void initState() {
+    super.initState();
+    _remaining = _computeRemaining();
+    _ticker = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (!mounted) return;
+      final next = _computeRemaining();
+      final crossed = _remaining.inSeconds > 0 && next.inSeconds <= 0;
+      setState(() => _remaining = next);
+      if (crossed) {
+        // Crossing kickoff: refresh server authority for matchday state.
+        final container = ProviderScope.containerOf(context, listen: false);
+        container.invalidate(homeProvider);
+      }
+    });
   }
-}
 
-class _NextMatchCard extends StatelessWidget {
-  const _NextMatchCard({
-    required this.isMobile,
-    required this.homeTeam,
-    required this.awayTeam,
-    required this.matchDateTime,
-    required this.stadium,
-    required this.predictionText,
-  });
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
 
-  final bool isMobile;
-  final String homeTeam;
-  final String awayTeam;
-  final String matchDateTime;
-  final String stadium;
-  final String? predictionText;
+  Duration _computeRemaining() {
+    final kickoff = widget.home.match!.matchDateTime.toLocal();
+    return kickoff.difference(DateTime.now());
+  }
 
   @override
   Widget build(BuildContext context) {
-    final formattedDate = _safeFormatDateTime(matchDateTime);
+    final home = widget.home;
+    final match = home.match!;
+    final dateLabel = DateFormat('EEE d MMM · HH:mm').format(
+      match.matchDateTime.toLocal(),
+    );
 
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(isMobile ? 16 : 20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.burgundy,
-            Color(0xFF2A0B0F),
-          ],
-        ),
-        border: Border.all(
-          color: AppTheme.gold.withOpacity(0.18),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.burgundy.withOpacity(0.22),
-            blurRadius: 24,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
+    String headline;
+    String? liveBadge;
+    if (home.isLive) {
+      headline = 'EN VIVO';
+      liveBadge = 'LIVE';
+    } else if (home.isMatchday) {
+      headline = 'Hoy juega la U';
+    } else if (home.isFinished) {
+      headline = 'Partido finalizado';
+    } else {
+      headline = 'Próximo partido';
+    }
+
+    return GarraCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
             children: [
-              const _SmallBadge(
-                icon: Icons.sports_soccer_rounded,
-                label: 'Próximo partido',
-                color: AppTheme.gold,
+              Expanded(
+                child: Text(
+                  headline,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: const Color(GarraColors.gold),
+                        letterSpacing: 1.1,
+                      ),
+                ),
               ),
-              if (predictionText != null)
-                _SmallBadge(
-                  icon: Icons.check_circle_rounded,
-                  label: predictionText!,
-                  color: Colors.greenAccent,
+              if (liveBadge != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: GarraSpacing.sm,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(GarraColors.garnet),
+                    borderRadius: BorderRadius.circular(GarraRadius.sm),
+                  ),
+                  child: Text(
+                    liveBadge,
+                    style: const TextStyle(
+                      color: Color(GarraColors.cream),
+                      fontWeight: FontWeight.w800,
+                      fontSize: 11,
+                    ),
+                  ),
                 ),
             ],
           ),
-          SizedBox(height: isMobile ? 12 : 16),
-          Text(
-            '$homeTeam vs $awayTeam',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: AppTheme.cream,
-              fontSize: isMobile ? 18 : 22,
-              height: 1.1,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _CompactInfoRow(
-            icon: Icons.calendar_month_rounded,
-            text: formattedDate,
-          ),
-          const SizedBox(height: 7),
-          _CompactInfoRow(
-            icon: Icons.stadium_rounded,
-            text: stadium,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickAccessCard extends StatelessWidget {
-  const _QuickAccessCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.onTap,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFF1A1A1A),
-      borderRadius: BorderRadius.circular(22),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: AppTheme.cream.withOpacity(0.08),
-            ),
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxHeight < 125;
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: compact ? 38 : 44,
-                    height: compact ? 38 : 44,
-                    decoration: BoxDecoration(
-                      color: AppTheme.gold.withOpacity(0.14),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Icon(
-                      icon,
-                      color: AppTheme.gold,
-                      size: compact ? 21 : 24,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: AppTheme.cream,
-                      fontSize: compact ? 14 : 16,
-                      height: 1.1,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.52),
-                      fontSize: compact ? 11 : 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RankingAccessCard extends StatelessWidget {
-  const _RankingAccessCard({
-    required this.rankingAsync,
-    required this.onTap,
-  });
-
-  final AsyncValue<dynamic> rankingAsync;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFF1A1A1A),
-      borderRadius: BorderRadius.circular(22),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: AppTheme.cream.withOpacity(0.08),
-            ),
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxHeight < 125;
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: compact ? 38 : 44,
-                    height: compact ? 38 : 44,
-                    decoration: BoxDecoration(
-                      color: AppTheme.gold.withOpacity(0.14),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Icon(
-                      Icons.emoji_events_rounded,
-                      color: AppTheme.gold,
-                      size: compact ? 21 : 24,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    'Ranking',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: AppTheme.cream,
-                      fontSize: compact ? 14 : 16,
-                      height: 1.1,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Top hinchas crema',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.52),
-                      fontSize: compact ? 11 : 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 7),
-                  rankingAsync.when(
-                    loading: () => const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppTheme.gold,
+          const SizedBox(height: GarraSpacing.md),
+          Row(
+            children: [
+              Expanded(child: _TeamBlock(name: match.homeTeam)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: GarraSpacing.sm),
+                child: home.isLive || home.isFinished
+                    ? Text(
+                        '${match.homeScore ?? '-'} : ${match.awayScore ?? '-'}',
+                        style: GarraTypography.numeric(size: 28),
+                      )
+                    : Text(
+                        'VS',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: const Color(GarraColors.gold),
+                              fontWeight: FontWeight.w800,
+                            ),
                       ),
-                    ),
-                    error: (_, __) => const SizedBox.shrink(),
-                    data: (ranking) {
-                      if (ranking.isEmpty) {
-                        return const SizedBox.shrink();
-                      }
-
-                      final leader = ranking.first;
-
-                      if (compact) {
-                        return const SizedBox.shrink();
-                      }
-
-                      return _MiniLeaderChip(
-                        text: '#1 ${leader.username}',
-                      );
-                    },
-                  ),
-                ],
-              );
-            },
+              ),
+              Expanded(child: _TeamBlock(name: match.awayTeam, alignEnd: true)),
+            ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniLeaderChip extends StatelessWidget {
-  const _MiniLeaderChip({
-    required this.text,
-  });
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 180),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppTheme.burgundy.withOpacity(0.55),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: AppTheme.gold.withOpacity(0.18),
-        ),
-      ),
-      child: Text(
-        text,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: AppTheme.gold,
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-}
-
-class _SmallBadge extends StatelessWidget {
-  const _SmallBadge({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 7,
-      ),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.14),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: color.withOpacity(0.24),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            color: color,
-            size: 15,
-          ),
-          const SizedBox(width: 5),
+          const SizedBox(height: GarraSpacing.md),
           Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-            ),
+            match.competition,
+            style: Theme.of(context).textTheme.bodySmall,
           ),
+          const SizedBox(height: GarraSpacing.xs),
+          Text(
+            '${match.stadium} · $dateLabel',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          if (home.isUpcoming || home.isMatchday) ...[
+            const SizedBox(height: GarraSpacing.md),
+            Text(
+              _countdownLabel(_remaining),
+              style: GarraTypography.numeric(size: 20),
+            ),
+          ],
+          if (home.isLive || home.isMatchday) ...[
+            const SizedBox(height: GarraSpacing.lg),
+            GarraPrimaryButton(
+              label: home.isLive ? 'Entrar al partido' : 'Entrar al Matchday',
+              onPressed: () => context.push('/muro-crema'),
+            ),
+          ],
+          if (home.isFinished) ...[
+            const SizedBox(height: GarraSpacing.lg),
+            GarraSecondaryButton(
+              label: 'Ver comunidad',
+              onPressed: () => context.push('/muro-crema'),
+            ),
+          ],
         ],
       ),
     );
   }
+
+  String _countdownLabel(Duration remaining) {
+    if (remaining.isNegative || remaining.inSeconds == 0) {
+      return 'Kickoff';
+    }
+    final days = remaining.inDays;
+    final hours = remaining.inHours.remainder(24);
+    final minutes = remaining.inMinutes.remainder(60);
+    if (days > 0) {
+      return 'Faltan ${days}d ${hours.toString().padLeft(2, '0')}h';
+    }
+    if (remaining.inHours > 0) {
+      return 'Faltan ${hours}h ${minutes.toString().padLeft(2, '0')} min';
+    }
+    return 'Faltan $minutes min';
+  }
 }
 
-class _CompactInfoRow extends StatelessWidget {
-  const _CompactInfoRow({
-    required this.icon,
-    required this.text,
-  });
+class _TeamBlock extends StatelessWidget {
+  const _TeamBlock({required this.name, this.alignEnd = false});
 
-  final IconData icon;
-  final String text;
+  final String name;
+  final bool alignEnd;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final initials = name.trim().isEmpty
+        ? '?'
+        : name
+            .trim()
+            .split(RegExp(r'\s+'))
+            .take(2)
+            .map((w) => w[0].toUpperCase())
+            .join();
+
+    return Column(
+      crossAxisAlignment:
+          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          color: AppTheme.gold,
-          size: 17,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
+        Container(
+          width: 44,
+          height: 44,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: const Color(GarraColors.surfaceRaised),
+            borderRadius: BorderRadius.circular(GarraRadius.md),
+            border: Border.all(color: const Color(GarraColors.borderSubtle)),
+          ),
           child: Text(
-            text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.76),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+            initials,
+            style: const TextStyle(
+              color: Color(GarraColors.cream),
+              fontWeight: FontWeight.w800,
             ),
           ),
+        ),
+        const SizedBox(height: GarraSpacing.sm),
+        Text(
+          name,
+          textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleSmall,
         ),
       ],
     );
   }
 }
 
-class _CompactLoadingCard extends StatelessWidget {
-  const _CompactLoadingCard();
+class _NoMatchCard extends StatelessWidget {
+  const _NoMatchCard();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 138,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: AppTheme.cream.withOpacity(0.08),
-        ),
-      ),
-      child: const Center(
-        child: CircularProgressIndicator(color: AppTheme.gold),
-      ),
-    );
-  }
-}
-
-class _CompactMessageCard extends StatelessWidget {
-  const _CompactMessageCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: AppTheme.cream.withOpacity(0.08),
-        ),
-      ),
-      child: Row(
+    return const GarraCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            color: AppTheme.gold,
-            size: 30,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.cream,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.58),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+          Text(
+            'Sin partido cercano',
+            style: TextStyle(
+              color: Color(GarraColors.cream),
+              fontWeight: FontWeight.w700,
+              fontSize: 18,
             ),
+          ),
+          SizedBox(height: GarraSpacing.sm),
+          Text(
+            'Cuando la U tenga fecha, el Matchday aparecerá aquí.',
+            style: TextStyle(color: Color(GarraColors.textSecondary)),
           ),
         ],
       ),
@@ -937,120 +481,208 @@ class _CompactMessageCard extends StatelessWidget {
   }
 }
 
-class _HomeLevelProgressCard extends StatelessWidget {
-  const _HomeLevelProgressCard({
-    required this.rankingAsync,
-    required this.isMobile,
-  });
+class _PointsRankCard extends StatelessWidget {
+  const _PointsRankCard({required this.fan});
 
-  final AsyncValue<dynamic> rankingAsync;
-  final bool isMobile;
+  final HomeFanSummary fan;
 
   @override
   Widget build(BuildContext context) {
-    final points = rankingAsync.maybeWhen(
-      data: (ranking) {
-        if (ranking.isEmpty) return 0;
-
-        try {
-          return ranking.first.loyaltyPoints as int;
-        } catch (_) {
-          return 0;
-        }
-      },
-      orElse: () => 0,
-    );
-
-    final level = GamificationUtils.levelForPoints(points);
-    final progress = GamificationUtils.progressToNextLevel(points);
-    final message = GamificationUtils.progressMessage(points);
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(isMobile ? 14 : 16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: AppTheme.gold.withOpacity(0.14),
-        ),
-      ),
+    final points = NumberFormat('#,###').format(fan.points);
+    return GarraCard(
       child: Row(
         children: [
-          Container(
-            width: isMobile ? 42 : 48,
-            height: isMobile ? 42 : 48,
-            decoration: BoxDecoration(
-              color: AppTheme.gold.withOpacity(0.14),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(
-              level.icon,
-              color: AppTheme.gold,
-              size: isMobile ? 22 : 25,
-            ),
-          ),
-          SizedBox(width: isMobile ? 12 : 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  level.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppTheme.cream,
-                    fontSize: isMobile ? 15 : 17,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  '$points Puntos Garra',
+                  style: GarraTypography.numeric(size: 22),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '$points puntos crema',
-                  style: const TextStyle(
-                    color: AppTheme.gold,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
+                if (fan.globalRank != null) ...[
+                  const SizedBox(height: GarraSpacing.xs),
+                  Text(
+                    '#${fan.globalRank} en Garra Digital',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: const Color(GarraColors.gold),
+                        ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 7,
-                    backgroundColor: Colors.white.withOpacity(0.10),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      AppTheme.gold,
+                ],
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () => context.push('/passport'),
+            child: const Text('Pasaporte'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PollaCard extends StatelessWidget {
+  const _PollaCard({required this.prediction});
+
+  final HomePrediction prediction;
+
+  @override
+  Widget build(BuildContext context) {
+    final (subtitle, cta) = switch (prediction.state) {
+      'PREDICTED' => (
+          prediction.predictedHomeScore != null
+              ? 'Tu predicción: ${prediction.predictedHomeScore}-${prediction.predictedAwayScore}'
+              : 'Ya registraste tu predicción',
+          'Ver mi predicción',
+        ),
+      'LOCKED' => (
+          prediction.predictedHomeScore != null
+              ? 'Predicción cerrada: ${prediction.predictedHomeScore}-${prediction.predictedAwayScore}'
+              : 'Predicciones cerradas',
+          'Ver La Polla',
+        ),
+      'SCORED' => (
+          prediction.pointsEarned != null
+              ? 'Resultado · +${prediction.pointsEarned} pts'
+              : 'Resultado disponible',
+          'Ver resultado',
+        ),
+      _ => (
+          'Aún no has predicho este partido',
+          'Hacer predicción',
+        ),
+    };
+
+    return GarraCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const GarraSectionHeader(
+            title: 'La Polla',
+            subtitle: 'Tu predicción',
+          ),
+          const SizedBox(height: GarraSpacing.sm),
+          Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: GarraSpacing.md),
+          GarraPrimaryButton(
+            label: cta,
+            onPressed: () => context.push('/polla'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CheckInCard extends StatelessWidget {
+  const _CheckInCard({required this.checkIn});
+
+  final HomeCheckIn checkIn;
+
+  @override
+  Widget build(BuildContext context) {
+    return GarraCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const GarraSectionHeader(
+            title: 'Check-in',
+            subtitle: 'Presencia crema en el mapa',
+          ),
+          const SizedBox(height: GarraSpacing.md),
+          GarraSecondaryButton(
+            label: checkIn.ctaLabel ?? 'Ir al mapa',
+            onPressed: () => context.push('/mapa-crema'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CommunityPreview extends StatelessWidget {
+  const _CommunityPreview({required this.community});
+
+  final HomeCommunityPreview community;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: GarraSectionHeader(
+                title: 'Tribuna Crema',
+                subtitle: 'Comunidad',
+              ),
+            ),
+            TextButton(
+              onPressed: () => context.push('/muro-crema'),
+              child: const Text('Ver comunidad'),
+            ),
+          ],
+        ),
+        const SizedBox(height: GarraSpacing.sm),
+        if (community.posts.isEmpty)
+          const GarraCard(
+            child: Text(
+              'Aún no hay publicaciones para este contexto.',
+              style: TextStyle(color: Color(GarraColors.textSecondary)),
+            ),
+          )
+        else
+          ...community.posts.map(
+            (post) => Padding(
+              padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
+              child: GarraCard(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    GarraAvatar(displayName: post.displayName, size: 40),
+                    const SizedBox(width: GarraSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '@${post.username}',
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                          const SizedBox(height: GarraSpacing.xs),
+                          Text(
+                            post.content,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: GarraSpacing.xs),
+                          Text(
+                            [
+                              if (post.locationTag != null) post.locationTag!,
+                              _relativeTime(post.createdAt),
+                            ].join(' · '),
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  message,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.62),
-                    fontSize: 11,
-                    height: 1.25,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
-}
 
-String _safeFormatDateTime(String isoDate) {
-  try {
-    return formatDateTime(isoDate);
-  } catch (_) {
-    return isoDate;
+  String _relativeTime(DateTime createdAt) {
+    final diff = DateTime.now().difference(createdAt.toLocal());
+    if (diff.inMinutes < 1) return 'ahora';
+    if (diff.inHours < 1) return 'hace ${diff.inMinutes} min';
+    if (diff.inDays < 1) return 'hace ${diff.inHours} h';
+    return 'hace ${diff.inDays} d';
   }
 }

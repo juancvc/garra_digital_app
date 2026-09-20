@@ -24,6 +24,28 @@ class GarraSkeleton extends StatelessWidget {
   }
 }
 
+class GarraHomeSkeleton extends StatelessWidget {
+  const GarraHomeSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(GarraSpacing.lg),
+      children: const [
+        GarraSkeleton(height: 88),
+        SizedBox(height: GarraSpacing.lg),
+        GarraSkeleton(height: 180),
+        SizedBox(height: GarraSpacing.lg),
+        GarraSkeleton(height: 120),
+        SizedBox(height: GarraSpacing.lg),
+        GarraSkeleton(height: 100),
+        SizedBox(height: GarraSpacing.lg),
+        GarraSkeleton(height: 140),
+      ],
+    );
+  }
+}
+
 class GarraPassportSkeleton extends StatelessWidget {
   const GarraPassportSkeleton({super.key});
 
@@ -88,7 +110,7 @@ class GarraEmptyState extends StatelessWidget {
 class GarraErrorState extends StatelessWidget {
   const GarraErrorState({
     super.key,
-    this.title = 'No pudimos cargar tu Pasaporte',
+    this.title = 'No pudimos cargar la información',
     this.message = 'Revisa tu conexión e inténtalo de nuevo.',
     required this.onRetry,
   });
