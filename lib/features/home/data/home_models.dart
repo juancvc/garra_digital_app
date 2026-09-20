@@ -350,6 +350,8 @@ class HomeClanSummary {
     required this.memberCount,
     this.role,
     this.logoUrl,
+    this.currentYearPollaPoints,
+    this.currentYearRank,
   });
 
   final String slug;
@@ -357,6 +359,8 @@ class HomeClanSummary {
   final int memberCount;
   final String? role;
   final String? logoUrl;
+  final int? currentYearPollaPoints;
+  final int? currentYearRank;
 
   factory HomeClanSummary.fromJson(Map<String, dynamic> json) {
     return HomeClanSummary(
@@ -365,6 +369,10 @@ class HomeClanSummary {
       memberCount: (json['memberCount'] as num?)?.toInt() ?? 0,
       role: json['role']?.toString(),
       logoUrl: json['logoUrl'] as String?,
+      currentYearPollaPoints:
+          (json['currentYearPollaPoints'] as num?)?.toInt() ??
+              (json['currentYearPoints'] as num?)?.toInt(),
+      currentYearRank: (json['currentYearRank'] as num?)?.toInt(),
     );
   }
 }

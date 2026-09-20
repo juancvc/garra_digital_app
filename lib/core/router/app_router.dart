@@ -2,6 +2,9 @@ import 'package:garra_digital_app/features/auth/presentation/complete_profile_pa
 import 'package:garra_digital_app/features/clans/presentation/clan_detail_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/clan_invitations_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/clan_manage_page.dart';
+import 'package:garra_digital_app/features/clans/presentation/clan_polla_page.dart';
+import 'package:garra_digital_app/features/clans/presentation/clan_ranking_page.dart';
+import 'package:garra_digital_app/features/clans/presentation/clan_tribuna_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/clans_page.dart';
 import 'package:garra_digital_app/features/community/presentation/muro_crema_page.dart';
 import 'package:garra_digital_app/features/community/presentation/post_detail_screen.dart';
@@ -165,11 +168,33 @@ final GoRouter appRouter = GoRouter(
           builder: (context, state) => const ClanInvitationsPage(),
         ),
         GoRoute(
+          path: '/clans/ranking',
+          name: 'clans-ranking',
+          builder: (context, state) => const ClanRankingPage(),
+        ),
+        GoRoute(
           path: '/clans/:slug',
           name: 'clan-detail',
           builder: (context, state) {
             final slug = state.pathParameters['slug'] ?? '';
             return ClanDetailPage(slug: slug);
+          },
+        ),
+        GoRoute(
+          path: '/clans/:slug/tribuna',
+          name: 'clan-tribuna',
+          builder: (context, state) {
+            final slug = state.pathParameters['slug'] ?? '';
+            return ClanTribunaPage(slug: slug);
+          },
+        ),
+        GoRoute(
+          path: '/clans/:slug/polla',
+          name: 'clan-polla',
+          builder: (context, state) {
+            final slug = state.pathParameters['slug'] ?? '';
+            final matchId = state.uri.queryParameters['matchId'];
+            return ClanPollaPage(slug: slug, matchId: matchId);
           },
         ),
         GoRoute(

@@ -810,6 +810,10 @@ class _HomeClanSection extends StatelessWidget {
                     '$members miembros',
                     if (clan!.role != null)
                       ClanRoleLabels.label(clan!.role),
+                    if (clan!.currentYearRank != null)
+                      '#${clan!.currentYearRank} Polla',
+                    if (clan!.currentYearPollaPoints != null)
+                      '${clan!.currentYearPollaPoints} pts',
                   ].join(' · '),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),

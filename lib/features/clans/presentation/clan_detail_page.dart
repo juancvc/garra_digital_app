@@ -11,6 +11,7 @@ import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/clan_models.dart';
 import '../data/clan_service.dart';
+import 'clan_tribuna_page.dart';
 import 'providers/clans_provider.dart';
 
 class ClanDetailPage extends ConsumerStatefulWidget {
@@ -22,13 +23,28 @@ class ClanDetailPage extends ConsumerStatefulWidget {
   ConsumerState<ClanDetailPage> createState() => _ClanDetailPageState();
 }
 
-class _ClanDetailPageState extends ConsumerState<ClanDetailPage> {
+class _ClanDetailPageState extends ConsumerState<ClanDetailPage>
+    with SingleTickerProviderStateMixin {
   bool _joining = false;
   bool _leaving = false;
+  late final TabController _tabs;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabs = TabController(length: 4, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
 
   Future<void> _refresh() async {
     ref.invalidate(clanDetailProvider(widget.slug));
     ref.invalidate(clanMembersPreviewProvider(widget.slug));
+    ref.invalidate(clanFeedProvider(widget.slug));
     await ref.read(clanDetailProvider(widget.slug).future);
   }
 
@@ -145,56 +161,292 @@ class _ClanDetailPageState extends ConsumerState<ClanDetailPage> {
         actions: [
           if (clanAsync.asData?.value.canManage == true)
             TextButton(
-              onPressed: () =>
-                  context.push('/clans/${widget.slug}/manage'),
+              onPressed: () => context.push('/clans/${widget.slug}/manage'),
               child: const Text('Gestionar'),
             ),
         ],
+        bottom: TabBar(
+          controller: _tabs,
+          isScrollable: true,
+          tabs: const [
+            Tab(text: 'Inicio'),
+            Tab(text: 'Tribuna'),
+            Tab(text: 'Polla'),
+            Tab(text: 'Miembros'),
+          ],
+        ),
       ),
       body: clanAsync.when(
         loading: () => const _DetailSkeleton(),
         error: (error, stackTrace) => GarraErrorState(onRetry: _refresh),
-        data: (clan) => RefreshIndicator(
-          color: const Color(GarraColors.gold),
-          onRefresh: _refresh,
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(
-              GarraSpacing.lg,
-              GarraSpacing.md,
-              GarraSpacing.lg,
-              GarraSpacing.section,
+        data: (clan) => TabBarView(
+          controller: _tabs,
+          children: [
+            _InicioTab(
+              clan: clan,
+              joining: _joining,
+              leaving: _leaving,
+              onJoin: _join,
+              onLeave: () => _leave(clan),
+              onRefresh: _refresh,
             ),
-            children: [
-              _ClanHeader(clan: clan),
-              const SizedBox(height: GarraSpacing.lg),
-              if (clan.description != null &&
-                  clan.description!.trim().isNotEmpty)
-                GarraCard(
-                  child: Text(
-                    clan.description!,
-                    style: Theme.of(context).textTheme.bodyMedium,
+            ClanTribunaPage(
+              slug: widget.slug,
+              clanName: clan.name,
+              embedded: true,
+            ),
+            _PollaTab(clan: clan),
+            membersAsync.when(
+              loading: () => const Center(
+                child: CircularProgressIndicator(
+                  color: Color(GarraColors.gold),
+                ),
+              ),
+              error: (_, __) => GarraErrorState(onRetry: _refresh),
+              data: (members) => RefreshIndicator(
+                color: const Color(GarraColors.gold),
+                onRefresh: _refresh,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(GarraSpacing.lg),
+                  children: [
+                    _MembersPreview(members: members),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InicioTab extends ConsumerWidget {
+  const _InicioTab({
+    required this.clan,
+    required this.joining,
+    required this.leaving,
+    required this.onJoin,
+    required this.onLeave,
+    required this.onRefresh,
+  });
+
+  final ClanModel clan;
+  final bool joining;
+  final bool leaving;
+  final VoidCallback onJoin;
+  final VoidCallback onLeave;
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final feedAsync = clan.isMember
+        ? ref.watch(clanFeedProvider(clan.slug))
+        : null;
+
+    return RefreshIndicator(
+      color: const Color(GarraColors.gold),
+      onRefresh: onRefresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+          GarraSpacing.lg,
+          GarraSpacing.md,
+          GarraSpacing.lg,
+          GarraSpacing.section,
+        ),
+        children: [
+          _ClanHeader(clan: clan),
+          const SizedBox(height: GarraSpacing.lg),
+          if (clan.description != null && clan.description!.trim().isNotEmpty)
+            GarraCard(
+              child: Text(
+                clan.description!,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          if (clan.description != null && clan.description!.trim().isNotEmpty)
+            const SizedBox(height: GarraSpacing.lg),
+          if (clan.currentYearPollaPoints != null ||
+              clan.currentYearRank != null) ...[
+            GarraCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Puntos Polla ${DateTime.now().year}',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: GarraSpacing.sm),
+                  if (clan.currentYearPollaPoints != null)
+                    Text(
+                      '${NumberFormat.decimalPattern('es').format(clan.currentYearPollaPoints)} pts',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            color: const Color(GarraColors.gold),
+                          ),
+                    ),
+                  if (clan.currentYearRank != null) ...[
+                    const SizedBox(height: GarraSpacing.xs),
+                    Text(
+                      'Puesto #${clan.currentYearRank} entre clanes',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                  const SizedBox(height: GarraSpacing.md),
+                  TextButton(
+                    onPressed: () => context.push('/clans/ranking'),
+                    child: const Text('Ver Ranking de Clanes'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: GarraSpacing.lg),
+          ],
+          _JoinSection(
+            clan: clan,
+            joining: joining,
+            leaving: leaving,
+            onJoin: onJoin,
+            onLeave: onLeave,
+          ),
+          if (clan.isMember) ...[
+            const SizedBox(height: GarraSpacing.lg),
+            Row(
+              children: [
+                Expanded(
+                  child: GarraSecondaryButton(
+                    label: 'Tribuna',
+                    onPressed: () =>
+                        context.push('/clans/${clan.slug}/tribuna'),
                   ),
                 ),
-              if (clan.description != null &&
-                  clan.description!.trim().isNotEmpty)
-                const SizedBox(height: GarraSpacing.lg),
-              _JoinSection(
-                clan: clan,
-                joining: _joining,
-                leaving: _leaving,
-                onJoin: _join,
-                onLeave: () => _leave(clan),
-              ),
-              const SizedBox(height: GarraSpacing.xxl),
-              membersAsync.when(
-                loading: () => const GarraSkeleton(height: 80),
-                error: (_, __) => const SizedBox.shrink(),
-                data: (members) => _MembersPreview(members: members),
-              ),
-            ],
+                const SizedBox(width: GarraSpacing.md),
+                Expanded(
+                  child: GarraSecondaryButton(
+                    label: 'Polla',
+                    onPressed: () =>
+                        context.push('/clans/${clan.slug}/polla'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (feedAsync != null) ...[
+            const SizedBox(height: GarraSpacing.xxl),
+            const GarraSectionHeader(
+              title: 'Últimas de la Tribuna',
+              subtitle: 'Actividad reciente del clan',
+            ),
+            const SizedBox(height: GarraSpacing.md),
+            feedAsync.when(
+              loading: () => const GarraSkeleton(height: 80),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (posts) {
+                if (posts.isEmpty) {
+                  return const GarraCard(
+                    child: Text(
+                      'Aún no hay publicaciones en la Tribuna.',
+                      style:
+                          TextStyle(color: Color(GarraColors.textSecondary)),
+                    ),
+                  );
+                }
+                final preview = posts.take(3).toList();
+                return Column(
+                  children: preview
+                      .map(
+                        (p) => Padding(
+                          padding:
+                              const EdgeInsets.only(bottom: GarraSpacing.sm),
+                          child: GarraCard(
+                            onTap: () =>
+                                context.push('/muro-crema/posts/${p.id}'),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  p.fullName.isNotEmpty
+                                      ? p.fullName
+                                      : p.username,
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                const SizedBox(height: GarraSpacing.xs),
+                                Text(
+                                  p.content,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                );
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PollaTab extends StatelessWidget {
+  const _PollaTab({required this.clan});
+
+  final ClanModel clan;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!clan.isMember) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(GarraSpacing.xl),
+          child: GarraEmptyState(
+            title: 'Solo miembros',
+            message:
+                'Únete al clan para ver la Polla y el ranking interno.',
           ),
         ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(GarraSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GarraCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Polla del Clan',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: GarraSpacing.sm),
+                const Text(
+                  'Participación, predicciones y ranking con los puntos '
+                  'de La Polla global. Una sola predicción por partido.',
+                  style: TextStyle(color: Color(GarraColors.textSecondary)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: GarraSpacing.lg),
+          GarraPrimaryButton(
+            label: 'Abrir Polla del Clan',
+            onPressed: () => context.push('/clans/${clan.slug}/polla'),
+          ),
+          const SizedBox(height: GarraSpacing.md),
+          GarraSecondaryButton(
+            label: 'Ranking de Clanes',
+            onPressed: () => context.push('/clans/ranking'),
+          ),
+        ],
       ),
     );
   }
@@ -240,6 +492,13 @@ class _ClanHeader extends StatelessWidget {
                         color: const Color(GarraColors.gold),
                       ),
                 ),
+                if (clan.isMember && clan.myMembership != null) ...[
+                  const SizedBox(height: GarraSpacing.xs),
+                  Text(
+                    ClanRoleLabels.label(clan.myMembership!.role),
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ],
                 const SizedBox(height: GarraSpacing.sm),
                 Text(
                   ClanJoinPolicyLabels.indicator(clan.joinPolicy),

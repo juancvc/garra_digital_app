@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../../core/network/dio_client.dart';
+import '../../community/data/wall_post_model.dart';
 import 'clan_models.dart';
 
 class ClanService {
@@ -196,6 +197,118 @@ class ClanService {
     await _dio.delete('/clans/$slug/members/$username');
   }
 
+  Future<ClanPage<WallPostModel>> getClanPosts(
+    String slug, {
+    String? cursor,
+    int size = 20,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/clans/$slug/posts',
+        queryParameters: {
+          if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+          'size': size,
+        },
+      );
+      return _parsePage(response.data, WallPostModel.fromJson);
+    } on DioException catch (e) {
+      throw _mapMembershipError(e);
+    }
+  }
+
+  Future<WallPostModel> createClanPost(
+    String slug,
+    CreateClanPostRequest request,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '/clans/$slug/posts',
+        data: request.toJson(),
+      );
+      final data = response.data['data'];
+      return WallPostModel.fromJson(Map<String, dynamic>.from(data as Map));
+    } on DioException catch (e) {
+      throw _mapMembershipError(e);
+    }
+  }
+
+  Future<ClanPollaMatchModel> getClanPolla(
+    String slug,
+    String matchId,
+  ) async {
+    try {
+      final response = await _dio.get('/clans/$slug/polla/$matchId');
+      final data = response.data['data'];
+      if (data is Map) {
+        return ClanPollaMatchModel.fromJson(
+          Map<String, dynamic>.from(data),
+        );
+      }
+      return const ClanPollaMatchModel(
+        state: 'NO_MATCH',
+        memberCount: 0,
+        participantCount: 0,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return const ClanPollaMatchModel(
+          state: 'NO_MATCH',
+          memberCount: 0,
+          participantCount: 0,
+        );
+      }
+      throw _mapMembershipError(e);
+    }
+  }
+
+  Future<ClanPage<ClanMemberRankingEntry>> getClanMemberRanking(
+    String slug, {
+    int? year,
+    String? cursor,
+    int size = 20,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/clans/$slug/polla/ranking',
+        queryParameters: {
+          if (year != null) 'year': year,
+          if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+          'size': size,
+        },
+      );
+      return _parsePage(response.data, ClanMemberRankingEntry.fromJson);
+    } on DioException catch (e) {
+      throw _mapMembershipError(e);
+    }
+  }
+
+  Future<ClanPage<ClanGlobalRankingEntry>> getGlobalClanRanking({
+    int? year,
+    String? cursor,
+    int size = 20,
+  }) async {
+    final response = await _dio.get(
+      '/clans/ranking',
+      queryParameters: {
+        if (year != null) 'year': year,
+        if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+        'size': size,
+      },
+    );
+    return _parsePage(response.data, ClanGlobalRankingEntry.fromJson);
+  }
+
+  Exception _mapMembershipError(DioException e) {
+    if (e.response?.statusCode == 403) {
+      return ClanMembershipLostException();
+    }
+    final message = _extractMessage(e);
+    if (message.isNotEmpty) return ClanServiceException(message);
+    return ClanServiceException(
+      'No pudimos cargar este contenido. Inténtalo de nuevo.',
+    );
+  }
+
   ClanPage<ClanModel> _parseClanPage(
     dynamic responseData,
     ClanModel Function(Map<String, dynamic>) mapper,
@@ -264,6 +377,19 @@ class ClanService {
 
 class ClanServiceException implements Exception {
   ClanServiceException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+/// Thrown when the fan is no longer an ACTIVE clan member (HTTP 403).
+class ClanMembershipLostException implements Exception {
+  ClanMembershipLostException([
+    this.message =
+        'Ya no perteneces a este clan. Solo los miembros activos pueden ver este contenido.',
+  ]);
 
   final String message;
 

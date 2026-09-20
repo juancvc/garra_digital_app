@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -293,6 +294,18 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     }
 
     if (_postError != null || _post == null) {
+      final isMembershipLost = _postError is DioException &&
+          (_postError as DioException).response?.statusCode == 403;
+      if (isMembershipLost) {
+        return const Padding(
+          padding: EdgeInsets.all(GarraSpacing.xl),
+          child: GarraEmptyState(
+            title: 'Acceso restringido',
+            message:
+                'Ya no perteneces a este clan. Solo los miembros activos pueden ver este contenido.',
+          ),
+        );
+      }
       return GarraErrorState(
         title: 'No pudimos cargar la publicación',
         message: 'Revisa tu conexión e inténtalo de nuevo.',

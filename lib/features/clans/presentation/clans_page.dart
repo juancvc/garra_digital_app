@@ -95,6 +95,41 @@ class _ClansPageState extends ConsumerState<ClansPage> {
                       ),
                       const SizedBox(height: GarraSpacing.lg),
                       _InvitationsEntry(pendingCount: invitationCount),
+                      const SizedBox(height: GarraSpacing.md),
+                      GarraCard(
+                        onTap: () => context.push('/clans/ranking'),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.emoji_events_outlined,
+                              color: Color(GarraColors.gold),
+                            ),
+                            const SizedBox(width: GarraSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Ranking de Clanes',
+                                    style:
+                                        Theme.of(context).textTheme.titleMedium,
+                                  ),
+                                  const SizedBox(height: GarraSpacing.xs),
+                                  Text(
+                                    'Puntos Polla de la temporada',
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(
+                              Icons.chevron_right,
+                              color: Color(GarraColors.gold),
+                            ),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: GarraSpacing.xxl),
                       myClansAsync.when(
                         loading: () => const GarraSkeleton(height: 100),

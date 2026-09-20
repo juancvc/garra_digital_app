@@ -42,6 +42,8 @@ class ClanModel {
     this.myMembership,
     this.pendingJoinRequest,
     this.createdAt,
+    this.currentYearPollaPoints,
+    this.currentYearRank,
   });
 
   final String id;
@@ -59,6 +61,8 @@ class ClanModel {
   final ClanMembershipSummary? myMembership;
   final ClanJoinRequestSummary? pendingJoinRequest;
   final DateTime? createdAt;
+  final int? currentYearPollaPoints;
+  final int? currentYearRank;
 
   bool get isSuspended => status.toUpperCase() == 'SUSPENDED';
   bool get isArchived => status.toUpperCase() == 'ARCHIVED';
@@ -116,6 +120,10 @@ class ClanModel {
               Map<String, dynamic>.from(json['pendingJoinRequest'] as Map),
             ),
       createdAt: _parseDateTime(json['createdAt']),
+      currentYearPollaPoints:
+          (json['currentYearPollaPoints'] as num?)?.toInt() ??
+              (json['currentYearPoints'] as num?)?.toInt(),
+      currentYearRank: (json['currentYearRank'] as num?)?.toInt(),
     );
   }
 
@@ -445,5 +453,313 @@ class ClanRoleLabels {
       default:
         return role ?? '';
     }
+  }
+}
+
+/// Create body for clan tribuna posts (no matchId).
+class CreateClanPostRequest {
+  const CreateClanPostRequest({
+    required this.content,
+    this.imageUrl,
+    this.locationTag = 'HOME',
+  });
+
+  final String content;
+  final String? imageUrl;
+  final String locationTag;
+
+  Map<String, dynamic> toJson() => {
+        'content': content,
+        if (imageUrl != null) 'imageUrl': imageUrl,
+        'locationTag': locationTag,
+      };
+}
+
+class ClanPollaMatchModel {
+  const ClanPollaMatchModel({
+    this.match,
+    required this.state,
+    required this.memberCount,
+    required this.participantCount,
+    this.participationPercent,
+    this.myPrediction,
+    this.memberPredictions = const [],
+    this.scoredSummary,
+    this.year,
+    this.predictionsRevealed = false,
+  });
+
+  final ClanPollaMatchInfo? match;
+  final String state;
+  final int memberCount;
+  final int participantCount;
+  final double? participationPercent;
+  final ClanPollaPrediction? myPrediction;
+  final List<ClanPollaMemberPrediction> memberPredictions;
+  final ClanPollaScoredSummary? scoredSummary;
+  final int? year;
+  final bool predictionsRevealed;
+
+  bool get hasMatch => match != null && match!.id.isNotEmpty;
+  bool get isPrelock =>
+      state == 'OPEN' || state == 'SUBMITTED' || state == 'NOT_OPEN';
+  bool get isLocked => state == 'LOCKED';
+  bool get isScored => state == 'SCORED';
+  bool get isNoMatch =>
+      state == 'NO_MATCH' || !hasMatch;
+
+  factory ClanPollaMatchModel.fromJson(Map<String, dynamic> json) {
+    final state = (json['state'] ?? json['pollaState'])?.toString() ?? 'NO_MATCH';
+    final revealed = json['predictionsRevealed'] as bool? ??
+        (state == 'LOCKED' || state == 'SCORED');
+    final membersRaw = json['memberPredictions'] ?? json['predictions'];
+    return ClanPollaMatchModel(
+      match: json['match'] is Map
+          ? ClanPollaMatchInfo.fromJson(
+              Map<String, dynamic>.from(json['match'] as Map),
+            )
+          : null,
+      state: state,
+      memberCount: (json['memberCount'] as num?)?.toInt() ?? 0,
+      participantCount: (json['participantCount'] as num?)?.toInt() ?? 0,
+      participationPercent:
+          (json['participationPercent'] as num?)?.toDouble(),
+      myPrediction: json['myPrediction'] is Map
+          ? ClanPollaPrediction.fromJson(
+              Map<String, dynamic>.from(json['myPrediction'] as Map),
+            )
+          : null,
+      memberPredictions: revealed && membersRaw is List
+          ? membersRaw
+              .map(
+                (e) => ClanPollaMemberPrediction.fromJson(
+                  Map<String, dynamic>.from(e as Map),
+                ),
+              )
+              .toList()
+          : const [],
+      scoredSummary: json['scoredSummary'] is Map
+          ? ClanPollaScoredSummary.fromJson(
+              Map<String, dynamic>.from(json['scoredSummary'] as Map),
+            )
+          : null,
+      year: (json['year'] as num?)?.toInt(),
+      predictionsRevealed: revealed,
+    );
+  }
+}
+
+class ClanPollaMatchInfo {
+  const ClanPollaMatchInfo({
+    required this.id,
+    required this.homeTeam,
+    required this.awayTeam,
+    this.matchDateTime,
+    this.stadium,
+    this.competition,
+    this.homeScore,
+    this.awayScore,
+  });
+
+  final String id;
+  final String homeTeam;
+  final String awayTeam;
+  final DateTime? matchDateTime;
+  final String? stadium;
+  final String? competition;
+  final int? homeScore;
+  final int? awayScore;
+
+  factory ClanPollaMatchInfo.fromJson(Map<String, dynamic> json) {
+    return ClanPollaMatchInfo(
+      id: json['id']?.toString() ?? '',
+      homeTeam: json['homeTeam'] as String? ?? '',
+      awayTeam: json['awayTeam'] as String? ?? '',
+      matchDateTime: ClanModel._parseDateTime(json['matchDateTime']),
+      stadium: json['stadium'] as String?,
+      competition: json['competition'] as String?,
+      homeScore: (json['homeScore'] as num?)?.toInt(),
+      awayScore: (json['awayScore'] as num?)?.toInt(),
+    );
+  }
+}
+
+class ClanPollaPrediction {
+  const ClanPollaPrediction({
+    this.homeScore,
+    this.awayScore,
+    this.firstScorer,
+    this.status,
+    this.pointsEarned,
+  });
+
+  final int? homeScore;
+  final int? awayScore;
+  final String? firstScorer;
+  final String? status;
+  final int? pointsEarned;
+
+  bool get hasScores => homeScore != null && awayScore != null;
+
+  String get scoreLabel {
+    if (!hasScores) return 'Sin predicción';
+    return '$homeScore - $awayScore';
+  }
+
+  factory ClanPollaPrediction.fromJson(Map<String, dynamic> json) {
+    return ClanPollaPrediction(
+      homeScore: (json['homeScore'] as num?)?.toInt(),
+      awayScore: (json['awayScore'] as num?)?.toInt(),
+      firstScorer: json['firstScorer'] as String?,
+      status: json['status']?.toString(),
+      pointsEarned: (json['pointsEarned'] as num?)?.toInt(),
+    );
+  }
+}
+
+class ClanPollaMemberPrediction {
+  const ClanPollaMemberPrediction({
+    required this.username,
+    required this.displayName,
+    this.avatarUrl,
+    this.homeScore,
+    this.awayScore,
+    this.firstScorer,
+    this.pointsEarned,
+    this.rank,
+  });
+
+  final String username;
+  final String displayName;
+  final String? avatarUrl;
+  final int? homeScore;
+  final int? awayScore;
+  final String? firstScorer;
+  final int? pointsEarned;
+  final int? rank;
+
+  String get scoreLabel {
+    if (homeScore == null || awayScore == null) return '—';
+    return '$homeScore - $awayScore';
+  }
+
+  factory ClanPollaMemberPrediction.fromJson(Map<String, dynamic> json) {
+    final fan = json['fan'] is Map
+        ? Map<String, dynamic>.from(json['fan'] as Map)
+        : const <String, dynamic>{};
+    return ClanPollaMemberPrediction(
+      username: (json['username'] ?? fan['username'])?.toString() ?? '',
+      displayName:
+          (json['displayName'] ?? fan['displayName'])?.toString() ?? '',
+      avatarUrl: (json['avatarUrl'] ?? fan['avatarUrl']) as String?,
+      homeScore: (json['homeScore'] as num?)?.toInt(),
+      awayScore: (json['awayScore'] as num?)?.toInt(),
+      firstScorer: json['firstScorer'] as String?,
+      pointsEarned: (json['pointsEarned'] as num?)?.toInt(),
+      rank: (json['rank'] as num?)?.toInt(),
+    );
+  }
+}
+
+class ClanPollaScoredSummary {
+  const ClanPollaScoredSummary({
+    this.totalClanPoints = 0,
+    this.participants = 0,
+    this.averagePoints,
+  });
+
+  final int totalClanPoints;
+  final int participants;
+  final double? averagePoints;
+
+  factory ClanPollaScoredSummary.fromJson(Map<String, dynamic> json) {
+    return ClanPollaScoredSummary(
+      totalClanPoints: (json['totalClanPoints'] as num?)?.toInt() ??
+          (json['totalPoints'] as num?)?.toInt() ??
+          0,
+      participants: (json['participants'] as num?)?.toInt() ??
+          (json['participantCount'] as num?)?.toInt() ??
+          0,
+      averagePoints: (json['averagePoints'] as num?)?.toDouble(),
+    );
+  }
+}
+
+class ClanMemberRankingEntry {
+  const ClanMemberRankingEntry({
+    required this.rank,
+    required this.username,
+    required this.displayName,
+    this.avatarUrl,
+    required this.predictionPoints,
+    this.predictionsScored,
+  });
+
+  final int rank;
+  final String username;
+  final String displayName;
+  final String? avatarUrl;
+  final int predictionPoints;
+  final int? predictionsScored;
+
+  factory ClanMemberRankingEntry.fromJson(Map<String, dynamic> json) {
+    final fan = json['fan'] is Map
+        ? Map<String, dynamic>.from(json['fan'] as Map)
+        : const <String, dynamic>{};
+    return ClanMemberRankingEntry(
+      rank: (json['rank'] as num?)?.toInt() ?? 0,
+      username: (json['username'] ?? fan['username'])?.toString() ?? '',
+      displayName:
+          (json['displayName'] ?? fan['displayName'])?.toString() ?? '',
+      avatarUrl: (json['avatarUrl'] ?? fan['avatarUrl']) as String?,
+      predictionPoints: (json['predictionPoints'] as num?)?.toInt() ??
+          (json['points'] as num?)?.toInt() ??
+          (json['totalPoints'] as num?)?.toInt() ??
+          0,
+      predictionsScored: (json['predictionsScored'] as num?)?.toInt(),
+    );
+  }
+}
+
+class ClanGlobalRankingEntry {
+  const ClanGlobalRankingEntry({
+    required this.rank,
+    required this.slug,
+    required this.name,
+    required this.totalPoints,
+    this.memberCount,
+    this.logoUrl,
+    this.scoredPredictions,
+    this.isPrimary = false,
+  });
+
+  final int rank;
+  final String slug;
+  final String name;
+  final int totalPoints;
+  final int? memberCount;
+  final String? logoUrl;
+  final int? scoredPredictions;
+  final bool isPrimary;
+
+  factory ClanGlobalRankingEntry.fromJson(Map<String, dynamic> json) {
+    final clan = json['clan'] is Map
+        ? Map<String, dynamic>.from(json['clan'] as Map)
+        : json;
+    return ClanGlobalRankingEntry(
+      rank: (json['rank'] as num?)?.toInt() ?? 0,
+      slug: (json['slug'] ?? clan['slug'])?.toString() ?? '',
+      name: (json['name'] ?? clan['name']) as String? ?? '',
+      totalPoints: (json['totalPoints'] as num?)?.toInt() ??
+          (json['pollaPoints'] as num?)?.toInt() ??
+          0,
+      memberCount: (json['memberCount'] as num?)?.toInt() ??
+          (clan['memberCount'] as num?)?.toInt(),
+      logoUrl: (json['logoUrl'] ?? clan['logoUrl']) as String?,
+      scoredPredictions: (json['scoredPredictions'] as num?)?.toInt(),
+      isPrimary: json['isPrimary'] as bool? ??
+          json['primary'] as bool? ??
+          false,
+    );
   }
 }

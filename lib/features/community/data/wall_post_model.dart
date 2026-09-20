@@ -3,7 +3,7 @@ import 'reaction_type.dart';
 class WallPostModel {
   const WallPostModel({
     required this.id,
-    required this.matchId,
+    this.matchId = '',
     required this.username,
     required this.fullName,
     required this.content,
@@ -16,6 +16,9 @@ class WallPostModel {
     this.reactionCount = 0,
     this.commentCount = 0,
     this.myReaction,
+    this.contextType = 'MATCH',
+    this.clanSlug,
+    this.clanName,
   });
 
   final String id;
@@ -32,11 +35,22 @@ class WallPostModel {
   final int reactionCount;
   final int commentCount;
   final String? myReaction;
+  final String contextType;
+  final String? clanSlug;
+  final String? clanName;
+
+  bool get isClanContext => contextType.toUpperCase() == 'CLAN';
 
   factory WallPostModel.fromJson(Map<String, dynamic> json) {
+    final context = json['context'] is Map
+        ? Map<String, dynamic>.from(json['context'] as Map)
+        : const <String, dynamic>{};
+    final contextType =
+        (json['contextType'] ?? context['type'] ?? 'MATCH')?.toString() ??
+            'MATCH';
     return WallPostModel(
       id: json['id']?.toString() ?? '',
-      matchId: json['matchId']?.toString() ?? '',
+      matchId: (json['matchId'] ?? context['matchId'])?.toString() ?? '',
       username: json['username']?.toString() ?? '',
       fullName: json['fullName']?.toString() ?? '',
       content: json['content']?.toString() ?? '',
@@ -49,6 +63,9 @@ class WallPostModel {
       reactionCount: (json['reactionCount'] as num?)?.toInt() ?? 0,
       commentCount: (json['commentCount'] as num?)?.toInt() ?? 0,
       myReaction: json['myReaction']?.toString(),
+      contextType: contextType,
+      clanSlug: (json['clanSlug'] ?? context['clanSlug'])?.toString(),
+      clanName: (json['clanName'] ?? context['clanName'])?.toString(),
     );
   }
 
@@ -68,6 +85,9 @@ class WallPostModel {
     int? commentCount,
     String? myReaction,
     bool clearMyReaction = false,
+    String? contextType,
+    String? clanSlug,
+    String? clanName,
   }) {
     return WallPostModel(
       id: id ?? this.id,
@@ -84,6 +104,9 @@ class WallPostModel {
       reactionCount: reactionCount ?? this.reactionCount,
       commentCount: commentCount ?? this.commentCount,
       myReaction: clearMyReaction ? null : (myReaction ?? this.myReaction),
+      contextType: contextType ?? this.contextType,
+      clanSlug: clanSlug ?? this.clanSlug,
+      clanName: clanName ?? this.clanName,
     );
   }
 }
