@@ -83,6 +83,12 @@ void main() {
     expect(find.text('@cremafan'), findsOneWidget);
     expect(find.textContaining('Puntos Garra'), findsOneWidget);
     expect(find.text('Check-ins'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Encuentra tu clan'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Encuentra tu clan'), findsOneWidget);
   });
 
   testWidgets('PASSPORT_ERROR_STATE', (tester) async {

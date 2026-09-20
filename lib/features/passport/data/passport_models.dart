@@ -6,6 +6,7 @@ class PassportModel {
     required this.globalRank,
     required this.profileVisibility,
     required this.viewerIsOwner,
+    this.primaryClan,
   });
 
   final PassportIdentity identity;
@@ -14,6 +15,7 @@ class PassportModel {
   final int? globalRank;
   final String profileVisibility;
   final bool viewerIsOwner;
+  final PassportClanSummary? primaryClan;
 
   factory PassportModel.fromJson(Map<String, dynamic> json) {
     return PassportModel(
@@ -29,6 +31,37 @@ class PassportModel {
       globalRank: (json['globalRank'] as num?)?.toInt(),
       profileVisibility: json['profileVisibility'] as String? ?? 'PUBLIC',
       viewerIsOwner: json['viewerIsOwner'] as bool? ?? false,
+      primaryClan: json['primaryClan'] == null
+          ? null
+          : PassportClanSummary.fromJson(
+              Map<String, dynamic>.from(json['primaryClan'] as Map),
+            ),
+    );
+  }
+}
+
+class PassportClanSummary {
+  const PassportClanSummary({
+    required this.slug,
+    required this.name,
+    required this.memberCount,
+    this.role,
+    this.logoUrl,
+  });
+
+  final String slug;
+  final String name;
+  final int memberCount;
+  final String? role;
+  final String? logoUrl;
+
+  factory PassportClanSummary.fromJson(Map<String, dynamic> json) {
+    return PassportClanSummary(
+      slug: json['slug']?.toString() ?? '',
+      name: json['name'] as String? ?? '',
+      memberCount: (json['memberCount'] as num?)?.toInt() ?? 0,
+      role: json['role']?.toString(),
+      logoUrl: json['logoUrl'] as String?,
     );
   }
 }

@@ -277,6 +277,10 @@ Widget pumpHome(HomeModel home) {
         path: '/muro-crema',
         builder: (context, state) => const Scaffold(body: Text('MURO')),
       ),
+      GoRoute(
+        path: '/clans',
+        builder: (context, state) => const Scaffold(body: Text('CLANS')),
+      ),
     ],
   );
 

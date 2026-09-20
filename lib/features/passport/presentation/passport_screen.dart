@@ -11,6 +11,7 @@ import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
+import '../../clans/data/clan_models.dart';
 import '../data/passport_models.dart';
 import 'providers/passport_provider.dart';
 
@@ -225,6 +226,8 @@ class _PassportBody extends StatelessWidget {
           ),
         ),
         const SizedBox(height: GarraSpacing.lg),
+        _PassportClanSection(clan: passport.primaryClan),
+        const SizedBox(height: GarraSpacing.lg),
         GarraCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -285,6 +288,89 @@ class _PassportBody extends StatelessWidget {
       default:
         return 'Público';
     }
+  }
+}
+
+class _PassportClanSection extends StatelessWidget {
+  const _PassportClanSection({this.clan});
+
+  final PassportClanSummary? clan;
+
+  @override
+  Widget build(BuildContext context) {
+    if (clan == null) {
+      return GarraCard(
+        onTap: () => context.push('/clans'),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const GarraSectionHeader(
+              title: 'Mi Clan',
+              subtitle: 'Tu comunidad en Garra Digital',
+            ),
+            const SizedBox(height: GarraSpacing.md),
+            Text(
+              'Encuentra tu clan',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: GarraSpacing.xs),
+            Text(
+              'Únete a una comunidad crema y comparte la pasión.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      );
+    }
+
+    final members =
+        NumberFormat.decimalPattern('es').format(clan!.memberCount);
+    return GarraCard(
+      onTap: () => context.push('/clans/${clan!.slug}'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const GarraSectionHeader(title: 'Mi Clan'),
+          const SizedBox(height: GarraSpacing.md),
+          Row(
+            children: [
+              GarraAvatar(
+                displayName: clan!.name,
+                avatarUrl: clan!.logoUrl,
+                size: 52,
+              ),
+              const SizedBox(width: GarraSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      clan!.name,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: GarraSpacing.xs),
+                    Text(
+                      '$members miembros',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    if (clan!.role != null) ...[
+                      const SizedBox(height: GarraSpacing.xs),
+                      Text(
+                        ClanRoleLabels.label(clan!.role),
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              color: const Color(GarraColors.gold),
+                            ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 

@@ -11,6 +11,7 @@ class HomeModel {
     this.mvpPollId,
     this.mission,
     this.streak,
+    this.clan,
   });
 
   final HomeFanSummary fan;
@@ -24,6 +25,7 @@ class HomeModel {
   final String? mvpPollId;
   final HomeMissionSummary? mission;
   final HomeStreakSummary? streak;
+  final HomeClanSummary? clan;
 
   factory HomeModel.fromJson(Map<String, dynamic> json) {
     return HomeModel(
@@ -57,6 +59,11 @@ class HomeModel {
           ? null
           : HomeStreakSummary.fromJson(
               Map<String, dynamic>.from(json['streak'] as Map),
+            ),
+      clan: json['clan'] == null
+          ? null
+          : HomeClanSummary.fromJson(
+              Map<String, dynamic>.from(json['clan'] as Map),
             ),
     );
   }
@@ -332,6 +339,32 @@ class HomeStreakSummary {
     return HomeStreakSummary(
       current: (json['current'] as num?)?.toInt() ?? 0,
       best: (json['best'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class HomeClanSummary {
+  const HomeClanSummary({
+    required this.slug,
+    required this.name,
+    required this.memberCount,
+    this.role,
+    this.logoUrl,
+  });
+
+  final String slug;
+  final String name;
+  final int memberCount;
+  final String? role;
+  final String? logoUrl;
+
+  factory HomeClanSummary.fromJson(Map<String, dynamic> json) {
+    return HomeClanSummary(
+      slug: json['slug']?.toString() ?? '',
+      name: json['name'] as String? ?? '',
+      memberCount: (json['memberCount'] as num?)?.toInt() ?? 0,
+      role: json['role']?.toString(),
+      logoUrl: json['logoUrl'] as String?,
     );
   }
 }

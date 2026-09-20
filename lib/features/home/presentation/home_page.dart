@@ -14,6 +14,7 @@ import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
+import '../../clans/data/clan_models.dart';
 import '../../community/presentation/widgets/garra_reaction_bar.dart';
 import '../../matches/presentation/providers/matches_provider.dart';
 import '../../missions/data/mission_models.dart';
@@ -176,6 +177,9 @@ class _HomeBody extends ConsumerWidget {
       );
       children.add(const SizedBox(height: GarraSpacing.lg));
     }
+
+    children.add(_HomeClanSection(clan: home.clan));
+    children.add(const SizedBox(height: GarraSpacing.lg));
 
     if (home.hasMatch) {
       children.add(_PointsRankCard(fan: home.fan));
@@ -738,6 +742,83 @@ class _MissionStreakSection extends StatelessWidget {
             compact: true,
           ),
       ],
+    );
+  }
+}
+
+class _HomeClanSection extends StatelessWidget {
+  const _HomeClanSection({this.clan});
+
+  final HomeClanSummary? clan;
+
+  @override
+  Widget build(BuildContext context) {
+    if (clan == null) {
+      return GarraCard(
+        onTap: () => context.push('/clans'),
+        child: Row(
+          children: [
+            const Icon(Icons.groups_2_outlined, color: Color(GarraColors.gold)),
+            const SizedBox(width: GarraSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Encuentra tu comunidad',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: GarraSpacing.xs),
+                  Text(
+                    'Descubre clanes crema cerca de ti',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+          ],
+        ),
+      );
+    }
+
+    final members =
+        NumberFormat.decimalPattern('es').format(clan!.memberCount);
+    return GarraCard(
+      onTap: () => context.push('/clans/${clan!.slug}'),
+      child: Row(
+        children: [
+          GarraAvatar(
+            displayName: clan!.name,
+            avatarUrl: clan!.logoUrl,
+            size: 44,
+          ),
+          const SizedBox(width: GarraSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  clan!.name,
+                  style: Theme.of(context).textTheme.titleMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: GarraSpacing.xs),
+                Text(
+                  [
+                    '$members miembros',
+                    if (clan!.role != null)
+                      ClanRoleLabels.label(clan!.role),
+                  ].join(' · '),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+        ],
+      ),
     );
   }
 }

@@ -1,4 +1,8 @@
 import 'package:garra_digital_app/features/auth/presentation/complete_profile_page.dart';
+import 'package:garra_digital_app/features/clans/presentation/clan_detail_page.dart';
+import 'package:garra_digital_app/features/clans/presentation/clan_invitations_page.dart';
+import 'package:garra_digital_app/features/clans/presentation/clan_manage_page.dart';
+import 'package:garra_digital_app/features/clans/presentation/clans_page.dart';
 import 'package:garra_digital_app/features/community/presentation/muro_crema_page.dart';
 import 'package:garra_digital_app/features/community/presentation/post_detail_screen.dart';
 import 'package:garra_digital_app/features/missions/presentation/missions_page.dart';
@@ -148,6 +152,32 @@ final GoRouter appRouter = GoRouter(
           builder: (context, state) {
             final matchId = state.uri.queryParameters['matchId'];
             return MissionsPage(matchId: matchId);
+          },
+        ),
+        GoRoute(
+          path: '/clans',
+          name: 'clans',
+          builder: (context, state) => const ClansPage(),
+        ),
+        GoRoute(
+          path: '/clans/invitations',
+          name: 'clans-invitations',
+          builder: (context, state) => const ClanInvitationsPage(),
+        ),
+        GoRoute(
+          path: '/clans/:slug',
+          name: 'clan-detail',
+          builder: (context, state) {
+            final slug = state.pathParameters['slug'] ?? '';
+            return ClanDetailPage(slug: slug);
+          },
+        ),
+        GoRoute(
+          path: '/clans/:slug/manage',
+          name: 'clan-manage',
+          builder: (context, state) {
+            final slug = state.pathParameters['slug'] ?? '';
+            return ClanManagePage(slug: slug);
           },
         ),
         GoRoute(
