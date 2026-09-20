@@ -180,6 +180,8 @@ class _HomeBody extends ConsumerWidget {
 
     children.add(_HomeClanSection(clan: home.clan));
     children.add(const SizedBox(height: GarraSpacing.lg));
+    children.add(const _MarketplaceShortcut());
+    children.add(const SizedBox(height: GarraSpacing.lg));
 
     if (home.hasMatch) {
       children.add(_PointsRankCard(fan: home.fan));
@@ -815,6 +817,40 @@ class _HomeClanSection extends StatelessWidget {
                     if (clan!.currentYearPollaPoints != null)
                       '${clan!.currentYearPollaPoints} pts',
                   ].join(' · '),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+        ],
+      ),
+    );
+  }
+}
+
+class _MarketplaceShortcut extends StatelessWidget {
+  const _MarketplaceShortcut();
+
+  @override
+  Widget build(BuildContext context) {
+    return GarraCard(
+      onTap: () => context.push('/marketplace'),
+      child: Row(
+        children: [
+          const Icon(Icons.storefront_outlined, color: Color(GarraColors.gold)),
+          const SizedBox(width: GarraSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Marketplace Crema',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: GarraSpacing.xs),
+                Text(
+                  'Descubre emprendimientos de la hinchada',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],

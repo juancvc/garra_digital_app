@@ -228,6 +228,36 @@ class _PassportBody extends StatelessWidget {
         const SizedBox(height: GarraSpacing.lg),
         _PassportClanSection(clan: passport.primaryClan),
         const SizedBox(height: GarraSpacing.lg),
+        GarraCard(
+          onTap: () => context.push('/marketplace'),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.storefront_outlined,
+                color: Color(GarraColors.gold),
+              ),
+              const SizedBox(width: GarraSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Marketplace Crema',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: GarraSpacing.xs),
+                    Text(
+                      'Emprendimientos de la hinchada',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+            ],
+          ),
+        ),
+        const SizedBox(height: GarraSpacing.lg),
         _PassportHistorySection(
           yearSummary: passport.currentYearSummary,
         ),

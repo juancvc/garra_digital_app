@@ -10,6 +10,13 @@ import 'package:garra_digital_app/features/community/presentation/muro_crema_pag
 import 'package:garra_digital_app/features/community/presentation/post_detail_screen.dart';
 import 'package:garra_digital_app/features/history/presentation/history_page.dart';
 import 'package:garra_digital_app/features/history/presentation/year_recap_page.dart';
+import 'package:garra_digital_app/features/marketplace/presentation/favorites_page.dart';
+import 'package:garra_digital_app/features/marketplace/presentation/listing_detail_page.dart';
+import 'package:garra_digital_app/features/marketplace/presentation/marketplace_page.dart';
+import 'package:garra_digital_app/features/marketplace/presentation/seller_dashboard_page.dart';
+import 'package:garra_digital_app/features/marketplace/presentation/seller_listing_form_page.dart';
+import 'package:garra_digital_app/features/marketplace/presentation/seller_onboarding_page.dart';
+import 'package:garra_digital_app/features/marketplace/presentation/store_page.dart';
 import 'package:garra_digital_app/features/missions/presentation/missions_page.dart';
 import 'package:garra_digital_app/features/notifications/presentation/notifications_screen.dart';
 import 'package:garra_digital_app/features/passport/presentation/passport_screen.dart';
@@ -233,6 +240,55 @@ final GoRouter appRouter = GoRouter(
           path: '/historial-crema',
           name: 'historial-crema',
           builder: (context, state) => const HistorialCremaPage(),
+        ),
+        GoRoute(
+          path: '/marketplace',
+          name: 'marketplace',
+          builder: (context, state) => const MarketplacePage(),
+        ),
+        GoRoute(
+          path: '/marketplace/favorites',
+          name: 'marketplace-favorites',
+          builder: (context, state) => const FavoritesPage(),
+        ),
+        GoRoute(
+          path: '/marketplace/listings/:slug',
+          name: 'marketplace-listing',
+          builder: (context, state) {
+            final slug = state.pathParameters['slug'] ?? '';
+            return ListingDetailPage(slug: slug);
+          },
+        ),
+        GoRoute(
+          path: '/marketplace/stores/:slug',
+          name: 'marketplace-store',
+          builder: (context, state) {
+            final slug = state.pathParameters['slug'] ?? '';
+            return StorePage(slug: slug);
+          },
+        ),
+        GoRoute(
+          path: '/marketplace/seller',
+          name: 'marketplace-seller',
+          builder: (context, state) => const SellerOnboardingPage(),
+        ),
+        GoRoute(
+          path: '/marketplace/seller/dashboard',
+          name: 'marketplace-seller-dashboard',
+          builder: (context, state) => const SellerDashboardPage(),
+        ),
+        GoRoute(
+          path: '/marketplace/seller/listings/new',
+          name: 'marketplace-seller-listing-new',
+          builder: (context, state) => const SellerListingFormPage(),
+        ),
+        GoRoute(
+          path: '/marketplace/seller/listings/:slug/edit',
+          name: 'marketplace-seller-listing-edit',
+          builder: (context, state) {
+            final slug = state.pathParameters['slug'] ?? '';
+            return SellerListingFormPage(slug: slug);
+          },
         ),
       ],
     ),
