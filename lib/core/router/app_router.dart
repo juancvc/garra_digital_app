@@ -10,7 +10,8 @@ import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/register_page.dart';
 import '../../features/home/presentation/home_page.dart';
 import '../../features/locations/presentation/ruta_al_templo_page.dart';
-import '../../features/predictions/presentation/polla_page.dart';
+import '../../features/polla/presentation/matchday_polls_page.dart';
+import '../../features/polla/presentation/polla_page.dart';
 import '../../features/ranking/presentation/ranking_page.dart';
 import '../../features/splash/presentation/splash_page.dart';
 import '../navigation/main_shell.dart';
@@ -92,6 +93,30 @@ final GoRouter appRouter = GoRouter(
           path: '/polla',
           name: 'polla',
           builder: (context, state) => const PollaPage(),
+        ),
+        GoRoute(
+          path: '/polla/:matchId',
+          name: 'polla-match',
+          builder: (context, state) {
+            final matchId = state.pathParameters['matchId'] ?? '';
+            return PollaPage(matchId: matchId);
+          },
+        ),
+        GoRoute(
+          path: '/matchday/:matchId',
+          name: 'matchday',
+          builder: (context, state) {
+            final matchId = state.pathParameters['matchId'] ?? '';
+            return MatchdayPollsPage(matchId: matchId);
+          },
+        ),
+        GoRoute(
+          path: '/matchday/:matchId/polls',
+          name: 'matchday-polls',
+          builder: (context, state) {
+            final matchId = state.pathParameters['matchId'] ?? '';
+            return MatchdayPollsPage(matchId: matchId);
+          },
         ),
         GoRoute(
           path: '/ruta-templo',

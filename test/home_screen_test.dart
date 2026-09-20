@@ -96,6 +96,15 @@ Widget pumpHome(HomeModel home) {
         builder: (context, state) => const Scaffold(body: Text('POLLA_ROUTE')),
       ),
       GoRoute(
+        path: '/polla/:matchId',
+        builder: (context, state) => const Scaffold(body: Text('POLLA_ROUTE')),
+      ),
+      GoRoute(
+        path: '/matchday/:matchId/polls',
+        builder: (context, state) =>
+            const Scaffold(body: Text('MATCHDAY_ROUTE')),
+      ),
+      GoRoute(
         path: '/notifications',
         builder: (context, state) => const Scaffold(body: Text('NOTIF_ROUTE')),
       ),

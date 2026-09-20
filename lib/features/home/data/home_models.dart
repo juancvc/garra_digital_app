@@ -7,6 +7,8 @@ class HomeModel {
     required this.checkIn,
     required this.community,
     required this.notifications,
+    this.mvpOpen = false,
+    this.mvpPollId,
   });
 
   final HomeFanSummary fan;
@@ -16,6 +18,8 @@ class HomeModel {
   final HomeCheckIn checkIn;
   final HomeCommunityPreview community;
   final HomeNotifications notifications;
+  final bool mvpOpen;
+  final String? mvpPollId;
 
   factory HomeModel.fromJson(Map<String, dynamic> json) {
     return HomeModel(
@@ -38,6 +42,8 @@ class HomeModel {
       notifications: HomeNotifications.fromJson(
         Map<String, dynamic>.from(json['notifications'] as Map? ?? const {}),
       ),
+      mvpOpen: json['mvpOpen'] as bool? ?? false,
+      mvpPollId: json['mvpPollId']?.toString(),
     );
   }
 
@@ -132,6 +138,7 @@ class HomePrediction {
     this.matchId,
     this.predictedHomeScore,
     this.predictedAwayScore,
+    this.firstScorer,
     this.pointsEarned,
     required this.predictionsOpen,
   });
@@ -140,6 +147,7 @@ class HomePrediction {
   final String? matchId;
   final int? predictedHomeScore;
   final int? predictedAwayScore;
+  final String? firstScorer;
   final int? pointsEarned;
   final bool predictionsOpen;
 
@@ -149,6 +157,7 @@ class HomePrediction {
       matchId: json['matchId']?.toString(),
       predictedHomeScore: (json['predictedHomeScore'] as num?)?.toInt(),
       predictedAwayScore: (json['predictedAwayScore'] as num?)?.toInt(),
+      firstScorer: json['firstScorer'] as String?,
       pointsEarned: (json['pointsEarned'] as num?)?.toInt(),
       predictionsOpen: json['predictionsOpen'] as bool? ?? false,
     );

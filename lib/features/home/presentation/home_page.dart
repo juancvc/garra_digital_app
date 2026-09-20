@@ -143,7 +143,14 @@ class _HomeBody extends ConsumerWidget {
     }
 
     if (home.hasMatch) {
-      children.add(_PollaCard(prediction: home.prediction));
+      children.add(
+        _PollaCard(
+          prediction: home.prediction,
+          matchId: home.match!.id,
+          mvpOpen: home.mvpOpen,
+          mvpPollId: home.mvpPollId,
+        ),
+      );
       children.add(const SizedBox(height: GarraSpacing.lg));
     }
 
@@ -371,14 +378,14 @@ class _MatchHeroState extends State<_MatchHero> {
             const SizedBox(height: GarraSpacing.lg),
             GarraPrimaryButton(
               label: home.isLive ? 'Entrar al partido' : 'Entrar al Matchday',
-              onPressed: () => context.push('/muro-crema'),
+              onPressed: () => context.push('/matchday/${match.id}/polls'),
             ),
           ],
           if (home.isFinished) ...[
             const SizedBox(height: GarraSpacing.lg),
             GarraSecondaryButton(
-              label: 'Ver comunidad',
-              onPressed: () => context.push('/muro-crema'),
+              label: 'Ver encuestas',
+              onPressed: () => context.push('/matchday/${match.id}/polls'),
             ),
           ],
         ],
@@ -524,36 +531,49 @@ class _PointsRankCard extends StatelessWidget {
 }
 
 class _PollaCard extends StatelessWidget {
-  const _PollaCard({required this.prediction});
+  const _PollaCard({
+    required this.prediction,
+    required this.matchId,
+    required this.mvpOpen,
+    this.mvpPollId,
+  });
 
   final HomePrediction prediction;
+  final String matchId;
+  final bool mvpOpen;
+  final String? mvpPollId;
 
   @override
   Widget build(BuildContext context) {
     final (subtitle, cta) = switch (prediction.state) {
       'PREDICTED' => (
           prediction.predictedHomeScore != null
-              ? 'Tu predicción: ${prediction.predictedHomeScore}-${prediction.predictedAwayScore}'
-              : 'Ya registraste tu predicción',
+              ? 'Ya jugaste · ${prediction.predictedHomeScore}-${prediction.predictedAwayScore}'
+              : 'Ya jugaste',
           'Ver mi predicción',
         ),
       'LOCKED' => (
           prediction.predictedHomeScore != null
-              ? 'Predicción cerrada: ${prediction.predictedHomeScore}-${prediction.predictedAwayScore}'
-              : 'Predicciones cerradas',
+              ? 'La Polla cerró · ${prediction.predictedHomeScore}-${prediction.predictedAwayScore}'
+              : 'La Polla cerró',
           'Ver La Polla',
         ),
       'SCORED' => (
           prediction.pointsEarned != null
-              ? 'Resultado · +${prediction.pointsEarned} pts'
+              ? (prediction.pointsEarned! > 0
+                  ? 'Ganaste ${prediction.pointsEarned} pts'
+                  : 'Resultado disponible')
               : 'Resultado disponible',
           'Ver resultado',
         ),
       _ => (
-          'Aún no has predicho este partido',
+          'Haz tu predicción',
           'Hacer predicción',
         ),
     };
+
+    final pollaRoute = '/polla/$matchId';
+    final mvpRoute = '/matchday/$matchId/polls';
 
     return GarraCard(
       child: Column(
@@ -561,15 +581,30 @@ class _PollaCard extends StatelessWidget {
         children: [
           const GarraSectionHeader(
             title: 'La Polla',
-            subtitle: 'Tu predicción',
+            subtitle: 'Predicción del partido',
           ),
           const SizedBox(height: GarraSpacing.sm),
           Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
+          if (prediction.firstScorer != null &&
+              prediction.firstScorer!.isNotEmpty) ...[
+            const SizedBox(height: GarraSpacing.xs),
+            Text(
+              'Primer goleador: ${prediction.firstScorer}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
           const SizedBox(height: GarraSpacing.md),
           GarraPrimaryButton(
             label: cta,
-            onPressed: () => context.push('/polla'),
+            onPressed: () => context.push(pollaRoute),
           ),
+          if (mvpOpen) ...[
+            const SizedBox(height: GarraSpacing.sm),
+            GarraSecondaryButton(
+              label: 'Vota por el MVP',
+              onPressed: () => context.push(mvpRoute),
+            ),
+          ],
         ],
       ),
     );
