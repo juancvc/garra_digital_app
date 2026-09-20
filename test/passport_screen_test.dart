@@ -197,13 +197,3 @@ class _FakePassportService extends PassportService {
   @override
   Future<PassportModel> getMyPassport() async => samplePassport();
 }
-
-class _ThrowingPassportService extends PassportService {
-  _ThrowingPassportService()
-      : super(dio: Dio(BaseOptions(baseUrl: 'http://localhost')));
-
-  @override
-  Future<PassportModel> getMyPassport() async {
-    throw Exception('network');
-  }
-}
