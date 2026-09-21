@@ -34,6 +34,8 @@ class _MatchdayPollsPageState extends ConsumerState<MatchdayPollsPage>
   MatchdayRealtimeStatus _rtStatus = MatchdayRealtimeStatus.disconnected;
   StreamSubscription<MatchdayRealtimeStatus>? _statusSub;
   Timer? _restFallbackTimer;
+  Timer? _refreshCoalesceTimer;
+  bool _refreshPending = false;
 
   @override
   void initState() {
@@ -52,6 +54,7 @@ class _MatchdayPollsPageState extends ConsumerState<MatchdayPollsPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _restFallbackTimer?.cancel();
+    _refreshCoalesceTimer?.cancel();
     _statusSub?.cancel();
     _realtime.dispose();
     super.dispose();
@@ -61,7 +64,8 @@ class _MatchdayPollsPageState extends ConsumerState<MatchdayPollsPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _connectRealtime();
-    } else if (state == AppLifecycleState.paused) {
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
       _realtime.disconnect();
     }
   }
@@ -78,6 +82,17 @@ class _MatchdayPollsPageState extends ConsumerState<MatchdayPollsPage>
     if (_rtStatus == MatchdayRealtimeStatus.connected) return;
     _restFallbackTimer = Timer.periodic(const Duration(seconds: 45), (_) {
       if (!mounted) return;
+      _coalescedRefresh();
+    });
+  }
+
+  void _coalescedRefresh() {
+    if (_refreshPending) return;
+    _refreshPending = true;
+    _refreshCoalesceTimer?.cancel();
+    _refreshCoalesceTimer = Timer(const Duration(milliseconds: 400), () {
+      _refreshPending = false;
+      if (!mounted) return;
       ref.invalidate(matchdayPollsProvider(widget.matchId));
       ref.invalidate(matchdayProvider(widget.matchId));
     });
@@ -87,10 +102,9 @@ class _MatchdayPollsPageState extends ConsumerState<MatchdayPollsPage>
     switch (envelope.type) {
       case RealtimeEventTypes.matchUpdated:
       case RealtimeEventTypes.matchScoringCompleted:
-        ref.invalidate(matchdayProvider(widget.matchId));
-        ref.invalidate(matchdayPollsProvider(widget.matchId));
+        _coalescedRefresh();
       case RealtimeEventTypes.pollUpdated:
-        ref.invalidate(matchdayPollsProvider(widget.matchId));
+        _coalescedRefresh();
         _resultsCache.clear();
       case RealtimeEventTypes.postCreated:
       case RealtimeEventTypes.postEngagementUpdated:

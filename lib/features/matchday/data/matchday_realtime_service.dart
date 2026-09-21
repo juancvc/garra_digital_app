@@ -12,7 +12,7 @@ enum MatchdayRealtimeStatus { disconnected, connecting, connected, reconnecting 
 
 typedef RealtimeEnvelopeHandler = void Function(RealtimeEnvelope envelope);
 
-/// STOMP Matchday transport. Connect only while Matchday UI needs it.
+/// STOMP Matchday transport. One logical connection per active Matchday context.
 class MatchdayRealtimeService {
   MatchdayRealtimeService({
     SecureStorageService? storage,
@@ -35,6 +35,8 @@ class MatchdayRealtimeService {
   int _attempt = 0;
   Timer? _reconnectTimer;
   bool _intentionalDisconnect = false;
+  bool _connecting = false;
+  int _connectGeneration = 0;
 
   Stream<MatchdayRealtimeStatus> get statusStream => _statusController.stream;
   MatchdayRealtimeStatus get status => _status;
@@ -46,6 +48,13 @@ class MatchdayRealtimeService {
     _intentionalDisconnect = false;
     _subscribedMatchId = matchId;
     _onEnvelope = onEnvelope;
+    // Prevent rebuild/resume storms from stacking concurrent connects.
+    if (_connecting ||
+        (_status == MatchdayRealtimeStatus.connected &&
+            _client != null &&
+            _subscribedMatchId == matchId)) {
+      return;
+    }
     await _connectInternal();
   }
 
@@ -54,6 +63,8 @@ class MatchdayRealtimeService {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _attempt = 0;
+    _connecting = false;
+    _connectGeneration++;
     final client = _client;
     _client = null;
     _subscribedMatchId = null;
@@ -65,9 +76,18 @@ class MatchdayRealtimeService {
   }
 
   Future<void> _connectInternal() async {
-    if (_subscribedMatchId == null) return;
+    if (_subscribedMatchId == null || _intentionalDisconnect) return;
+    if (_connecting) return;
+    _connecting = true;
+    final generation = ++_connectGeneration;
+
     final token = await _storage.getToken();
+    if (generation != _connectGeneration) {
+      _connecting = false;
+      return;
+    }
     if (token == null || token.isEmpty) {
+      _connecting = false;
       _setStatus(MatchdayRealtimeStatus.disconnected);
       return;
     }
@@ -87,10 +107,20 @@ class MatchdayRealtimeService {
           'Authorization': 'Bearer $token',
           'access_token': token,
         },
-        onConnect: _onConnect,
-        onWebSocketError: (_) => _scheduleReconnect(),
-        onStompError: (_) => _scheduleReconnect(),
+        onConnect: (frame) {
+          if (generation != _connectGeneration) return;
+          _onConnect(frame);
+        },
+        onWebSocketError: (_) {
+          if (generation != _connectGeneration) return;
+          _scheduleReconnect();
+        },
+        onStompError: (_) {
+          if (generation != _connectGeneration) return;
+          _scheduleReconnect();
+        },
         onDisconnect: (_) {
+          if (generation != _connectGeneration) return;
           if (!_intentionalDisconnect) {
             _scheduleReconnect();
           }
@@ -102,6 +132,7 @@ class MatchdayRealtimeService {
     );
     _client = client;
     client.activate();
+    _connecting = false;
   }
 
   void _onConnect(StompFrame frame) {
@@ -139,14 +170,15 @@ class MatchdayRealtimeService {
 
   void _scheduleReconnect() {
     if (_intentionalDisconnect || _subscribedMatchId == null) return;
+    if (_reconnectTimer != null && _reconnectTimer!.isActive) return;
     _setStatus(MatchdayRealtimeStatus.reconnecting);
-    _reconnectTimer?.cancel();
     final delaySec = (() {
       final capped = _attempt.clamp(0, 5);
       return (1 << capped).clamp(1, 30);
     })();
     _attempt += 1;
     _reconnectTimer = Timer(Duration(seconds: delaySec), () {
+      _reconnectTimer = null;
       _connectInternal();
     });
   }
