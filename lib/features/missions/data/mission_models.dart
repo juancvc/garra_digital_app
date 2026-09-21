@@ -15,6 +15,10 @@ class MissionModel {
     required this.completed,
     this.completedAt,
     this.steps = const [],
+    this.sponsorCampaignId,
+    this.sponsorName,
+    this.sponsorLabel,
+    this.sponsorLogoUrl,
   });
 
   final String id;
@@ -32,6 +36,13 @@ class MissionModel {
   final bool completed;
   final DateTime? completedAt;
   final List<MissionStepModel> steps;
+  final String? sponsorCampaignId;
+  final String? sponsorName;
+  final String? sponsorLabel;
+  final String? sponsorLogoUrl;
+
+  bool get isSponsored =>
+      sponsorCampaignId != null && sponsorCampaignId!.isNotEmpty;
 
   double get progressFraction {
     if (totalSteps <= 0) return completed ? 1.0 : 0.0;
@@ -62,6 +73,10 @@ class MissionModel {
             ),
           )
           .toList(),
+      sponsorCampaignId: json['sponsorCampaignId']?.toString(),
+      sponsorName: json['sponsorName'] as String?,
+      sponsorLabel: json['sponsorLabel'] as String?,
+      sponsorLogoUrl: json['sponsorLogoUrl'] as String?,
     );
   }
 

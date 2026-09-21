@@ -8,6 +8,7 @@ import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../widgets/garra_marketplace_card.dart';
+import '../widgets/garra_plan_usage_card.dart';
 import 'providers/marketplace_provider.dart';
 
 class SellerDashboardPage extends ConsumerWidget {
@@ -30,12 +31,18 @@ class SellerDashboardPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final summaryAsync = ref.watch(sellerSummaryProvider);
     final listingsAsync = ref.watch(sellerListingsProvider);
+    final planAsync = ref.watch(sellerPlanProvider);
 
     return Scaffold(
       backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
         title: const Text('Mi tienda'),
         actions: [
+          IconButton(
+            tooltip: 'Plan',
+            onPressed: () => context.push('/marketplace/seller/plan'),
+            icon: const Icon(Icons.workspace_premium_outlined),
+          ),
           IconButton(
             tooltip: 'Nueva publicación',
             onPressed: () => context.push('/marketplace/seller/listings/new'),
@@ -51,6 +58,7 @@ class SellerDashboardPage extends ConsumerWidget {
           onRetry: () {
             ref.invalidate(sellerSummaryProvider);
             ref.invalidate(sellerListingsProvider);
+            ref.invalidate(sellerPlanProvider);
           },
         ),
         data: (summary) {
@@ -59,9 +67,11 @@ class SellerDashboardPage extends ConsumerWidget {
             onRefresh: () async {
               ref.invalidate(sellerSummaryProvider);
               ref.invalidate(sellerListingsProvider);
+              ref.invalidate(sellerPlanProvider);
               await Future.wait([
                 ref.read(sellerSummaryProvider.future),
                 ref.read(sellerListingsProvider.future),
+                ref.read(sellerPlanProvider.future),
               ]);
             },
             child: ListView(
@@ -80,6 +90,12 @@ class SellerDashboardPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: GarraSpacing.sm),
                 ],
+                planAsync.when(
+                  loading: () => const GarraSkeleton(height: 96),
+                  error: (_, _) => const SizedBox.shrink(),
+                  data: (plan) => GarraPlanUsageCard(plan: plan),
+                ),
+                const SizedBox(height: GarraSpacing.lg),
                 GarraCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

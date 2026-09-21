@@ -89,3 +89,12 @@ final sellerListingsProvider =
     FutureProvider.autoDispose<List<MarketplaceListing>>((ref) {
   return ref.watch(marketplaceServiceProvider).getSellerListings();
 });
+
+final sellerPlanProvider = FutureProvider.autoDispose<SellerPlan>((ref) {
+  return ref.watch(marketplaceServiceProvider).getSellerPlan();
+});
+
+final sellerAdvancedAnalyticsProvider =
+    FutureProvider.autoDispose<SellerAdvancedAnalytics?>((ref) {
+  return ref.watch(marketplaceServiceProvider).getSellerAdvancedAnalytics();
+});

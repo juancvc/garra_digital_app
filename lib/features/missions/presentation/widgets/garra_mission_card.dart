@@ -29,9 +29,25 @@ class GarraMissionCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(
-                  mission.title,
-                  style: Theme.of(context).textTheme.titleMedium,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (mission.isSponsored) ...[
+                      Text(
+                        mission.sponsorLabel ??
+                            'Patrocinado por ${mission.sponsorName ?? 'sponsor'}',
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              color: const Color(GarraColors.gold),
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: GarraSpacing.xs),
+                    ],
+                    Text(
+                      mission.title,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: GarraSpacing.sm),

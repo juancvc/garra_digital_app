@@ -12,6 +12,7 @@ class HomeModel {
     this.mission,
     this.streak,
     this.clan,
+    this.sponsored,
   });
 
   final HomeFanSummary fan;
@@ -26,6 +27,7 @@ class HomeModel {
   final HomeMissionSummary? mission;
   final HomeStreakSummary? streak;
   final HomeClanSummary? clan;
+  final HomeSponsoredCard? sponsored;
 
   factory HomeModel.fromJson(Map<String, dynamic> json) {
     return HomeModel(
@@ -64,6 +66,11 @@ class HomeModel {
           ? null
           : HomeClanSummary.fromJson(
               Map<String, dynamic>.from(json['clan'] as Map),
+            ),
+      sponsored: json['sponsored'] == null
+          ? null
+          : HomeSponsoredCard.fromJson(
+              Map<String, dynamic>.from(json['sponsored'] as Map),
             ),
     );
   }
@@ -298,6 +305,10 @@ class HomeMissionSummary {
     required this.totalSteps,
     required this.rewardPoints,
     required this.completed,
+    this.sponsorCampaignId,
+    this.sponsorName,
+    this.sponsorLabel,
+    this.sponsorLogoUrl,
   });
 
   final String id;
@@ -306,6 +317,13 @@ class HomeMissionSummary {
   final int totalSteps;
   final int rewardPoints;
   final bool completed;
+  final String? sponsorCampaignId;
+  final String? sponsorName;
+  final String? sponsorLabel;
+  final String? sponsorLogoUrl;
+
+  bool get isSponsored =>
+      sponsorCampaignId != null && sponsorCampaignId!.isNotEmpty;
 
   double get progressFraction {
     if (totalSteps <= 0) return completed ? 1.0 : 0.0;
@@ -320,6 +338,54 @@ class HomeMissionSummary {
       totalSteps: (json['totalSteps'] as num?)?.toInt() ?? 0,
       rewardPoints: (json['rewardPoints'] as num?)?.toInt() ?? 0,
       completed: json['completed'] as bool? ?? false,
+      sponsorCampaignId: json['sponsorCampaignId']?.toString(),
+      sponsorName: json['sponsorName'] as String?,
+      sponsorLabel: json['sponsorLabel'] as String?,
+      sponsorLogoUrl: json['sponsorLogoUrl'] as String?,
+    );
+  }
+}
+
+class HomeSponsoredCard {
+  const HomeSponsoredCard({
+    required this.activationId,
+    required this.campaignId,
+    required this.sponsorName,
+    this.sponsorSlug,
+    this.logoUrl,
+    required this.headline,
+    this.body,
+    this.ctaLabel,
+    this.ctaUrl,
+    required this.label,
+  });
+
+  final String activationId;
+  final String campaignId;
+  final String sponsorName;
+  final String? sponsorSlug;
+  final String? logoUrl;
+  final String headline;
+  final String? body;
+  final String? ctaLabel;
+  final String? ctaUrl;
+  final String label;
+
+  factory HomeSponsoredCard.fromJson(Map<String, dynamic> json) {
+    return HomeSponsoredCard(
+      activationId: json['activationId']?.toString() ?? '',
+      campaignId: json['campaignId']?.toString() ?? '',
+      sponsorName: json['sponsorName'] as String? ?? '',
+      sponsorSlug: json['sponsorSlug']?.toString(),
+      logoUrl: json['logoUrl'] as String?,
+      headline: json['headline'] as String? ?? '',
+      body: json['body'] as String?,
+      ctaLabel: json['ctaLabel'] as String?,
+      ctaUrl: json['ctaUrl'] as String?,
+      label: json['label'] as String? ??
+          (json['sponsorName'] != null
+              ? 'Patrocinado por ${json['sponsorName']}'
+              : 'Patrocinado'),
     );
   }
 }

@@ -16,6 +16,7 @@ import 'package:garra_digital_app/features/marketplace/presentation/marketplace_
 import 'package:garra_digital_app/features/marketplace/presentation/seller_dashboard_page.dart';
 import 'package:garra_digital_app/features/marketplace/presentation/seller_listing_form_page.dart';
 import 'package:garra_digital_app/features/marketplace/presentation/seller_onboarding_page.dart';
+import 'package:garra_digital_app/features/marketplace/presentation/seller_plan_page.dart';
 import 'package:garra_digital_app/features/marketplace/presentation/store_page.dart';
 import 'package:garra_digital_app/features/missions/presentation/missions_page.dart';
 import 'package:garra_digital_app/features/notifications/presentation/notifications_screen.dart';
@@ -277,6 +278,11 @@ final GoRouter appRouter = GoRouter(
           path: '/marketplace/seller/dashboard',
           name: 'marketplace-seller-dashboard',
           builder: (context, state) => const SellerDashboardPage(),
+        ),
+        GoRoute(
+          path: '/marketplace/seller/plan',
+          name: 'marketplace-seller-plan',
+          builder: (context, state) => const SellerPlanPage(),
         ),
         GoRoute(
           path: '/marketplace/seller/listings/new',

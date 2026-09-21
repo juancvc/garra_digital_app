@@ -511,6 +511,167 @@ class SellerSummary {
   }
 }
 
+class SellerPlan {
+  const SellerPlan({
+    required this.code,
+    required this.name,
+    this.description,
+    this.startsAt,
+    this.endsAt,
+    this.source,
+    required this.usage,
+    required this.features,
+  });
+
+  final String code;
+  final String name;
+  final String? description;
+  final DateTime? startsAt;
+  final DateTime? endsAt;
+  final String? source;
+  final SellerPlanUsage usage;
+  final SellerPlanFeatures features;
+
+  bool get isPro => code.toUpperCase() == 'PRO';
+  bool get isFree => code.toUpperCase() == 'FREE';
+  bool get limitReached =>
+      usage.maxActiveListings > 0 &&
+      usage.activeListings >= usage.maxActiveListings;
+
+  factory SellerPlan.fromJson(Map<String, dynamic> json) {
+    return SellerPlan(
+      code: json['code']?.toString() ?? 'FREE',
+      name: json['name'] as String? ?? 'Free',
+      description: json['description'] as String?,
+      startsAt: _parseDate(json['startsAt']),
+      endsAt: _parseDate(json['endsAt']),
+      source: json['source']?.toString(),
+      usage: SellerPlanUsage.fromJson(
+        Map<String, dynamic>.from(json['usage'] as Map? ?? const {}),
+      ),
+      features: SellerPlanFeatures.fromJson(
+        Map<String, dynamic>.from(json['features'] as Map? ?? const {}),
+      ),
+    );
+  }
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value is String && value.isNotEmpty) return DateTime.tryParse(value);
+    return null;
+  }
+}
+
+class SellerPlanUsage {
+  const SellerPlanUsage({
+    required this.activeListings,
+    required this.maxActiveListings,
+    required this.activeStores,
+    required this.maxActiveStores,
+  });
+
+  final int activeListings;
+  final int maxActiveListings;
+  final int activeStores;
+  final int maxActiveStores;
+
+  factory SellerPlanUsage.fromJson(Map<String, dynamic> json) {
+    return SellerPlanUsage(
+      activeListings: (json['activeListings'] as num?)?.toInt() ?? 0,
+      maxActiveListings: (json['maxActiveListings'] as num?)?.toInt() ?? 0,
+      activeStores: (json['activeStores'] as num?)?.toInt() ?? 0,
+      maxActiveStores: (json['maxActiveStores'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class SellerPlanFeatures {
+  const SellerPlanFeatures({
+    required this.advancedAnalytics,
+    required this.featuredEligible,
+    this.analyticsRetentionDays = 30,
+  });
+
+  final bool advancedAnalytics;
+  final bool featuredEligible;
+  final int analyticsRetentionDays;
+
+  factory SellerPlanFeatures.fromJson(Map<String, dynamic> json) {
+    return SellerPlanFeatures(
+      advancedAnalytics: json['advancedAnalytics'] as bool? ?? false,
+      featuredEligible: json['featuredEligible'] as bool? ?? false,
+      analyticsRetentionDays:
+          (json['analyticsRetentionDays'] as num?)?.toInt() ?? 30,
+    );
+  }
+}
+
+class SellerAdvancedAnalytics {
+  const SellerAdvancedAnalytics({
+    required this.favorites,
+    required this.contacts,
+    this.listings = const [],
+    this.featuredImpressions = 0,
+    this.featuredOpens = 0,
+  });
+
+  final int favorites;
+  final int contacts;
+  final List<SellerListingPerformance> listings;
+  final int featuredImpressions;
+  final int featuredOpens;
+
+  factory SellerAdvancedAnalytics.fromJson(Map<String, dynamic> json) {
+    final raw = json['listings'] as List? ?? const [];
+    return SellerAdvancedAnalytics(
+      favorites: (json['favoritesReceived'] as num?)?.toInt() ??
+          (json['favorites'] as num?)?.toInt() ??
+          0,
+      contacts: (json['contactLeads'] as num?)?.toInt() ??
+          (json['contacts'] as num?)?.toInt() ??
+          0,
+      listings: raw
+          .map(
+            (e) => SellerListingPerformance.fromJson(
+              Map<String, dynamic>.from(e as Map),
+            ),
+          )
+          .toList(),
+      featuredImpressions: (json['featuredImpressions'] as num?)?.toInt() ?? 0,
+      featuredOpens: (json['featuredOpens'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class SellerListingPerformance {
+  const SellerListingPerformance({
+    required this.listingId,
+    required this.slug,
+    required this.title,
+    required this.favorites,
+    required this.contacts,
+  });
+
+  final String listingId;
+  final String slug;
+  final String title;
+  final int favorites;
+  final int contacts;
+
+  factory SellerListingPerformance.fromJson(Map<String, dynamic> json) {
+    return SellerListingPerformance(
+      listingId: json['listingId']?.toString() ?? '',
+      slug: json['slug']?.toString() ?? '',
+      title: json['title'] as String? ?? '',
+      favorites: (json['favoriteCount'] as num?)?.toInt() ??
+          (json['favorites'] as num?)?.toInt() ??
+          0,
+      contacts: (json['contactCount'] as num?)?.toInt() ??
+          (json['contacts'] as num?)?.toInt() ??
+          0,
+    );
+  }
+}
+
 class SellerListingRequest {
   const SellerListingRequest({
     required this.title,

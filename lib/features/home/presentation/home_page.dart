@@ -21,6 +21,9 @@ import '../../missions/data/mission_models.dart';
 import '../../missions/presentation/widgets/garra_streak_card.dart';
 import '../../predictions/presentation/providers/prediction_provider.dart';
 import '../../ranking/presentation/providers/ranking_provider.dart';
+import '../../marketplace/widgets/garra_sponsored_card.dart';
+import '../../sponsors/data/sponsor_service.dart';
+import '../../sponsors/presentation/providers/sponsor_provider.dart';
 import '../data/home_models.dart';
 import 'providers/home_provider.dart';
 
@@ -163,6 +166,13 @@ class _HomeBody extends ConsumerWidget {
           checkIn: home.checkIn,
           matchId: home.match?.id,
         ),
+      );
+      children.add(const SizedBox(height: GarraSpacing.lg));
+    }
+
+    if (home.sponsored != null) {
+      children.add(
+        _HomeSponsoredSection(sponsored: home.sponsored!),
       );
       children.add(const SizedBox(height: GarraSpacing.lg));
     }
@@ -669,6 +679,43 @@ class _CheckInCard extends StatelessWidget {
   }
 }
 
+class _HomeSponsoredSection extends ConsumerWidget {
+  const _HomeSponsoredSection({required this.sponsored});
+
+  final HomeSponsoredCard sponsored;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final card = SponsoredCard(
+      activationId: sponsored.activationId,
+      campaignId: sponsored.campaignId,
+      sponsorName: sponsored.sponsorName,
+      sponsorSlug: sponsored.sponsorSlug,
+      logoUrl: sponsored.logoUrl,
+      headline: sponsored.headline,
+      body: sponsored.body,
+      ctaLabel: sponsored.ctaLabel,
+      ctaUrl: sponsored.ctaUrl,
+      label: sponsored.label,
+    );
+    return GarraSponsoredCard(
+      card: card,
+      onImpression: () {
+        unawaited(
+          ref
+              .read(sponsorServiceProvider)
+              .trackImpression(sponsored.activationId),
+        );
+      },
+      onOpen: () {
+        unawaited(
+          ref.read(sponsorServiceProvider).trackOpen(sponsored.activationId),
+        );
+      },
+    );
+  }
+}
+
 class _MissionStreakSection extends StatelessWidget {
   const _MissionStreakSection({
     this.mission,
@@ -695,9 +742,13 @@ class _MissionStreakSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Misión',
+                  mission!.isSponsored
+                      ? (mission!.sponsorLabel ??
+                          'Patrocinado por ${mission!.sponsorName ?? 'sponsor'}')
+                      : 'Misión',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
                         color: const Color(GarraColors.gold),
+                        fontWeight: FontWeight.w700,
                       ),
                 ),
                 const SizedBox(height: GarraSpacing.xs),

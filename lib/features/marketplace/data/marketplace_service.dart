@@ -203,6 +203,24 @@ class MarketplaceService {
     return SellerSummary.fromJson(data);
   }
 
+  Future<SellerPlan> getSellerPlan() async {
+    final response = await _dio.get('/marketplace/seller/me/plan');
+    final data = Map<String, dynamic>.from(response.data['data'] as Map);
+    return SellerPlan.fromJson(data);
+  }
+
+  Future<SellerAdvancedAnalytics?> getSellerAdvancedAnalytics() async {
+    try {
+      final response =
+          await _dio.get('/marketplace/seller/me/analytics/advanced');
+      final data = Map<String, dynamic>.from(response.data['data'] as Map);
+      return SellerAdvancedAnalytics.fromJson(data);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 400) return null;
+      rethrow;
+    }
+  }
+
   Future<MarketplaceStore> getSellerStore() async {
     final response = await _dio.get('/marketplace/seller/store');
     final data = Map<String, dynamic>.from(response.data['data'] as Map);
