@@ -38,6 +38,13 @@ import 'package:garra_digital_app/features/referrals/presentation/referrals_page
 import 'package:garra_digital_app/features/rewards/presentation/my_rewards_page.dart';
 import 'package:garra_digital_app/features/rewards/presentation/reward_detail_page.dart';
 import 'package:garra_digital_app/features/rewards/presentation/rewards_page.dart';
+import 'package:garra_digital_app/features/retention/data/retention_models.dart';
+import 'package:garra_digital_app/features/retention/presentation/achievements_page.dart';
+import 'package:garra_digital_app/features/retention/presentation/admin_retention_pages.dart';
+import 'package:garra_digital_app/features/retention/presentation/collection_page.dart';
+import 'package:garra_digital_app/features/retention/presentation/events_page.dart';
+import 'package:garra_digital_app/features/retention/presentation/onboarding_interests_page.dart';
+import 'package:garra_digital_app/features/retention/presentation/season_progress_page.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/login_page.dart';
@@ -196,6 +203,63 @@ final GoRouter appRouter = GoRouter(
           path: '/passport/edit',
           name: 'passport-edit',
           builder: (context, state) => const ProfileEditScreen(),
+        ),
+        GoRoute(
+          path: '/passport/temporada',
+          name: 'passport-season',
+          builder: (context, state) => const SeasonProgressPage(),
+        ),
+        GoRoute(
+          path: '/logros',
+          name: 'achievements',
+          builder: (context, state) => const AchievementsPage(),
+        ),
+        GoRoute(
+          path: '/coleccion',
+          name: 'collection',
+          builder: (context, state) => const CollectionPage(),
+        ),
+        GoRoute(
+          path: '/eventos',
+          name: 'events',
+          builder: (context, state) => const EventsPage(),
+        ),
+        GoRoute(
+          path: '/eventos/nuevo',
+          name: 'events-create',
+          builder: (context, state) => const CreateEventPage(),
+        ),
+        GoRoute(
+          path: '/eventos/:id',
+          name: 'event-detail',
+          builder: (context, state) {
+            final id = state.pathParameters['id'] ?? '';
+            final extra = state.extra;
+            return EventDetailPage(
+              eventId: id,
+              initial: extra is GarraEventModel ? extra : null,
+            );
+          },
+        ),
+        GoRoute(
+          path: '/onboarding',
+          name: 'onboarding-interests',
+          builder: (context, state) => const OnboardingInterestsPage(),
+        ),
+        GoRoute(
+          path: '/admin/temporadas',
+          name: 'admin-seasons',
+          builder: (context, state) => const AdminSeasonsPage(),
+        ),
+        GoRoute(
+          path: '/admin/logros',
+          name: 'admin-achievements',
+          builder: (context, state) => const AdminAchievementsPage(),
+        ),
+        GoRoute(
+          path: '/admin/eventos',
+          name: 'admin-events',
+          builder: (context, state) => const AdminEventsPage(),
         ),
         GoRoute(
           path: '/history',

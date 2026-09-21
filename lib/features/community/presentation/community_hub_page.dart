@@ -12,6 +12,8 @@ import '../../../core/widgets/garra_ui.dart';
 import '../data/community_service.dart';
 import '../data/wall_post_model.dart';
 import 'widgets/garra_reaction_bar.dart';
+import '../../retention/data/retention_service.dart';
+import '../../retention/presentation/widgets/daily_garra_card.dart';
 
 /// Comunidad 365 hub: Para ti / Siguiendo / Recientes + discovery.
 class CommunityHubPage extends ConsumerStatefulWidget {
@@ -23,6 +25,7 @@ class CommunityHubPage extends ConsumerStatefulWidget {
 
 class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
   final _service = CommunityService();
+  final _retention = RetentionService();
   List<WallPostModel> _posts = [];
   List<Map<String, dynamic>> _people = [];
   bool _loading = true;
@@ -38,7 +41,17 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
   @override
   void initState() {
     super.initState();
+    _maybeOnboard();
     _load();
+  }
+
+  Future<void> _maybeOnboard() async {
+    try {
+      final prefs = await _retention.getInterests();
+      if (!prefs.onboardingCompleted && mounted) {
+        context.push('/onboarding');
+      }
+    } catch (_) {}
   }
 
   Future<void> _load() async {
@@ -156,6 +169,9 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
                     children: [
+                      const SizedBox(height: GarraSpacing.md),
+                      const DailyGarraCard(),
+                      const SizedBox(height: GarraSpacing.md),
                       Material(
                         color: const Color(GarraColors.garnetDeep),
                         borderRadius: BorderRadius.circular(16),

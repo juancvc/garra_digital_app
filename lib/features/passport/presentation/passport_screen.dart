@@ -13,6 +13,9 @@ import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../../auth/data/auth_service.dart';
 import '../../clans/data/clan_models.dart';
+import '../../retention/data/retention_models.dart';
+import '../../retention/data/retention_service.dart';
+import '../../retention/presentation/season_progress_page.dart';
 import '../data/passport_models.dart';
 import 'providers/passport_provider.dart';
 
@@ -227,6 +230,137 @@ class _PassportBody extends StatelessWidget {
           ),
         ),
         const SizedBox(height: GarraSpacing.lg),
+        const _PassportSeasonSection(),
+        const SizedBox(height: GarraSpacing.lg),
+        GarraCard(
+          onTap: () => context.push('/passport/temporada'),
+          child: Row(
+            children: [
+              const Icon(Icons.calendar_month_outlined,
+                  color: Color(GarraColors.gold)),
+              const SizedBox(width: GarraSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Mi Temporada',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: GarraSpacing.xs),
+                    Text(
+                      'Progreso, racha y logros de la temporada',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+            ],
+          ),
+        ),
+        const SizedBox(height: GarraSpacing.lg),
+        GarraCard(
+          onTap: () => context.push('/logros'),
+          child: Row(
+            children: [
+              const Icon(Icons.emoji_events_outlined,
+                  color: Color(GarraColors.gold)),
+              const SizedBox(width: GarraSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Mis Logros',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: GarraSpacing.xs),
+                    Text(
+                      'Hitos desbloqueados y por conseguir',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+            ],
+          ),
+        ),
+        const SizedBox(height: GarraSpacing.lg),
+        GarraCard(
+          onTap: () => context.push('/coleccion'),
+          child: Row(
+            children: [
+              const Icon(Icons.collections_bookmark_outlined,
+                  color: Color(GarraColors.gold)),
+              const SizedBox(width: GarraSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Mi Colección',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: GarraSpacing.xs),
+                    Text(
+                      'Momentos y recuerdos de tu Garra',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+            ],
+          ),
+        ),
+        const SizedBox(height: GarraSpacing.lg),
+        GarraCard(
+          onTap: () => context.push('/eventos'),
+          child: Row(
+            children: [
+              const Icon(Icons.event_outlined, color: Color(GarraColors.gold)),
+              const SizedBox(width: GarraSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Eventos',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: GarraSpacing.xs),
+                    Text(
+                      'Encuentros comunitarios verificados por Garra',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+            ],
+          ),
+        ),
+        const SizedBox(height: GarraSpacing.lg),
+        GarraCard(
+          onTap: () => context.push('/history'),
+          child: Row(
+            children: [
+              const Icon(Icons.auto_stories_outlined,
+                  color: Color(GarraColors.gold)),
+              const SizedBox(width: GarraSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Mi Historia',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: GarraSpacing.xs),
+                    Text(
+                      'Tu línea de tiempo crema',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+            ],
+          ),
+        ),
+        const SizedBox(height: GarraSpacing.lg),
         _PassportClanSection(clan: passport.primaryClan),
         const SizedBox(height: GarraSpacing.lg),
         GarraCard(
@@ -330,7 +464,7 @@ class _PassportBody extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const GarraSectionHeader(
-                title: 'Perfil',
+                title: 'Configuración',
                 subtitle: 'Completa tu identidad crema cuando quieras.',
               ),
               const SizedBox(height: GarraSpacing.md),
@@ -360,6 +494,11 @@ class _PassportBody extends StatelessWidget {
                 GarraSecondaryButton(
                   label: 'Usuarios bloqueados',
                   onPressed: () => context.push('/comunidad/bloqueados'),
+                ),
+                const SizedBox(height: GarraSpacing.sm),
+                GarraSecondaryButton(
+                  label: 'Mis intereses',
+                  onPressed: () => context.push('/onboarding'),
                 ),
               ],
               const SizedBox(height: GarraSpacing.xxl),
@@ -571,6 +710,41 @@ class _ProfileRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PassportSeasonSection extends StatefulWidget {
+  const _PassportSeasonSection();
+
+  @override
+  State<_PassportSeasonSection> createState() => _PassportSeasonSectionState();
+}
+
+class _PassportSeasonSectionState extends State<_PassportSeasonSection> {
+  SeasonProgressModel? _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final progress = await RetentionService().mySeasonProgress();
+      if (!mounted) return;
+      setState(() => _progress = progress);
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = _progress;
+    if (progress == null) return const SizedBox.shrink();
+    return SeasonHeroCard(
+      progress: progress,
+      onOpen: () => context.push('/passport/temporada'),
     );
   }
 }

@@ -10,6 +10,8 @@ import '../data/create_checkin_request.dart';
 import 'providers/location_provider.dart';
 import '../../../core/location/location_service.dart';
 import 'package:geolocator/geolocator.dart';
+import '../../retention/data/retention_models.dart';
+import '../../retention/data/retention_service.dart';
 
 
 class RutaAlTemploPage extends ConsumerStatefulWidget {
@@ -532,9 +534,114 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
                     : const Icon(Icons.check_circle_outline_rounded),
                 label: Text(canCheckIn ? 'Hacer check-in' : 'Fuera de rango',),
               ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () => _openReviews(point.id, point.name),
+                icon: const Icon(Icons.rate_review_outlined),
+                label: const Text('Opiniones de la comunidad'),
+              ),
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _openReviews(String pointId, String name) async {
+    final service = RetentionService();
+    BusinessRatingSummary? summary;
+    try {
+      summary = await service.businessReviews(pointId);
+    } catch (_) {}
+    if (!mounted) return;
+    final ratingController = TextEditingController();
+    final commentController = TextEditingController();
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1E1E1E),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(name, style: Theme.of(ctx).textTheme.titleLarge),
+                const SizedBox(height: 8),
+                Text(summary?.label ?? 'Opiniones de la comunidad'),
+                if (summary != null && summary.averageRating != null)
+                  Text(
+                    '★ ${summary.averageRating!.toStringAsFixed(1)} · ${summary.reviewCount} opiniones',
+                  ),
+                const SizedBox(height: 12),
+                ...(summary?.reviews ?? const <BusinessReviewModel>[])
+                    .take(5)
+                    .map(
+                      (r) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          '${r.username ?? 'Fan'} · ${'★' * r.rating}${r.comment != null ? ' — ${r.comment}' : ''}',
+                        ),
+                      ),
+                    ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: ratingController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Tu nota (1-5)',
+                  ),
+                ),
+                TextField(
+                  controller: commentController,
+                  decoration: const InputDecoration(
+                    labelText: 'Comentario (opcional)',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: () async {
+                    final rating = int.tryParse(ratingController.text.trim());
+                    if (rating == null || rating < 1 || rating > 5) return;
+                    try {
+                      await service.upsertBusinessReview(
+                        pointId,
+                        rating: rating,
+                        comment: commentController.text,
+                      );
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Opinión guardada'),
+                          ),
+                        );
+                      }
+                    } catch (_) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Necesitas check-in o seguir el negocio para opinar',
+                            ),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Publicar opinión'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

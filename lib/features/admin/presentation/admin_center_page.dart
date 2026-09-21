@@ -111,6 +111,24 @@ class _AdminCenterPageState extends State<AdminCenterPage> {
                       onTap: () => context.push('/admin/marketplace'),
                     ),
                     _AdminTile(
+                      title: 'Temporadas',
+                      subtitle: 'Crear, activar y cerrar Season',
+                      icon: Icons.calendar_month_outlined,
+                      onTap: () => context.push('/admin/temporadas'),
+                    ),
+                    _AdminTile(
+                      title: 'Logros',
+                      subtitle: 'Activar o desactivar achievements',
+                      icon: Icons.emoji_events_outlined,
+                      onTap: () => context.push('/admin/logros'),
+                    ),
+                    _AdminTile(
+                      title: 'Eventos',
+                      subtitle: 'Verificar o rechazar propuestas',
+                      icon: Icons.event_outlined,
+                      onTap: () => context.push('/admin/eventos'),
+                    ),
+                    _AdminTile(
                       title: 'Comunidades',
                       subtitle: 'Abrir directorio de Comunidades Cremas',
                       icon: Icons.groups_outlined,
