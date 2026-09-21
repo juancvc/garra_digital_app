@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../auth/auth_refresh_coordinator.dart';
 import '../config/api_config.dart';
@@ -22,6 +23,10 @@ class DioClient {
         },
       ),
     );
+
+    if (kDebugMode) {
+      dio.interceptors.add(_DebugHttpErrorInterceptor());
+    }
 
     dio.interceptors.add(
       InterceptorsWrapper(
@@ -113,5 +118,34 @@ class DioClient {
     if (refresh != null && refresh.isNotEmpty) {
       await _storage.saveRefreshToken(refresh);
     }
+  }
+}
+
+/// Debug-only: logs method/path/status/type — never Authorization, JWT, or bodies.
+class _DebugHttpErrorInterceptor extends Interceptor {
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    final method = err.requestOptions.method;
+    final path = _safePath(err.requestOptions);
+    final status = err.response?.statusCode;
+    final type = err.type.name;
+    if (status != null) {
+      debugPrint('[HTTP][ERROR] $method $path status=$status type=$type');
+    } else {
+      debugPrint('[HTTP][ERROR] $method $path status=none type=$type');
+    }
+    handler.next(err);
+  }
+
+  static String _safePath(RequestOptions options) {
+    final path = options.path;
+    if (path.startsWith('http')) {
+      try {
+        return Uri.parse(path).path;
+      } catch (_) {
+        return path;
+      }
+    }
+    return path;
   }
 }

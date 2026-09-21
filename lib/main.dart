@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'core/config/api_config.dart';
 import 'core/router/app_router.dart';
 import 'core/storage/secure_storage_service.dart';
 import 'core/theme/app_theme.dart';
@@ -18,6 +19,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  ApiConfig.logDebugConfig();
   await initializeDateFormatting('es_PE', null);
   await Firebase.initializeApp();
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);

@@ -20,11 +20,25 @@ Do not invent credentials. Until the console-issued file is present for this pac
 
 ## API base URL
 
-```bash
-flutter build apk --dart-define=GARRA_API_BASE_URL=https://<staging-host>/api/v1
+Default for `flutter run` / debug builds (no dart-define required):
+
+```text
+https://garra-digital-u-production.up.railway.app/api/v1
 ```
 
-WebSocket URL is derived from the same host (`https` → `wss`, path `/ws`). No localhost fallback in release when dart-define is set.
+Derived WebSocket:
+
+```text
+wss://garra-digital-u-production.up.railway.app/ws
+```
+
+Override for production or alternate hosts:
+
+```bash
+flutter build apk --dart-define=GARRA_API_BASE_URL=https://<prod-or-alt-host>/api/v1
+```
+
+WebSocket URL is always derived from the REST base (`https` → `wss`, path `/ws`).
 
 ## Refresh tokens
 
