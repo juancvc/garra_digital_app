@@ -117,9 +117,11 @@ class GarraReactionBar extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  commentCount == 1
-                      ? '1 comentario'
-                      : '$commentCount comentarios',
+                  commentCount == 0
+                      ? 'Comentar'
+                      : commentCount == 1
+                          ? '1 comentario'
+                          : '$commentCount comentarios',
                   style: textStyle,
                 ),
               ],

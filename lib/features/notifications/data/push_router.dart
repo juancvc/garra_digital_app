@@ -21,8 +21,14 @@ class PushRouter {
     if (ref == 'POST' && id.isNotEmpty) {
       return '/muro-crema/posts/$id';
     }
-    if (ref == 'CLAN' && id.isNotEmpty) {
-      return '/clans/$id';
+    // Invitation deep link — never treat invitation UUID as a clan slug.
+    if (ref == 'CLAN_INVITATION') {
+      return '/clans/invitations';
+    }
+    // Generic CLAN references carry clan UUID, but routes expect slug.
+    // Fall back to communities hub rather than `/clans/{uuid}`.
+    if (ref == 'CLAN') {
+      return '/clans';
     }
     if (ref == 'MISSION' || t == 'MISSION') {
       return '/missions';

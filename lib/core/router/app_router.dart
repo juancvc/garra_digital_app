@@ -6,6 +6,7 @@ import 'package:garra_digital_app/features/clans/presentation/clan_polla_page.da
 import 'package:garra_digital_app/features/clans/presentation/clan_ranking_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/clan_tribuna_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/clans_page.dart';
+import 'package:garra_digital_app/features/clans/presentation/create_community_page.dart';
 import 'package:garra_digital_app/features/community/presentation/muro_crema_page.dart';
 import 'package:garra_digital_app/features/community/presentation/post_detail_screen.dart';
 import 'package:garra_digital_app/features/history/presentation/history_page.dart';
@@ -217,6 +218,11 @@ final GoRouter appRouter = GoRouter(
           path: '/clans/invitations',
           name: 'clans-invitations',
           builder: (context, state) => const ClanInvitationsPage(),
+        ),
+        GoRoute(
+          path: '/clans/create',
+          name: 'clans-create',
+          builder: (context, state) => const CreateCommunityPage(),
         ),
         GoRoute(
           path: '/clans/ranking',

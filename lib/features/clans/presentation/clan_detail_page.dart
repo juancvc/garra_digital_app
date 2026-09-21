@@ -32,7 +32,7 @@ class _ClanDetailPageState extends ConsumerState<ClanDetailPage>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 4, vsync: this);
+    _tabs = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -80,7 +80,7 @@ class _ClanDetailPageState extends ConsumerState<ClanDetailPage>
           title: const Text('Transferir propiedad'),
           content: const Text(
             'Como propietario, primero debes transferir la propiedad '
-            'a otro miembro antes de salir del clan.',
+            'a otro miembro antes de salir de la comunidad.',
           ),
           actions: [
             TextButton(
@@ -104,7 +104,7 @@ class _ClanDetailPageState extends ConsumerState<ClanDetailPage>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Salir del clan'),
+        title: const Text('Salir de la comunidad'),
         content: Text('¿Seguro que quieres salir de ${clan.name}?'),
         actions: [
           TextButton(
@@ -127,7 +127,7 @@ class _ClanDetailPageState extends ConsumerState<ClanDetailPage>
       ref.invalidate(myClansProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Saliste del clan')),
+          const SnackBar(content: Text('Saliste de la comunidad')),
         );
       }
     } on ClanServiceException catch (e) {
@@ -157,68 +157,167 @@ class _ClanDetailPageState extends ConsumerState<ClanDetailPage>
     return Scaffold(
       backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
-        title: Text(clanAsync.asData?.value.name ?? 'Clan'),
+        title: Text(clanAsync.asData?.value.name ?? 'Comunidad'),
         actions: [
-          if (clanAsync.asData?.value.canManage == true)
+          if (clanAsync.asData?.value.canManage == true) ...[
+            IconButton(
+              tooltip: 'Invitar',
+              onPressed: () => _showInviteDialog(context, widget.slug),
+              icon: const Icon(Icons.person_add_alt_1_outlined),
+            ),
             TextButton(
               onPressed: () => context.push('/clans/${widget.slug}/manage'),
-              child: const Text('Gestionar'),
+              child: const Text('Administrar'),
             ),
+          ],
         ],
         bottom: TabBar(
           controller: _tabs,
           isScrollable: true,
           tabs: const [
-            Tab(text: 'Inicio'),
             Tab(text: 'Tribuna'),
-            Tab(text: 'Polla'),
             Tab(text: 'Miembros'),
+            Tab(text: 'Actividad'),
           ],
         ),
       ),
       body: clanAsync.when(
         loading: () => const _DetailSkeleton(),
         error: (error, stackTrace) => GarraErrorState(onRetry: _refresh),
-        data: (clan) => TabBarView(
-          controller: _tabs,
+        data: (clan) => Column(
           children: [
-            _InicioTab(
-              clan: clan,
-              joining: _joining,
-              leaving: _leaving,
-              onJoin: _join,
-              onLeave: () => _leave(clan),
-              onRefresh: _refresh,
-            ),
-            ClanTribunaPage(
-              slug: widget.slug,
-              clanName: clan.name,
-              embedded: true,
-            ),
-            _PollaTab(clan: clan),
-            membersAsync.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(
-                  color: Color(GarraColors.gold),
-                ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                GarraSpacing.lg,
+                GarraSpacing.md,
+                GarraSpacing.lg,
+                GarraSpacing.sm,
               ),
-              error: (_, __) => GarraErrorState(onRetry: _refresh),
-              data: (members) => RefreshIndicator(
-                color: const Color(GarraColors.gold),
-                onRefresh: _refresh,
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(GarraSpacing.lg),
-                  children: [
-                    _MembersPreview(members: members),
+              child: Column(
+                children: [
+                  _ClanHeader(clan: clan),
+                  if (clan.description != null &&
+                      clan.description!.trim().isNotEmpty) ...[
+                    const SizedBox(height: GarraSpacing.sm),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        clan.description!,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
                   ],
-                ),
+                  const SizedBox(height: GarraSpacing.md),
+                  _JoinSection(
+                    clan: clan,
+                    joining: _joining,
+                    leaving: _leaving,
+                    onJoin: _join,
+                    onLeave: () => _leave(clan),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabs,
+                children: [
+                  ClanTribunaPage(
+                    slug: widget.slug,
+                    clanName: clan.name,
+                    embedded: true,
+                  ),
+                  membersAsync.when(
+                    loading: () => const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(GarraColors.gold),
+                      ),
+                    ),
+                    error: (_, __) => GarraErrorState(onRetry: _refresh),
+                    data: (members) => RefreshIndicator(
+                      color: const Color(GarraColors.gold),
+                      onRefresh: _refresh,
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(GarraSpacing.lg),
+                        children: [
+                          if (clan.canManage)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: GarraSpacing.md,
+                              ),
+                              child: GarraPrimaryButton(
+                                label: 'Invitar usuario',
+                                onPressed: () =>
+                                    _showInviteDialog(context, widget.slug),
+                              ),
+                            ),
+                          _MembersPreview(members: members),
+                        ],
+                      ),
+                    ),
+                  ),
+                  _InicioTab(
+                    clan: clan,
+                    joining: _joining,
+                    leaving: _leaving,
+                    onJoin: _join,
+                    onLeave: () => _leave(clan),
+                    onRefresh: _refresh,
+                  ),
+                ],
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _showInviteDialog(BuildContext context, String slug) async {
+    final usernameCtrl = TextEditingController();
+    final sent = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(GarraColors.surface),
+        title: const Text('Invitar a una comunidad'),
+        content: TextField(
+          controller: usernameCtrl,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Username',
+            hintText: 'usuario_crema',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Enviar invitación'),
+          ),
+        ],
+      ),
+    );
+    final username = usernameCtrl.text.trim();
+    usernameCtrl.dispose();
+    if (sent != true || username.isEmpty) return;
+    try {
+      await ref.read(clanServiceProvider).inviteMember(slug, username);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invitación enviada')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No pudimos enviar la invitación. Revisa el username.'),
+        ),
+      );
+    }
   }
 }
 
@@ -289,14 +388,14 @@ class _InicioTab extends ConsumerWidget {
                   if (clan.currentYearRank != null) ...[
                     const SizedBox(height: GarraSpacing.xs),
                     Text(
-                      'Puesto #${clan.currentYearRank} entre clanes',
+                      'Puesto #${clan.currentYearRank} entre comunidades',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                   const SizedBox(height: GarraSpacing.md),
                   TextButton(
                     onPressed: () => context.push('/clans/ranking'),
-                    child: const Text('Ver Ranking de Clanes'),
+                    child: const Text('Ver Ranking de Comunidades'),
                   ),
                 ],
               ),
@@ -336,7 +435,7 @@ class _InicioTab extends ConsumerWidget {
             const SizedBox(height: GarraSpacing.xxl),
             const GarraSectionHeader(
               title: 'Últimas de la Tribuna',
-              subtitle: 'Actividad reciente del clan',
+              subtitle: 'Actividad reciente de la comunidad',
             ),
             const SizedBox(height: GarraSpacing.md),
             feedAsync.when(
@@ -388,64 +487,6 @@ class _InicioTab extends ConsumerWidget {
               },
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _PollaTab extends StatelessWidget {
-  const _PollaTab({required this.clan});
-
-  final ClanModel clan;
-
-  @override
-  Widget build(BuildContext context) {
-    if (!clan.isMember) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(GarraSpacing.xl),
-          child: GarraEmptyState(
-            title: 'Solo miembros',
-            message:
-                'Únete al clan para ver la Polla y el ranking interno.',
-          ),
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.all(GarraSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          GarraCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Polla del Clan',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: GarraSpacing.sm),
-                const Text(
-                  'Participación, predicciones y ranking con los puntos '
-                  'de La Polla global. Una sola predicción por partido.',
-                  style: TextStyle(color: Color(GarraColors.textSecondary)),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: GarraSpacing.lg),
-          GarraPrimaryButton(
-            label: 'Abrir Polla del Clan',
-            onPressed: () => context.push('/clans/${clan.slug}/polla'),
-          ),
-          const SizedBox(height: GarraSpacing.md),
-          GarraSecondaryButton(
-            label: 'Ranking de Clanes',
-            onPressed: () => context.push('/clans/ranking'),
-          ),
         ],
       ),
     );
@@ -533,7 +574,7 @@ class _JoinSection extends StatelessWidget {
     if (clan.isSuspended) {
       return const GarraCard(
         child: Text(
-          'Este clan está suspendido por ahora. No se pueden unir nuevos miembros.',
+          'Esta comunidad está suspendida por ahora. No se pueden unir nuevos miembros.',
           style: TextStyle(color: Color(GarraColors.textSecondary)),
         ),
       );
@@ -550,8 +591,13 @@ class _JoinSection extends StatelessWidget {
             ),
             const SizedBox(height: GarraSpacing.md),
             GarraSecondaryButton(
-              label: leaving ? 'Saliendo…' : 'Salir del clan',
+              label: leaving ? 'Saliendo…' : 'Salir de la comunidad',
               onPressed: leaving ? null : onLeave,
+            ),
+            const SizedBox(height: GarraSpacing.md),
+            TextButton(
+              onPressed: () => context.push('/clans/${clan.slug}/polla'),
+              child: const Text('Polla (secundario)'),
             ),
           ],
         ),

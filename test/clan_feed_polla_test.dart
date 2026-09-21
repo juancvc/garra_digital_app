@@ -533,7 +533,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Ranking de Clanes'), findsOneWidget);
+    expect(find.text('Ranking de Comunidades'), findsOneWidget);
     expect(find.text('Puntos Polla'), findsWidgets);
     expect(find.text('Crema Norte'), findsOneWidget);
     expect(find.text('Garra Surco'), findsOneWidget);
@@ -561,7 +561,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Tu clan'), findsOneWidget);
+    expect(find.text('Tu comunidad'), findsOneWidget);
   });
 
   testWidgets('MEMBERSHIP_LOST_STATE', (tester) async {

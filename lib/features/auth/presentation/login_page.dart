@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../notifications/data/push_session_coordinator.dart';
 import 'providers/auth_provider.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -31,6 +32,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     setState(() => _loading = false);
 
     if (result.success) {
+      await pushSessionCoordinator.afterAuthenticated();
+      if (!mounted) return;
       context.go('/home');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -65,6 +68,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (status == 'PENDING_PROFILE') {
       context.go('/complete-profile');
     } else {
+      await pushSessionCoordinator.afterAuthenticated();
+      if (!mounted) return;
       context.go('/home');
     }
   }

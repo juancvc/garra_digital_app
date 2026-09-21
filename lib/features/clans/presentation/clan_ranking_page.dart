@@ -25,7 +25,7 @@ class ClanRankingPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: const Color(GarraColors.charcoal),
-      appBar: AppBar(title: const Text('Ranking de Clanes')),
+      appBar: AppBar(title: const Text('Ranking de Comunidades')),
       body: rankingAsync.when(
         loading: () => const Center(
           child: CircularProgressIndicator(color: Color(GarraColors.gold)),
@@ -42,7 +42,7 @@ class ClanRankingPage extends ConsumerWidget {
                 child: GarraEmptyState(
                   title: 'Ranking vacío',
                   message:
-                      'Cuando los clanes sumen Puntos Polla, aparecerán aquí.',
+                      'Cuando las comunidades sumen Puntos Polla, aparecerán aquí.',
                 ),
               ),
             );
@@ -146,7 +146,7 @@ class _RankingTile extends StatelessWidget {
                       if (highlight) ...[
                         const SizedBox(width: GarraSpacing.sm),
                         Text(
-                          'Tu clan',
+                          'Tu comunidad',
                           style:
                               Theme.of(context).textTheme.labelSmall?.copyWith(
                                     color: const Color(GarraColors.gold),

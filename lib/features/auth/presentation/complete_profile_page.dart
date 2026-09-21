@@ -6,6 +6,7 @@ import 'package:garra_digital_app/features/predictions/presentation/providers/pr
 import 'package:garra_digital_app/features/ranking/presentation/providers/ranking_provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/storage/secure_storage_service.dart';
+import '../../notifications/data/push_session_coordinator.dart';
 import '../data/google_auth_service.dart';
 
 class CompleteProfilePage extends ConsumerStatefulWidget {
@@ -89,6 +90,8 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
       ]);
 
       if (mounted) {
+        await pushSessionCoordinator.afterAuthenticated();
+        if (!mounted) return;
         context.go('/home');
       }
     } catch (e) {

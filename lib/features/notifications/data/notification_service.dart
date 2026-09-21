@@ -8,6 +8,8 @@ class NotificationItem {
     required this.type,
     required this.title,
     required this.message,
+    this.referenceType,
+    this.referenceId,
     this.readAt,
     required this.createdAt,
     required this.read,
@@ -17,6 +19,8 @@ class NotificationItem {
   final String type;
   final String title;
   final String message;
+  final String? referenceType;
+  final String? referenceId;
   final DateTime? readAt;
   final DateTime createdAt;
   final bool read;
@@ -27,6 +31,8 @@ class NotificationItem {
       type: json['type'] as String? ?? '',
       title: json['title'] as String? ?? '',
       message: json['message'] as String? ?? '',
+      referenceType: json['referenceType']?.toString(),
+      referenceId: json['referenceId']?.toString(),
       readAt: json['readAt'] == null
           ? null
           : DateTime.parse(json['readAt'] as String),

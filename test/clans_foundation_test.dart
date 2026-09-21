@@ -340,7 +340,7 @@ void main() {
     );
     await tester.pumpWidget(pumpClans(service));
     await tester.pumpAndSettle();
-    expect(find.text('Explorar'), findsOneWidget);
+    expect(find.text('Descubre'), findsOneWidget);
     expect(find.text('Garra Surco'), findsWidgets);
     expect(find.text('Crema Norte'), findsOneWidget);
     expect(find.byType(GarraClanCard), findsWidgets);
@@ -351,8 +351,8 @@ void main() {
     await tester.pumpWidget(pumpClans(service));
     await tester.pumpAndSettle();
     expect(find.byType(GarraEmptyState), findsWidgets);
-    expect(find.text('Aún no tienes clan'), findsOneWidget);
-    expect(find.text('Sin clanes por ahora'), findsOneWidget);
+    expect(find.text('Aún no tienes comunidad'), findsOneWidget);
+    expect(find.textContaining('Sin resultados'), findsOneWidget);
   });
 
   testWidgets('CLAN_DETAIL_RENDER', (tester) async {
@@ -438,7 +438,7 @@ void main() {
     );
     await tester.pumpWidget(pumpClans(service));
     await tester.pumpAndSettle();
-    expect(find.text('Mis Clanes'), findsOneWidget);
+    expect(find.text('Mis comunidades'), findsOneWidget);
     expect(find.text('Garra Surco'), findsWidgets);
     expect(find.text('Crema Norte'), findsOneWidget);
     expect(find.text('Principal'), findsWidgets);
@@ -455,7 +455,7 @@ void main() {
     );
     await tester.pumpWidget(pumpClans(service));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(TextButton, 'Principal'));
+    await tester.tap(find.byTooltip('Marcar principal'));
     await tester.pumpAndSettle();
     expect(service.lastPrimarySlug, 'crema-norte');
   });
@@ -593,8 +593,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Gestionar'), findsOneWidget);
-    await tester.tap(find.text('Gestionar'));
+    expect(find.text('Administrar'), findsOneWidget);
+    await tester.tap(find.text('Administrar'));
     await tester.pumpAndSettle();
     expect(find.text('MANAGE:garra-surco'), findsOneWidget);
   });

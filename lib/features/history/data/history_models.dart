@@ -96,7 +96,7 @@ enum HistoryFilter {
   matchday('Matchday', 'MATCH_CHECKIN'),
   missions('Misiones', 'MISSION_COMPLETED'),
   community('Comunidad', 'POST_CREATED'),
-  clans('Clanes', 'CLAN_JOINED');
+  clans('Comunidades', 'CLAN_JOINED');
 
   const HistoryFilter(this.label, this.backendType);
 

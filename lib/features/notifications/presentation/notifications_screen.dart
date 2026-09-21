@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/design/garra_colors.dart';
@@ -7,6 +8,7 @@ import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../data/notification_service.dart';
+import '../data/push_router.dart';
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
   return NotificationService();
@@ -19,6 +21,8 @@ final myNotificationsProvider =
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
+
+  static const _router = PushRouter();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -74,7 +78,19 @@ class NotificationsScreen extends ConsumerWidget {
                 final when = DateFormat('d MMM · HH:mm').format(
                   item.createdAt.toLocal(),
                 );
+                final route = _router.resolveRoute(
+                  authenticated: true,
+                  type: item.type,
+                  referenceType: item.referenceType,
+                  referenceId: item.referenceId,
+                );
+                final tappable = route != '/notifications';
                 return GarraCard(
+                  onTap: tappable
+                      ? () {
+                          context.push(route);
+                        }
+                      : null,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

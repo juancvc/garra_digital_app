@@ -918,7 +918,7 @@ class _HomeClanSection extends StatelessWidget {
                   ),
                   const SizedBox(height: GarraSpacing.xs),
                   Text(
-                    'Descubre clanes crema cerca de ti',
+                    'Descubre Comunidades Cremas cerca de ti',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],

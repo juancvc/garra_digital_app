@@ -7,8 +7,8 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'core/router/app_router.dart';
 import 'core/storage/secure_storage_service.dart';
 import 'core/theme/app_theme.dart';
-import 'features/notifications/data/push_device_service.dart';
 import 'features/notifications/data/push_router.dart';
+import 'features/notifications/data/push_session_coordinator.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -32,7 +32,6 @@ class GarraDigitalApp extends StatefulWidget {
 }
 
 class _GarraDigitalAppState extends State<GarraDigitalApp> {
-  final _pushDevices = PushDeviceService();
   final _pushRouter = const PushRouter();
   final _storage = SecureStorageService();
   bool _handledInitial = false;
@@ -46,10 +45,7 @@ class _GarraDigitalAppState extends State<GarraDigitalApp> {
   Future<void> _bootstrapPush() async {
     try {
       final hasAuth = await _storage.hasToken();
-      if (hasAuth) {
-        await _pushDevices.registerCurrentToken();
-        _pushDevices.listenForRefresh();
-      }
+      await pushSessionCoordinator.bootstrapIfAuthenticated(hasAuth: hasAuth);
     } catch (_) {}
 
     FirebaseMessaging.onMessage.listen((_) {

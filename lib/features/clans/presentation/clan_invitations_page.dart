@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
+import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
@@ -19,7 +20,10 @@ class ClanInvitationsPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: const Color(GarraColors.charcoal),
-      appBar: AppBar(title: const Text('Invitaciones')),
+      appBar: AppBar(
+        title: const Text('Invitaciones'),
+        backgroundColor: const Color(GarraColors.charcoal),
+      ),
       body: invitationsAsync.when(
         loading: () => const Center(
           child: CircularProgressIndicator(color: Color(GarraColors.gold)),
@@ -34,7 +38,7 @@ class ClanInvitationsPage extends ConsumerWidget {
             return const GarraEmptyState(
               title: 'Sin invitaciones',
               message:
-                  'Cuando te inviten a un clan, aparecerán aquí para aceptar o rechazar.',
+                  'Cuando te inviten a una comunidad, aparecerán aquí para aceptar o rechazar.',
             );
           }
 
@@ -65,24 +69,27 @@ class ClanInvitationsPage extends ConsumerWidget {
                         .acceptInvitation(invitation.id);
                     ref.invalidate(myClanInvitationsProvider);
                     ref.invalidate(myClansProvider);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Te uniste a ${invitation.clan.name}'),
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Te uniste a ${invitation.clan.name}'),
+                        action: SnackBarAction(
+                          label: 'Abrir',
+                          onPressed: () =>
+                              context.push('/clans/${invitation.clan.slug}'),
                         ),
-                      );
-                    }
+                      ),
+                    );
                   },
                   onDecline: () async {
                     await ref
                         .read(clanServiceProvider)
                         .declineInvitation(invitation.id);
                     ref.invalidate(myClanInvitationsProvider);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Invitación rechazada')),
-                      );
-                    }
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Invitación rechazada')),
+                    );
                   },
                 );
               },
@@ -107,43 +114,60 @@ class _InvitationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final invitedBy = invitation.invitedByDisplayName ??
-        invitation.invitedByUsername;
+    final invitedBy =
+        invitation.invitedByDisplayName ?? invitation.invitedByUsername;
+    final city = invitation.clan.locationLabel;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        GarraClanCard(
-          clan: invitation.clan,
-          showJoinPolicy: false,
-          onTap: () => context.push('/clans/${invitation.clan.slug}'),
-        ),
-        if (invitedBy != null && invitedBy.isNotEmpty) ...[
-          const SizedBox(height: GarraSpacing.sm),
-          Text(
-            'Invitado por $invitedBy',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
-        const SizedBox(height: GarraSpacing.md),
-        Row(
+    return Material(
+      color: const Color(GarraColors.surface),
+      borderRadius: BorderRadius.circular(GarraRadius.md),
+      child: Padding(
+        padding: const EdgeInsets.all(GarraSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: GarraSecondaryButton(
-                label: 'Rechazar',
-                onPressed: () => onDecline(),
-              ),
+            GarraClanCard(
+              clan: invitation.clan,
+              showJoinPolicy: false,
+              onTap: () => context.push('/clans/${invitation.clan.slug}'),
             ),
-            const SizedBox(width: GarraSpacing.md),
-            Expanded(
-              child: GarraPrimaryButton(
-                label: 'Aceptar',
-                onPressed: () => onAccept(),
+            if (city.isNotEmpty) ...[
+              const SizedBox(height: GarraSpacing.sm),
+              Text(
+                city,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
+            ],
+            if (invitedBy != null && invitedBy.isNotEmpty) ...[
+              const SizedBox(height: GarraSpacing.xs),
+              Text(
+                'Invitado por $invitedBy',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: const Color(GarraColors.creamMuted),
+                    ),
+              ),
+            ],
+            const SizedBox(height: GarraSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: GarraSecondaryButton(
+                    label: 'Rechazar',
+                    onPressed: () => onDecline(),
+                  ),
+                ),
+                const SizedBox(width: GarraSpacing.md),
+                Expanded(
+                  child: GarraPrimaryButton(
+                    label: 'Aceptar',
+                    onPressed: () => onAccept(),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-      ],
+      ),
     );
   }
 }
