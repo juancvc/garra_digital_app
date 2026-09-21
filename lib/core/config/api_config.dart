@@ -1,9 +1,9 @@
 /// API / WebSocket configuration.
 ///
-/// Release builds should pass:
-/// `--dart-define=GARRA_API_BASE_URL=https://api.example.com/api/v1`
+/// Staging / release builds should pass:
+/// `--dart-define=GARRA_API_BASE_URL=https://<staging-or-prod-host>/api/v1`
 ///
-/// Default keeps current Railway staging URL for local/dev continuity.
+/// Default keeps current hosted URL for local/dev continuity (override for staging).
 class ApiConfig {
   static const String _defaultBaseUrl =
       'https://humorous-forgiveness-production-4439.up.railway.app/api/v1';

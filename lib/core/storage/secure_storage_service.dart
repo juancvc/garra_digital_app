@@ -2,6 +2,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SecureStorageService {
   static const _tokenKey = 'access_token';
+  static const _refreshTokenKey = 'refresh_token';
   static const _deviceTokenIdKey = 'garra_device_token_id';
   static const _fcmTokenKey = 'garra_fcm_token';
 
@@ -22,6 +23,24 @@ class SecureStorageService {
 
   Future<void> clearToken() {
     return _storage.delete(key: _tokenKey);
+  }
+
+  Future<void> saveRefreshToken(String refreshToken) {
+    return _storage.write(key: _refreshTokenKey, value: refreshToken);
+  }
+
+  Future<String?> getRefreshToken() {
+    return _storage.read(key: _refreshTokenKey);
+  }
+
+  Future<void> clearRefreshToken() {
+    return _storage.delete(key: _refreshTokenKey);
+  }
+
+  /// Clears access + refresh only (keeps device push keys unless [clearAll]).
+  Future<void> clearSessionTokens() async {
+    await clearToken();
+    await clearRefreshToken();
   }
 
   Future<void> clearAll() {

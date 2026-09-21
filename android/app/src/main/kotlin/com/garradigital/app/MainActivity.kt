@@ -1,4 +1,4 @@
-package com.example.garra_digital_app
+package com.garradigital.app
 
 import io.flutter.embedding.android.FlutterActivity
 
