@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:832857835966:android:7210f8309563e3b58d51ef",
         "android_client_info": {
-          "package_name": "com.garradigital.app"
+          "package_name": "com.example.garra_digital_app"
         }
       },
       "oauth_client": [
@@ -17,10 +17,39 @@
           "client_id": "832857835966-4b66nqju77osmm1h8vhrfkgg087pi5pb.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.garradigital.app",
+            "package_name": "com.example.garra_digital_app",
             "certificate_hash": "7b16cc8a44e3b5273c89cc643fe9e799cb3237da"
           }
         },
+        {
+          "client_id": "832857835966-r0i99rpam3g89fra0t8lqvop3om8oin8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA0EHQoOIJokHFHv-IB6z6y6G-9tVyppNo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "832857835966-r0i99rpam3g89fra0t8lqvop3om8oin8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:832857835966:android:87339b488ebe0f6c8d51ef",
+        "android_client_info": {
+          "package_name": "com.garradigital.app"
+        }
+      },
+      "oauth_client": [
         {
           "client_id": "832857835966-r0i99rpam3g89fra0t8lqvop3om8oin8.apps.googleusercontent.com",
           "client_type": 3
