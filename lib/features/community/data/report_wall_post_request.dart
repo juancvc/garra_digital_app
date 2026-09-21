@@ -1,13 +1,16 @@
 class ReportWallPostRequest {
   const ReportWallPostRequest({
-    required this.reason,
+    required this.category,
+    this.reason,
   });
 
-  final String reason;
+  final String category;
+  final String? reason;
 
   Map<String, dynamic> toJson() {
     return {
-      'reason': reason,
+      'category': category,
+      if (reason != null && reason!.isNotEmpty) 'reason': reason,
     };
   }
 }

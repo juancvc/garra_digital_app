@@ -48,6 +48,15 @@ class PushRouter {
     if (ref == 'CREMA_BUSINESS_APPLICATION') {
       return '/ruta-templo/mi-negocio';
     }
+    if (ref == 'SOLIDARITY' || ref == 'SOLIDARITY_CAMPAIGN') {
+      return id.isNotEmpty ? '/solidaria/$id' : '/solidaria';
+    }
+    if (ref == 'BUSINESS_OFFER') {
+      return id.isNotEmpty ? '/ruta-templo?offerId=$id' : '/ruta-templo';
+    }
+    if (ref == 'CREMA_POINT' || ref == 'FOLLOWED_BUSINESS') {
+      return '/ruta-templo';
+    }
     return '/notifications';
   }
 

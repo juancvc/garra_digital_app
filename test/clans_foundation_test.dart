@@ -600,6 +600,8 @@ void main() {
   });
 
   testWidgets('HOME_CLAN_CTA', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     final router = GoRouter(
       initialLocation: '/home',
       routes: [
@@ -620,6 +622,26 @@ void main() {
           path: '/muro-crema',
           builder: (_, __) => const Scaffold(body: Text('MURO')),
         ),
+        GoRoute(
+          path: '/comunidad/compose',
+          builder: (_, __) => const Scaffold(body: Text('COMPOSE')),
+        ),
+        GoRoute(
+          path: '/solidaria',
+          builder: (_, __) => const Scaffold(body: Text('SOLIDARIA')),
+        ),
+        GoRoute(
+          path: '/historial-crema',
+          builder: (_, __) => const Scaffold(body: Text('HISTORY')),
+        ),
+        GoRoute(
+          path: '/rewards',
+          builder: (_, __) => const Scaffold(body: Text('REWARDS')),
+        ),
+        GoRoute(
+          path: '/marketplace',
+          builder: (_, __) => const Scaffold(body: Text('MARKET')),
+        ),
       ],
     );
     await tester.pumpWidget(
@@ -634,8 +656,14 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Encuentra tu comunidad'), findsOneWidget);
-    await tester.tap(find.text('Encuentra tu comunidad'));
+    final clanCta = find.text('Encuentra tu comunidad');
+    await tester.scrollUntilVisible(
+      clanCta,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(clanCta, findsOneWidget);
+    await tester.tap(clanCta);
     await tester.pumpAndSettle();
     expect(find.text('CLANS_ROUTE'), findsOneWidget);
   });

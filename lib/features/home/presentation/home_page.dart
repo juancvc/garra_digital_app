@@ -202,14 +202,21 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
       const SizedBox(height: GarraSpacing.lg),
       _CommunityPreview(community: home.community),
       const SizedBox(height: GarraSpacing.lg),
+      const _SolidariaHomeTip(),
+      const SizedBox(height: GarraSpacing.lg),
       _HomeClanSection(clan: home.clan),
       const SizedBox(height: GarraSpacing.lg),
       _PointsRankCard(fan: home.fan),
       const SizedBox(height: GarraSpacing.lg),
       const _RewardsShortcut(),
       const SizedBox(height: GarraSpacing.lg),
-      const _MarketplaceShortcut(),
-      const SizedBox(height: GarraSpacing.lg),
+      if (home.commercial != null) ...[
+        _HomeCommercialSection(commercial: home.commercial!),
+        const SizedBox(height: GarraSpacing.lg),
+      ] else ...[
+        const _MarketplaceShortcut(),
+        const SizedBox(height: GarraSpacing.lg),
+      ],
       _HistoryShortcut(),
     ];
   }
@@ -349,7 +356,7 @@ class _CommunityPromptCard extends StatelessWidget {
       color: const Color(GarraColors.garnetDeep),
       borderRadius: BorderRadius.circular(GarraRadius.lg),
       child: InkWell(
-        onTap: () => context.push('/muro-crema/compose'),
+        onTap: () => context.push('/comunidad/compose'),
         borderRadius: BorderRadius.circular(GarraRadius.lg),
         child: Padding(
           padding: const EdgeInsets.all(GarraSpacing.lg),
@@ -368,7 +375,7 @@ class _CommunityPromptCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Comparte con la comunidad',
+                      'Comparte con la comunidad · 365 días',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: const Color(GarraColors.creamMuted),
                           ),
@@ -379,7 +386,7 @@ class _CommunityPromptCard extends StatelessWidget {
               const SizedBox(width: GarraSpacing.sm),
               IntrinsicWidth(
                 child: FilledButton(
-                  onPressed: () => context.push('/muro-crema/compose'),
+                  onPressed: () => context.push('/comunidad/compose'),
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(GarraColors.gold),
                     foregroundColor: const Color(GarraColors.charcoal),
@@ -393,6 +400,40 @@ class _CommunityPromptCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SolidariaHomeTip extends StatelessWidget {
+  const _SolidariaHomeTip();
+
+  @override
+  Widget build(BuildContext context) {
+    return GarraCard(
+      onTap: () => context.push('/solidaria'),
+      child: Row(
+        children: [
+          const Icon(Icons.volunteer_activism_outlined,
+              color: Color(GarraColors.gold)),
+          const SizedBox(width: GarraSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Garra Solidaria',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                Text(
+                  'Campañas verificadas de la crema',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+        ],
       ),
     );
   }
@@ -1269,7 +1310,7 @@ class _CommunityPreview extends StatelessWidget {
               ),
             ),
             TextButton(
-              onPressed: () => context.push('/muro-crema'),
+              onPressed: () => context.push('/comunidad'),
               child: const Text('Ver comunidad'),
             ),
           ],

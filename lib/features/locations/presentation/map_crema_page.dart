@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/location/location_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/checkin_model.dart';
+import '../data/crema_business_engagement_service.dart';
 import '../data/crema_point_model.dart';
 import '../data/create_checkin_request.dart';
 import 'providers/location_provider.dart';
@@ -28,6 +29,8 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
   GoogleMapController? _mapController;
   LatLng? _currentLatLng;
   CremaPointModel? _selectedPoint;
+  final _engagement = CremaBusinessEngagementService();
+  final Set<String> _followingIds = {};
 
   bool _checkingIn = false;
 
@@ -35,6 +38,36 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
   void initState() {
     super.initState();
     _loadCurrentLocation();
+    _loadFollowing();
+  }
+
+  Future<void> _loadFollowing() async {
+    try {
+      final ids = await _engagement.followingIds();
+      if (!mounted) return;
+      setState(() {
+        _followingIds
+          ..clear()
+          ..addAll(ids);
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _toggleFollow(CremaPointModel point) async {
+    try {
+      if (_followingIds.contains(point.id)) {
+        await _engagement.unfollow(point.id);
+        setState(() => _followingIds.remove(point.id));
+      } else {
+        await _engagement.follow(point.id);
+        setState(() => _followingIds.add(point.id));
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo actualizar el seguimiento')),
+      );
+    }
   }
 
   @override
@@ -364,11 +397,23 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
                       matchContext: widget.matchId != null &&
                           widget.matchId!.isNotEmpty,
                       checkingIn: _checkingIn,
+                      following: _followingIds.contains(_selectedPoint!.id),
                       onClose: () {
                         setState(() => _selectedPoint = null);
                       },
                       onDirections: () => _openGoogleMaps(_selectedPoint!),
                       onCheckIn: () => _createCheckIn(_selectedPoint!),
+                      onFollow: _selectedPoint!.type.toUpperCase() ==
+                                  'BUSINESS' &&
+                              _selectedPoint!.verified
+                          ? () => _toggleFollow(_selectedPoint!)
+                          : null,
+                      onOpenStore:
+                          (_selectedPoint!.marketplaceStoreSlug ?? '').isEmpty
+                              ? null
+                              : () => context.push(
+                                    '/marketplace/stores/${_selectedPoint!.marketplaceStoreSlug}',
+                                  ),
                     ),
                   ),
                 ),
@@ -387,9 +432,12 @@ class _SelectedPointCard extends StatelessWidget {
     required this.distanceMeters,
     required this.matchContext,
     required this.checkingIn,
+    required this.following,
     required this.onClose,
     required this.onDirections,
     required this.onCheckIn,
+    this.onFollow,
+    this.onOpenStore,
     super.key,
   });
 
@@ -397,9 +445,12 @@ class _SelectedPointCard extends StatelessWidget {
   final double? distanceMeters;
   final bool matchContext;
   final bool checkingIn;
+  final bool following;
   final VoidCallback onClose;
   final VoidCallback onDirections;
   final VoidCallback onCheckIn;
+  final VoidCallback? onFollow;
+  final VoidCallback? onOpenStore;
 
   bool get _isInRange {
     final distance = distanceMeters;
@@ -596,6 +647,24 @@ class _SelectedPointCard extends StatelessWidget {
                   ),
                 ],
               ),
+              if (onFollow != null || onOpenStore != null) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    if (onFollow != null)
+                      OutlinedButton(
+                        onPressed: onFollow,
+                        child: Text(following ? 'Siguiendo' : 'Seguir'),
+                      ),
+                    if (onOpenStore != null)
+                      OutlinedButton(
+                        onPressed: onOpenStore,
+                        child: const Text('Ver tienda'),
+                      ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),

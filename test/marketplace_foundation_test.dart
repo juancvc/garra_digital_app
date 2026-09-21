@@ -622,6 +622,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Comunidad').first);
+    await tester.pumpAndSettle();
     final marketplace = find.text('Marketplace Crema');
     await tester.scrollUntilVisible(
       marketplace,

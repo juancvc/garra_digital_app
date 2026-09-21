@@ -7,9 +7,13 @@ import 'package:garra_digital_app/features/clans/presentation/clan_ranking_page.
 import 'package:garra_digital_app/features/clans/presentation/clan_tribuna_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/clans_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/create_community_page.dart';
+import 'package:garra_digital_app/features/community/presentation/community_hub_page.dart';
 import 'package:garra_digital_app/features/community/presentation/create_community_post_page.dart';
 import 'package:garra_digital_app/features/community/presentation/muro_crema_page.dart';
 import 'package:garra_digital_app/features/community/presentation/post_detail_screen.dart';
+import 'package:garra_digital_app/features/community/presentation/public_fan_profile_page.dart';
+import 'package:garra_digital_app/features/solidarity/presentation/solidaria_page.dart';
+import 'package:garra_digital_app/features/locations/presentation/business_offers_page.dart';
 import 'package:garra_digital_app/features/locations/presentation/mi_negocio_crema_page.dart';
 import 'package:garra_digital_app/features/locations/presentation/pick_business_location_page.dart';
 import 'package:garra_digital_app/features/locations/data/crema_business_application_service.dart';
@@ -100,6 +104,50 @@ final GoRouter appRouter = GoRouter(
           path: '/home',
           name: 'home',
           builder: (context, state) => const HomePage(),
+        ),
+        GoRoute(
+          path: '/comunidad',
+          name: 'comunidad',
+          builder: (context, state) => const CommunityHubPage(),
+        ),
+        GoRoute(
+          path: '/comunidad/compose',
+          name: 'comunidad-compose',
+          builder: (context, state) => const CreateCommunityPostPage(),
+        ),
+        GoRoute(
+          path: '/comunidad/bloqueados',
+          name: 'comunidad-bloqueados',
+          builder: (context, state) => const BlockedUsersPage(),
+        ),
+        GoRoute(
+          path: '/comunidad/u/:userId',
+          name: 'comunidad-perfil',
+          builder: (context, state) => PublicFanProfilePage(
+            userId: state.pathParameters['userId']!,
+          ),
+        ),
+        GoRoute(
+          path: '/ruta-templo/ofertas',
+          name: 'business-offers',
+          builder: (context, state) => const BusinessOffersPage(),
+        ),
+        GoRoute(
+          path: '/solidaria',
+          name: 'solidaria',
+          builder: (context, state) => const SolidariaPage(),
+        ),
+        GoRoute(
+          path: '/solidaria/nueva',
+          name: 'solidaria-nueva',
+          builder: (context, state) => const SolidariaCreatePage(),
+        ),
+        GoRoute(
+          path: '/solidaria/:id',
+          name: 'solidaria-detail',
+          builder: (context, state) => SolidariaDetailPage(
+            campaignId: state.pathParameters['id']!,
+          ),
         ),
         GoRoute(
           path: '/passport',

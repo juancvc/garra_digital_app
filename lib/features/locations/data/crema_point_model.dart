@@ -13,6 +13,7 @@ class CremaPointModel {
     required this.createdAt,
     required this.updatedAt,
     this.checkinRadiusMeters = 500,
+    this.marketplaceStoreSlug,
   });
 
   final String id;
@@ -28,6 +29,7 @@ class CremaPointModel {
   final String createdAt;
   final String updatedAt;
   final int checkinRadiusMeters;
+  final String? marketplaceStoreSlug;
 
   factory CremaPointModel.fromJson(Map<String, dynamic> json) {
     return CremaPointModel(
@@ -45,6 +47,7 @@ class CremaPointModel {
       updatedAt: json['updatedAt']?.toString() ?? '',
       checkinRadiusMeters:
           (json['checkinRadiusMeters'] as num?)?.toInt() ?? 500,
+      marketplaceStoreSlug: json['marketplaceStoreSlug']?.toString(),
     );
   }
 }

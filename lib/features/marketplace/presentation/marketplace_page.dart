@@ -112,6 +112,9 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
     final isLoading = categoriesAsync.isLoading || listingsAsync.isLoading;
     final hasError = categoriesAsync.hasError && listingsAsync.hasError;
 
+    final sellerAsync = ref.watch(sellerMeProvider);
+    final isSeller = sellerAsync.asData?.value != null;
+
     return Scaffold(
       backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
@@ -125,11 +128,13 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/marketplace/seller'),
+        onPressed: () => context.push(
+          isSeller ? '/marketplace/seller/dashboard' : '/marketplace/seller',
+        ),
         backgroundColor: const Color(GarraColors.garnet),
         foregroundColor: const Color(GarraColors.cream),
         icon: const Icon(Icons.storefront_outlined),
-        label: const Text('Publica tu emprendimiento'),
+        label: Text(isSeller ? 'Mi negocio' : 'Publica tu emprendimiento'),
       ),
       body: hasError
           ? GarraErrorState(onRetry: _refresh)
@@ -231,7 +236,11 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
                       ),
                       const SizedBox(height: GarraSpacing.lg),
                       GarraCard(
-                        onTap: () => context.push('/marketplace/seller'),
+                        onTap: () => context.push(
+                          isSeller
+                              ? '/marketplace/seller/dashboard'
+                              : '/marketplace/seller',
+                        ),
                         child: Row(
                           children: [
                             const Icon(
@@ -244,13 +253,17 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Publica tu emprendimiento',
+                                    isSeller
+                                        ? 'Mi negocio'
+                                        : 'Publica tu emprendimiento',
                                     style:
                                         Theme.of(context).textTheme.titleMedium,
                                   ),
                                   const SizedBox(height: GarraSpacing.xs),
                                   Text(
-                                    'Vende desde la comunidad crema',
+                                    isSeller
+                                        ? 'Administra tu tienda crema'
+                                        : 'Vende desde la comunidad crema',
                                     style:
                                         Theme.of(context).textTheme.bodySmall,
                                   ),

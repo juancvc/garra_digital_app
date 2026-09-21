@@ -9,7 +9,7 @@ import '../../marketplace/data/marketplace_media_service.dart';
 import '../data/community_service.dart';
 import '../data/create_wall_post_request.dart';
 
-/// Full-screen compose surface for community posts (optional photo via R2).
+/// Full-screen compose. Without [matchId] → GLOBAL (365). With matchId → MATCH wall.
 class CreateCommunityPostPage extends ConsumerStatefulWidget {
   const CreateCommunityPostPage({super.key, this.matchId});
 
@@ -30,6 +30,9 @@ class _CreateCommunityPostPageState
   bool _uploading = false;
   bool _publishing = false;
   String? _error;
+
+  bool get _isMatchScoped =>
+      widget.matchId != null && widget.matchId!.isNotEmpty;
 
   @override
   void dispose() {
@@ -71,41 +74,36 @@ class _CreateCommunityPostPageState
       setState(() => _error = 'Escribe algo para compartir');
       return;
     }
-    var matchId = widget.matchId;
-    if (matchId == null || matchId.isEmpty) {
-      final status = await _community.getCurrentWallStatus();
-      matchId = status?.matchId;
-    }
-    if (matchId == null || matchId.isEmpty) {
-      setState(() => _error = 'No hay muro abierto ahora. Vuelve en día de partido.');
-      return;
-    }
 
     setState(() {
       _publishing = true;
       _error = null;
     });
     try {
-      final result = await _community.createPost(
-        CreateWallPostRequest(
-          matchId: matchId,
-          content: text,
-          locationTag: 'HOME',
-          mediaAssetId: _draft?.isReady == true ? _draft!.assetId : null,
-        ),
-      );
+      final result = _isMatchScoped
+          ? await _community.createPost(
+              CreateWallPostRequest(
+                matchId: widget.matchId!,
+                content: text,
+                locationTag: 'HOME',
+                mediaAssetId:
+                    _draft?.isReady == true ? _draft!.assetId : null,
+              ),
+            )
+          : await _community.createGlobalPost(
+              content: text,
+              mediaAssetId: _draft?.isReady == true ? _draft!.assetId : null,
+              locationTag: 'HOME',
+            );
       if (!mounted) return;
       if (!result.success) {
         setState(() => _error = result.message);
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Publicación creada')),
-      );
       context.pop(true);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'No pudimos publicar. Inténtalo de nuevo.');
+      setState(() => _error = 'No se pudo publicar');
     } finally {
       if (mounted) setState(() => _publishing = false);
     }
@@ -113,12 +111,12 @@ class _CreateCommunityPostPageState
 
   @override
   Widget build(BuildContext context) {
-    final bytes = _draft?.bytes;
     return Scaffold(
       backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
-        title: const Text('Nueva publicación'),
-        backgroundColor: const Color(GarraColors.charcoal),
+        title: Text(
+          _isMatchScoped ? 'Publicación del partido' : 'Nueva publicación',
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(GarraSpacing.lg),
@@ -126,42 +124,47 @@ class _CreateCommunityPostPageState
           TextField(
             controller: _content,
             maxLength: 220,
-            maxLines: 5,
+            maxLines: 6,
             decoration: const InputDecoration(
               hintText: '¿Qué quieres compartir con la comunidad?',
-              filled: true,
+              alignLabelWithHint: true,
             ),
           ),
-          const SizedBox(height: GarraSpacing.lg),
-          if (bytes != null)
+          const SizedBox(height: GarraSpacing.md),
+          if (_draft?.bytes != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: Image.memory(
-                bytes,
-                height: 220,
+                _draft!.bytes!,
+                height: 180,
                 width: double.infinity,
                 fit: BoxFit.cover,
               ),
             ),
-          if (_draft != null && _draft!.state == ListingImageUploadState.uploading)
+          if (_uploading || (_draft != null && !(_draft!.isReady)))
             Padding(
-              padding: const EdgeInsets.only(top: GarraSpacing.sm),
-              child: LinearProgressIndicator(value: _draft!.progress),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: LinearProgressIndicator(
+                value: _draft?.progress,
+                color: const Color(GarraColors.gold),
+              ),
             ),
-          const SizedBox(height: GarraSpacing.md),
+          const SizedBox(height: GarraSpacing.sm),
           OutlinedButton.icon(
-            onPressed: _uploading ? null : _pickPhoto,
+            onPressed: _uploading || _publishing ? null : _pickPhoto,
             icon: const Icon(Icons.photo_outlined),
-            label: Text(_draft == null ? 'Agregar foto' : 'Cambiar foto'),
+            label: Text(
+              _draft == null ? 'Agregar foto (opcional)' : 'Cambiar foto',
+            ),
           ),
           if (_error != null) ...[
-            const SizedBox(height: GarraSpacing.md),
-            Text(_error!, style: const TextStyle(color: Color(GarraColors.danger))),
+            const SizedBox(height: GarraSpacing.sm),
+            Text(_error!, style: const TextStyle(color: Colors.orangeAccent)),
           ],
-          const SizedBox(height: GarraSpacing.xxl),
+          const SizedBox(height: GarraSpacing.lg),
           GarraPrimaryButton(
             label: _publishing ? 'Publicando…' : 'Publicar',
-            onPressed: (_publishing || _uploading) ? null : _publish,
+            onPressed: _publishing || _uploading ? null : _publish,
           ),
         ],
       ),

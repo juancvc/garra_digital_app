@@ -19,6 +19,7 @@ class WallPostModel {
     this.contextType = 'MATCH',
     this.clanSlug,
     this.clanName,
+    this.authorId,
   });
 
   final String id;
@@ -38,6 +39,7 @@ class WallPostModel {
   final String contextType;
   final String? clanSlug;
   final String? clanName;
+  final String? authorId;
 
   bool get isClanContext => contextType.toUpperCase() == 'CLAN';
 
@@ -66,6 +68,8 @@ class WallPostModel {
       contextType: contextType,
       clanSlug: (json['clanSlug'] ?? context['clanSlug'])?.toString(),
       clanName: (json['clanName'] ?? context['clanName'])?.toString(),
+      authorId: (json['authorId'] ?? json['fanUserId'] ?? json['userId'])
+          ?.toString(),
     );
   }
 
@@ -88,6 +92,7 @@ class WallPostModel {
     String? contextType,
     String? clanSlug,
     String? clanName,
+    String? authorId,
   }) {
     return WallPostModel(
       id: id ?? this.id,
@@ -107,6 +112,7 @@ class WallPostModel {
       contextType: contextType ?? this.contextType,
       clanSlug: clanSlug ?? this.clanSlug,
       clanName: clanName ?? this.clanName,
+      authorId: authorId ?? this.authorId,
     );
   }
 }

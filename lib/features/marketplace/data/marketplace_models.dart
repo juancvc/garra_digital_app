@@ -341,6 +341,7 @@ class MarketplaceStore {
     this.status = 'ACTIVE',
     this.logoUrl,
     this.bannerUrl,
+    this.cremaPointId,
   });
 
   final String slug;
@@ -352,6 +353,10 @@ class MarketplaceStore {
   final String status;
   final String? logoUrl;
   final String? bannerUrl;
+  final String? cremaPointId;
+
+  bool get isCremaPointVerified =>
+      cremaPointId != null && cremaPointId!.isNotEmpty;
 
   factory MarketplaceStore.fromJson(Map<String, dynamic> json) {
     final rawListings = json['listings'];
@@ -376,6 +381,7 @@ class MarketplaceStore {
       status: json['status']?.toString() ?? 'ACTIVE',
       logoUrl: json['logoUrl'] as String?,
       bannerUrl: json['bannerUrl'] as String?,
+      cremaPointId: json['cremaPointId']?.toString(),
     );
   }
 }

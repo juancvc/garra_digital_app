@@ -267,70 +267,92 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
     required String postId,
     required WallPostsParams params,
   }) async {
+    const categories = <String, String>{
+      'SPAM': 'Spam',
+      'HARASSMENT': 'Acoso',
+      'VIOLENCE': 'Violencia',
+      'HATE': 'Odio / discriminación',
+      'SEXUAL_CONTENT': 'Contenido sexual',
+      'FRAUD': 'Fraude',
+      'OTHER': 'Otro',
+    };
+    String selected = 'OTHER';
     final reasonController = TextEditingController();
 
-    final reason = await showDialog<String>(
+    final submitted = await showDialog<Map<String, String>>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1A1A1A),
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 24,
-          ),
-          titlePadding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
-          contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-          actionsPadding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
-          title: const Text(
-            'Reportar publicación',
-            style: TextStyle(
-              color: AppTheme.cream,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          content: TextField(
-            controller: reasonController,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Razón',
-              hintText: 'Contenido inapropiado',
-              isDense: true,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text(
-                'Cancelar',
-                style: TextStyle(color: AppTheme.gold),
+        return StatefulBuilder(
+          builder: (context, setLocal) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1A1A1A),
+              title: const Text(
+                'Reportar publicación',
+                style: TextStyle(
+                  color: AppTheme.cream,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(110, 42),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: selected,
+                    dropdownColor: const Color(0xFF1A1A1A),
+                    items: categories.entries
+                        .map(
+                          (e) => DropdownMenuItem(
+                            value: e.key,
+                            child: Text(e.value),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setLocal(() => selected = v);
+                    },
+                    decoration: const InputDecoration(labelText: 'Categoría'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: reasonController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Detalle (opcional)',
+                      hintText: 'Cuéntanos más',
+                      isDense: true,
+                    ),
+                  ),
+                ],
               ),
-              onPressed: () {
-                Navigator.pop(dialogContext, reasonController.text.trim());
-              },
-              child: const Text('Reportar'),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text(
+                    'Cancelar',
+                    style: TextStyle(color: AppTheme.gold),
+                  ),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext, {
+                      'category': selected,
+                      'reason': reasonController.text.trim(),
+                    });
+                  },
+                  child: const Text('Reportar'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
 
     reasonController.dispose();
 
-    if (reason == null) {
-      return;
-    }
-
-    if (reason.trim().isEmpty) {
-      _showSnackBar(
-        message: 'Ingresa una razón para reportar.',
-        backgroundColor: Colors.orange,
-      );
+    if (submitted == null) {
       return;
     }
 
@@ -338,13 +360,18 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
 
     final result = await service.reportPost(
       postId: postId,
-      reason: reason.trim(),
+      category: submitted['category'] ?? 'OTHER',
+      reason: (submitted['reason'] ?? '').isEmpty
+          ? (categories[submitted['category']] ?? 'Reportado')
+          : submitted['reason']!,
     );
 
     if (!mounted) return;
 
     _showSnackBar(
-      message: _normalizeWallError(result.message),
+      message: result.success
+          ? 'Reportado. Gracias.'
+          : _normalizeWallError(result.message),
       backgroundColor: result.success ? Colors.green : Colors.orange,
     );
 

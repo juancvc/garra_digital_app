@@ -353,6 +353,11 @@ class _PassportBody extends StatelessWidget {
                   label: 'Editar perfil',
                   onPressed: () => context.push('/passport/edit'),
                 ),
+                const SizedBox(height: GarraSpacing.sm),
+                GarraSecondaryButton(
+                  label: 'Usuarios bloqueados',
+                  onPressed: () => context.push('/comunidad/bloqueados'),
+                ),
               ],
               const SizedBox(height: GarraSpacing.xxl),
               Text(

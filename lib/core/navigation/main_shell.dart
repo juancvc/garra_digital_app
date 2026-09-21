@@ -13,7 +13,7 @@ class MainShell extends StatelessWidget {
 
   static const _routes = [
     '/home',
-    '/muro-crema',
+    '/comunidad',
     '/ruta-templo',
     '/marketplace',
     '/passport',
@@ -21,7 +21,10 @@ class MainShell extends StatelessWidget {
 
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
-    if (location.startsWith('/muro-crema') || location.startsWith('/clans')) {
+    if (location.startsWith('/comunidad') ||
+        location.startsWith('/muro-crema') ||
+        location.startsWith('/clans') ||
+        location.startsWith('/solidaria')) {
       return 1;
     }
     if (location.startsWith('/ruta-templo')) {

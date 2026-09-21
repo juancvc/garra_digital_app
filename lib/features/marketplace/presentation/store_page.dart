@@ -97,6 +97,17 @@ class StorePage extends ConsumerWidget {
                           store.name,
                           style: Theme.of(context).textTheme.headlineSmall,
                         ),
+                        if (store.isCremaPointVerified) ...[
+                          const SizedBox(height: GarraSpacing.xs),
+                          const Text(
+                            '✓ Punto Crema verificado',
+                            style: TextStyle(
+                              color: Color(GarraColors.gold),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
                         if (store.city != null && store.city!.isNotEmpty) ...[
                           const SizedBox(height: GarraSpacing.xs),
                           Text(
@@ -109,6 +120,14 @@ class StorePage extends ConsumerWidget {
                   ),
                 ],
               ),
+              if (store.isCremaPointVerified) ...[
+                const SizedBox(height: GarraSpacing.md),
+                OutlinedButton.icon(
+                  onPressed: () => context.push('/ruta-templo'),
+                  icon: const Icon(Icons.map_outlined),
+                  label: const Text('Ver en mapa'),
+                ),
+              ],
               if (store.description != null &&
                   store.description!.trim().isNotEmpty) ...[
                 const SizedBox(height: GarraSpacing.lg),

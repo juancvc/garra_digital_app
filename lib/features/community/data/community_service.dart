@@ -108,17 +108,18 @@ class CommunityService {
   Future<WallActionResult> reportPost({
     required String postId,
     required String reason,
+    String category = 'OTHER',
   }) async {
     try {
       final response = await _dio.post(
         '/community/wall/posts/$postId/report',
-        data: ReportWallPostRequest(reason: reason).toJson(),
+        data: ReportWallPostRequest(category: category, reason: reason).toJson(),
       );
 
       final data = response.data['data'];
 
       return WallActionResult.success(
-        message: response.data['message']?.toString() ?? 'Reporte enviado',
+        message: response.data['message']?.toString() ?? 'Reportado. Gracias.',
         post: data is Map<String, dynamic>
             ? WallPostModel.fromJson(data)
             : null,
@@ -130,6 +131,61 @@ class CommunityService {
     } catch (_) {
       return WallActionResult.failure('Ocurrió un error inesperado');
     }
+  }
+
+  Future<List<WallPostModel>> getGlobalFeed() async {
+    final response = await _dio.get('/community/feed');
+    final List data = response.data['data'] ?? [];
+    return data
+        .map((e) => WallPostModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<WallActionResult> createGlobalPost({
+    required String content,
+    String? mediaAssetId,
+    String? locationTag,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/community/posts',
+        data: {
+          'content': content,
+          if (mediaAssetId != null) 'mediaAssetId': mediaAssetId,
+          if (locationTag != null) 'locationTag': locationTag,
+        },
+      );
+      final data = response.data['data'];
+      return WallActionResult.success(
+        message: response.data['message']?.toString() ?? 'Publicado',
+        post: data is Map<String, dynamic> ? WallPostModel.fromJson(data) : null,
+      );
+    } on DioException catch (e) {
+      return WallActionResult.failure(
+        _dioMessage(e, 'No se pudo publicar'),
+      );
+    } catch (_) {
+      return WallActionResult.failure('Ocurrió un error inesperado');
+    }
+  }
+
+  Future<void> blockUser(String userId) async {
+    await _dio.post('/community/users/$userId/block');
+  }
+
+  Future<void> unblockUser(String userId) async {
+    await _dio.delete('/community/users/$userId/block');
+  }
+
+  Future<List<Map<String, dynamic>>> listBlocks() async {
+    final response = await _dio.get('/community/blocks/me');
+    final List data = response.data['data'] ?? [];
+    return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<Map<String, dynamic>> getPublicProfile(String userId) async {
+    final response = await _dio.get('/community/users/$userId/profile');
+    return Map<String, dynamic>.from(response.data['data'] as Map);
   }
 
   Future<ReactionResult> upsertReaction({

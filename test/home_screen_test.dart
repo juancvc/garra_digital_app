@@ -212,13 +212,21 @@ void main() {
   });
 
   testWidgets('HOME_NO_MATCH_STATE', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
       pumpHome(sampleHome(matchdayState: 'NO_MATCH', withMatch: false)),
     );
     await tester.pumpAndSettle();
     expect(find.text('Comunidad'), findsWidgets);
-    expect(find.textContaining('Puntos Garra'), findsOneWidget);
     expect(find.text('¿Qué vive la crema hoy?'), findsOneWidget);
+    final points = find.textContaining('Puntos Garra');
+    await tester.scrollUntilVisible(
+      points.first,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(points, findsWidgets);
   });
 
   testWidgets('HOME_PREDICTION_CTA', (tester) async {
