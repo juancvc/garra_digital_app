@@ -22,6 +22,7 @@ import '../../missions/presentation/widgets/garra_streak_card.dart';
 import '../../predictions/presentation/providers/prediction_provider.dart';
 import '../../ranking/presentation/providers/ranking_provider.dart';
 import '../../marketplace/widgets/garra_sponsored_card.dart';
+import '../../rewards/data/reward_service.dart';
 import '../../sponsors/data/sponsor_service.dart';
 import '../../sponsors/presentation/providers/sponsor_provider.dart';
 import '../data/home_models.dart';
@@ -170,7 +171,12 @@ class _HomeBody extends ConsumerWidget {
       children.add(const SizedBox(height: GarraSpacing.lg));
     }
 
-    if (home.sponsored != null) {
+    // MAX_COMMERCIAL_HOME_SURFACES = 1 (matchday sponsor > sponsored reward)
+    final commercial = home.commercial;
+    if (commercial != null) {
+      children.add(_HomeCommercialSection(commercial: commercial));
+      children.add(const SizedBox(height: GarraSpacing.lg));
+    } else if (home.sponsored != null) {
       children.add(
         _HomeSponsoredSection(sponsored: home.sponsored!),
       );
@@ -191,6 +197,8 @@ class _HomeBody extends ConsumerWidget {
     children.add(_HomeClanSection(clan: home.clan));
     children.add(const SizedBox(height: GarraSpacing.lg));
     children.add(const _MarketplaceShortcut());
+    children.add(const SizedBox(height: GarraSpacing.lg));
+    children.add(const _RewardsShortcut());
     children.add(const SizedBox(height: GarraSpacing.lg));
 
     if (home.hasMatch) {
@@ -555,8 +563,8 @@ class _PointsRankCard extends StatelessWidget {
             ),
           ),
           TextButton(
-            onPressed: () => context.push('/passport'),
-            child: const Text('Pasaporte'),
+            onPressed: () => context.push('/rewards'),
+            child: const Text('Beneficios'),
           ),
         ],
       ),
@@ -675,6 +683,93 @@ class _CheckInCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _HomeCommercialSection extends ConsumerWidget {
+  const _HomeCommercialSection({required this.commercial});
+
+  final HomeCommercialCard commercial;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (commercial.isSponsoredReward) {
+      return GarraCard(
+        onTap: () {
+          final slug = commercial.rewardSlug;
+          if (slug != null && slug.isNotEmpty) {
+            if (commercial.rewardOfferId != null) {
+              unawaited(
+                RewardService().trackOpen(
+                  commercial.rewardOfferId!,
+                  activationId: commercial.activationId,
+                ),
+              );
+            }
+            context.push('/rewards/$slug');
+          }
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              commercial.label,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: const Color(GarraColors.gold),
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const SizedBox(height: GarraSpacing.sm),
+            Text(
+              commercial.headline,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            if (commercial.body != null && commercial.body!.isNotEmpty) ...[
+              const SizedBox(height: GarraSpacing.xs),
+              Text(
+                commercial.body!,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+            if (commercial.pointsCost != null) ...[
+              const SizedBox(height: GarraSpacing.sm),
+              Text(
+                '${commercial.pointsCost} Puntos Garra',
+                style: GarraTypography.numeric(size: 16),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    final card = SponsoredCard(
+      activationId: commercial.activationId,
+      campaignId: commercial.campaignId,
+      sponsorName: commercial.sponsorName,
+      sponsorSlug: commercial.sponsorSlug,
+      logoUrl: commercial.logoUrl,
+      headline: commercial.headline,
+      body: commercial.body,
+      ctaLabel: commercial.ctaLabel,
+      ctaUrl: commercial.ctaUrl,
+      label: commercial.label,
+    );
+    return GarraSponsoredCard(
+      card: card,
+      onImpression: () {
+        unawaited(
+          ref
+              .read(sponsorServiceProvider)
+              .trackImpression(commercial.activationId),
+        );
+      },
+      onOpen: () {
+        unawaited(
+          ref.read(sponsorServiceProvider).trackOpen(commercial.activationId),
+        );
+      },
     );
   }
 }
@@ -902,6 +997,40 @@ class _MarketplaceShortcut extends StatelessWidget {
                 const SizedBox(height: GarraSpacing.xs),
                 Text(
                   'Descubre emprendimientos de la hinchada',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+        ],
+      ),
+    );
+  }
+}
+
+class _RewardsShortcut extends StatelessWidget {
+  const _RewardsShortcut();
+
+  @override
+  Widget build(BuildContext context) {
+    return GarraCard(
+      onTap: () => context.push('/rewards'),
+      child: Row(
+        children: [
+          const Icon(Icons.card_giftcard_outlined, color: Color(GarraColors.gold)),
+          const SizedBox(width: GarraSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Beneficios',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: GarraSpacing.xs),
+                Text(
+                  'Canjea Puntos Garra por beneficios reales',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],

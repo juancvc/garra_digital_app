@@ -258,6 +258,66 @@ class _PassportBody extends StatelessWidget {
           ),
         ),
         const SizedBox(height: GarraSpacing.lg),
+        GarraCard(
+          onTap: () => context.push('/rewards'),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.card_giftcard_outlined,
+                color: Color(GarraColors.gold),
+              ),
+              const SizedBox(width: GarraSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Beneficios',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: GarraSpacing.xs),
+                    Text(
+                      'Canjea tus Puntos Garra',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+            ],
+          ),
+        ),
+        const SizedBox(height: GarraSpacing.lg),
+        GarraCard(
+          onTap: () => context.push('/referrals'),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.group_add_outlined,
+                color: Color(GarraColors.gold),
+              ),
+              const SizedBox(width: GarraSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Invita cremas',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: GarraSpacing.xs),
+                    Text(
+                      'Comparte tu código de invitación',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+            ],
+          ),
+        ),
+        const SizedBox(height: GarraSpacing.lg),
         _PassportHistorySection(
           yearSummary: passport.currentYearSummary,
         ),

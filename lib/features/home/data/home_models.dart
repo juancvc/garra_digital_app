@@ -13,6 +13,7 @@ class HomeModel {
     this.streak,
     this.clan,
     this.sponsored,
+    this.commercial,
   });
 
   final HomeFanSummary fan;
@@ -28,6 +29,7 @@ class HomeModel {
   final HomeStreakSummary? streak;
   final HomeClanSummary? clan;
   final HomeSponsoredCard? sponsored;
+  final HomeCommercialCard? commercial;
 
   factory HomeModel.fromJson(Map<String, dynamic> json) {
     return HomeModel(
@@ -71,6 +73,11 @@ class HomeModel {
           ? null
           : HomeSponsoredCard.fromJson(
               Map<String, dynamic>.from(json['sponsored'] as Map),
+            ),
+      commercial: json['commercial'] == null
+          ? null
+          : HomeCommercialCard.fromJson(
+              Map<String, dynamic>.from(json['commercial'] as Map),
             ),
     );
   }
@@ -386,6 +393,66 @@ class HomeSponsoredCard {
           (json['sponsorName'] != null
               ? 'Patrocinado por ${json['sponsorName']}'
               : 'Patrocinado'),
+    );
+  }
+}
+
+/// Shared Home commercial slot (max 1). Matchday sponsor OR sponsored reward.
+class HomeCommercialCard {
+  const HomeCommercialCard({
+    required this.kind,
+    required this.activationId,
+    required this.campaignId,
+    this.rewardOfferId,
+    this.rewardSlug,
+    required this.sponsorName,
+    this.sponsorSlug,
+    this.logoUrl,
+    required this.headline,
+    this.body,
+    this.ctaLabel,
+    this.ctaUrl,
+    required this.label,
+    this.pointsCost,
+  });
+
+  final String kind;
+  final String activationId;
+  final String campaignId;
+  final String? rewardOfferId;
+  final String? rewardSlug;
+  final String sponsorName;
+  final String? sponsorSlug;
+  final String? logoUrl;
+  final String headline;
+  final String? body;
+  final String? ctaLabel;
+  final String? ctaUrl;
+  final String label;
+  final int? pointsCost;
+
+  bool get isSponsoredReward => kind == 'SPONSORED_REWARD';
+  bool get isMatchdaySponsor => kind == 'MATCHDAY_SPONSOR';
+
+  factory HomeCommercialCard.fromJson(Map<String, dynamic> json) {
+    return HomeCommercialCard(
+      kind: json['kind'] as String? ?? 'MATCHDAY_SPONSOR',
+      activationId: json['activationId']?.toString() ?? '',
+      campaignId: json['campaignId']?.toString() ?? '',
+      rewardOfferId: json['rewardOfferId']?.toString(),
+      rewardSlug: json['rewardSlug'] as String?,
+      sponsorName: json['sponsorName'] as String? ?? '',
+      sponsorSlug: json['sponsorSlug']?.toString(),
+      logoUrl: json['logoUrl'] as String?,
+      headline: json['headline'] as String? ?? '',
+      body: json['body'] as String?,
+      ctaLabel: json['ctaLabel'] as String?,
+      ctaUrl: json['ctaUrl'] as String?,
+      label: json['label'] as String? ??
+          (json['sponsorName'] != null
+              ? 'Patrocinado por ${json['sponsorName']}'
+              : 'Patrocinado'),
+      pointsCost: (json['pointsCost'] as num?)?.toInt(),
     );
   }
 }

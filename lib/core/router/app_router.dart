@@ -22,6 +22,10 @@ import 'package:garra_digital_app/features/missions/presentation/missions_page.d
 import 'package:garra_digital_app/features/notifications/presentation/notifications_screen.dart';
 import 'package:garra_digital_app/features/passport/presentation/passport_screen.dart';
 import 'package:garra_digital_app/features/passport/presentation/profile_edit_screen.dart';
+import 'package:garra_digital_app/features/referrals/presentation/referrals_page.dart';
+import 'package:garra_digital_app/features/rewards/presentation/my_rewards_page.dart';
+import 'package:garra_digital_app/features/rewards/presentation/reward_detail_page.dart';
+import 'package:garra_digital_app/features/rewards/presentation/rewards_page.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/login_page.dart';
@@ -180,6 +184,29 @@ final GoRouter appRouter = GoRouter(
             final matchId = state.uri.queryParameters['matchId'];
             return MissionsPage(matchId: matchId);
           },
+        ),
+        GoRoute(
+          path: '/rewards',
+          name: 'rewards',
+          builder: (context, state) => const RewardsPage(),
+        ),
+        GoRoute(
+          path: '/rewards/me',
+          name: 'rewards-me',
+          builder: (context, state) => const MyRewardsPage(),
+        ),
+        GoRoute(
+          path: '/rewards/:slug',
+          name: 'reward-detail',
+          builder: (context, state) {
+            final slug = state.pathParameters['slug'] ?? '';
+            return RewardDetailPage(slug: slug);
+          },
+        ),
+        GoRoute(
+          path: '/referrals',
+          name: 'referrals',
+          builder: (context, state) => const ReferralsPage(),
         ),
         GoRoute(
           path: '/clans',
