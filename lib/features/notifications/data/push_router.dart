@@ -54,6 +54,9 @@ class PushRouter {
     if (ref == 'BUSINESS_OFFER') {
       return id.isNotEmpty ? '/ruta-templo?offerId=$id' : '/ruta-templo';
     }
+    if (ref == 'FAN_USER' && id.isNotEmpty) {
+      return '/comunidad/u/$id';
+    }
     if (ref == 'CREMA_POINT' || ref == 'FOLLOWED_BUSINESS') {
       return '/ruta-templo';
     }

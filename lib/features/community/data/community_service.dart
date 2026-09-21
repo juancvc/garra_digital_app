@@ -133,12 +133,60 @@ class CommunityService {
     }
   }
 
-  Future<List<WallPostModel>> getGlobalFeed() async {
-    final response = await _dio.get('/community/feed');
+  Future<List<WallPostModel>> getGlobalFeed({String mode = 'RECENT'}) async {
+    final response = await _dio.get(
+      '/community/feed',
+      queryParameters: {'mode': mode},
+    );
     final List data = response.data['data'] ?? [];
     return data
         .map((e) => WallPostModel.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<void> followUser(String userId) async {
+    await _dio.post('/community/users/$userId/follow');
+  }
+
+  Future<void> unfollowUser(String userId) async {
+    await _dio.delete('/community/users/$userId/follow');
+  }
+
+  Future<void> savePost(String postId) async {
+    await _dio.post('/community/posts/$postId/save');
+  }
+
+  Future<void> unsavePost(String postId) async {
+    await _dio.delete('/community/posts/$postId/save');
+  }
+
+  Future<List<WallPostModel>> listSaved() async {
+    final response = await _dio.get('/community/saved/me');
+    final List data = response.data['data'] ?? [];
+    return data
+        .map((e) => WallPostModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> discoveryPeople() async {
+    final response = await _dio.get('/community/discovery/people');
+    final List data = response.data['data'] ?? [];
+    return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<void> deleteOwnPost(String postId) async {
+    await _dio.delete('/community/posts/$postId');
+  }
+
+  Future<Map<String, dynamic>> globalSearch(String q, {String? type}) async {
+    final response = await _dio.get(
+      '/search',
+      queryParameters: {
+        'q': q,
+        if (type != null && type.isNotEmpty) 'type': type,
+      },
+    );
+    return Map<String, dynamic>.from(response.data['data'] as Map);
   }
 
   Future<WallActionResult> createGlobalPost({

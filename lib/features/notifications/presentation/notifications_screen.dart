@@ -31,7 +31,7 @@ class NotificationsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
-        title: const Text('Notificaciones'),
+        title: const Text('Actividad'),
         actions: [
           TextButton(
             onPressed: () async {
@@ -96,6 +96,12 @@ class NotificationsScreen extends ConsumerWidget {
                     children: [
                       Row(
                         children: [
+                          Icon(
+                            _iconFor(item.type, item.referenceType),
+                            color: const Color(GarraColors.gold),
+                            size: 22,
+                          ),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               item.title,
@@ -139,5 +145,29 @@ class NotificationsScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  static IconData _iconFor(String? type, String? referenceType) {
+    final t = (type ?? '').toUpperCase();
+    final r = (referenceType ?? '').toUpperCase();
+    if (r.contains('FAN') || t.contains('FOLLOW') || t.contains('SOCIAL')) {
+      return Icons.person_add_alt_1_outlined;
+    }
+    if (r.contains('POST') || t.contains('MENTION') || t.contains('COMMENT')) {
+      return Icons.chat_bubble_outline;
+    }
+    if (t.contains('SOLIDAR') || r.contains('SOLIDAR')) {
+      return Icons.volunteer_activism_outlined;
+    }
+    if (t.contains('MARKET') || r.contains('LISTING') || r.contains('STORE')) {
+      return Icons.shopping_bag_outlined;
+    }
+    if (t.contains('BUSINESS') || r.contains('CREMA') || r.contains('POINT')) {
+      return Icons.storefront_outlined;
+    }
+    if (t.contains('CLAN') || t.contains('COMMUNITY')) {
+      return Icons.groups_outlined;
+    }
+    return Icons.notifications_outlined;
   }
 }

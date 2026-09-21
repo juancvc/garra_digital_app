@@ -11,6 +11,7 @@ import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
+import '../../auth/data/auth_service.dart';
 import '../../clans/data/clan_models.dart';
 import '../data/passport_models.dart';
 import 'providers/passport_provider.dart';
@@ -318,6 +319,8 @@ class _PassportBody extends StatelessWidget {
           ),
         ),
         const SizedBox(height: GarraSpacing.lg),
+        const _AdminCenterEntry(),
+        const SizedBox(height: GarraSpacing.lg),
         _PassportHistorySection(
           yearSummary: passport.currentYearSummary,
         ),
@@ -566,6 +569,65 @@ class _ProfileRow extends StatelessWidget {
                       : const Color(GarraColors.textPrimary),
                 ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminCenterEntry extends StatefulWidget {
+  const _AdminCenterEntry();
+
+  @override
+  State<_AdminCenterEntry> createState() => _AdminCenterEntryState();
+}
+
+class _AdminCenterEntryState extends State<_AdminCenterEntry> {
+  bool _show = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    try {
+      final me = await AuthService().me();
+      if (!mounted) return;
+      setState(() => _show = me?.isAdmin == true);
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_show) return const SizedBox.shrink();
+    return GarraCard(
+      onTap: () => context.push('/admin'),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.admin_panel_settings_outlined,
+            color: Color(GarraColors.gold),
+          ),
+          const SizedBox(width: GarraSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Centro Garra',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: GarraSpacing.xs),
+                Text(
+                  'Moderación y operación',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
         ],
       ),
     );

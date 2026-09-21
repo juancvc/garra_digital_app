@@ -7,11 +7,14 @@ import 'package:garra_digital_app/features/clans/presentation/clan_ranking_page.
 import 'package:garra_digital_app/features/clans/presentation/clan_tribuna_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/clans_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/create_community_page.dart';
+import 'package:garra_digital_app/features/admin/presentation/admin_center_page.dart';
 import 'package:garra_digital_app/features/community/presentation/community_hub_page.dart';
 import 'package:garra_digital_app/features/community/presentation/create_community_post_page.dart';
+import 'package:garra_digital_app/features/community/presentation/global_search_page.dart';
 import 'package:garra_digital_app/features/community/presentation/muro_crema_page.dart';
 import 'package:garra_digital_app/features/community/presentation/post_detail_screen.dart';
 import 'package:garra_digital_app/features/community/presentation/public_fan_profile_page.dart';
+import 'package:garra_digital_app/features/community/presentation/saved_posts_page.dart';
 import 'package:garra_digital_app/features/solidarity/presentation/solidaria_page.dart';
 import 'package:garra_digital_app/features/locations/presentation/business_offers_page.dart';
 import 'package:garra_digital_app/features/locations/presentation/mi_negocio_crema_page.dart';
@@ -121,11 +124,46 @@ final GoRouter appRouter = GoRouter(
           builder: (context, state) => const BlockedUsersPage(),
         ),
         GoRoute(
+          path: '/comunidad/buscar',
+          name: 'comunidad-buscar',
+          builder: (context, state) => const GlobalSearchPage(),
+        ),
+        GoRoute(
+          path: '/comunidad/guardados',
+          name: 'comunidad-guardados',
+          builder: (context, state) => const SavedPostsPage(),
+        ),
+        GoRoute(
           path: '/comunidad/u/:userId',
           name: 'comunidad-perfil',
           builder: (context, state) => PublicFanProfilePage(
             userId: state.pathParameters['userId']!,
           ),
+        ),
+        GoRoute(
+          path: '/admin',
+          name: 'admin-center',
+          builder: (context, state) => const AdminCenterPage(),
+        ),
+        GoRoute(
+          path: '/admin/reportes',
+          name: 'admin-reportes',
+          builder: (context, state) => const AdminReportsPage(),
+        ),
+        GoRoute(
+          path: '/admin/negocios',
+          name: 'admin-negocios',
+          builder: (context, state) => const AdminBusinessReviewPage(),
+        ),
+        GoRoute(
+          path: '/admin/solidaria',
+          name: 'admin-solidaria',
+          builder: (context, state) => const AdminSolidarityReviewPage(),
+        ),
+        GoRoute(
+          path: '/admin/marketplace',
+          name: 'admin-marketplace',
+          builder: (context, state) => const AdminMarketplaceReviewPage(),
         ),
         GoRoute(
           path: '/ruta-templo/ofertas',

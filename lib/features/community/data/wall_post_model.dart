@@ -20,6 +20,7 @@ class WallPostModel {
     this.clanSlug,
     this.clanName,
     this.authorId,
+    this.savedByMe = false,
   });
 
   final String id;
@@ -40,6 +41,7 @@ class WallPostModel {
   final String? clanSlug;
   final String? clanName;
   final String? authorId;
+  final bool savedByMe;
 
   bool get isClanContext => contextType.toUpperCase() == 'CLAN';
 
@@ -70,6 +72,7 @@ class WallPostModel {
       clanName: (json['clanName'] ?? context['clanName'])?.toString(),
       authorId: (json['authorId'] ?? json['fanUserId'] ?? json['userId'])
           ?.toString(),
+      savedByMe: json['savedByMe'] == true,
     );
   }
 

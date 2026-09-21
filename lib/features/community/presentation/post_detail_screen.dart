@@ -279,9 +279,63 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         actions: [
           if (_post != null)
             IconButton(
+              tooltip: _post!.savedByMe ? 'Quitar guardado' : 'Guardar',
+              icon: Icon(
+                _post!.savedByMe ? Icons.bookmark : Icons.bookmark_border,
+              ),
+              onPressed: () async {
+                final svc = ref.read(communityServiceProvider);
+                if (_post!.savedByMe) {
+                  await svc.unsavePost(_post!.id);
+                } else {
+                  await svc.savePost(_post!.id);
+                }
+                await _loadPost();
+              },
+            ),
+          if (_post != null)
+            IconButton(
               tooltip: 'Compartir',
               icon: const Icon(Icons.ios_share_rounded),
               onPressed: () => _openShareSheet(_post!),
+            ),
+          if (_post != null)
+            PopupMenuButton<String>(
+              onSelected: (v) async {
+                if (v == 'delete') {
+                  final ok = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Eliminar publicación'),
+                      content: const Text(
+                        'Se ocultará de la comunidad (soft delete).',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Cancelar'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('Eliminar'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (ok == true) {
+                    await ref
+                        .read(communityServiceProvider)
+                        .deleteOwnPost(_post!.id);
+                    if (context.mounted) context.pop();
+                  }
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Text('Eliminar'),
+                ),
+              ],
             ),
         ],
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
@@ -24,6 +25,7 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
   Map<String, dynamic>? _profile;
   bool _loading = true;
   String? _error;
+  bool _busy = false;
 
   @override
   void initState() {
@@ -52,6 +54,23 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
     }
   }
 
+  Future<void> _toggleFollow() async {
+    final p = _profile;
+    if (p == null || _busy) return;
+    setState(() => _busy = true);
+    try {
+      final followed = p['isFollowedByMe'] == true;
+      if (followed) {
+        await _service.unfollowUser(widget.userId);
+      } else {
+        await _service.followUser(widget.userId);
+      }
+      await _load();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _block() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -61,8 +80,14 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
           'No verás sus publicaciones ni comentarios en la comunidad.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Bloquear')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Bloquear'),
+          ),
         ],
       ),
     );
@@ -83,6 +108,17 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
         title: const Text('Perfil'),
         actions: [
           IconButton(
+            tooltip: 'Invitar a Garra',
+            onPressed: () {
+              final p = _profile;
+              final username = p?['username']?.toString() ?? '';
+              Share.share(
+                'Sigue a @$username en Garra Digital — la red de la hinchada crema.',
+              );
+            },
+            icon: const Icon(Icons.ios_share_outlined),
+          ),
+          IconButton(
             tooltip: 'Bloquear',
             onPressed: _block,
             icon: const Icon(Icons.block),
@@ -99,10 +135,16 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
 
   Widget _buildBody() {
     final p = _profile!;
-    final name = p['displayName']?.toString() ?? p['fullName']?.toString() ?? '';
+    final name =
+        p['displayName']?.toString() ?? p['fullName']?.toString() ?? '';
     final username = p['username']?.toString() ?? '';
     final level = p['levelName']?.toString();
     final since = p['memberSince']?.toString();
+    final followers = p['followerCount'] ?? 0;
+    final following = p['followingCount'] ?? 0;
+    final postCount = p['globalPostCount'] ?? 0;
+    final followed = p['isFollowedByMe'] == true;
+    final blocked = p['isBlockedByMe'] == true;
     final rawPosts = p['globalPosts'];
     final posts = rawPosts is List
         ? rawPosts
@@ -123,9 +165,15 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(name, style: Theme.of(context).textTheme.titleLarge),
-                  Text('@$username', style: Theme.of(context).textTheme.bodySmall),
+                  Text(
+                    '@$username',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                   if (level != null && level.isNotEmpty)
-                    Text('Nivel $level', style: Theme.of(context).textTheme.bodySmall),
+                    Text(
+                      'Nivel $level',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   if (since != null && since.isNotEmpty)
                     Text(
                       'En Garra desde ${since.length >= 10 ? since.substring(0, 10) : since}',
@@ -135,6 +183,35 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: GarraSpacing.md),
+        Row(
+          children: [
+            _Stat(label: 'Seguidores', value: '$followers'),
+            _Stat(label: 'Siguiendo', value: '$following'),
+            _Stat(label: 'Publicaciones', value: '$postCount'),
+          ],
+        ),
+        const SizedBox(height: GarraSpacing.md),
+        SizedBox(
+          width: double.infinity,
+          child: blocked
+              ? OutlinedButton(
+                  onPressed: null,
+                  child: const Text('Bloqueado'),
+                )
+              : FilledButton(
+                  onPressed: _busy ? null : _toggleFollow,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: followed
+                        ? const Color(GarraColors.garnetDeep)
+                        : const Color(GarraColors.gold),
+                    foregroundColor: followed
+                        ? const Color(GarraColors.cream)
+                        : const Color(GarraColors.charcoal),
+                  ),
+                  child: Text(followed ? 'Siguiendo' : 'Seguir'),
+                ),
         ),
         const SizedBox(height: GarraSpacing.lg),
         const GarraSectionHeader(title: 'Publicaciones'),
@@ -150,11 +227,34 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
               padding: const EdgeInsets.only(bottom: GarraSpacing.md),
               child: GarraCard(
                 onTap: () => context.push('/muro-crema/posts/${post.id}'),
-                child: Text(post.content, maxLines: 4, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  post.content,
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
           ),
       ],
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  const _Stat({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(value, style: Theme.of(context).textTheme.titleMedium),
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ),
     );
   }
 }
@@ -225,8 +325,14 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(name, style: Theme.of(context).textTheme.titleSmall),
-                                Text('@$username', style: Theme.of(context).textTheme.bodySmall),
+                                Text(
+                                  name,
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                Text(
+                                  '@$username',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
                               ],
                             ),
                           ),
