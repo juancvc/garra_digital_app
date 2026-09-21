@@ -124,6 +124,13 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/marketplace/seller'),
+        backgroundColor: const Color(GarraColors.garnet),
+        foregroundColor: const Color(GarraColors.cream),
+        icon: const Icon(Icons.storefront_outlined),
+        label: const Text('Publica tu emprendimiento'),
+      ),
       body: hasError
           ? GarraErrorState(onRetry: _refresh)
           : isLoading && !listingsAsync.hasValue && !categoriesAsync.hasValue
@@ -137,9 +144,16 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
                       GarraSpacing.lg,
                       GarraSpacing.md,
                       GarraSpacing.lg,
-                      GarraSpacing.section,
+                      100,
                     ),
                     children: [
+                      Text(
+                        'Compra, descubre y apoya emprendimientos de la comunidad.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: const Color(GarraColors.creamMuted),
+                            ),
+                      ),
+                      const SizedBox(height: GarraSpacing.lg),
                       TextField(
                         controller: _searchController,
                         textInputAction: TextInputAction.search,
@@ -230,13 +244,13 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Quiero vender',
+                                    'Publica tu emprendimiento',
                                     style:
                                         Theme.of(context).textTheme.titleMedium,
                                   ),
                                   const SizedBox(height: GarraSpacing.xs),
                                   Text(
-                                    'Publica tu emprendimiento crema',
+                                    'Vende desde la comunidad crema',
                                     style:
                                         Theme.of(context).textTheme.bodySmall,
                                   ),

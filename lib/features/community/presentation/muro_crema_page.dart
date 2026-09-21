@@ -52,6 +52,20 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
             fontWeight: FontWeight.w900,
           ),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Nueva publicación',
+            icon: const Icon(Icons.edit_outlined, color: AppTheme.gold),
+            onPressed: () => context.push('/muro-crema/compose'),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/muro-crema/compose'),
+        backgroundColor: AppTheme.gold,
+        foregroundColor: AppTheme.background,
+        icon: const Icon(Icons.add_a_photo_outlined),
+        label: const Text('Publicar'),
       ),
       body: SafeArea(
         child: LayoutBuilder(
@@ -893,6 +907,20 @@ class _WallPostCardState extends ConsumerState<_WallPostCard> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: AspectRatio(
+                        aspectRatio: 16 / 9,
+                        child: Image.network(
+                          post.imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 7,

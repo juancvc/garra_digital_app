@@ -450,6 +450,8 @@ void main() {
   });
 
   testWidgets('HOME_MISSION_SUMMARY', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(pumpHome(sampleHomeWithMission()));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
@@ -459,8 +461,11 @@ void main() {
     );
     expect(find.text('Fecha crema completa'), findsOneWidget);
     expect(find.text('1/3'), findsOneWidget);
-    expect(find.text('Ver misión'), findsOneWidget);
-    await tester.tap(find.text('Ver misión'));
+    final missionCta = find.text('Ver misión');
+    expect(missionCta, findsOneWidget);
+    await tester.ensureVisible(missionCta);
+    await tester.pumpAndSettle();
+    await tester.tap(missionCta);
     await tester.pumpAndSettle();
     expect(find.text('MISSIONS:m1'), findsOneWidget);
   });

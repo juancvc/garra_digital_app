@@ -83,7 +83,7 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
 
     return Scaffold(
       backgroundColor: const Color(GarraColors.charcoal),
-      appBar: AppBar(title: const Text('Quiero vender')),
+      appBar: AppBar(title: const Text('Publica tu emprendimiento')),
       body: sellerAsync.when(
         loading: () => const Center(
           child: CircularProgressIndicator(color: Color(GarraColors.gold)),

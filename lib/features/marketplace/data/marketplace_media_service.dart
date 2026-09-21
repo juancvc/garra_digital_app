@@ -11,7 +11,8 @@ import '../../../core/network/dio_client.dart';
 enum MediaUploadPurpose {
   marketplaceListing('MARKETPLACE_LISTING'),
   storeLogo('MARKETPLACE_STORE_LOGO'),
-  storeBanner('MARKETPLACE_STORE_BANNER');
+  storeBanner('MARKETPLACE_STORE_BANNER'),
+  communityPost('COMMUNITY_POST');
 
   const MediaUploadPurpose(this.apiValue);
   final String apiValue;

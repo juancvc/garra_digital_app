@@ -127,58 +127,117 @@ class _NotificationBell extends StatelessWidget {
   }
 }
 
-class _HomeBody extends ConsumerWidget {
+class _HomeBody extends ConsumerStatefulWidget {
   const _HomeBody({required this.home});
 
   final HomeModel home;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_HomeBody> createState() => _HomeBodyState();
+}
+
+enum _HomeMode { community, match }
+
+class _HomeBodyState extends ConsumerState<_HomeBody> {
+  late _HomeMode _mode;
+  bool _manual = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _mode = _defaultMode(widget.home);
+  }
+
+  @override
+  void didUpdateWidget(covariant _HomeBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_manual) {
+      _mode = _defaultMode(widget.home);
+    }
+  }
+
+  static _HomeMode _defaultMode(HomeModel home) {
+    if (home.isLive || home.isMatchday || home.isUpcoming) {
+      return _HomeMode.match;
+    }
+    return _HomeMode.community;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final home = widget.home;
+    final children = <Widget>[
+      _ModeSelector(
+        mode: _mode,
+        onChanged: (m) => setState(() {
+          _manual = true;
+          _mode = m;
+        }),
+      ),
+      const SizedBox(height: GarraSpacing.lg),
+      if (_mode == _HomeMode.community)
+        ..._communityChildren(context, home)
+      else
+        ..._matchChildren(context, home),
+      const SizedBox(height: GarraSpacing.xxl),
+    ];
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        GarraSpacing.lg,
+        GarraSpacing.md,
+        GarraSpacing.lg,
+        GarraSpacing.xxl,
+      ),
+      children: children,
+    );
+  }
+
+  List<Widget> _communityChildren(BuildContext context, HomeModel home) {
+    return [
+      _FanHeader(fan: home.fan),
+      const SizedBox(height: GarraSpacing.lg),
+      const _CommunityPromptCard(),
+      const SizedBox(height: GarraSpacing.lg),
+      _CommunityPreview(community: home.community),
+      const SizedBox(height: GarraSpacing.lg),
+      _HomeClanSection(clan: home.clan),
+      const SizedBox(height: GarraSpacing.lg),
+      _PointsRankCard(fan: home.fan),
+      const SizedBox(height: GarraSpacing.lg),
+      const _RewardsShortcut(),
+      const SizedBox(height: GarraSpacing.lg),
+      const _MarketplaceShortcut(),
+      const SizedBox(height: GarraSpacing.lg),
+      _HistoryShortcut(),
+    ];
+  }
+
+  List<Widget> _matchChildren(BuildContext context, HomeModel home) {
     final children = <Widget>[
       _FanHeader(fan: home.fan),
       const SizedBox(height: GarraSpacing.lg),
     ];
-
     if (home.hasMatch) {
       children.add(_MatchHero(home: home));
       children.add(const SizedBox(height: GarraSpacing.lg));
-    } else {
-      children.add(const _NoMatchCard());
-      children.add(const SizedBox(height: GarraSpacing.lg));
-      children.add(_PointsRankCard(fan: home.fan));
-      children.add(const SizedBox(height: GarraSpacing.lg));
-    }
-
-    if (home.hasMatch) {
       children.add(
-        _PollaCard(
+        _PulsoCremaCard(
           prediction: home.prediction,
           matchId: home.match!.id,
           mvpOpen: home.mvpOpen,
-          mvpPollId: home.mvpPollId,
         ),
       );
+      children.add(const SizedBox(height: GarraSpacing.lg));
+    } else {
+      children.add(const _NoMatchCard());
       children.add(const SizedBox(height: GarraSpacing.lg));
     }
 
     if (home.checkIn.showCheckInCta) {
       children.add(
-        _CheckInCard(
-          checkIn: home.checkIn,
-          matchId: home.match?.id,
-        ),
-      );
-      children.add(const SizedBox(height: GarraSpacing.lg));
-    }
-
-    // MAX_COMMERCIAL_HOME_SURFACES = 1 (matchday sponsor > sponsored reward)
-    final commercial = home.commercial;
-    if (commercial != null) {
-      children.add(_HomeCommercialSection(commercial: commercial));
-      children.add(const SizedBox(height: GarraSpacing.lg));
-    } else if (home.sponsored != null) {
-      children.add(
-        _HomeSponsoredSection(sponsored: home.sponsored!),
+        _CheckInCard(checkIn: home.checkIn, matchId: home.match?.id),
       );
       children.add(const SizedBox(height: GarraSpacing.lg));
     }
@@ -194,30 +253,259 @@ class _HomeBody extends ConsumerWidget {
       children.add(const SizedBox(height: GarraSpacing.lg));
     }
 
-    children.add(_HomeClanSection(clan: home.clan));
-    children.add(const SizedBox(height: GarraSpacing.lg));
-    children.add(const _MarketplaceShortcut());
-    children.add(const SizedBox(height: GarraSpacing.lg));
-    children.add(const _RewardsShortcut());
-    children.add(const SizedBox(height: GarraSpacing.lg));
-
-    if (home.hasMatch) {
-      children.add(_PointsRankCard(fan: home.fan));
-      children.add(const SizedBox(height: GarraSpacing.lg));
-    }
-
     children.add(_CommunityPreview(community: home.community));
-    children.add(const SizedBox(height: GarraSpacing.xxl));
+    children.add(const SizedBox(height: GarraSpacing.lg));
 
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(
-        GarraSpacing.lg,
-        GarraSpacing.md,
-        GarraSpacing.lg,
-        GarraSpacing.xxl,
+    final commercial = home.commercial;
+    if (commercial != null) {
+      children.add(_HomeCommercialSection(commercial: commercial));
+    } else if (home.sponsored != null) {
+      children.add(_HomeSponsoredSection(sponsored: home.sponsored!));
+    }
+    return children;
+  }
+}
+
+class _ModeSelector extends StatelessWidget {
+  const _ModeSelector({required this.mode, required this.onChanged});
+
+  final _HomeMode mode;
+  final ValueChanged<_HomeMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(GarraColors.surface),
+        borderRadius: BorderRadius.circular(GarraRadius.lg),
+        border: Border.all(color: const Color(GarraColors.borderSubtle)),
       ),
-      children: children,
+      child: Row(
+        children: [
+          Expanded(
+            child: _ModeChip(
+              label: 'Comunidad',
+              selected: mode == _HomeMode.community,
+              onTap: () => onChanged(_HomeMode.community),
+            ),
+          ),
+          Expanded(
+            child: _ModeChip(
+              label: 'Partido',
+              selected: mode == _HomeMode.match,
+              onTap: () => onChanged(_HomeMode.match),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModeChip extends StatelessWidget {
+  const _ModeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? const Color(GarraColors.garnetDeep) : Colors.transparent,
+      borderRadius: BorderRadius.circular(GarraRadius.md),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(GarraRadius.md),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: selected
+                      ? const Color(GarraColors.cream)
+                      : const Color(GarraColors.creamMuted),
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CommunityPromptCard extends StatelessWidget {
+  const _CommunityPromptCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(GarraColors.garnetDeep),
+      borderRadius: BorderRadius.circular(GarraRadius.lg),
+      child: InkWell(
+        onTap: () => context.push('/muro-crema/compose'),
+        borderRadius: BorderRadius.circular(GarraRadius.lg),
+        child: Padding(
+          padding: const EdgeInsets.all(GarraSpacing.lg),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '¿Qué vive la crema hoy?',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: const Color(GarraColors.cream),
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Comparte con la comunidad',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: const Color(GarraColors.creamMuted),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: GarraSpacing.sm),
+              IntrinsicWidth(
+                child: FilledButton(
+                  onPressed: () => context.push('/muro-crema/compose'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(GarraColors.gold),
+                    foregroundColor: const Color(GarraColors.charcoal),
+                    minimumSize: const Size(0, 40),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: const Text('Publicar'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryShortcut extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return GarraCard(
+      onTap: () => context.push('/historial-crema'),
+      child: Row(
+        children: [
+          const Icon(Icons.auto_stories_outlined, color: Color(GarraColors.gold)),
+          const SizedBox(width: GarraSpacing.md),
+          Expanded(
+            child: Text(
+              'Mi Historia',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+        ],
+      ),
+    );
+  }
+}
+
+class _PulsoCremaCard extends StatelessWidget {
+  const _PulsoCremaCard({
+    required this.prediction,
+    required this.matchId,
+    required this.mvpOpen,
+  });
+
+  final HomePrediction prediction;
+  final String matchId;
+  final bool mvpOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final (subtitle, predictionCta) = switch (prediction.state) {
+      'PREDICTED' => (
+          prediction.predictedHomeScore != null
+              ? 'Ya jugaste · ${prediction.predictedHomeScore}-${prediction.predictedAwayScore}'
+              : 'Ya jugaste',
+          'Ver mi predicción',
+        ),
+      'LOCKED' => (
+          prediction.predictedHomeScore != null
+              ? 'Marcador cerrado · ${prediction.predictedHomeScore}-${prediction.predictedAwayScore}'
+              : 'Predicción cerrada',
+          'Ver mi predicción',
+        ),
+      'SCORED' => (
+          prediction.pointsEarned != null
+              ? (prediction.pointsEarned! > 0
+                  ? 'Ganaste ${prediction.pointsEarned} pts'
+                  : 'Resultado disponible')
+              : 'Resultado disponible',
+          'Ver resultado',
+        ),
+      _ => (
+          'Haz tu predicción',
+          'Hacer predicción',
+        ),
+    };
+
+    final pollaRoute = '/polla/$matchId';
+    final mvpRoute = '/matchday/$matchId/polls';
+
+    return GarraCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Pulso Crema',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: const Color(GarraColors.cream),
+                ),
+          ),
+          const SizedBox(height: GarraSpacing.xs),
+          Text(
+            'Opinión del partido, MVP y predicción opcional.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: GarraSpacing.sm),
+          Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
+          if (prediction.firstScorer != null &&
+              prediction.firstScorer!.isNotEmpty) ...[
+            const SizedBox(height: GarraSpacing.xs),
+            Text(
+              'Primer goleador: ${prediction.firstScorer}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+          const SizedBox(height: GarraSpacing.md),
+          if (mvpOpen) ...[
+            GarraPrimaryButton(
+              label: 'Vota por el MVP',
+              onPressed: () => context.push(mvpRoute),
+            ),
+            const SizedBox(height: GarraSpacing.sm),
+            GarraSecondaryButton(
+              label: predictionCta,
+              onPressed: () => context.push(pollaRoute),
+            ),
+          ] else
+            GarraPrimaryButton(
+              label: predictionCta,
+              onPressed: () => context.push(pollaRoute),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -566,87 +854,6 @@ class _PointsRankCard extends StatelessWidget {
             onPressed: () => context.push('/rewards'),
             child: const Text('Beneficios'),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PollaCard extends StatelessWidget {
-  const _PollaCard({
-    required this.prediction,
-    required this.matchId,
-    required this.mvpOpen,
-    this.mvpPollId,
-  });
-
-  final HomePrediction prediction;
-  final String matchId;
-  final bool mvpOpen;
-  final String? mvpPollId;
-
-  @override
-  Widget build(BuildContext context) {
-    final (subtitle, cta) = switch (prediction.state) {
-      'PREDICTED' => (
-          prediction.predictedHomeScore != null
-              ? 'Ya jugaste · ${prediction.predictedHomeScore}-${prediction.predictedAwayScore}'
-              : 'Ya jugaste',
-          'Ver mi predicción',
-        ),
-      'LOCKED' => (
-          prediction.predictedHomeScore != null
-              ? 'La Polla cerró · ${prediction.predictedHomeScore}-${prediction.predictedAwayScore}'
-              : 'La Polla cerró',
-          'Ver La Polla',
-        ),
-      'SCORED' => (
-          prediction.pointsEarned != null
-              ? (prediction.pointsEarned! > 0
-                  ? 'Ganaste ${prediction.pointsEarned} pts'
-                  : 'Resultado disponible')
-              : 'Resultado disponible',
-          'Ver resultado',
-        ),
-      _ => (
-          'Haz tu predicción',
-          'Hacer predicción',
-        ),
-    };
-
-    final pollaRoute = '/polla/$matchId';
-    final mvpRoute = '/matchday/$matchId/polls';
-
-    return GarraCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const GarraSectionHeader(
-            title: 'La Polla',
-            subtitle: 'Predicción del partido',
-          ),
-          const SizedBox(height: GarraSpacing.sm),
-          Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
-          if (prediction.firstScorer != null &&
-              prediction.firstScorer!.isNotEmpty) ...[
-            const SizedBox(height: GarraSpacing.xs),
-            Text(
-              'Primer goleador: ${prediction.firstScorer}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-          const SizedBox(height: GarraSpacing.md),
-          GarraPrimaryButton(
-            label: cta,
-            onPressed: () => context.push(pollaRoute),
-          ),
-          if (mvpOpen) ...[
-            const SizedBox(height: GarraSpacing.sm),
-            GarraSecondaryButton(
-              label: 'Vota por el MVP',
-              onPressed: () => context.push(mvpRoute),
-            ),
-          ],
         ],
       ),
     );
@@ -1101,6 +1308,21 @@ class _CommunityPreview extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
+                          if (post.imageUrl != null &&
+                              post.imageUrl!.isNotEmpty) ...[
+                            const SizedBox(height: GarraSpacing.sm),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(GarraRadius.md),
+                              child: AspectRatio(
+                                aspectRatio: 16 / 9,
+                                child: Image.network(
+                                  post.imageUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                ),
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: GarraSpacing.xs),
                           Text(
                             [

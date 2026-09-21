@@ -28,6 +28,8 @@ class DioClient {
       dio.interceptors.add(_DebugHttpErrorInterceptor());
     }
 
+    dio.interceptors.add(_SafeGetRetryInterceptor());
+
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -148,4 +150,70 @@ class _DebugHttpErrorInterceptor extends Interceptor {
     }
     return path;
   }
+}
+
+/// Retries only safe idempotent GETs/HEADs once on timeout or 502/503/504.
+class _SafeGetRetryInterceptor extends Interceptor {
+  static const _retriedKey = 'garra_get_retried';
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) async {
+    final options = err.requestOptions;
+    final method = options.method.toUpperCase();
+    if (method != 'GET' && method != 'HEAD') {
+      return handler.next(err);
+    }
+    if (options.extra[_retriedKey] == true) {
+      return handler.next(err);
+    }
+    if (!_shouldRetry(err)) {
+      return handler.next(err);
+    }
+
+    options.extra[_retriedKey] = true;
+    final jitterMs = 80 + (DateTime.now().millisecond % 120);
+    await Future<void>.delayed(Duration(milliseconds: jitterMs));
+    try {
+      final dio = DioClient.instance;
+      final response = await dio.fetch(options);
+      return handler.resolve(response);
+    } catch (e) {
+      if (e is DioException) {
+        return handler.next(e);
+      }
+      return handler.next(err);
+    }
+  }
+
+  static bool _shouldRetry(DioException err) {
+    if (err.type == DioExceptionType.connectionTimeout ||
+        err.type == DioExceptionType.receiveTimeout ||
+        err.type == DioExceptionType.sendTimeout) {
+      return true;
+    }
+    final code = err.response?.statusCode;
+    return code == 502 || code == 503 || code == 504;
+  }
+}
+
+/// Public helpers for unit tests (idempotent retry policy).
+class HttpResiliencePolicy {
+  static bool shouldRetryGet({
+    required String method,
+    required bool alreadyRetried,
+    DioExceptionType? type,
+    int? statusCode,
+  }) {
+    final m = method.toUpperCase();
+    if (m != 'GET' && m != 'HEAD') return false;
+    if (alreadyRetried) return false;
+    if (type == DioExceptionType.connectionTimeout ||
+        type == DioExceptionType.receiveTimeout ||
+        type == DioExceptionType.sendTimeout) {
+      return true;
+    }
+    return statusCode == 502 || statusCode == 503 || statusCode == 504;
+  }
+
+  static bool shouldRetryPost() => false;
 }

@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
@@ -17,6 +20,7 @@ import '../data/wall_post_model.dart';
 import 'providers/community_provider.dart';
 import 'widgets/garra_reaction_bar.dart';
 import 'widgets/garra_reaction_picker.dart';
+import 'widgets/garra_share_card.dart';
 
 class PostDetailScreen extends ConsumerStatefulWidget {
   const PostDetailScreen({super.key, required this.postId});
@@ -272,8 +276,25 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
             }
           },
         ),
+        actions: [
+          if (_post != null)
+            IconButton(
+              tooltip: 'Compartir',
+              icon: const Icon(Icons.ios_share_rounded),
+              onPressed: () => _openShareSheet(_post!),
+            ),
+        ],
       ),
       body: _buildBody(),
+    );
+  }
+
+  Future<void> _openShareSheet(WallPostModel post) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(GarraColors.charcoal),
+      isScrollControlled: true,
+      builder: (ctx) => _SharePostSheet(post: post),
     );
   }
 
@@ -339,6 +360,20 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                 ),
+                if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
+                  const SizedBox(height: GarraSpacing.md),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(GarraRadius.md),
+                    child: AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: Image.network(
+                        post.imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: GarraSpacing.lg),
                 GarraReactionBar(
                   reactionSummary: post.reactionSummary,
@@ -618,5 +653,157 @@ String _safeFormat(String iso) {
     return formatDateTime(iso);
   } catch (_) {
     return iso;
+  }
+}
+
+class _SharePostSheet extends StatefulWidget {
+  const _SharePostSheet({required this.post});
+
+  final WallPostModel post;
+
+  @override
+  State<_SharePostSheet> createState() => _SharePostSheetState();
+}
+
+class _SharePostSheetState extends State<_SharePostSheet> {
+  GarraShareCardStyle _style = GarraShareCardStyle.nocheGarra;
+  final _boundaryKey = GlobalKey();
+  bool _busy = false;
+
+  String get _shareText {
+    final post = widget.post;
+    return '@${post.username}: ${post.content}\n\n— vía Garra Digital';
+  }
+
+  Future<void> _shareTextOnly() async {
+    await Share.share(_shareText);
+  }
+
+  Future<void> _shareWithImage() async {
+    final url = widget.post.imageUrl;
+    if (url == null || url.isEmpty) {
+      await _shareTextOnly();
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final bytes = await Dio().get<List<int>>(
+        url,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final data = bytes.data;
+      if (data == null) {
+        await _shareTextOnly();
+        return;
+      }
+      final dir = await Directory.systemTemp.createTemp('garra_share');
+      final file = File('${dir.path}/post.jpg');
+      await file.writeAsBytes(data);
+      await Share.shareXFiles([XFile(file.path)], text: _shareText);
+    } catch (_) {
+      await _shareTextOnly();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _shareCard() async {
+    setState(() => _busy = true);
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await shareGarraCardPng(
+        boundaryKey: _boundaryKey,
+        text: _shareText,
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final post = widget.post;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Compartir',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: const Color(GarraColors.cream),
+                    ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: _busy ? null : _shareTextOnly,
+                icon: const Icon(Icons.text_snippet_outlined),
+                label: const Text('Compartir texto'),
+              ),
+              const SizedBox(height: 8),
+              if (post.imageUrl != null && post.imageUrl!.isNotEmpty)
+                FilledButton.tonalIcon(
+                  onPressed: _busy ? null : _shareWithImage,
+                  icon: const Icon(Icons.image_outlined),
+                  label: const Text('Compartir con foto'),
+                ),
+              const SizedBox(height: 16),
+              Text(
+                'Garra Share Card',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: const Color(GarraColors.gold),
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final style in GarraShareCardStyle.values)
+                    ChoiceChip(
+                      label: Text(switch (style) {
+                        GarraShareCardStyle.nocheGarra => 'Noche Garra',
+                        GarraShareCardStyle.cremaClasico => 'Crema Clásico',
+                        GarraShareCardStyle.borgona => 'Borgoña',
+                      }),
+                      selected: _style == style,
+                      onSelected: (_) => setState(() => _style = style),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Center(
+                child: RepaintBoundary(
+                  key: _boundaryKey,
+                  child: GarraShareCard(
+                    username: post.username,
+                    content: post.content,
+                    style: _style,
+                    dateLabel: _safeFormat(post.createdAt),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: _busy ? null : _shareCard,
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(GarraColors.gold),
+                  foregroundColor: const Color(GarraColors.charcoal),
+                ),
+                icon: _busy
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.share_rounded),
+                label: const Text('Compartir tarjeta'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

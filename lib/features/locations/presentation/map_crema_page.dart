@@ -524,7 +524,7 @@ class _SelectedPointCard extends StatelessWidget {
                 children: [
                   if (point.verified)
                     const _PointBadge(
-                      label: 'Verificado',
+                      label: 'Verificado por Garra',
                       color: Colors.green,
                       icon: Icons.verified_rounded,
                     ),
@@ -801,6 +801,8 @@ String _translatePointType(String type) {
       return 'Punto de encuentro';
     case 'BANDERAZO':
       return 'Banderazo';
+    case 'BAR':
+      return 'Bar';
     default:
       return type;
   }

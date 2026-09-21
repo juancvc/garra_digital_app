@@ -7,8 +7,12 @@ import 'package:garra_digital_app/features/clans/presentation/clan_ranking_page.
 import 'package:garra_digital_app/features/clans/presentation/clan_tribuna_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/clans_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/create_community_page.dart';
+import 'package:garra_digital_app/features/community/presentation/create_community_post_page.dart';
 import 'package:garra_digital_app/features/community/presentation/muro_crema_page.dart';
 import 'package:garra_digital_app/features/community/presentation/post_detail_screen.dart';
+import 'package:garra_digital_app/features/locations/presentation/mi_negocio_crema_page.dart';
+import 'package:garra_digital_app/features/locations/presentation/pick_business_location_page.dart';
+import 'package:garra_digital_app/features/locations/data/crema_business_application_service.dart';
 import 'package:garra_digital_app/features/history/presentation/history_page.dart';
 import 'package:garra_digital_app/features/history/presentation/year_recap_page.dart';
 import 'package:garra_digital_app/features/marketplace/presentation/favorites_page.dart';
@@ -161,9 +165,45 @@ final GoRouter appRouter = GoRouter(
           builder: (context, state) => const RutaAlTemploPage(),
         ),
         GoRoute(
+          path: '/ruta-templo/mi-negocio',
+          name: 'mi-negocio-crema',
+          builder: (context, state) => const MiNegocioCremaPage(),
+        ),
+        GoRoute(
+          path: '/ruta-templo/mi-negocio/nuevo',
+          name: 'mi-negocio-nuevo',
+          builder: (context, state) {
+            final existing = state.extra is CremaBusinessApplication
+                ? state.extra as CremaBusinessApplication
+                : null;
+            return RegistrarNegocioCremaPage(existing: existing);
+          },
+        ),
+        GoRoute(
+          path: '/ruta-templo/mi-negocio/ubicacion',
+          name: 'mi-negocio-ubicacion',
+          builder: (context, state) {
+            final extra = state.extra is Map
+                ? Map<String, dynamic>.from(state.extra as Map)
+                : const <String, dynamic>{};
+            return PickBusinessLocationPage(
+              initialLat: (extra['lat'] as num?)?.toDouble() ?? -12.0553,
+              initialLng: (extra['lng'] as num?)?.toDouble() ?? -77.0379,
+            );
+          },
+        ),
+        GoRoute(
           path: '/muro-crema',
           name: 'muro-crema',
           builder: (context, state) => const MuroCremaPage(),
+        ),
+        GoRoute(
+          path: '/muro-crema/compose',
+          name: 'muro-crema-compose',
+          builder: (context, state) {
+            final matchId = state.uri.queryParameters['matchId'];
+            return CreateCommunityPostPage(matchId: matchId);
+          },
         ),
         GoRoute(
           path: '/muro-crema/posts/:id',

@@ -250,6 +250,7 @@ class HomeCommunityPost {
     required this.content,
     this.locationTag,
     required this.createdAt,
+    this.imageUrl,
     this.reactionSummary = const {},
     this.reactionCount = 0,
     this.commentCount = 0,
@@ -262,6 +263,7 @@ class HomeCommunityPost {
   final String content;
   final String? locationTag;
   final DateTime createdAt;
+  final String? imageUrl;
   final Map<String, int> reactionSummary;
   final int reactionCount;
   final int commentCount;
@@ -284,6 +286,7 @@ class HomeCommunityPost {
       content: json['content'] as String? ?? '',
       locationTag: json['locationTag'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
+      imageUrl: json['imageUrl']?.toString(),
       reactionSummary: summary,
       reactionCount: (json['reactionCount'] as num?)?.toInt() ?? 0,
       commentCount: (json['commentCount'] as num?)?.toInt() ?? 0,

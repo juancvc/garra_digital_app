@@ -13,36 +13,33 @@ class MainShell extends StatelessWidget {
 
   static const _routes = [
     '/home',
-    '/polla',
-    '/ruta-templo',
     '/muro-crema',
+    '/ruta-templo',
+    '/marketplace',
+    '/passport',
   ];
 
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
-
-    if (location.startsWith('/polla')) {
+    if (location.startsWith('/muro-crema') || location.startsWith('/clans')) {
       return 1;
     }
-
     if (location.startsWith('/ruta-templo')) {
       return 2;
     }
-
-    if (location.startsWith('/muro-crema')) {
+    if (location.startsWith('/marketplace')) {
       return 3;
     }
-
+    if (location.startsWith('/passport') ||
+        location.startsWith('/history') ||
+        location.startsWith('/historial')) {
+      return 4;
+    }
     return 0;
   }
 
   void _onTap(BuildContext context, int index) {
-    final currentIndex = _currentIndex(context);
-
-    if (index == currentIndex) {
-      return;
-    }
-
+    if (index == _currentIndex(context)) return;
     context.go(_routes[index]);
   }
 
@@ -58,16 +55,9 @@ class MainShell extends StatelessWidget {
           color: const Color(0xFF111111),
           border: Border(
             top: BorderSide(
-              color: AppTheme.cream.withOpacity(0.08),
+              color: AppTheme.cream.withValues(alpha: 0.08),
             ),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.35),
-              blurRadius: 18,
-              offset: const Offset(0, -8),
-            ),
-          ],
         ),
         child: SafeArea(
           top: false,
@@ -78,11 +68,11 @@ class MainShell extends StatelessWidget {
             selectedItemColor: AppTheme.gold,
             unselectedItemColor: Colors.white54,
             selectedLabelStyle: const TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w800,
             ),
             unselectedLabelStyle: const TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
             showSelectedLabels: true,
@@ -92,19 +82,23 @@ class MainShell extends StatelessWidget {
             items: const [
               BottomNavigationBarItem(
                 icon: Icon(Icons.home_rounded),
-                label: 'Home',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.fact_check_rounded),
-                label: 'Polla',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.route_rounded),
-                label: 'Ruta',
+                label: 'Inicio',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.forum_rounded),
-                label: 'Muro',
+                label: 'Comunidad',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.map_outlined),
+                label: 'Mapa',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.storefront_outlined),
+                label: 'Market',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person_outline),
+                label: 'Perfil',
               ),
             ],
           ),

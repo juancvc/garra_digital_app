@@ -37,6 +37,12 @@ class _RutaAlTemploPageState extends ConsumerState<RutaAlTemploPage> {
             fontWeight: FontWeight.w900,
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => context.push('/ruta-templo/mi-negocio'),
+            child: const Text('Mi negocio'),
+          ),
+        ],
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -458,7 +464,7 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
               children: [
                 if (point.verified)
                   const _Badge(
-                    label: 'Verificado',
+                    label: 'Verificado por Garra',
                     color: Colors.green,
                     icon: Icons.verified_rounded,
                   ),
@@ -794,6 +800,8 @@ String _translatePointType(String type) {
       return 'Punto de encuentro';
     case 'BANDERAZO':
       return 'Banderazo';
+    case 'BAR':
+      return 'Bar';
     default:
       return type;
   }

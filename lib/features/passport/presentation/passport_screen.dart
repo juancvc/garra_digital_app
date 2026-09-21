@@ -354,6 +354,14 @@ class _PassportBody extends StatelessWidget {
                   onPressed: () => context.push('/passport/edit'),
                 ),
               ],
+              const SizedBox(height: GarraSpacing.xxl),
+              Text(
+                'Garra Digital es una comunidad independiente creada por hinchas y no representa una aplicación oficial del club.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: const Color(GarraColors.creamMuted),
+                    ),
+              ),
             ],
           ),
         ),

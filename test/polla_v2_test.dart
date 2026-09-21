@@ -551,10 +551,15 @@ void main() {
   });
 
   testWidgets('HOME_POLLA_CTA_ROUTE', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(pumpHome(sampleHome()));
     await tester.pumpAndSettle();
     expect(find.text('Haz tu predicción'), findsOneWidget);
-    await tester.tap(find.text('Hacer predicción'));
+    final cta = find.text('Hacer predicción');
+    await tester.ensureVisible(cta);
+    await tester.pumpAndSettle();
+    await tester.tap(cta);
     await tester.pumpAndSettle();
     expect(find.text('POLLA_ROUTE'), findsOneWidget);
   });

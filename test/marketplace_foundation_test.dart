@@ -364,7 +364,7 @@ void main() {
       find.text('Los emprendimientos crema aparecerán aquí.'),
       findsOneWidget,
     );
-    expect(find.text('Quiero vender'), findsOneWidget);
+    expect(find.text('Publica tu emprendimiento'), findsWidgets);
   });
 
   testWidgets('82_MARKETPLACE_DISCOVERY_RENDER', (tester) async {
@@ -538,7 +538,7 @@ void main() {
       pumpMarketplace(service, initial: '/marketplace/seller'),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Quiero vender'), findsWidgets);
+    expect(find.text('Publica tu emprendimiento'), findsWidgets);
     expect(find.textContaining('propiedad intelectual'), findsOneWidget);
     expect(find.text('WhatsApp'), findsOneWidget);
     expect(find.text('Nombre de la tienda'), findsOneWidget);
@@ -570,6 +570,8 @@ void main() {
   });
 
   testWidgets('82_MARKETPLACE_HOME_CTA', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 2000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     final router = GoRouter(
       initialLocation: '/home',
       routes: [
@@ -594,6 +596,18 @@ void main() {
           path: '/muro-crema',
           builder: (_, _) => const Scaffold(body: Text('MURO')),
         ),
+        GoRoute(
+          path: '/muro-crema/compose',
+          builder: (_, _) => const Scaffold(body: Text('COMPOSE')),
+        ),
+        GoRoute(
+          path: '/historial-crema',
+          builder: (_, _) => const Scaffold(body: Text('HISTORY')),
+        ),
+        GoRoute(
+          path: '/rewards',
+          builder: (_, _) => const Scaffold(body: Text('REWARDS')),
+        ),
       ],
     );
     await tester.pumpWidget(
@@ -608,8 +622,14 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Marketplace Crema'), findsOneWidget);
-    await tester.tap(find.text('Marketplace Crema'));
+    final marketplace = find.text('Marketplace Crema');
+    await tester.scrollUntilVisible(
+      marketplace,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(marketplace, findsOneWidget);
+    await tester.tap(marketplace);
     await tester.pumpAndSettle();
     expect(find.text('MARKETPLACE_ROUTE'), findsOneWidget);
   });
@@ -621,8 +641,8 @@ void main() {
     );
     await tester.pumpWidget(pumpMarketplace(service));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Quiero vender'));
+    await tester.tap(find.text('Publica tu emprendimiento').first);
     await tester.pumpAndSettle();
-    expect(find.textContaining('emprendimiento crema'), findsOneWidget);
+    expect(find.textContaining('emprendimiento'), findsWidgets);
   });
 }

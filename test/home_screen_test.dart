@@ -188,17 +188,17 @@ void main() {
   });
 
   testWidgets('HOME_MATCHDAY_STATE', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(pumpHome(sampleHome(matchdayState: 'MATCHDAY')));
     await tester.pumpAndSettle();
     expect(find.text('Hoy juega la U'), findsOneWidget);
     expect(find.text('Entrar al Matchday'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Hacer check-in'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.text('Hacer check-in'), findsOneWidget);
-    await tester.tap(find.text('Hacer check-in'));
+    final checkIn = find.text('Hacer check-in');
+    await tester.ensureVisible(checkIn);
+    await tester.pumpAndSettle();
+    expect(checkIn, findsOneWidget);
+    await tester.tap(checkIn);
     await tester.pumpAndSettle();
     expect(find.text('MAPA_ROUTE:m1'), findsOneWidget);
   });
@@ -216,17 +216,23 @@ void main() {
       pumpHome(sampleHome(matchdayState: 'NO_MATCH', withMatch: false)),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Sin partido cercano'), findsOneWidget);
+    expect(find.text('Comunidad'), findsWidgets);
     expect(find.textContaining('Puntos Garra'), findsOneWidget);
+    expect(find.text('¿Qué vive la crema hoy?'), findsOneWidget);
   });
 
   testWidgets('HOME_PREDICTION_CTA', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
       pumpHome(sampleHome(predictionState: 'NOT_PREDICTED')),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Hacer predicción'), findsOneWidget);
-    await tester.tap(find.text('Hacer predicción'));
+    final cta = find.text('Hacer predicción');
+    await tester.ensureVisible(cta);
+    await tester.pumpAndSettle();
+    expect(cta, findsOneWidget);
+    await tester.tap(cta);
     await tester.pumpAndSettle();
     expect(find.text('POLLA_ROUTE'), findsOneWidget);
   });

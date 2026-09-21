@@ -45,6 +45,9 @@ class PushRouter {
     if (ref == 'LISTING' || ref == 'MARKETPLACE' || t == 'MARKETPLACE') {
       return '/marketplace';
     }
+    if (ref == 'CREMA_BUSINESS_APPLICATION') {
+      return '/ruta-templo/mi-negocio';
+    }
     return '/notifications';
   }
 
