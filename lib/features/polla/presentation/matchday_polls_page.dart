@@ -1,4 +1,6 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,6 +9,8 @@ import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
+import '../../matchday/data/matchday_realtime_service.dart';
+import '../../matchday/data/realtime_envelope.dart';
 import '../data/matchday_poll_models.dart';
 import 'providers/polla_provider.dart';
 import 'widgets/garra_mvp_poll.dart';
@@ -21,10 +25,80 @@ class MatchdayPollsPage extends ConsumerStatefulWidget {
   ConsumerState<MatchdayPollsPage> createState() => _MatchdayPollsPageState();
 }
 
-class _MatchdayPollsPageState extends ConsumerState<MatchdayPollsPage> {
+class _MatchdayPollsPageState extends ConsumerState<MatchdayPollsPage>
+    with WidgetsBindingObserver {
   final Set<String> _submitting = {};
   final Map<String, MatchPollResults> _resultsCache = {};
   final Set<String> _loadingResults = {};
+  late final MatchdayRealtimeService _realtime;
+  MatchdayRealtimeStatus _rtStatus = MatchdayRealtimeStatus.disconnected;
+  StreamSubscription<MatchdayRealtimeStatus>? _statusSub;
+  Timer? _restFallbackTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _realtime = MatchdayRealtimeService();
+    _statusSub = _realtime.statusStream.listen((s) {
+      if (!mounted) return;
+      setState(() => _rtStatus = s);
+      _syncRestFallback();
+    });
+    _connectRealtime();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _restFallbackTimer?.cancel();
+    _statusSub?.cancel();
+    _realtime.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _connectRealtime();
+    } else if (state == AppLifecycleState.paused) {
+      _realtime.disconnect();
+    }
+  }
+
+  Future<void> _connectRealtime() async {
+    await _realtime.connect(
+      matchId: widget.matchId,
+      onEnvelope: _onRealtime,
+    );
+  }
+
+  void _syncRestFallback() {
+    _restFallbackTimer?.cancel();
+    if (_rtStatus == MatchdayRealtimeStatus.connected) return;
+    _restFallbackTimer = Timer.periodic(const Duration(seconds: 45), (_) {
+      if (!mounted) return;
+      ref.invalidate(matchdayPollsProvider(widget.matchId));
+      ref.invalidate(matchdayProvider(widget.matchId));
+    });
+  }
+
+  void _onRealtime(RealtimeEnvelope envelope) {
+    switch (envelope.type) {
+      case RealtimeEventTypes.matchUpdated:
+      case RealtimeEventTypes.matchScoringCompleted:
+        ref.invalidate(matchdayProvider(widget.matchId));
+        ref.invalidate(matchdayPollsProvider(widget.matchId));
+      case RealtimeEventTypes.pollUpdated:
+        ref.invalidate(matchdayPollsProvider(widget.matchId));
+        _resultsCache.clear();
+      case RealtimeEventTypes.postCreated:
+      case RealtimeEventTypes.postEngagementUpdated:
+      case RealtimeEventTypes.commentCreated:
+        // Tribuna preview not hosted here; keep polls shell responsive.
+        break;
+    }
+  }
 
   Future<void> _ensureResults(List<MatchPoll> polls) async {
     for (final poll in polls) {
@@ -64,7 +138,7 @@ class _MatchdayPollsPageState extends ConsumerState<MatchdayPollsPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No se pudo registrar tu voto. IntÃ©ntalo de nuevo.'),
+          content: Text('No se pudo registrar tu voto. Inténtalo de nuevo.'),
           backgroundColor: Color(GarraColors.danger),
           behavior: SnackBarBehavior.floating,
         ),
@@ -75,6 +149,14 @@ class _MatchdayPollsPageState extends ConsumerState<MatchdayPollsPage> {
       }
     }
   }
+
+  String get _connectionLabel => switch (_rtStatus) {
+        MatchdayRealtimeStatus.connected => 'EN VIVO',
+        MatchdayRealtimeStatus.connecting ||
+        MatchdayRealtimeStatus.reconnecting =>
+          'Reconectando',
+        MatchdayRealtimeStatus.disconnected => 'Actualizando',
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -100,6 +182,20 @@ class _MatchdayPollsPageState extends ConsumerState<MatchdayPollsPage> {
             }
           },
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: GarraSpacing.md),
+            child: Center(
+              child: Text(
+                _connectionLabel,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: const Color(GarraColors.gold),
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: pollsAsync.when(
         loading: () => const Center(
@@ -199,8 +295,6 @@ class _MatchdayPollsPageState extends ConsumerState<MatchdayPollsPage> {
                     );
                   }),
                 ],
-                if (mvp.isEmpty && general.isEmpty)
-                  const GarraPollEmptyState(),
               ],
             ),
           );
