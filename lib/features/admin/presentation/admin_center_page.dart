@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/network/dio_client.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../auth/data/auth_service.dart';
@@ -127,6 +128,24 @@ class _AdminCenterPageState extends State<AdminCenterPage> {
                       subtitle: 'Verificar o rechazar propuestas',
                       icon: Icons.event_outlined,
                       onTap: () => context.push('/admin/eventos'),
+                    ),
+                    _AdminTile(
+                      title: 'Funciones',
+                      subtitle: 'Kill switches operativos de superficies',
+                      icon: Icons.toggle_on_outlined,
+                      onTap: () => context.push('/admin/funciones'),
+                    ),
+                    _AdminTile(
+                      title: 'Solicitudes de eliminación',
+                      subtitle: 'Pedidos web de borrado de cuenta',
+                      icon: Icons.person_off_outlined,
+                      onTap: () => context.push('/admin/eliminaciones'),
+                    ),
+                    _AdminTile(
+                      title: 'Feedback Beta',
+                      subtitle: 'Bugs e ideas de testers',
+                      icon: Icons.feedback_outlined,
+                      onTap: () => context.push('/admin/feedback'),
                     ),
                     _AdminTile(
                       title: 'Comunidades',
@@ -726,3 +745,322 @@ class _AdminMarketplaceReviewPageState extends State<AdminMarketplaceReviewPage>
     );
   }
 }
+
+/// Operational feature kill switches (ADMIN).
+class AdminFeatureFlagsPage extends StatefulWidget {
+  const AdminFeatureFlagsPage({super.key});
+
+  @override
+  State<AdminFeatureFlagsPage> createState() => _AdminFeatureFlagsPageState();
+}
+
+class _AdminFeatureFlagsPageState extends State<AdminFeatureFlagsPage> {
+  List<Map<String, dynamic>> _flags = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final res = await DioClient.instance.get('/admin/ops/features');
+      final data = res.data['data'];
+      final list = <Map<String, dynamic>>[];
+      if (data is List) {
+        for (final item in data) {
+          if (item is Map) {
+            list.add(Map<String, dynamic>.from(item));
+          }
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _flags = list;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'No pudimos cargar las funciones';
+      });
+    }
+  }
+
+  Future<void> _toggle(String key, bool enabled) async {
+    try {
+      await DioClient.instance.post(
+        '/admin/ops/features/$key',
+        queryParameters: {
+          'enabled': enabled,
+          'note': 'admin center toggle',
+        },
+      );
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo actualizar la función')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(GarraColors.charcoal),
+      appBar: AppBar(title: const Text('Funciones')),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? GarraEmptyState(
+                  title: 'Error',
+                  message: _error!,
+                  actionLabel: 'Reintentar',
+                  onAction: _load,
+                )
+              : ListView(
+                  padding: const EdgeInsets.all(GarraSpacing.lg),
+                  children: [
+                    Text(
+                      'Kill switches operativos. No reemplazan autorización.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: GarraSpacing.md),
+                    ..._flags.map((f) {
+                      final key = f['flagKey']?.toString() ??
+                          f['key']?.toString() ??
+                          '';
+                      final enabled = f['enabled'] == true;
+                      return SwitchListTile(
+                        title: Text(key),
+                        subtitle: Text(f['description']?.toString() ?? ''),
+                        value: enabled,
+                        onChanged: (v) => _toggle(key, v),
+                      );
+                    }),
+                  ],
+                ),
+    );
+  }
+}
+
+class AdminDeletionRequestsPage extends StatefulWidget {
+  const AdminDeletionRequestsPage({super.key});
+
+  @override
+  State<AdminDeletionRequestsPage> createState() =>
+      _AdminDeletionRequestsPageState();
+}
+
+class _AdminDeletionRequestsPageState extends State<AdminDeletionRequestsPage> {
+  List<Map<String, dynamic>> _items = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final res =
+          await DioClient.instance.get('/admin/ops/deletion-requests');
+      final data = res.data['data'];
+      final list = <Map<String, dynamic>>[];
+      if (data is List) {
+        for (final item in data) {
+          if (item is Map) list.add(Map<String, dynamic>.from(item));
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _items = list;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _act(String id, bool approve) async {
+    await DioClient.instance.post(
+      '/admin/ops/deletion-requests/$id',
+      queryParameters: {'approve': approve},
+    );
+    await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(GarraColors.charcoal),
+      appBar: AppBar(title: const Text('Solicitudes de eliminación')),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _items.isEmpty
+              ? const GarraEmptyState(
+                  title: 'Sin pendientes',
+                  message: 'No hay solicitudes web por revisar.',
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(GarraSpacing.lg),
+                  itemCount: _items.length,
+                  itemBuilder: (context, i) {
+                    final item = _items[i];
+                    final id = item['id']?.toString() ?? '';
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
+                      child: GarraCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item['email']?.toString() ?? ''),
+                            Text(
+                              'user=${item['username'] ?? '-'} · ${item['status']}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            if ((item['message']?.toString() ?? '').isNotEmpty)
+                              Text(item['message'].toString()),
+                            Row(
+                              children: [
+                                TextButton(
+                                  onPressed: () => _act(id, true),
+                                  child: const Text('Procesar'),
+                                ),
+                                TextButton(
+                                  onPressed: () => _act(id, false),
+                                  child: const Text('Rechazar'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
+class AdminBetaFeedbackPage extends StatefulWidget {
+  const AdminBetaFeedbackPage({super.key});
+
+  @override
+  State<AdminBetaFeedbackPage> createState() => _AdminBetaFeedbackPageState();
+}
+
+class _AdminBetaFeedbackPageState extends State<AdminBetaFeedbackPage> {
+  List<Map<String, dynamic>> _items = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final res = await DioClient.instance.get(
+        '/admin/ops/beta-feedback',
+        queryParameters: {'status': 'NEW'},
+      );
+      final data = res.data['data'];
+      final list = <Map<String, dynamic>>[];
+      if (data is List) {
+        for (final item in data) {
+          if (item is Map) list.add(Map<String, dynamic>.from(item));
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _items = list;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _setStatus(String id, String status) async {
+    await DioClient.instance.post(
+      '/admin/ops/beta-feedback/$id',
+      queryParameters: {'status': status},
+    );
+    await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(GarraColors.charcoal),
+      appBar: AppBar(title: const Text('Feedback Beta')),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _items.isEmpty
+              ? const GarraEmptyState(
+                  title: 'Sin feedback nuevo',
+                  message: 'Cuando los testers envíen reportes aparecerán aquí.',
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(GarraSpacing.lg),
+                  itemCount: _items.length,
+                  itemBuilder: (context, i) {
+                    final item = _items[i];
+                    final id = item['id']?.toString() ?? '';
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
+                      child: GarraCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${item['feedbackType'] ?? item['type'] ?? ''} · ${item['appVersion'] ?? ''}',
+                              style: Theme.of(context).textTheme.labelMedium,
+                            ),
+                            Text(item['message']?.toString() ?? ''),
+                            Text(
+                              'screen=${item['screenContext'] ?? item['screen'] ?? '-'}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            Row(
+                              children: [
+                                TextButton(
+                                  onPressed: () => _setStatus(id, 'REVIEWING'),
+                                  child: const Text('Revisar'),
+                                ),
+                                TextButton(
+                                  onPressed: () => _setStatus(id, 'DONE'),
+                                  child: const Text('Hecho'),
+                                ),
+                                TextButton(
+                                  onPressed: () => _setStatus(id, 'DISMISSED'),
+                                  child: const Text('Descartar'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
+

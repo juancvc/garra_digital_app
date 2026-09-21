@@ -55,8 +55,9 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
   }
 
   Future<void> _load() async {
+    final hadContent = _posts.isNotEmpty;
     setState(() {
-      _loading = true;
+      if (!hadContent) _loading = true;
       _error = null;
     });
     try {
@@ -70,11 +71,17 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
         _posts = posts;
         _people = people;
         _loading = false;
+        _error = null;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'No pudimos cargar la comunidad';
+        // Keep last good content on refresh failure.
+        if (!hadContent) {
+          _error = 'No pudimos cargar la comunidad';
+        } else {
+          _error = 'No pudimos actualizar. Mostramos la última versión.';
+        }
         _loading = false;
       });
     }

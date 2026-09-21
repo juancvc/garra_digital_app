@@ -1,28 +1,41 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'core/config/api_config.dart';
+import 'core/config/app_config_service.dart';
+import 'core/config/semver.dart';
 import 'core/router/app_router.dart';
 import 'core/storage/secure_storage_service.dart';
+import 'core/telemetry/telemetry.dart';
 import 'core/theme/app_theme.dart';
+import 'core/widgets/app_gates.dart';
+import 'core/widgets/staging_banner.dart';
 import 'features/notifications/data/push_router.dart';
 import 'features/notifications/data/push_session_coordinator.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Background handler must be a top-level function. Routing happens on open.
   await Firebase.initializeApp();
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  ApiConfig.assertReleaseSafe();
   ApiConfig.logDebugConfig();
-  await initializeDateFormatting('es_PE', null);
+
   await Firebase.initializeApp();
+  await privacyConsentStore.load();
+  await CrashReporting.installHooks();
+
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  unawaited(initializeDateFormatting('es_PE', null));
+
   runApp(const ProviderScope(child: GarraDigitalApp()));
 }
 
@@ -37,11 +50,43 @@ class _GarraDigitalAppState extends State<GarraDigitalApp> {
   final _pushRouter = const PushRouter();
   final _storage = SecureStorageService();
   bool _handledInitial = false;
+  bool _bootstrapped = false;
+  bool _maintenance = false;
+  bool _updateRequired = false;
+  bool _updateAvailable = false;
+  bool _dismissOptionalUpdate = false;
+  AppConfigModel _config = AppConfigModel.fallback();
 
   @override
   void initState() {
     super.initState();
     _bootstrapPush();
+    _bootstrapAppConfig();
+  }
+
+  Future<void> _bootstrapAppConfig() async {
+    try {
+      final cfg = await appConfigService
+          .fetch()
+          .timeout(const Duration(seconds: 4));
+      final info = await PackageInfo.fromPlatform();
+      final status = evaluateVersion(
+        installed: info.version,
+        minimumSupported: cfg.minimumSupportedVersion,
+        latest: cfg.latestVersion,
+      );
+      if (!mounted) return;
+      setState(() {
+        _config = cfg;
+        _maintenance = cfg.maintenanceMode;
+        _updateRequired = status == AppVersionStatus.updateRequired;
+        _updateAvailable = status == AppVersionStatus.updateAvailable;
+        _bootstrapped = true;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _bootstrapped = true);
+    }
   }
 
   Future<void> _bootstrapPush() async {
@@ -50,10 +95,7 @@ class _GarraDigitalAppState extends State<GarraDigitalApp> {
       await pushSessionCoordinator.bootstrapIfAuthenticated(hasAuth: hasAuth);
     } catch (_) {}
 
-    FirebaseMessaging.onMessage.listen((_) {
-      // Foreground: in-app list/badge refresh only — no disruptive OS duplicate.
-    });
-
+    FirebaseMessaging.onMessage.listen((_) {});
     FirebaseMessaging.onMessageOpenedApp.listen(_handleOpen);
 
     if (!_handledInitial) {
@@ -80,11 +122,46 @@ class _GarraDigitalAppState extends State<GarraDigitalApp> {
 
   @override
   Widget build(BuildContext context) {
+    if (_bootstrapped && (_maintenance || _updateRequired)) {
+      final gate = _maintenance
+          ? MaintenanceGatePage(
+              message: _config.maintenanceMessage ?? '',
+              onRetry: () async {
+                setState(() => _bootstrapped = false);
+                await _bootstrapAppConfig();
+              },
+            )
+          : UpdateRequiredPage(config: _config);
+      return MaterialApp(
+        title: 'GarraDigital',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.darkTheme,
+        home: StagingBanner(child: gate),
+      );
+    }
+
     return MaterialApp.router(
       title: 'GarraDigital',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
       routerConfig: appRouter,
+      builder: (context, child) {
+        final content = child ?? const SizedBox.shrink();
+        Widget body = content;
+        if (_updateAvailable && !_dismissOptionalUpdate) {
+          body = Column(
+            children: [
+              OptionalUpdateBanner(
+                latestVersion: _config.latestVersion,
+                storeUrl: _config.storeUrl,
+                onDismiss: () => setState(() => _dismissOptionalUpdate = true),
+              ),
+              Expanded(child: content),
+            ],
+          );
+        }
+        return StagingBanner(child: body);
+      },
     );
   }
 }

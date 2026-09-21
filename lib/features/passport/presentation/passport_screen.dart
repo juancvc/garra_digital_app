@@ -500,6 +500,11 @@ class _PassportBody extends StatelessWidget {
                   label: 'Mis intereses',
                   onPressed: () => context.push('/onboarding'),
                 ),
+                const SizedBox(height: GarraSpacing.sm),
+                GarraSecondaryButton(
+                  label: 'Ajustes y privacidad',
+                  onPressed: () => context.push('/settings'),
+                ),
               ],
               const SizedBox(height: GarraSpacing.xxl),
               Text(

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:garra_digital_app/features/auth/presentation/complete_profile_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/clan_detail_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/clan_invitations_page.dart';
@@ -9,6 +10,9 @@ import 'package:garra_digital_app/features/clans/presentation/clans_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/create_community_page.dart';
 import 'package:garra_digital_app/features/admin/presentation/admin_center_page.dart';
 import 'package:garra_digital_app/features/community/presentation/community_hub_page.dart';
+import 'package:garra_digital_app/features/settings/presentation/settings_pages.dart';
+import 'package:garra_digital_app/core/config/app_config_service.dart';
+import 'package:garra_digital_app/core/widgets/app_gates.dart';
 import 'package:garra_digital_app/features/community/presentation/create_community_post_page.dart';
 import 'package:garra_digital_app/features/community/presentation/global_search_page.dart';
 import 'package:garra_digital_app/features/community/presentation/muro_crema_page.dart';
@@ -118,7 +122,10 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: '/comunidad',
           name: 'comunidad',
-          builder: (context, state) => const CommunityHubPage(),
+          builder: (context, state) => _featureOrDisabled(
+            'community',
+            const CommunityHubPage(),
+          ),
         ),
         GoRoute(
           path: '/comunidad/compose',
@@ -175,12 +182,18 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: '/ruta-templo/ofertas',
           name: 'business-offers',
-          builder: (context, state) => const BusinessOffersPage(),
+          builder: (context, state) => _featureOrDisabled(
+            'businessOffers',
+            const BusinessOffersPage(),
+          ),
         ),
         GoRoute(
           path: '/solidaria',
           name: 'solidaria',
-          builder: (context, state) => const SolidariaPage(),
+          builder: (context, state) => _featureOrDisabled(
+            'solidaria',
+            const SolidariaPage(),
+          ),
         ),
         GoRoute(
           path: '/solidaria/nueva',
@@ -222,7 +235,10 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: '/eventos',
           name: 'events',
-          builder: (context, state) => const EventsPage(),
+          builder: (context, state) => _featureOrDisabled(
+            'events',
+            const EventsPage(),
+          ),
         ),
         GoRoute(
           path: '/eventos/nuevo',
@@ -262,6 +278,56 @@ final GoRouter appRouter = GoRouter(
           builder: (context, state) => const AdminEventsPage(),
         ),
         GoRoute(
+          path: '/admin/funciones',
+          name: 'admin-features',
+          builder: (context, state) => const AdminFeatureFlagsPage(),
+        ),
+        GoRoute(
+          path: '/admin/eliminaciones',
+          name: 'admin-deletions',
+          builder: (context, state) => const AdminDeletionRequestsPage(),
+        ),
+        GoRoute(
+          path: '/admin/feedback',
+          name: 'admin-feedback',
+          builder: (context, state) => const AdminBetaFeedbackPage(),
+        ),
+        GoRoute(
+          path: '/settings',
+          name: 'settings',
+          builder: (context, state) => const SettingsHubPage(),
+        ),
+        GoRoute(
+          path: '/settings/privacy',
+          name: 'settings-privacy',
+          builder: (context, state) => const PrivacySettingsPage(),
+        ),
+        GoRoute(
+          path: '/settings/legal',
+          name: 'settings-legal',
+          builder: (context, state) => const LegalSettingsPage(),
+        ),
+        GoRoute(
+          path: '/settings/help',
+          name: 'settings-help',
+          builder: (context, state) => const HelpDiagnosticsPage(),
+        ),
+        GoRoute(
+          path: '/settings/feedback',
+          name: 'settings-feedback',
+          builder: (context, state) => const BetaFeedbackPage(),
+        ),
+        GoRoute(
+          path: '/settings/delete-account',
+          name: 'settings-delete-account',
+          builder: (context, state) => const DeleteAccountPage(),
+        ),
+        GoRoute(
+          path: '/settings/data-export',
+          name: 'settings-data-export',
+          builder: (context, state) => const DataExportPage(),
+        ),
+        GoRoute(
           path: '/history',
           name: 'history',
           builder: (context, state) => const HistoryPage(),
@@ -298,7 +364,10 @@ final GoRouter appRouter = GoRouter(
           name: 'matchday',
           builder: (context, state) {
             final matchId = state.pathParameters['matchId'] ?? '';
-            return MatchdayPollsPage(matchId: matchId);
+            return _featureOrDisabled(
+              'matchday',
+              MatchdayPollsPage(matchId: matchId),
+            );
           },
         ),
         GoRoute(
@@ -306,7 +375,10 @@ final GoRouter appRouter = GoRouter(
           name: 'matchday-polls',
           builder: (context, state) {
             final matchId = state.pathParameters['matchId'] ?? '';
-            return MatchdayPollsPage(matchId: matchId);
+            return _featureOrDisabled(
+              'matchday',
+              MatchdayPollsPage(matchId: matchId),
+            );
           },
         ),
         GoRoute(
@@ -468,7 +540,10 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: '/marketplace',
           name: 'marketplace',
-          builder: (context, state) => const MarketplacePage(),
+          builder: (context, state) => _featureOrDisabled(
+            'marketplace',
+            const MarketplacePage(),
+          ),
         ),
         GoRoute(
           path: '/marketplace/favorites',
@@ -524,3 +599,8 @@ final GoRouter appRouter = GoRouter(
     ),
   ],
 );
+
+Widget _featureOrDisabled(String flagKey, Widget child) {
+  if (appConfigService.current.feature(flagKey)) return child;
+  return FeatureDisabledPage(featureName: flagKey);
+}

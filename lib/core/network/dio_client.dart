@@ -4,11 +4,17 @@ import 'package:flutter/foundation.dart';
 import '../auth/auth_refresh_coordinator.dart';
 import '../config/api_config.dart';
 import '../storage/secure_storage_service.dart';
+import 'package:uuid/uuid.dart';
 
 class DioClient {
   static final SecureStorageService _storage = SecureStorageService();
   static final AuthRefreshCoordinator _refreshCoordinator =
       AuthRefreshCoordinator(storage: _storage);
+  static String? _lastCorrelationId;
+
+  static String? get lastCorrelationId => _lastCorrelationId;
+
+  static String _newCorrelationId() => const Uuid().v4();
 
   static final Dio instance = _createDio();
 
@@ -37,6 +43,17 @@ class DioClient {
 
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
+          }
+
+          // Correlation id: UUID per logical request — never PII/token.
+          final existing = options.headers['X-Correlation-Id']?.toString();
+          if (existing == null || existing.isEmpty) {
+            final id = _newCorrelationId();
+            options.headers['X-Correlation-Id'] = id;
+            options.headers['X-Request-Id'] = id;
+            _lastCorrelationId = id;
+          } else {
+            _lastCorrelationId = existing;
           }
 
           return handler.next(options);
