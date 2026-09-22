@@ -18,24 +18,28 @@ class GarraCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = Container(
-      width: double.infinity,
+    final radius = BorderRadius.circular(GarraRadius.xl);
+    final body = Padding(
       padding: padding ?? const EdgeInsets.all(GarraSpacing.lg),
-      decoration: BoxDecoration(
-        color: const Color(GarraColors.surface),
-        borderRadius: BorderRadius.circular(GarraRadius.xl),
-        border: Border.all(color: const Color(GarraColors.borderSubtle)),
-      ),
       child: child,
     );
 
-    if (onTap == null) return content;
+    // Material surface is required so nested ListTiles can paint ink/splash
+    // (Flutter asserts when ListTile sits under a colored DecoratedBox only).
     return Material(
-      color: Colors.transparent,
+      color: const Color(GarraColors.surface),
+      borderRadius: radius,
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(GarraRadius.xl),
-        child: content,
+        borderRadius: radius,
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            border: Border.all(color: const Color(GarraColors.borderSubtle)),
+          ),
+          child: body,
+        ),
       ),
     );
   }
