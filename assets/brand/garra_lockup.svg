@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 108" fill="none">
+  <g transform="translate(0,0)">
+    <rect width="108" height="108" rx="24" fill="#47101C"/>
+    <path d="M78 28c-8-8-20-12-32-10-18 3-32 18-32 36s14 33 32 36c12 2 24-2 32-10"
+          stroke="#F3E9D2" stroke-width="10" stroke-linecap="round" fill="none"/>
+    <path d="M52 34 L74 56" stroke="#F3E9D2" stroke-width="9" stroke-linecap="round"/>
+    <path d="M46 46 L72 72" stroke="#F3E9D2" stroke-width="9" stroke-linecap="round"/>
+    <path d="M40 58 L66 84" stroke="#F3E9D2" stroke-width="9" stroke-linecap="round"/>
+  </g>
+  <text x="124" y="66" font-family="Montserrat, Arial, sans-serif" font-size="40" font-weight="700" fill="#F3E9D2">Garra Digital</text>
+</svg>

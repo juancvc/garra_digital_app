@@ -21,6 +21,8 @@ class WallPostModel {
     this.clanName,
     this.authorId,
     this.savedByMe = false,
+    this.isMine = false,
+    this.media = const [],
   });
 
   final String id;
@@ -42,6 +44,8 @@ class WallPostModel {
   final String? clanName;
   final String? authorId;
   final bool savedByMe;
+  final bool isMine;
+  final List<WallPostMediaItem> media;
 
   bool get isClanContext => contextType.toUpperCase() == 'CLAN';
 
@@ -52,13 +56,23 @@ class WallPostModel {
     final contextType =
         (json['contextType'] ?? context['type'] ?? 'MATCH')?.toString() ??
             'MATCH';
+    final mediaRaw = json['media'];
+    final media = <WallPostMediaItem>[];
+    if (mediaRaw is List) {
+      for (final item in mediaRaw) {
+        if (item is Map) {
+          media.add(WallPostMediaItem.fromJson(Map<String, dynamic>.from(item)));
+        }
+      }
+    }
     return WallPostModel(
       id: json['id']?.toString() ?? '',
       matchId: (json['matchId'] ?? context['matchId'])?.toString() ?? '',
       username: json['username']?.toString() ?? '',
       fullName: json['fullName']?.toString() ?? '',
       content: json['content']?.toString() ?? '',
-      imageUrl: json['imageUrl']?.toString(),
+      imageUrl: json['imageUrl']?.toString() ??
+          (media.isNotEmpty ? media.first.url : null),
       locationTag: json['locationTag']?.toString() ?? '',
       status: json['status']?.toString() ?? '',
       reportCount: (json['reportCount'] as num?)?.toInt() ?? 0,
@@ -73,6 +87,8 @@ class WallPostModel {
       authorId: (json['authorId'] ?? json['fanUserId'] ?? json['userId'])
           ?.toString(),
       savedByMe: json['savedByMe'] == true,
+      isMine: json['isMine'] == true,
+      media: media,
     );
   }
 
@@ -96,6 +112,9 @@ class WallPostModel {
     String? clanSlug,
     String? clanName,
     String? authorId,
+    bool? savedByMe,
+    bool? isMine,
+    List<WallPostMediaItem>? media,
   }) {
     return WallPostModel(
       id: id ?? this.id,
@@ -116,6 +135,32 @@ class WallPostModel {
       clanSlug: clanSlug ?? this.clanSlug,
       clanName: clanName ?? this.clanName,
       authorId: authorId ?? this.authorId,
+      savedByMe: savedByMe ?? this.savedByMe,
+      isMine: isMine ?? this.isMine,
+      media: media ?? this.media,
+    );
+  }
+}
+
+class WallPostMediaItem {
+  const WallPostMediaItem({
+    required this.id,
+    required this.url,
+    this.sortOrder = 0,
+    this.mediaAssetId,
+  });
+
+  final String id;
+  final String url;
+  final int sortOrder;
+  final String? mediaAssetId;
+
+  factory WallPostMediaItem.fromJson(Map<String, dynamic> json) {
+    return WallPostMediaItem(
+      id: json['id']?.toString() ?? '',
+      url: json['url']?.toString() ?? '',
+      sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
+      mediaAssetId: json['mediaAssetId']?.toString(),
     );
   }
 }

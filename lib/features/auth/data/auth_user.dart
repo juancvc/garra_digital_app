@@ -15,7 +15,14 @@ class AuthUser {
   final String status;
   final String role;
 
-  bool get isAdmin => role.toUpperCase() == 'ADMIN';
+  String get id => userId;
+
+  bool get isAdmin {
+    final r = role.toUpperCase();
+    return r == 'ADMIN' || r == 'SUPERADMIN';
+  }
+
+  bool get isSuperAdmin => role.toUpperCase() == 'SUPERADMIN';
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     return AuthUser(

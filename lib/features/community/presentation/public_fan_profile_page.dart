@@ -107,22 +107,29 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
       appBar: AppBar(
         title: const Text('Perfil'),
         actions: [
-          IconButton(
-            tooltip: 'Invitar a Garra',
-            onPressed: () {
-              final p = _profile;
-              final username = p?['username']?.toString() ?? '';
-              Share.share(
-                'Sigue a @$username en Garra Digital — la red de la hinchada crema.',
-              );
-            },
-            icon: const Icon(Icons.ios_share_outlined),
-          ),
-          IconButton(
-            tooltip: 'Bloquear',
-            onPressed: _block,
-            icon: const Icon(Icons.block),
-          ),
+          if (_profile?['isMe'] != true) ...[
+            IconButton(
+              tooltip: 'Invitar a Garra',
+              onPressed: () {
+                final p = _profile;
+                final username = p?['username']?.toString() ?? '';
+                Share.share(
+                  'Sigue a @$username en Garra Digital — la red de la hinchada crema.',
+                );
+              },
+              icon: const Icon(Icons.ios_share_outlined),
+            ),
+            IconButton(
+              tooltip: 'Bloquear',
+              onPressed: _block,
+              icon: const Icon(Icons.block),
+            ),
+          ] else
+            IconButton(
+              tooltip: 'Editar perfil',
+              onPressed: () => context.push('/passport/edit'),
+              icon: const Icon(Icons.edit_outlined),
+            ),
         ],
       ),
       body: _loading
@@ -145,6 +152,7 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
     final postCount = p['globalPostCount'] ?? 0;
     final followed = p['isFollowedByMe'] == true;
     final blocked = p['isBlockedByMe'] == true;
+    final isMe = p['isMe'] == true;
     final rawPosts = p['globalPosts'];
     final posts = rawPosts is List
         ? rawPosts
@@ -156,6 +164,19 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
     return ListView(
       padding: const EdgeInsets.all(GarraSpacing.lg),
       children: [
+        Container(
+          height: 96,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: const LinearGradient(
+              colors: [
+                Color(GarraColors.burgundyDeep),
+                Color(GarraColors.surface),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
         Row(
           children: [
             GarraAvatar(displayName: name.isEmpty ? username : name, size: 64),
@@ -172,7 +193,9 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
                   if (level != null && level.isNotEmpty)
                     Text(
                       'Nivel $level',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: const Color(GarraColors.gold),
+                          ),
                     ),
                   if (since != null && since.isNotEmpty)
                     Text(
@@ -187,32 +210,39 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
         const SizedBox(height: GarraSpacing.md),
         Row(
           children: [
+            _Stat(label: 'Publicaciones', value: '$postCount'),
             _Stat(label: 'Seguidores', value: '$followers'),
             _Stat(label: 'Siguiendo', value: '$following'),
-            _Stat(label: 'Publicaciones', value: '$postCount'),
           ],
         ),
         const SizedBox(height: GarraSpacing.md),
-        SizedBox(
-          width: double.infinity,
-          child: blocked
-              ? OutlinedButton(
-                  onPressed: null,
-                  child: const Text('Bloqueado'),
-                )
-              : FilledButton(
-                  onPressed: _busy ? null : _toggleFollow,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: followed
-                        ? const Color(GarraColors.garnetDeep)
-                        : const Color(GarraColors.gold),
-                    foregroundColor: followed
-                        ? const Color(GarraColors.cream)
-                        : const Color(GarraColors.charcoal),
+        if (isMe)
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () => context.push('/passport/edit'),
+              child: const Text('Editar perfil'),
+            ),
+          )
+        else
+          SizedBox(
+            width: double.infinity,
+            child: blocked
+                ? const OutlinedButton(
+                    onPressed: null,
+                    child: Text('Bloqueado'),
+                  )
+                : FilledButton(
+                    onPressed: _busy ? null : _toggleFollow,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: followed
+                          ? const Color(GarraColors.burgundyDeep)
+                          : const Color(GarraColors.burgundy),
+                      foregroundColor: const Color(GarraColors.cream),
+                    ),
+                    child: Text(followed ? 'Siguiendo' : 'Seguir'),
                   ),
-                  child: Text(followed ? 'Siguiendo' : 'Seguir'),
-                ),
-        ),
+          ),
         const SizedBox(height: GarraSpacing.lg),
         const GarraSectionHeader(title: 'Publicaciones'),
         const SizedBox(height: GarraSpacing.md),

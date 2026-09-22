@@ -38,7 +38,29 @@ class HomePage extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
-        title: const Text('Garra Digital'),
+        title: Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: const Color(GarraColors.burgundyDeep),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              alignment: Alignment.center,
+              child: const Text(
+                'G',
+                style: TextStyle(
+                  color: Color(GarraColors.cream),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text('Inicio'),
+          ],
+        ),
         actions: [
           homeAsync.maybeWhen(
             data: (home) => _NotificationBell(
@@ -46,15 +68,10 @@ class HomePage extends ConsumerWidget {
               onTap: () => context.push('/notifications'),
             ),
             orElse: () => IconButton(
-              tooltip: 'Notificaciones',
+              tooltip: 'Actividad',
               onPressed: () => context.push('/notifications'),
               icon: const Icon(Icons.notifications_none_outlined),
             ),
-          ),
-          IconButton(
-            tooltip: 'Cerrar sesión',
-            onPressed: () => _confirmLogout(context, ref),
-            icon: const Icon(Icons.logout),
           ),
         ],
       ),
@@ -64,7 +81,7 @@ class HomePage extends ConsumerWidget {
           onRetry: () => ref.invalidate(homeProvider),
         ),
         data: (home) => RefreshIndicator(
-          color: const Color(GarraColors.gold),
+          color: const Color(GarraColors.burgundy),
           onRefresh: () async => ref.invalidate(homeProvider),
           child: _HomeBody(home: home),
         ),

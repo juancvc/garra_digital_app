@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../core/auth/current_fan_provider.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_avatar.dart';
@@ -12,8 +13,8 @@ import '../../../core/widgets/garra_ui.dart';
 import '../data/community_service.dart';
 import '../data/wall_post_model.dart';
 import 'widgets/garra_reaction_bar.dart';
+import 'widgets/garra_post_media_grid.dart';
 import '../../retention/data/retention_service.dart';
-import '../../retention/presentation/widgets/daily_garra_card.dart';
 
 /// Comunidad 365 hub: Para ti / Siguiendo / Recientes + discovery.
 class CommunityHubPage extends ConsumerStatefulWidget {
@@ -88,12 +89,27 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
   }
 
   Future<void> _toggleSave(WallPostModel post) async {
-    if (post.savedByMe) {
-      await _service.unsavePost(post.id);
-    } else {
-      await _service.savePost(post.id);
+    final next = !post.savedByMe;
+    setState(() {
+      _posts = _posts
+          .map((p) => p.id == post.id ? p.copyWith(savedByMe: next) : p)
+          .toList();
+    });
+    try {
+      if (next) {
+        await _service.savePost(post.id);
+      } else {
+        await _service.unsavePost(post.id);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _posts = _posts
+            .map((p) =>
+                p.id == post.id ? p.copyWith(savedByMe: post.savedByMe) : p)
+            .toList();
+      });
     }
-    await _load();
   }
 
   Future<void> _confirmBlock(String userId) async {
@@ -128,7 +144,13 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
     return Scaffold(
       backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
-        title: const Text('Comunidad'),
+        title: const Row(
+          children: [
+            _GarraMarkBadge(),
+            SizedBox(width: 8),
+            Text('Comunidad'),
+          ],
+        ),
         actions: [
           IconButton(
             tooltip: 'Buscar',
@@ -136,34 +158,14 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
             icon: const Icon(Icons.search),
           ),
           IconButton(
-            tooltip: 'Guardados',
-            onPressed: () => context.push('/comunidad/guardados'),
-            icon: const Icon(Icons.bookmark_outline),
-          ),
-          IconButton(
-            tooltip: 'Solidaria',
-            onPressed: () => context.push('/solidaria'),
-            icon: const Icon(Icons.volunteer_activism_outlined),
-          ),
-          IconButton(
-            tooltip: 'Bloqueados',
-            onPressed: () => context.push('/comunidad/bloqueados'),
-            icon: const Icon(Icons.person_off_outlined),
+            tooltip: 'Actividad',
+            onPressed: () => context.push('/notifications'),
+            icon: const Icon(Icons.notifications_none_outlined),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final ok = await context.push<bool>('/comunidad/compose');
-          if (ok == true) _load();
-        },
-        backgroundColor: const Color(GarraColors.gold),
-        foregroundColor: const Color(GarraColors.charcoal),
-        icon: const Icon(Icons.edit_outlined),
-        label: const Text('Publicar'),
-      ),
       body: RefreshIndicator(
-        color: const Color(GarraColors.gold),
+        color: const Color(GarraColors.burgundy),
         onRefresh: _load,
         child: _loading
             ? const Center(child: CircularProgressIndicator())
@@ -176,68 +178,6 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
                     children: [
-                      const SizedBox(height: GarraSpacing.md),
-                      const DailyGarraCard(),
-                      const SizedBox(height: GarraSpacing.md),
-                      Material(
-                        color: const Color(GarraColors.garnetDeep),
-                        borderRadius: BorderRadius.circular(16),
-                        child: InkWell(
-                          onTap: () => context.push('/comunidad/compose'),
-                          borderRadius: BorderRadius.circular(16),
-                          child: const Padding(
-                            padding: EdgeInsets.all(GarraSpacing.lg),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '¿Qué vive la crema hoy?',
-                                        style: TextStyle(
-                                          color: Color(GarraColors.cream),
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                      SizedBox(height: 4),
-                                      Text(
-                                        'Comparte con la comunidad · 365 días',
-                                        style: TextStyle(
-                                          color: Color(GarraColors.creamMuted),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Icon(Icons.chevron_right,
-                                    color: Color(GarraColors.gold)),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: GarraSpacing.md),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _QuickLink(
-                              label: 'Comunidades Cremas',
-                              onTap: () => context.push('/clans'),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _QuickLink(
-                              label: 'Garra Solidaria',
-                              onTap: () => context.push('/solidaria'),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: GarraSpacing.md),
                       SizedBox(
                         height: 40,
                         child: ListView(
@@ -259,7 +199,7 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
                               .toList(),
                         ),
                       ),
-                      if (_people.isNotEmpty) ...[
+                      if (_mode == 'FOLLOWING' && _people.isNotEmpty) ...[
                         const SizedBox(height: GarraSpacing.lg),
                         const GarraSectionHeader(title: 'Personas para seguir'),
                         const SizedBox(height: 8),
@@ -332,41 +272,60 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
                       if (_posts.isEmpty)
                         GarraEmptyState(
                           title: _mode == 'FOLLOWING'
-                              ? 'Todavía no sigues a otros hinchas.'
-                              : 'Tribuna en silencio',
+                              ? 'Todavía no sigues a nadie'
+                              : 'Sé el primero en publicar',
                           message: _mode == 'FOLLOWING'
-                              ? 'Descubre personas y empieza a seguir.'
-                              : 'Sé el primero en compartir lo que vive la crema hoy.',
+                              ? 'Descubre hinchas y empieza a seguir.'
+                              : 'Comparte lo que vive la crema hoy.',
                           actionLabel: _mode == 'FOLLOWING'
-                              ? 'Descubrir personas'
-                              : null,
-                          onAction: _mode == 'FOLLOWING'
-                              ? () => context.push('/comunidad/buscar')
-                              : null,
+                              ? 'Buscar personas'
+                              : 'Nueva publicación',
+                          onAction: () => context.push(
+                            _mode == 'FOLLOWING'
+                                ? '/comunidad/buscar'
+                                : '/comunidad/compose',
+                          ),
                         )
                       else
-                        ..._posts.map(
-                          (post) => _GlobalPostCard(
-                            post: post,
+                        ..._posts.map((post) {
+                          final meId =
+                              ref.watch(currentFanProvider).asData?.value?.id;
+                          final mine = post.isMine ||
+                              (meId != null &&
+                                  meId.isNotEmpty &&
+                                  post.authorId == meId);
+                          final view = post.copyWith(isMine: mine);
+                          return _GlobalPostCard(
+                            post: view,
                             onOpen: () => context
                                 .push('/muro-crema/posts/${post.id}')
                                 .then((_) => _load()),
-                            onOpenProfile: post.authorId == null ||
+                            onOpenProfile: mine ||
+                                    post.authorId == null ||
                                     post.authorId!.isEmpty
                                 ? null
                                 : () => context.push(
                                       '/comunidad/u/${post.authorId}',
                                     ),
-                            onBlock: post.authorId == null ||
+                            onBlock: mine ||
+                                    post.authorId == null ||
                                     post.authorId!.isEmpty
                                 ? null
                                 : () => _confirmBlock(post.authorId!),
-                            onShare: () => Share.share(
-                              '${post.fullName}: ${post.content}\n\nÚnete a Garra Digital',
+                            onReport: mine
+                                ? null
+                                : () => context.push(
+                                      '/muro-crema/posts/${post.id}',
+                                    ),
+                            onShare: () => SharePlus.instance.share(
+                              ShareParams(
+                                text:
+                                    '${post.fullName}: ${post.content}\n\nÚnete a Garra Digital',
+                              ),
                             ),
                             onSave: () => _toggleSave(post),
-                          ),
-                        ),
+                          );
+                        }),
                     ],
                   ),
       ),
@@ -374,21 +333,27 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
   }
 }
 
-class _QuickLink extends StatelessWidget {
-  const _QuickLink({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
+class _GarraMarkBadge extends StatelessWidget {
+  const _GarraMarkBadge();
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton(
-      onPressed: onTap,
-      style: OutlinedButton.styleFrom(
-        foregroundColor: const Color(GarraColors.cream),
-        side: const BorderSide(color: Color(GarraColors.gold)),
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        color: const Color(GarraColors.burgundyDeep),
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(label, textAlign: TextAlign.center),
+      alignment: Alignment.center,
+      child: const Text(
+        'G',
+        style: TextStyle(
+          color: Color(GarraColors.cream),
+          fontWeight: FontWeight.w800,
+          fontSize: 14,
+        ),
+      ),
     );
   }
 }
@@ -399,6 +364,7 @@ class _GlobalPostCard extends StatelessWidget {
     required this.onOpen,
     this.onOpenProfile,
     this.onBlock,
+    this.onReport,
     this.onShare,
     this.onSave,
   });
@@ -407,6 +373,7 @@ class _GlobalPostCard extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback? onOpenProfile;
   final VoidCallback? onBlock;
+  final VoidCallback? onReport;
   final VoidCallback? onShare;
   final VoidCallback? onSave;
 
@@ -452,7 +419,7 @@ class _GlobalPostCard extends StatelessWidget {
                       post.savedByMe
                           ? Icons.bookmark
                           : Icons.bookmark_border,
-                      color: const Color(GarraColors.gold),
+                      color: const Color(GarraColors.cream),
                     ),
                   ),
                 PopupMenuButton<String>(
@@ -460,41 +427,57 @@ class _GlobalPostCard extends StatelessWidget {
                     if (v == 'profile') onOpenProfile?.call();
                     if (v == 'block') onBlock?.call();
                     if (v == 'share') onShare?.call();
+                    if (v == 'report') onReport?.call();
                   },
-                  itemBuilder: (_) => [
-                    if (onOpenProfile != null)
-                      const PopupMenuItem(
-                        value: 'profile',
-                        child: Text('Ver perfil'),
-                      ),
-                    if (onShare != null)
-                      const PopupMenuItem(
-                        value: 'share',
-                        child: Text('Compartir'),
-                      ),
-                    if (onBlock != null)
-                      const PopupMenuItem(
-                        value: 'block',
-                        child: Text('Bloquear usuario'),
-                      ),
-                  ],
+                  itemBuilder: (_) {
+                    if (post.isMine) {
+                      return [
+                        if (onShare != null)
+                          const PopupMenuItem(
+                            value: 'share',
+                            child: Text('Compartir'),
+                          ),
+                        if (onSave != null)
+                          const PopupMenuItem(
+                            value: 'save',
+                            child: Text('Guardar'),
+                          ),
+                      ];
+                    }
+                    return [
+                      if (onOpenProfile != null)
+                        const PopupMenuItem(
+                          value: 'profile',
+                          child: Text('Ver perfil'),
+                        ),
+                      if (onShare != null)
+                        const PopupMenuItem(
+                          value: 'share',
+                          child: Text('Compartir'),
+                        ),
+                      if (onReport != null)
+                        const PopupMenuItem(
+                          value: 'report',
+                          child: Text('Reportar publicación'),
+                        ),
+                      if (onBlock != null)
+                        const PopupMenuItem(
+                          value: 'block',
+                          child: Text('Bloquear usuario'),
+                        ),
+                    ];
+                  },
                 ),
               ],
             ),
             const SizedBox(height: 10),
             Text(post.content, maxLines: 4, overflow: TextOverflow.ellipsis),
-            if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
+            if ((post.imageUrl != null && post.imageUrl!.isNotEmpty) ||
+                post.media.isNotEmpty) ...[
               const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: Image.network(
-                    post.imageUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                  ),
-                ),
+              GarraPostMediaGrid(
+                media: post.media,
+                legacyImageUrl: post.imageUrl,
               ),
             ],
             const SizedBox(height: 8),

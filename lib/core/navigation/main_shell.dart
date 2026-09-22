@@ -1,61 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../design/garra_colors.dart';
 import '../theme/app_theme.dart';
 
+/// V3 shell — Inicio / Comunidad / Crear / Explorar / Perfil
 class MainShell extends StatelessWidget {
   const MainShell({
-    required this.child,
+    required this.navigationShell,
     super.key,
   });
 
-  final Widget child;
+  final StatefulNavigationShell navigationShell;
 
-  static const _routes = [
-    '/home',
-    '/comunidad',
-    '/ruta-templo',
-    '/marketplace',
-    '/passport',
-  ];
-
-  int _currentIndex(BuildContext context) {
-    final location = GoRouterState.of(context).uri.path;
-    if (location.startsWith('/comunidad') ||
-        location.startsWith('/muro-crema') ||
-        location.startsWith('/clans') ||
-        location.startsWith('/solidaria')) {
-      return 1;
-    }
-    if (location.startsWith('/ruta-templo')) {
-      return 2;
-    }
-    if (location.startsWith('/marketplace')) {
-      return 3;
-    }
-    if (location.startsWith('/passport') ||
-        location.startsWith('/history') ||
-        location.startsWith('/historial')) {
-      return 4;
-    }
-    return 0;
+  int get _navIndex {
+    // Branches: 0 home, 1 comunidad, 2 explorar, 3 passport
+    // Nav slots: 0 home, 1 comunidad, 2 crear, 3 explorar, 4 perfil
+    final b = navigationShell.currentIndex;
+    if (b >= 2) return b + 1;
+    return b;
   }
 
   void _onTap(BuildContext context, int index) {
-    if (index == _currentIndex(context)) return;
-    context.go(_routes[index]);
+    if (index == 2) {
+      context.push('/comunidad/compose');
+      return;
+    }
+    final branch = index > 2 ? index - 1 : index;
+    navigationShell.goBranch(
+      branch,
+      initialLocation: branch == navigationShell.currentIndex,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final currentIndex = _currentIndex(context);
-
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: child,
+      body: navigationShell,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF111111),
+          color: const Color(GarraColors.surface),
           border: Border(
             top: BorderSide(
               color: AppTheme.cream.withValues(alpha: 0.08),
@@ -64,43 +49,33 @@ class MainShell extends StatelessWidget {
         ),
         child: SafeArea(
           top: false,
-          child: BottomNavigationBar(
-            currentIndex: currentIndex,
-            type: BottomNavigationBarType.fixed,
-            backgroundColor: const Color(0xFF111111),
-            selectedItemColor: AppTheme.gold,
-            unselectedItemColor: Colors.white54,
-            selectedLabelStyle: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-            ),
-            unselectedLabelStyle: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-            showSelectedLabels: true,
-            showUnselectedLabels: true,
-            elevation: 0,
-            onTap: (index) => _onTap(context, index),
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.home_rounded),
+          child: NavigationBar(
+            selectedIndex: _navIndex,
+            onDestinationSelected: (i) => _onTap(context, i),
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home_rounded),
                 label: 'Inicio',
               ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.forum_rounded),
+              NavigationDestination(
+                icon: Icon(Icons.forum_outlined),
+                selectedIcon: Icon(Icons.forum_rounded),
                 label: 'Comunidad',
               ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.map_outlined),
-                label: 'Mapa',
+              NavigationDestination(
+                icon: Icon(Icons.add_circle_outline, size: 30),
+                selectedIcon: Icon(Icons.add_circle, size: 30),
+                label: 'Crear',
               ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.storefront_outlined),
-                label: 'Market',
+              NavigationDestination(
+                icon: Icon(Icons.explore_outlined),
+                selectedIcon: Icon(Icons.explore_rounded),
+                label: 'Explorar',
               ),
-              BottomNavigationBarItem(
+              NavigationDestination(
                 icon: Icon(Icons.person_outline),
+                selectedIcon: Icon(Icons.person_rounded),
                 label: 'Perfil',
               ),
             ],

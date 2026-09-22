@@ -192,14 +192,22 @@ class CommunityService {
   Future<WallActionResult> createGlobalPost({
     required String content,
     String? mediaAssetId,
+    List<String>? mediaAssetIds,
     String? locationTag,
   }) async {
     try {
+      final ids = <String>[
+        ...?mediaAssetIds,
+        if (mediaAssetId != null &&
+            (mediaAssetIds == null || !mediaAssetIds.contains(mediaAssetId)))
+          mediaAssetId,
+      ];
       final response = await _dio.post(
         '/community/posts',
         data: {
           'content': content,
-          if (mediaAssetId != null) 'mediaAssetId': mediaAssetId,
+          if (ids.length == 1) 'mediaAssetId': ids.first,
+          if (ids.isNotEmpty) 'mediaAssetIds': ids,
           if (locationTag != null) 'locationTag': locationTag,
         },
       );

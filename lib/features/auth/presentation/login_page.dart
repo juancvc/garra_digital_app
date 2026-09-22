@@ -39,7 +39,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.message),
-          backgroundColor: Colors.red,
+          backgroundColor: const Color(0xFFB33A3A),
         ),
       );
     }
@@ -57,7 +57,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.message),
-          backgroundColor: Colors.red,
+          backgroundColor: const Color(0xFFB33A3A),
         ),
       );
       return;
@@ -104,41 +104,41 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       child: Container(
                         width: 68,
                         height: 68,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppTheme.cream,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF47101C),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppTheme.cream, width: 1.5),
                         ),
                         child: const Center(
                           child: Text(
-                            'GD',
+                            'G',
                             style: TextStyle(
-                              color: AppTheme.burgundy,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
+                              color: AppTheme.cream,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
                     const Text(
-                      'Bienvenido de vuelta',
+                      'Garra Digital',
                       style: TextStyle(
                         color: AppTheme.cream,
-                        fontSize: 30,
-                        fontWeight: FontWeight.w900,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Ingresa a la tribuna digital crema.',
+                      'La red privada de la hinchada crema.',
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.62),
                       ),
                     ),
                     const SizedBox(height: 36),
 
-                    /// 🔥 LOGIN CARD REAL
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(22),
