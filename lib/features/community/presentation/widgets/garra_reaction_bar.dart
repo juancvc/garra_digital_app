@@ -6,6 +6,7 @@ import '../../../../core/design/garra_spacing.dart';
 import '../../data/reaction_type.dart';
 
 /// Compact engagement strip: top non-zero reactions + comment count.
+/// Layout-safe on narrow screens (no horizontal RenderFlex overflow).
 class GarraReactionBar extends StatelessWidget {
   const GarraReactionBar({
     super.key,
@@ -34,48 +35,66 @@ class GarraReactionBar extends StatelessWidget {
           fontWeight: FontWeight.w700,
         );
 
-    return Row(
-      children: [
-        Expanded(
-          child: InkWell(
-            onTap: onTapReactions,
-            borderRadius: BorderRadius.circular(GarraRadius.sm),
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                vertical: compact ? GarraSpacing.xs : GarraSpacing.sm,
-              ),
+    final commentLabel = commentCount == 0
+        ? 'Comentar'
+        : commentCount == 1
+            ? '1'
+            : '$commentCount';
+
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        vertical: compact ? GarraSpacing.xs : GarraSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: onTapReactions,
+              borderRadius: BorderRadius.circular(GarraRadius.sm),
               child: Row(
                 children: [
-                  if (top.isEmpty)
-                    Text(
-                      reactionCount > 0
-                          ? '$reactionCount reacciones'
-                          : 'Sé el primero en reaccionar',
-                      style: textStyle,
-                    )
-                  else ...[
-                    ...top.map(
-                      (entry) => Padding(
-                        padding: const EdgeInsets.only(right: GarraSpacing.sm),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              ReactionType.emojiFor(entry.key),
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                            const SizedBox(width: 3),
-                            Text('${entry.value}', style: textStyle),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (reactionCount > 0)
-                      Text(
-                        '· $reactionCount',
-                        style: textStyle,
-                      ),
-                  ],
+                  Flexible(
+                    child: top.isEmpty
+                        ? Text(
+                            reactionCount > 0
+                                ? '$reactionCount reacciones'
+                                : 'Reaccionar',
+                            style: textStyle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          )
+                        : Row(
+                            children: [
+                              ...top.map(
+                                (entry) => Padding(
+                                  padding: const EdgeInsets.only(
+                                    right: GarraSpacing.sm,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        ReactionType.emojiFor(entry.key),
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                      const SizedBox(width: 3),
+                                      Text('${entry.value}', style: textStyle),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              if (reactionCount > 0)
+                                Flexible(
+                                  child: Text(
+                                    '· $reactionCount',
+                                    style: textStyle,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                            ],
+                          ),
+                  ),
                   if (myReaction != null) ...[
                     const SizedBox(width: GarraSpacing.sm),
                     Container(
@@ -98,37 +117,36 @@ class GarraReactionBar extends StatelessWidget {
               ),
             ),
           ),
-        ),
-        InkWell(
-          onTap: onTapComments,
-          borderRadius: BorderRadius.circular(GarraRadius.sm),
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              vertical: compact ? GarraSpacing.xs : GarraSpacing.sm,
-              horizontal: GarraSpacing.xs,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.chat_bubble_outline_rounded,
-                  size: 16,
-                  color: Color(GarraColors.gold),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  commentCount == 0
-                      ? 'Comentar'
-                      : commentCount == 1
-                          ? '1 comentario'
-                          : '$commentCount comentarios',
-                  style: textStyle,
-                ),
-              ],
+          const SizedBox(width: 8),
+          InkWell(
+            onTap: onTapComments,
+            borderRadius: BorderRadius.circular(GarraRadius.sm),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: GarraSpacing.xs),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    size: 16,
+                    color: Color(GarraColors.gold),
+                  ),
+                  const SizedBox(width: 4),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 96),
+                    child: Text(
+                      commentLabel,
+                      style: textStyle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

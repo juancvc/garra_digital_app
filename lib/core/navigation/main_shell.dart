@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/home/presentation/create_action_sheet.dart';
 import '../design/garra_colors.dart';
 import '../theme/app_theme.dart';
 
-/// V3 shell — Inicio / Comunidad / Crear / Explorar / Perfil
+/// V1 shell — Inicio / Comunidad / Crear / Explorar / Perfil
 class MainShell extends StatelessWidget {
   const MainShell({
     required this.navigationShell,
@@ -23,7 +24,7 @@ class MainShell extends StatelessWidget {
 
   void _onTap(BuildContext context, int index) {
     if (index == 2) {
-      context.push('/comunidad/compose');
+      showCreateActionSheet(context);
       return;
     }
     final branch = index > 2 ? index - 1 : index;

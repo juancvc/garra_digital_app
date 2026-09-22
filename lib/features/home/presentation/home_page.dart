@@ -9,20 +9,18 @@ import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/design/garra_typography.dart';
-import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
-import '../../clans/data/clan_models.dart';
-import '../../community/presentation/widgets/garra_reaction_bar.dart';
+import '../../marketplace/widgets/garra_sponsored_card.dart';
 import '../../missions/data/mission_models.dart';
 import '../../missions/presentation/widgets/garra_streak_card.dart';
-import '../../marketplace/widgets/garra_sponsored_card.dart';
 import '../../rewards/data/reward_service.dart';
 import '../../sponsors/data/sponsor_service.dart';
 import '../../sponsors/presentation/providers/sponsor_provider.dart';
 import '../data/home_models.dart';
 import 'providers/home_provider.dart';
+import 'social_feed_tab.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -54,17 +52,22 @@ class HomePage extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const Text('Inicio'),
+            const Text('Garra Digital'),
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Buscar',
+            onPressed: () => context.push('/comunidad/buscar'),
+            icon: const Icon(Icons.search),
+          ),
           homeAsync.maybeWhen(
             data: (home) => _NotificationBell(
               unreadCount: home.notifications.unreadCount,
               onTap: () => context.push('/notifications'),
             ),
             orElse: () => IconButton(
-              tooltip: 'Actividad',
+              tooltip: 'Notificaciones',
               onPressed: () => context.push('/notifications'),
               icon: const Icon(Icons.notifications_none_outlined),
             ),
@@ -76,11 +79,7 @@ class HomePage extends ConsumerWidget {
         error: (error, stackTrace) => GarraErrorState(
           onRetry: () => ref.invalidate(homeProvider),
         ),
-        data: (home) => RefreshIndicator(
-          color: const Color(GarraColors.burgundy),
-          onRefresh: () async => ref.invalidate(homeProvider),
-          child: _HomeBody(home: home),
-        ),
+        data: (home) => _HomeBody(home: home),
       ),
     );
   }
@@ -109,6 +108,8 @@ class _NotificationBell extends StatelessWidget {
   }
 }
 
+enum _HomeFeedTab { forYou, following, match }
+
 class _HomeBody extends ConsumerStatefulWidget {
   const _HomeBody({required this.home});
 
@@ -118,96 +119,110 @@ class _HomeBody extends ConsumerStatefulWidget {
   ConsumerState<_HomeBody> createState() => _HomeBodyState();
 }
 
-enum _HomeMode { community, match }
-
 class _HomeBodyState extends ConsumerState<_HomeBody> {
-  late _HomeMode _mode;
+  late _HomeFeedTab _tab;
   bool _manual = false;
 
   @override
   void initState() {
     super.initState();
-    _mode = _defaultMode(widget.home);
+    _tab = _defaultTab(widget.home);
   }
 
   @override
   void didUpdateWidget(covariant _HomeBody oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!_manual) {
-      _mode = _defaultMode(widget.home);
+      _tab = _defaultTab(widget.home);
     }
   }
 
-  static _HomeMode _defaultMode(HomeModel home) {
+  static _HomeFeedTab _defaultTab(HomeModel home) {
     if (home.isLive || home.isMatchday || home.isUpcoming) {
-      return _HomeMode.match;
+      return _HomeFeedTab.match;
     }
-    return _HomeMode.community;
+    return _HomeFeedTab.forYou;
+  }
+
+  bool get _showCompactMatch {
+    final home = widget.home;
+    return home.hasMatch &&
+        (home.isLive || home.isUpcoming || home.isMatchday);
   }
 
   @override
   Widget build(BuildContext context) {
     final home = widget.home;
-    final children = <Widget>[
-      _ModeSelector(
-        mode: _mode,
-        onChanged: (m) => setState(() {
-          _manual = true;
-          _mode = m;
-        }),
-      ),
-      const SizedBox(height: GarraSpacing.lg),
-      if (_mode == _HomeMode.community)
-        ..._communityChildren(context, home)
-      else
-        ..._matchChildren(context, home),
-      const SizedBox(height: GarraSpacing.xxl),
-    ];
 
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(
-        GarraSpacing.lg,
-        GarraSpacing.md,
-        GarraSpacing.lg,
-        GarraSpacing.xxl,
-      ),
-      children: children,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            GarraSpacing.lg,
+            GarraSpacing.md,
+            GarraSpacing.lg,
+            GarraSpacing.sm,
+          ),
+          child: _FeedTabChips(
+            tab: _tab,
+            onChanged: (t) => setState(() {
+              _manual = true;
+              _tab = t;
+            }),
+          ),
+        ),
+        Expanded(
+          child: switch (_tab) {
+            _HomeFeedTab.match => RefreshIndicator(
+                color: const Color(GarraColors.burgundy),
+                onRefresh: () async => ref.invalidate(homeProvider),
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(
+                    GarraSpacing.lg,
+                    GarraSpacing.sm,
+                    GarraSpacing.lg,
+                    GarraSpacing.xxl,
+                  ),
+                  children: _matchChildren(context, home),
+                ),
+              ),
+            _HomeFeedTab.forYou => SocialFeedTab(
+                key: const ValueKey('FOR_YOU'),
+                mode: 'FOR_YOU',
+                topInserts: _showCompactMatch
+                    ? [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            GarraSpacing.lg,
+                            0,
+                            GarraSpacing.lg,
+                            GarraSpacing.md,
+                          ),
+                          child: _CompactMatchInsert(
+                            home: home,
+                            onOpenMatch: () => setState(() {
+                              _manual = true;
+                              _tab = _HomeFeedTab.match;
+                            }),
+                          ),
+                        ),
+                      ]
+                    : const [],
+              ),
+            _HomeFeedTab.following => const SocialFeedTab(
+                key: ValueKey('FOLLOWING'),
+                mode: 'FOLLOWING',
+              ),
+          },
+        ),
+      ],
     );
   }
 
-  List<Widget> _communityChildren(BuildContext context, HomeModel home) {
-    return [
-      _FanHeader(fan: home.fan),
-      const SizedBox(height: GarraSpacing.lg),
-      const _CommunityPromptCard(),
-      const SizedBox(height: GarraSpacing.lg),
-      _CommunityPreview(community: home.community),
-      const SizedBox(height: GarraSpacing.lg),
-      const _SolidariaHomeTip(),
-      const SizedBox(height: GarraSpacing.lg),
-      _HomeClanSection(clan: home.clan),
-      const SizedBox(height: GarraSpacing.lg),
-      _PointsRankCard(fan: home.fan),
-      const SizedBox(height: GarraSpacing.lg),
-      const _RewardsShortcut(),
-      const SizedBox(height: GarraSpacing.lg),
-      if (home.commercial != null) ...[
-        _HomeCommercialSection(commercial: home.commercial!),
-        const SizedBox(height: GarraSpacing.lg),
-      ] else ...[
-        const _MarketplaceShortcut(),
-        const SizedBox(height: GarraSpacing.lg),
-      ],
-      _HistoryShortcut(),
-    ];
-  }
-
   List<Widget> _matchChildren(BuildContext context, HomeModel home) {
-    final children = <Widget>[
-      _FanHeader(fan: home.fan),
-      const SizedBox(height: GarraSpacing.lg),
-    ];
+    final children = <Widget>[];
     if (home.hasMatch) {
       children.add(_MatchHero(home: home));
       children.add(const SizedBox(height: GarraSpacing.lg));
@@ -242,9 +257,6 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
       children.add(const SizedBox(height: GarraSpacing.lg));
     }
 
-    children.add(_CommunityPreview(community: home.community));
-    children.add(const SizedBox(height: GarraSpacing.lg));
-
     final commercial = home.commercial;
     if (commercial != null) {
       children.add(_HomeCommercialSection(commercial: commercial));
@@ -255,185 +267,84 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
   }
 }
 
-class _ModeSelector extends StatelessWidget {
-  const _ModeSelector({required this.mode, required this.onChanged});
+class _FeedTabChips extends StatelessWidget {
+  const _FeedTabChips({required this.tab, required this.onChanged});
 
-  final _HomeMode mode;
-  final ValueChanged<_HomeMode> onChanged;
+  final _HomeFeedTab tab;
+  final ValueChanged<_HomeFeedTab> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(GarraColors.surface),
-        borderRadius: BorderRadius.circular(GarraRadius.lg),
-        border: Border.all(color: const Color(GarraColors.borderSubtle)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _ModeChip(
-              label: 'Comunidad',
-              selected: mode == _HomeMode.community,
-              onTap: () => onChanged(_HomeMode.community),
-            ),
-          ),
-          Expanded(
-            child: _ModeChip(
-              label: 'Partido',
-              selected: mode == _HomeMode.match,
-              onTap: () => onChanged(_HomeMode.match),
-            ),
-          ),
-        ],
+    const items = [
+      (_HomeFeedTab.forYou, 'Para ti'),
+      (_HomeFeedTab.following, 'Siguiendo'),
+      (_HomeFeedTab.match, 'Partido'),
+    ];
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: items
+            .map(
+              (m) => Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(m.$2),
+                  selected: tab == m.$1,
+                  onSelected: (_) => onChanged(m.$1),
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }
 }
 
-class _ModeChip extends StatelessWidget {
-  const _ModeChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
+class _CompactMatchInsert extends StatelessWidget {
+  const _CompactMatchInsert({
+    required this.home,
+    required this.onOpenMatch,
   });
 
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+  final HomeModel home;
+  final VoidCallback onOpenMatch;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected ? const Color(GarraColors.garnetDeep) : Colors.transparent,
-      borderRadius: BorderRadius.circular(GarraRadius.md),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(GarraRadius.md),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: selected
-                      ? const Color(GarraColors.cream)
-                      : const Color(GarraColors.creamMuted),
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+    final match = home.match!;
+    final label = home.isLive
+        ? 'EN VIVO'
+        : home.isMatchday
+            ? 'Hoy juega la U'
+            : 'Próximo partido';
+    final score = home.isLive || home.isFinished
+        ? '${match.homeScore ?? '-'} : ${match.awayScore ?? '-'}'
+        : 'VS';
 
-class _CommunityPromptCard extends StatelessWidget {
-  const _CommunityPromptCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: const Color(GarraColors.garnetDeep),
-      borderRadius: BorderRadius.circular(GarraRadius.lg),
-      child: InkWell(
-        onTap: () => context.push('/comunidad/compose'),
-        borderRadius: BorderRadius.circular(GarraRadius.lg),
-        child: Padding(
-          padding: const EdgeInsets.all(GarraSpacing.lg),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '¿Qué vive la crema hoy?',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: const Color(GarraColors.cream),
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Comparte con la comunidad · 365 días',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: const Color(GarraColors.creamMuted),
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: GarraSpacing.sm),
-              IntrinsicWidth(
-                child: FilledButton(
-                  onPressed: () => context.push('/comunidad/compose'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(GarraColors.gold),
-                    foregroundColor: const Color(GarraColors.charcoal),
-                    minimumSize: const Size(0, 40),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  child: const Text('Publicar'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SolidariaHomeTip extends StatelessWidget {
-  const _SolidariaHomeTip();
-
-  @override
-  Widget build(BuildContext context) {
     return GarraCard(
-      onTap: () => context.push('/solidaria'),
+      onTap: onOpenMatch,
       child: Row(
         children: [
-          const Icon(Icons.volunteer_activism_outlined,
-              color: Color(GarraColors.gold)),
-          const SizedBox(width: GarraSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Garra Solidaria',
-                  style: Theme.of(context).textTheme.titleMedium,
+                  label,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: const Color(GarraColors.gold),
+                        fontWeight: FontWeight.w800,
+                      ),
                 ),
+                const SizedBox(height: 4),
                 Text(
-                  'Campañas verificadas de la crema',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  '${match.homeTeam} $score ${match.awayTeam}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall,
                 ),
               ],
-            ),
-          ),
-          const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
-        ],
-      ),
-    );
-  }
-}
-
-class _HistoryShortcut extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return GarraCard(
-      onTap: () => context.push('/historial-crema'),
-      child: Row(
-        children: [
-          const Icon(Icons.auto_stories_outlined, color: Color(GarraColors.gold)),
-          const SizedBox(width: GarraSpacing.md),
-          Expanded(
-            child: Text(
-              'Mi Historia',
-              style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
           const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
@@ -533,63 +444,6 @@ class _PulsoCremaCard extends StatelessWidget {
   }
 }
 
-class _FanHeader extends StatelessWidget {
-  const _FanHeader({required this.fan});
-
-  final HomeFanSummary fan;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: 'Abrir pasaporte de ${fan.displayName}',
-      child: InkWell(
-        onTap: () => context.push('/passport'),
-        borderRadius: BorderRadius.circular(GarraRadius.lg),
-        child: GarraCard(
-          child: Row(
-            children: [
-              GarraAvatar(
-                displayName: fan.displayName,
-                avatarUrl: fan.avatarUrl,
-                size: 56,
-              ),
-              const SizedBox(width: GarraSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      fan.displayName,
-                      style: Theme.of(context).textTheme.titleLarge,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: GarraSpacing.xs),
-                    Text(
-                      '@${fan.username}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: GarraSpacing.sm),
-                    GarraLevelBadge(
-                      levelNumber: fan.levelNumber,
-                      levelName: fan.levelName,
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right,
-                color: Color(GarraColors.gold),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _MatchHero extends StatefulWidget {
   const _MatchHero({required this.home});
 
@@ -613,7 +467,6 @@ class _MatchHeroState extends State<_MatchHero> {
       final crossed = _remaining.inSeconds > 0 && next.inSeconds <= 0;
       setState(() => _remaining = next);
       if (crossed) {
-        // Crossing kickoff: refresh server authority for matchday state.
         final container = ProviderScope.containerOf(context, listen: false);
         container.invalidate(homeProvider);
       }
@@ -693,7 +546,8 @@ class _MatchHeroState extends State<_MatchHero> {
             children: [
               Expanded(child: _TeamBlock(name: match.homeTeam)),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: GarraSpacing.sm),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: GarraSpacing.sm),
                 child: home.isLive || home.isFinished
                     ? Text(
                         '${match.homeScore ?? '-'} : ${match.awayScore ?? '-'}',
@@ -701,10 +555,11 @@ class _MatchHeroState extends State<_MatchHero> {
                       )
                     : Text(
                         'VS',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: const Color(GarraColors.gold),
-                              fontWeight: FontWeight.w800,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: const Color(GarraColors.gold),
+                                  fontWeight: FontWeight.w800,
+                                ),
                       ),
               ),
               Expanded(child: _TeamBlock(name: match.awayTeam, alignEnd: true)),
@@ -835,47 +690,6 @@ class _NoMatchCard extends StatelessWidget {
           Text(
             'Cuando la U tenga fecha, el Matchday aparecerá aquí.',
             style: TextStyle(color: Color(GarraColors.textSecondary)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PointsRankCard extends StatelessWidget {
-  const _PointsRankCard({required this.fan});
-
-  final HomeFanSummary fan;
-
-  @override
-  Widget build(BuildContext context) {
-    final points = NumberFormat('#,###').format(fan.points);
-    return GarraCard(
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$points Puntos Garra',
-                  style: GarraTypography.numeric(size: 22),
-                ),
-                if (fan.globalRank != null) ...[
-                  const SizedBox(height: GarraSpacing.xs),
-                  Text(
-                    '#${fan.globalRank} en Garra Digital',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: const Color(GarraColors.gold),
-                        ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: () => context.push('/rewards'),
-            child: const Text('Beneficios'),
           ),
         ],
       ),
@@ -1121,263 +935,5 @@ class _MissionStreakSection extends StatelessWidget {
           ),
       ],
     );
-  }
-}
-
-class _HomeClanSection extends StatelessWidget {
-  const _HomeClanSection({this.clan});
-
-  final HomeClanSummary? clan;
-
-  @override
-  Widget build(BuildContext context) {
-    if (clan == null) {
-      return GarraCard(
-        onTap: () => context.push('/clans'),
-        child: Row(
-          children: [
-            const Icon(Icons.groups_2_outlined, color: Color(GarraColors.gold)),
-            const SizedBox(width: GarraSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Encuentra tu comunidad',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: GarraSpacing.xs),
-                  Text(
-                    'Descubre Comunidades Cremas cerca de ti',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
-          ],
-        ),
-      );
-    }
-
-    final members =
-        NumberFormat.decimalPattern('es').format(clan!.memberCount);
-    return GarraCard(
-      onTap: () => context.push('/clans/${clan!.slug}'),
-      child: Row(
-        children: [
-          GarraAvatar(
-            displayName: clan!.name,
-            avatarUrl: clan!.logoUrl,
-            size: 44,
-          ),
-          const SizedBox(width: GarraSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  clan!.name,
-                  style: Theme.of(context).textTheme.titleMedium,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: GarraSpacing.xs),
-                Text(
-                  [
-                    '$members miembros',
-                    if (clan!.role != null)
-                      ClanRoleLabels.label(clan!.role),
-                    if (clan!.currentYearRank != null)
-                      '#${clan!.currentYearRank} Polla',
-                    if (clan!.currentYearPollaPoints != null)
-                      '${clan!.currentYearPollaPoints} pts',
-                  ].join(' · '),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
-        ],
-      ),
-    );
-  }
-}
-
-class _MarketplaceShortcut extends StatelessWidget {
-  const _MarketplaceShortcut();
-
-  @override
-  Widget build(BuildContext context) {
-    return GarraCard(
-      onTap: () => context.push('/marketplace'),
-      child: Row(
-        children: [
-          const Icon(Icons.storefront_outlined, color: Color(GarraColors.gold)),
-          const SizedBox(width: GarraSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Marketplace Crema',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: GarraSpacing.xs),
-                Text(
-                  'Descubre emprendimientos de la hinchada',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
-        ],
-      ),
-    );
-  }
-}
-
-class _RewardsShortcut extends StatelessWidget {
-  const _RewardsShortcut();
-
-  @override
-  Widget build(BuildContext context) {
-    return GarraCard(
-      onTap: () => context.push('/rewards'),
-      child: Row(
-        children: [
-          const Icon(Icons.card_giftcard_outlined, color: Color(GarraColors.gold)),
-          const SizedBox(width: GarraSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Beneficios',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: GarraSpacing.xs),
-                Text(
-                  'Canjea Puntos Garra por beneficios reales',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
-        ],
-      ),
-    );
-  }
-}
-
-class _CommunityPreview extends StatelessWidget {
-  const _CommunityPreview({required this.community});
-
-  final HomeCommunityPreview community;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Expanded(
-              child: GarraSectionHeader(
-                title: 'Tribuna Crema',
-                subtitle: 'Comunidad',
-              ),
-            ),
-            TextButton(
-              onPressed: () => context.push('/comunidad'),
-              child: const Text('Ver comunidad'),
-            ),
-          ],
-        ),
-        const SizedBox(height: GarraSpacing.sm),
-        if (community.posts.isEmpty)
-          const GarraCard(
-            child: Text(
-              'Aún no hay publicaciones para este contexto.',
-              style: TextStyle(color: Color(GarraColors.textSecondary)),
-            ),
-          )
-        else
-          ...community.posts.map(
-            (post) => Padding(
-              padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
-              child: GarraCard(
-                onTap: () => context.push('/muro-crema/posts/${post.id}'),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    GarraAvatar(displayName: post.displayName, size: 40),
-                    const SizedBox(width: GarraSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '@${post.username}',
-                            style: Theme.of(context).textTheme.labelLarge,
-                          ),
-                          const SizedBox(height: GarraSpacing.xs),
-                          Text(
-                            post.content,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          if (post.imageUrl != null &&
-                              post.imageUrl!.isNotEmpty) ...[
-                            const SizedBox(height: GarraSpacing.sm),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(GarraRadius.md),
-                              child: AspectRatio(
-                                aspectRatio: 16 / 9,
-                                child: Image.network(
-                                  post.imageUrl!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                                ),
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: GarraSpacing.xs),
-                          Text(
-                            [
-                              if (post.locationTag != null) post.locationTag!,
-                              _relativeTime(post.createdAt),
-                            ].join(' · '),
-                            style: Theme.of(context).textTheme.labelSmall,
-                          ),
-                          const SizedBox(height: GarraSpacing.sm),
-                          GarraReactionBar(
-                            reactionSummary: post.reactionSummary,
-                            reactionCount: post.reactionCount,
-                            commentCount: post.commentCount,
-                            myReaction: post.myReaction,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  String _relativeTime(DateTime createdAt) {
-    final diff = DateTime.now().difference(createdAt.toLocal());
-    if (diff.inMinutes < 1) return 'ahora';
-    if (diff.inHours < 1) return 'hace ${diff.inMinutes} min';
-    if (diff.inDays < 1) return 'hace ${diff.inHours} h';
-    return 'hace ${diff.inDays} d';
   }
 }

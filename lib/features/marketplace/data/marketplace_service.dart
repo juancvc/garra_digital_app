@@ -189,12 +189,123 @@ class MarketplaceService {
   }
 
   Future<SellerProfile> submitSeller(SellerOnboardingRequest request) async {
-    final response = await _dio.post(
-      '/marketplace/seller/submit',
-      data: request.toJson(),
+    try {
+      final displayName = request.storeName.trim();
+      final businessWhatsApp = request.whatsapp.trim();
+      final sellerBody = <String, dynamic>{
+        'businessWhatsApp': businessWhatsApp,
+        'displayName': displayName,
+      };
+
+      final existing = await getSellerMe();
+      SellerProfile seller;
+      if (existing != null &&
+          (existing.isDraft || existing.isRejected)) {
+        final response = await _dio.patch(
+          '/marketplace/seller/me',
+          data: sellerBody,
+        );
+        seller = _parseSellerProfile(response.data);
+      } else if (existing == null || existing.isNone) {
+        final response = await _dio.post(
+          '/marketplace/seller/me',
+          data: sellerBody,
+        );
+        seller = _parseSellerProfile(response.data);
+      } else if (existing.isPending || existing.isApproved) {
+        throw MarketplaceServiceException(
+          existing.isPending
+              ? 'Tu solicitud ya está en revisión.'
+              : 'Ya tienes un perfil de vendedor activo.',
+        );
+      } else {
+        final response = await _dio.patch(
+          '/marketplace/seller/me',
+          data: sellerBody,
+        );
+        seller = _parseSellerProfile(response.data);
+      }
+
+      final hasStore =
+          seller.storeSlug != null && seller.storeSlug!.trim().isNotEmpty;
+      if (!hasStore) {
+        final slug = _storeSlugFromName(displayName);
+        await _dio.post(
+          '/marketplace/seller/store',
+          data: {
+            'slug': slug,
+            'name': displayName,
+            if (request.storeDescription != null &&
+                request.storeDescription!.trim().isNotEmpty)
+              'description': request.storeDescription!.trim(),
+            if (request.city != null && request.city!.trim().isNotEmpty)
+              'city': request.city!.trim(),
+            'countryCode': 'PE',
+          },
+        );
+      } else {
+        await updateSellerStore({
+          'name': displayName,
+          if (request.storeDescription != null &&
+              request.storeDescription!.trim().isNotEmpty)
+            'description': request.storeDescription!.trim(),
+          if (request.city != null && request.city!.trim().isNotEmpty)
+            'city': request.city!.trim(),
+          'countryCode': 'PE',
+        });
+      }
+
+      final response = await _dio.post('/marketplace/seller/me/submit');
+      return _parseSellerProfile(response.data);
+    } on MarketplaceServiceException {
+      rethrow;
+    } on DioException catch (e) {
+      throw MarketplaceServiceException(_friendlySellerError(e));
+    }
+  }
+
+  SellerProfile _parseSellerProfile(dynamic responseData) {
+    final envelope = responseData is Map
+        ? Map<String, dynamic>.from(responseData)
+        : <String, dynamic>{};
+    final data = envelope['data'];
+    if (data is Map) {
+      return SellerProfile.fromJson(Map<String, dynamic>.from(data));
+    }
+    throw MarketplaceServiceException(
+      'No pudimos registrar tu tienda. Inténtalo de nuevo.',
     );
-    final data = Map<String, dynamic>.from(response.data['data'] as Map);
-    return SellerProfile.fromJson(data);
+  }
+
+  String _storeSlugFromName(String name) {
+    var slug = name.trim().toLowerCase();
+    slug = slug.replaceAll(RegExp(r'\s+'), '-');
+    slug = slug.replaceAll(RegExp(r'[^a-z0-9\-]'), '');
+    slug = slug.replaceAll(RegExp(r'-{2,}'), '-');
+    slug = slug.replaceAll(RegExp(r'^-+|-+$'), '');
+    if (slug.isEmpty) {
+      slug = 'tienda-${DateTime.now().millisecondsSinceEpoch}';
+    }
+    return slug;
+  }
+
+  String _friendlySellerError(DioException e) {
+    final message = _extractMessage(e);
+    final lower = message.toLowerCase();
+    if (lower.contains('pending') ||
+        lower.contains('en revisión') ||
+        lower.contains('already submitted') ||
+        lower.contains('ya envi')) {
+      return 'Tu solicitud ya está en revisión.';
+    }
+    if (lower.contains('already') || lower.contains('ya registr')) {
+      return 'Ya tienes un emprendimiento registrado.';
+    }
+    if (lower.contains('slug')) {
+      return 'Ese nombre de tienda no está disponible. Prueba otro.';
+    }
+    if (message.isNotEmpty) return message;
+    return 'No pudimos registrar tu tienda. Inténtalo de nuevo.';
   }
 
   Future<SellerSummary> getSellerSummary() async {

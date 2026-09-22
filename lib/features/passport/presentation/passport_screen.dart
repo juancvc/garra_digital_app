@@ -29,7 +29,7 @@ class PassportScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
-        title: const Text('Pasaporte Crema'),
+        title: const Text('Perfil'),
         actions: [
           if (passportAsync.asData?.value.viewerIsOwner == true)
             TextButton(
@@ -232,293 +232,131 @@ class _PassportBody extends StatelessWidget {
         const SizedBox(height: GarraSpacing.lg),
         const _PassportSeasonSection(),
         const SizedBox(height: GarraSpacing.lg),
-        GarraCard(
-          onTap: () => context.push('/passport/temporada'),
-          child: Row(
-            children: [
-              const Icon(Icons.calendar_month_outlined,
-                  color: Color(GarraColors.gold)),
-              const SizedBox(width: GarraSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Mi Temporada',
-                        style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: GarraSpacing.xs),
-                    Text(
-                      'Progreso, racha y logros de la temporada',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
-            ],
-          ),
-        ),
-        const SizedBox(height: GarraSpacing.lg),
-        GarraCard(
-          onTap: () => context.push('/logros'),
-          child: Row(
-            children: [
-              const Icon(Icons.emoji_events_outlined,
-                  color: Color(GarraColors.gold)),
-              const SizedBox(width: GarraSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Mis Logros',
-                        style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: GarraSpacing.xs),
-                    Text(
-                      'Hitos desbloqueados y por conseguir',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
-            ],
-          ),
-        ),
-        const SizedBox(height: GarraSpacing.lg),
-        GarraCard(
-          onTap: () => context.push('/coleccion'),
-          child: Row(
-            children: [
-              const Icon(Icons.collections_bookmark_outlined,
-                  color: Color(GarraColors.gold)),
-              const SizedBox(width: GarraSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Mi Colección',
-                        style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: GarraSpacing.xs),
-                    Text(
-                      'Momentos y recuerdos de tu Garra',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
-            ],
-          ),
-        ),
-        const SizedBox(height: GarraSpacing.lg),
-        GarraCard(
-          onTap: () => context.push('/eventos'),
-          child: Row(
-            children: [
-              const Icon(Icons.event_outlined, color: Color(GarraColors.gold)),
-              const SizedBox(width: GarraSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Eventos',
-                        style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: GarraSpacing.xs),
-                    Text(
-                      'Encuentros comunitarios verificados por Garra',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
-            ],
-          ),
-        ),
-        const SizedBox(height: GarraSpacing.lg),
-        GarraCard(
-          onTap: () => context.push('/history'),
-          child: Row(
-            children: [
-              const Icon(Icons.auto_stories_outlined,
-                  color: Color(GarraColors.gold)),
-              const SizedBox(width: GarraSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Mi Historia',
-                        style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: GarraSpacing.xs),
-                    Text(
-                      'Tu línea de tiempo crema',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
-            ],
-          ),
-        ),
-        const SizedBox(height: GarraSpacing.lg),
         _PassportClanSection(clan: passport.primaryClan),
         const SizedBox(height: GarraSpacing.lg),
         GarraCard(
-          onTap: () => context.push('/marketplace'),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.storefront_outlined,
-                color: Color(GarraColors.gold),
-              ),
-              const SizedBox(width: GarraSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Marketplace Crema',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: GarraSpacing.xs),
-                    Text(
-                      'Emprendimientos de la hinchada',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
-            ],
-          ),
-        ),
-        const SizedBox(height: GarraSpacing.lg),
-        GarraCard(
-          onTap: () => context.push('/rewards'),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.card_giftcard_outlined,
-                color: Color(GarraColors.gold),
-              ),
-              const SizedBox(width: GarraSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Beneficios',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: GarraSpacing.xs),
-                    Text(
-                      'Canjea tus Puntos Garra',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
-            ],
-          ),
-        ),
-        const SizedBox(height: GarraSpacing.lg),
-        GarraCard(
-          onTap: () => context.push('/referrals'),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.group_add_outlined,
-                color: Color(GarraColors.gold),
-              ),
-              const SizedBox(width: GarraSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Invita cremas',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: GarraSpacing.xs),
-                    Text(
-                      'Comparte tu código de invitación',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
-            ],
-          ),
-        ),
-        const SizedBox(height: GarraSpacing.lg),
-        const _AdminCenterEntry(),
-        const SizedBox(height: GarraSpacing.lg),
-        _PassportHistorySection(
-          yearSummary: passport.currentYearSummary,
-        ),
-        const SizedBox(height: GarraSpacing.lg),
-        GarraCard(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const GarraSectionHeader(
-                title: 'Configuración',
-                subtitle: 'Completa tu identidad crema cuando quieras.',
+              _ProfileMenuTile(
+                icon: Icons.auto_stories_outlined,
+                title: 'Mi contenido',
+                subtitle: 'Tu línea de tiempo crema',
+                onTap: () => context.push('/history'),
               ),
-              const SizedBox(height: GarraSpacing.md),
-              _ProfileRow(
-                label: 'Ciudad',
-                value: identity.city?.trim().isNotEmpty == true
-                    ? identity.city!
-                    : 'Sin configurar',
-                muted: identity.city == null || identity.city!.trim().isEmpty,
+              _ProfileMenuTile(
+                icon: Icons.bookmark_outline,
+                title: 'Guardados',
+                subtitle: 'Publicaciones que guardaste',
+                onTap: () => context.push('/comunidad/guardados'),
               ),
-              _ProfileRow(
-                label: 'País',
-                value: identity.countryCode ?? 'Sin configurar',
-                muted: identity.countryCode == null,
+              _ProfileMenuTile(
+                icon: Icons.groups_outlined,
+                title: 'Mis comunidades',
+                subtitle: 'Tus grupos cremas',
+                onTap: () => context.push('/clans'),
               ),
-              _ProfileRow(
-                label: 'Visibilidad',
-                value: _visibilityLabel(passport.profileVisibility),
+              _ProfileMenuTile(
+                icon: Icons.event_outlined,
+                title: 'Mis eventos',
+                subtitle: 'Encuentros y actividades',
+                onTap: () => context.push('/eventos'),
               ),
-              if (passport.viewerIsOwner) ...[
-                const SizedBox(height: GarraSpacing.lg),
-                GarraSecondaryButton(
-                  label: 'Editar perfil',
-                  onPressed: () => context.push('/passport/edit'),
+              _ProfileMenuTile(
+                icon: Icons.storefront_outlined,
+                title: 'Mis emprendimientos',
+                subtitle: 'Tu tienda en Marketplace',
+                onTap: () => context.push('/marketplace/seller'),
+              ),
+              _ProfileMenuTile(
+                icon: Icons.card_giftcard_outlined,
+                title: 'Mis puntos Garra',
+                subtitle: 'Canjea beneficios',
+                onTap: () => context.push('/rewards'),
+              ),
+              _ProfileMenuTile(
+                icon: Icons.emoji_events_outlined,
+                title: 'Mis logros',
+                subtitle: 'Hitos desbloqueados',
+                onTap: () => context.push('/logros'),
+                showDivider: false,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: GarraSpacing.lg),
+        if (passport.currentYearSummary != null) ...[
+          GarraCard(
+            onTap: () => context.push('/history'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Mi Historia Crema',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const SizedBox(height: GarraSpacing.sm),
-                GarraSecondaryButton(
-                  label: 'Usuarios bloqueados',
-                  onPressed: () => context.push('/comunidad/bloqueados'),
-                ),
-                const SizedBox(height: GarraSpacing.sm),
-                GarraSecondaryButton(
-                  label: 'Mis intereses',
-                  onPressed: () => context.push('/onboarding'),
-                ),
-                const SizedBox(height: GarraSpacing.sm),
-                GarraSecondaryButton(
-                  label: 'Ajustes y privacidad',
-                  onPressed: () => context.push('/settings'),
+                const SizedBox(height: GarraSpacing.xs),
+                Text(
+                  'Mi Año Crema ${passport.currentYearSummary!.year}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: const Color(GarraColors.gold),
+                      ),
                 ),
               ],
-              const SizedBox(height: GarraSpacing.xxl),
-              Text(
-                'Garra Digital es una comunidad independiente creada por hinchas y no representa una aplicación oficial del club.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: const Color(GarraColors.creamMuted),
-                    ),
-              ),
-            ],
+            ),
           ),
+          const SizedBox(height: GarraSpacing.lg),
+        ],
+        const _AdminCenterEntry(),
+        const SizedBox(height: GarraSpacing.lg),
+        GarraCard(
+          onTap: () => context.push('/settings'),
+          child: _ProfileMenuTile(
+            icon: Icons.settings_outlined,
+            title: 'Configuración',
+            subtitle: 'Ajustes, privacidad y cuenta',
+            showDivider: false,
+            onTap: () => context.push('/settings'),
+          ),
+        ),
+        const SizedBox(height: GarraSpacing.lg),
+        GarraSecondaryButton(
+          label: 'Cerrar sesión',
+          onPressed: () => _confirmLogout(context),
+          foregroundColor: const Color(GarraColors.burgundy),
+          borderColor: const Color(GarraColors.burgundy),
+        ),
+        const SizedBox(height: GarraSpacing.xxl),
+        Text(
+          'Garra Digital es una comunidad independiente creada por hinchas y no representa una aplicación oficial del club.',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: const Color(GarraColors.creamMuted),
+              ),
         ),
       ],
     );
+  }
+
+  static Future<void> _confirmLogout(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Cerrar sesión?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Cerrar sesión'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await AuthService().logout();
+    if (context.mounted) context.go('/login');
   }
 
   static String? _locationLine(PassportIdentity identity) {
@@ -532,72 +370,41 @@ class _PassportBody extends StatelessWidget {
     }
     return city ?? country;
   }
-
-  static String _visibilityLabel(String visibility) {
-    switch (visibility) {
-      case 'PRIVATE':
-        return 'Privado';
-      case 'MEMBERS_ONLY':
-        return 'Solo miembros';
-      default:
-        return 'Público';
-    }
-  }
 }
 
-class _PassportHistorySection extends StatelessWidget {
-  const _PassportHistorySection({this.yearSummary});
+class _ProfileMenuTile extends StatelessWidget {
+  const _ProfileMenuTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.onTap,
+    this.showDivider = true,
+  });
 
-  final PassportCurrentYearSummary? yearSummary;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+  final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
-    final year = yearSummary?.year ?? DateTime.now().year;
-
-    return GarraCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const GarraSectionHeader(
-            title: 'Tu historia',
-            subtitle: 'Momentos y tu año con la U.',
+    return Column(
+      children: [
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(icon, color: const Color(GarraColors.gold)),
+          title: Text(title),
+          subtitle: Text(subtitle),
+          trailing: const Icon(
+            Icons.chevron_right,
+            color: Color(GarraColors.gold),
           ),
-          const SizedBox(height: GarraSpacing.md),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(
-              Icons.auto_stories_rounded,
-              color: Color(GarraColors.gold),
-            ),
-            title: const Text('Mi Historia Crema'),
-            subtitle: const Text('Tu línea de tiempo crema'),
-            trailing: const Icon(
-              Icons.chevron_right,
-              color: Color(GarraColors.gold),
-            ),
-            onTap: () => context.push('/history'),
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(
-              Icons.calendar_month_rounded,
-              color: Color(GarraColors.gold),
-            ),
-            title: Text('Mi Año Crema $year'),
-            subtitle: yearSummary != null && yearSummary!.hasActivity
-                ? Text(
-                    '${yearSummary!.matchdaysParticipated} fechas · '
-                    '${yearSummary!.pointsEarned} pts',
-                  )
-                : const Text('Tu recap del año'),
-            trailing: const Icon(
-              Icons.chevron_right,
-              color: Color(GarraColors.gold),
-            ),
-            onTap: () => context.push('/history/year/$year'),
-          ),
-        ],
-      ),
+          onTap: onTap,
+        ),
+        if (showDivider)
+          const Divider(height: 1, color: Color(GarraColors.surfaceRaised)),
+      ],
     );
   }
 }
@@ -678,40 +485,6 @@ class _PassportClanSection extends StatelessWidget {
               ),
               const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProfileRow extends StatelessWidget {
-  const _ProfileRow({
-    required this.label,
-    required this.value,
-    this.muted = false,
-  });
-
-  final String label;
-  final String value;
-  final bool muted;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: GarraSpacing.sm),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
-          ),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: muted
-                      ? const Color(GarraColors.textSecondary)
-                      : const Color(GarraColors.textPrimary),
-                ),
           ),
         ],
       ),

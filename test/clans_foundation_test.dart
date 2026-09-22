@@ -10,10 +10,8 @@ import 'package:garra_digital_app/features/clans/presentation/clan_detail_page.d
 import 'package:garra_digital_app/features/clans/presentation/clan_invitations_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/clans_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/providers/clans_provider.dart';
-import 'package:garra_digital_app/features/clans/presentation/widgets/garra_clan_card.dart';
+import 'package:garra_digital_app/features/explore/presentation/explore_page.dart';
 import 'package:garra_digital_app/features/home/data/home_models.dart';
-import 'package:garra_digital_app/features/home/presentation/home_page.dart';
-import 'package:garra_digital_app/features/home/presentation/providers/home_provider.dart';
 import 'package:garra_digital_app/features/passport/data/passport_models.dart';
 import 'package:garra_digital_app/features/passport/presentation/passport_screen.dart';
 import 'package:garra_digital_app/features/passport/presentation/providers/passport_provider.dart';
@@ -340,10 +338,11 @@ void main() {
     );
     await tester.pumpWidget(pumpClans(service));
     await tester.pumpAndSettle();
-    expect(find.text('Descubre'), findsOneWidget);
+    await tester.tap(find.text('Descubrir'));
+    await tester.pumpAndSettle();
+    expect(find.text('Descubrir'), findsWidgets);
     expect(find.text('Garra Surco'), findsWidgets);
     expect(find.text('Crema Norte'), findsOneWidget);
-    expect(find.byType(GarraClanCard), findsWidgets);
   });
 
   testWidgets('CLAN_EMPTY_STATE', (tester) async {
@@ -352,6 +351,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(GarraEmptyState), findsWidgets);
     expect(find.text('Aún no tienes comunidad'), findsOneWidget);
+    await tester.tap(find.text('Descubrir'));
+    await tester.pumpAndSettle();
     expect(find.textContaining('Sin resultados'), findsOneWidget);
   });
 
@@ -438,10 +439,11 @@ void main() {
     );
     await tester.pumpWidget(pumpClans(service));
     await tester.pumpAndSettle();
-    expect(find.text('Mis comunidades'), findsOneWidget);
+    expect(find.text('Mis comunidades'), findsWidgets);
     expect(find.text('Garra Surco'), findsWidgets);
     expect(find.text('Crema Norte'), findsOneWidget);
     expect(find.text('Principal'), findsWidgets);
+    expect(find.byTooltip('Marcar principal'), findsOneWidget);
   });
 
   testWidgets('SET_PRIMARY_CLAN', (tester) async {
@@ -603,52 +605,44 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(800, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final router = GoRouter(
-      initialLocation: '/home',
+      initialLocation: '/explorar',
       routes: [
-        GoRoute(path: '/home', builder: (_, __) => const HomePage()),
+        GoRoute(
+          path: '/explorar',
+          builder: (_, __) => const ExplorePage(),
+        ),
         GoRoute(
           path: '/clans',
           builder: (_, __) => const Scaffold(body: Text('CLANS_ROUTE')),
         ),
         GoRoute(
-          path: '/passport',
-          builder: (_, __) => const Scaffold(body: Text('PASSPORT')),
+          path: '/comunidad/buscar',
+          builder: (_, __) => const Scaffold(body: Text('SEARCH')),
         ),
         GoRoute(
-          path: '/notifications',
-          builder: (_, __) => const Scaffold(body: Text('NOTIF')),
+          path: '/marketplace',
+          builder: (_, __) => const Scaffold(body: Text('MARKET')),
         ),
         GoRoute(
-          path: '/muro-crema',
-          builder: (_, __) => const Scaffold(body: Text('MURO')),
+          path: '/eventos',
+          builder: (_, __) => const Scaffold(body: Text('EVENTS')),
         ),
         GoRoute(
-          path: '/comunidad/compose',
-          builder: (_, __) => const Scaffold(body: Text('COMPOSE')),
+          path: '/ruta-templo',
+          builder: (_, __) => const Scaffold(body: Text('MAP')),
         ),
         GoRoute(
           path: '/solidaria',
           builder: (_, __) => const Scaffold(body: Text('SOLIDARIA')),
         ),
         GoRoute(
-          path: '/historial-crema',
-          builder: (_, __) => const Scaffold(body: Text('HISTORY')),
-        ),
-        GoRoute(
           path: '/rewards',
           builder: (_, __) => const Scaffold(body: Text('REWARDS')),
-        ),
-        GoRoute(
-          path: '/marketplace',
-          builder: (_, __) => const Scaffold(body: Text('MARKET')),
         ),
       ],
     );
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          homeProvider.overrideWith((ref) async => sampleHome()),
-        ],
         child: MaterialApp.router(
           theme: AppTheme.darkTheme,
           routerConfig: router,
@@ -656,7 +650,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    final clanCta = find.text('Encuentra tu comunidad');
+    final clanCta = find.text('Encuentra tu gente crema');
     await tester.scrollUntilVisible(
       clanCta,
       200,

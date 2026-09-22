@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_states.dart';
+import '../../passport/presentation/providers/passport_provider.dart';
 import '../data/clan_models.dart';
 import 'providers/clans_provider.dart';
-import 'widgets/garra_clan_card.dart';
 
 /// Product surface: Comunidades Cremas (backend domain remains clans).
 class ClansPage extends ConsumerStatefulWidget {
@@ -18,25 +20,41 @@ class ClansPage extends ConsumerStatefulWidget {
   ConsumerState<ClansPage> createState() => _ClansPageState();
 }
 
-class _ClansPageState extends ConsumerState<ClansPage> {
+class _ClansPageState extends ConsumerState<ClansPage>
+    with SingleTickerProviderStateMixin {
   final _searchController = TextEditingController();
   String _search = '';
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
-  ClanDiscoveryQuery get _query => ClanDiscoveryQuery(search: _search);
+  ClanDiscoveryQuery get _discoveryQuery => ClanDiscoveryQuery(search: _search);
+
+  ClanDiscoveryQuery _nearbyQuery(String? city) => ClanDiscoveryQuery(
+        search: _search,
+        city: city?.trim().isNotEmpty == true ? city!.trim() : null,
+      );
 
   Future<void> _refresh() async {
+    final city = ref.read(myPassportProvider).asData?.value.identity.city;
     ref.invalidate(myClansProvider);
-    ref.invalidate(clanDiscoveryProvider(_query));
+    ref.invalidate(clanDiscoveryProvider(_discoveryQuery));
+    ref.invalidate(clanDiscoveryProvider(_nearbyQuery(city)));
     ref.invalidate(myClanInvitationsProvider);
     await Future.wait([
       ref.read(myClansProvider.future),
-      ref.read(clanDiscoveryProvider(_query).future),
+      ref.read(clanDiscoveryProvider(_discoveryQuery).future),
       ref.read(myClanInvitationsProvider.future),
     ]);
   }
@@ -44,8 +62,11 @@ class _ClansPageState extends ConsumerState<ClansPage> {
   @override
   Widget build(BuildContext context) {
     final myClansAsync = ref.watch(myClansProvider);
-    final discoveryAsync = ref.watch(clanDiscoveryProvider(_query));
+    final discoveryAsync = ref.watch(clanDiscoveryProvider(_discoveryQuery));
     final invitationsAsync = ref.watch(myClanInvitationsProvider);
+    final passportAsync = ref.watch(myPassportProvider);
+    final city = passportAsync.asData?.value.identity.city;
+    final nearbyAsync = ref.watch(clanDiscoveryProvider(_nearbyQuery(city)));
 
     final invitationCount = invitationsAsync.maybeWhen(
       data: (list) => list.where((i) => i.isPending).length,
@@ -57,57 +78,89 @@ class _ClansPageState extends ConsumerState<ClansPage> {
 
     return Scaffold(
       backgroundColor: const Color(GarraColors.charcoal),
-      floatingActionButton: FloatingActionButton.extended(
+      appBar: AppBar(
+        title: const Text('Comunidades'),
+        actions: [
+          IconButton(
+            tooltip: 'Invitaciones',
+            onPressed: () => context.push('/clans/invitations'),
+            icon: Badge(
+              isLabelVisible: invitationCount > 0,
+              label: Text('$invitationCount'),
+              child: const Icon(Icons.mail_outline),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Crear comunidad',
+            onPressed: () => context.push('/clans/create'),
+            icon: const Icon(Icons.add),
+          ),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: const Color(GarraColors.gold),
+          labelColor: const Color(GarraColors.cream),
+          unselectedLabelColor: const Color(GarraColors.creamMuted),
+          tabs: const [
+            Tab(text: 'Mis comunidades'),
+            Tab(text: 'Descubrir'),
+            Tab(text: 'Cercanas'),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/clans/create'),
         backgroundColor: const Color(GarraColors.garnet),
         foregroundColor: const Color(GarraColors.cream),
-        icon: const Icon(Icons.add),
-        label: const Text('Crear comunidad'),
+        child: const Icon(Icons.add),
       ),
       body: hasError
           ? GarraErrorState(onRetry: _refresh)
           : isLoading && !myClansAsync.hasValue && !discoveryAsync.hasValue
               ? const _CommunitiesSkeleton()
-              : RefreshIndicator(
-                  color: const Color(GarraColors.gold),
-                  onRefresh: _refresh,
-                  child: CustomScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    slivers: [
-                      SliverToBoxAdapter(child: _HeroHeader(
-                        invitationCount: invitationCount,
-                        onInvitations: () => context.push('/clans/invitations'),
-                      )),
-                      SliverPadding(
+              : Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        GarraSpacing.lg,
+                        GarraSpacing.md,
+                        GarraSpacing.lg,
+                        0,
+                      ),
+                      child: _SearchField(
+                        controller: _searchController,
+                        onSubmitted: (value) {
+                          setState(() => _search = value.trim());
+                        },
+                      ),
+                    ),
+                    if (invitationCount > 0)
+                      Padding(
                         padding: const EdgeInsets.fromLTRB(
                           GarraSpacing.lg,
-                          0,
+                          GarraSpacing.md,
                           GarraSpacing.lg,
-                          GarraSpacing.section,
+                          0,
                         ),
-                        sliver: SliverList(
-                          delegate: SliverChildListDelegate([
-                            _SearchField(
-                              controller: _searchController,
-                              onSubmitted: (value) {
-                                setState(() => _search = value.trim());
-                              },
-                            ),
-                            if (invitationCount > 0) ...[
-                              const SizedBox(height: GarraSpacing.lg),
-                              _InvitationsBanner(
-                                pendingCount: invitationCount,
-                                onTap: () =>
-                                    context.push('/clans/invitations'),
-                              ),
-                            ],
-                            const SizedBox(height: GarraSpacing.xxl),
-                            myClansAsync.when(
+                        child: _InvitationsBanner(
+                          pendingCount: invitationCount,
+                          onTap: () => context.push('/clans/invitations'),
+                        ),
+                      ),
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          RefreshIndicator(
+                            color: const Color(GarraColors.gold),
+                            onRefresh: _refresh,
+                            child: myClansAsync.when(
                               loading: () =>
-                                  const GarraSkeleton(height: 100),
-                              error: (_, __) =>
-                                  GarraErrorState(onRetry: _refresh),
-                              data: (memberships) => _MyCommunitiesSection(
+                                  ListView(children: const [GarraSkeleton(height: 100)]),
+                              error: (_, _) => ListView(
+                                children: [GarraErrorState(onRetry: _refresh)],
+                              ),
+                              data: (memberships) => _MyCommunitiesTab(
                                 memberships: memberships,
                                 onSetPrimary: (slug) async {
                                   await ref
@@ -117,95 +170,78 @@ class _ClansPageState extends ConsumerState<ClansPage> {
                                 },
                               ),
                             ),
-                            const SizedBox(height: GarraSpacing.xxl),
-                            discoveryAsync.when(
+                          ),
+                          RefreshIndicator(
+                            color: const Color(GarraColors.gold),
+                            onRefresh: _refresh,
+                            child: discoveryAsync.when(
                               loading: () =>
-                                  const GarraSkeleton(height: 140),
-                              error: (_, __) =>
-                                  GarraErrorState(onRetry: _refresh),
-                              data: (clans) =>
-                                  _DiscoverSection(clans: clans),
+                                  ListView(children: const [GarraSkeleton(height: 100)]),
+                              error: (_, _) => ListView(
+                                children: [GarraErrorState(onRetry: _refresh)],
+                              ),
+                              data: (clans) => _DiscoverTab(
+                                clans: clans,
+                                emptyTitle: 'Sin resultados',
+                                emptyMessage:
+                                    'Prueba otro término o crea una comunidad nueva.',
+                              ),
                             ),
-                            const SizedBox(height: 88),
-                          ]),
-                        ),
+                          ),
+                          RefreshIndicator(
+                            color: const Color(GarraColors.gold),
+                            onRefresh: _refresh,
+                            child: nearbyAsync.when(
+                              loading: () =>
+                                  ListView(children: const [GarraSkeleton(height: 100)]),
+                              error: (_, _) => ListView(
+                                children: [GarraErrorState(onRetry: _refresh)],
+                              ),
+                              data: (clans) {
+                                final hasCity =
+                                    city != null && city.trim().isNotEmpty;
+                                if (!hasCity) {
+                                  return ListView(
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
+                                    padding: const EdgeInsets.all(
+                                      GarraSpacing.lg,
+                                    ),
+                                    children: [
+                                      const GarraEmptyState(
+                                        title: 'Comunidades cercanas',
+                                        message:
+                                            'Activa ubicación para ver comunidades cercanas',
+                                      ),
+                                      const SizedBox(height: GarraSpacing.lg),
+                                      Text(
+                                        'También puedes explorar comunidades públicas',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
+                                      ),
+                                      const SizedBox(height: GarraSpacing.md),
+                                      ...clans.map(
+                                        (clan) => _ClanListTile(clan: clan),
+                                      ),
+                                    ],
+                                  );
+                                }
+                                return _DiscoverTab(
+                                  clans: clans,
+                                  emptyTitle: 'Nada cerca aún',
+                                  emptyMessage:
+                                      'No encontramos comunidades en $city. Explora en Descubrir.',
+                                  subtitle: 'Cercanas · $city',
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-    );
-  }
-}
-
-class _HeroHeader extends StatelessWidget {
-  const _HeroHeader({
-    required this.invitationCount,
-    required this.onInvitations,
-  });
-
-  final int invitationCount;
-  final VoidCallback onInvitations;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        GarraSpacing.lg,
-        GarraSpacing.xxl,
-        GarraSpacing.lg,
-        GarraSpacing.lg,
-      ),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(GarraColors.garnetDeep),
-            Color(GarraColors.charcoal),
-          ],
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Comunidades Cremas',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          color: const Color(GarraColors.cream),
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Invitaciones',
-                  onPressed: onInvitations,
-                  icon: Badge(
-                    isLabelVisible: invitationCount > 0,
-                    label: Text('$invitationCount'),
-                    child: const Icon(
-                      Icons.mail_outline,
-                      color: Color(GarraColors.cream),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: GarraSpacing.sm),
-            Text(
-              'Encuentra tu gente. De tu barrio, ciudad o desde cualquier parte.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: const Color(GarraColors.creamMuted),
-                  ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -286,8 +322,8 @@ class _InvitationsBanner extends StatelessWidget {
   }
 }
 
-class _MyCommunitiesSection extends StatelessWidget {
-  const _MyCommunitiesSection({
+class _MyCommunitiesTab extends StatelessWidget {
+  const _MyCommunitiesTab({
     required this.memberships,
     required this.onSetPrimary,
   });
@@ -297,98 +333,176 @@ class _MyCommunitiesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Mis comunidades',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: const Color(GarraColors.cream),
-              ),
-        ),
-        const SizedBox(height: GarraSpacing.md),
-        if (memberships.isEmpty)
-          const GarraEmptyState(
+    if (memberships.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(GarraSpacing.lg),
+        children: const [
+          GarraEmptyState(
             title: 'Aún no tienes comunidad',
             message:
                 'Únete a una comunidad crema o crea la tuya para compartir la tribuna.',
-          )
-        else
-          ...memberships.take(5).map(
-                (m) => Padding(
-                  padding: const EdgeInsets.only(bottom: GarraSpacing.md),
-                  child: GarraClanCard(
-                    clan: m.clan,
-                    roleLabel: ClanRoleLabels.label(m.role),
-                    isPrimary: m.isPrimary,
-                    showJoinPolicy: false,
-                    onTap: () => context.push('/clans/${m.clan.slug}'),
-                    trailing: m.isPrimary
-                        ? const Icon(Icons.star, color: Color(GarraColors.gold))
-                        : IconButton(
-                            tooltip: 'Marcar principal',
-                            onPressed: () => onSetPrimary(m.clan.slug),
-                            icon: const Icon(
-                              Icons.star_border,
-                              color: Color(GarraColors.creamMuted),
-                            ),
-                          ),
-                  ),
-                ),
-              ),
-      ],
+          ),
+        ],
+      );
+    }
+
+    return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        GarraSpacing.lg,
+        GarraSpacing.md,
+        GarraSpacing.lg,
+        88,
+      ),
+      itemCount: memberships.length,
+      separatorBuilder: (_, _) => const SizedBox(height: GarraSpacing.sm),
+      itemBuilder: (context, index) {
+        final m = memberships[index];
+        return _ClanListTile(
+          clan: m.clan,
+          roleLabel: ClanRoleLabels.label(m.role),
+          isMember: true,
+          isPrimary: m.isPrimary,
+          onSetPrimary: m.isPrimary ? null : () => onSetPrimary(m.clan.slug),
+        );
+      },
     );
   }
 }
 
-class _DiscoverSection extends StatelessWidget {
-  const _DiscoverSection({required this.clans});
+class _DiscoverTab extends StatelessWidget {
+  const _DiscoverTab({
+    required this.clans,
+    required this.emptyTitle,
+    required this.emptyMessage,
+    this.subtitle,
+  });
 
   final List<ClanModel> clans;
+  final String emptyTitle;
+  final String emptyMessage;
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        GarraSpacing.lg,
+        GarraSpacing.md,
+        GarraSpacing.lg,
+        88,
+      ),
       children: [
+        if (subtitle != null) ...[
+          Text(
+            subtitle!,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: const Color(GarraColors.creamMuted),
+                ),
+          ),
+          const SizedBox(height: GarraSpacing.md),
+        ],
         Row(
           children: [
-            Expanded(
-              child: Text(
-                'Descubre',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: const Color(GarraColors.cream),
-                    ),
-              ),
-            ),
+            const Spacer(),
             TextButton(
               onPressed: () => context.push('/clans/ranking'),
               child: const Text('Ranking'),
             ),
           ],
         ),
-        const SizedBox(height: GarraSpacing.xs),
-        Text(
-          'Comunidades públicas cerca de la hinchada',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: GarraSpacing.md),
         if (clans.isEmpty)
-          const GarraEmptyState(
-            title: 'Sin resultados',
-            message: 'Prueba otro término o crea una comunidad nueva.',
-          )
+          GarraEmptyState(title: emptyTitle, message: emptyMessage)
         else
-          ...clans.map(
-            (clan) => Padding(
-              padding: const EdgeInsets.only(bottom: GarraSpacing.md),
-              child: GarraClanCard(
-                clan: clan,
-                onTap: () => context.push('/clans/${clan.slug}'),
+          ...clans.map((clan) => _ClanListTile(clan: clan)),
+      ],
+    );
+  }
+}
+
+class _ClanListTile extends StatelessWidget {
+  const _ClanListTile({
+    required this.clan,
+    this.roleLabel,
+    this.isMember = false,
+    this.isPrimary = false,
+    this.onSetPrimary,
+  });
+
+  final ClanModel clan;
+  final String? roleLabel;
+  final bool isMember;
+  final bool isPrimary;
+  final VoidCallback? onSetPrimary;
+
+  @override
+  Widget build(BuildContext context) {
+    final members =
+        NumberFormat.decimalPattern('es').format(clan.memberCount);
+    final member = isMember || clan.isMember;
+    final cta = member
+        ? 'Miembro'
+        : ClanJoinPolicyLabels.label(clan.joinPolicy);
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(vertical: GarraSpacing.xs),
+      leading: GarraAvatar(
+        displayName: clan.name,
+        avatarUrl: clan.logoUrl,
+        size: 44,
+      ),
+      title: Text(
+        clan.name,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        [
+          ?roleLabel,
+          '$members miembros',
+          if (clan.locationLabel.isNotEmpty) clan.locationLabel,
+        ].join(' · '),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (onSetPrimary != null)
+            IconButton(
+              tooltip: 'Marcar principal',
+              onPressed: onSetPrimary,
+              icon: Icon(
+                isPrimary ? Icons.star : Icons.star_border,
+                color: isPrimary
+                    ? const Color(GarraColors.gold)
+                    : const Color(GarraColors.creamMuted),
+              ),
+            )
+          else if (isPrimary)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Text(
+                'Principal',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: const Color(GarraColors.gold),
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
             ),
+          Text(
+            cta,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: member
+                      ? const Color(GarraColors.gold)
+                      : const Color(GarraColors.cream),
+                ),
           ),
-      ],
+        ],
+      ),
+      onTap: () => context.push('/clans/${clan.slug}'),
     );
   }
 }
@@ -402,8 +516,6 @@ class _CommunitiesSkeleton extends StatelessWidget {
       padding: EdgeInsets.all(GarraSpacing.lg),
       child: Column(
         children: [
-          GarraSkeleton(height: 120),
-          SizedBox(height: GarraSpacing.lg),
           GarraSkeleton(height: 56),
           SizedBox(height: GarraSpacing.lg),
           GarraSkeleton(height: 100),

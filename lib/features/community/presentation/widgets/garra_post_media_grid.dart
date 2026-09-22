@@ -42,18 +42,17 @@ class GarraPostMediaGrid extends StatelessWidget {
     final urls = _urls;
     if (urls.isEmpty) return const SizedBox.shrink();
 
-    Widget tile(int i, {double? aspect}) {
+    Widget image(int i) {
       return GestureDetector(
         onTap: () => _openViewer(context, i),
-        child: AspectRatio(
-          aspectRatio: aspect ?? 1,
-          child: Image.network(
-            urls[i],
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
-              color: const Color(GarraColors.surfaceRaised),
-              child: const Icon(Icons.broken_image_outlined),
-            ),
+        child: Image.network(
+          urls[i],
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, __, ___) => Container(
+            color: const Color(GarraColors.surfaceRaised),
+            child: const Icon(Icons.broken_image_outlined),
           ),
         ),
       );
@@ -63,59 +62,98 @@ class GarraPostMediaGrid extends StatelessWidget {
       case 1:
         return ClipRRect(
           borderRadius: BorderRadius.circular(4),
-          child: tile(0, aspect: 4 / 5),
+          child: AspectRatio(
+            aspectRatio: 4 / 5,
+            child: image(0),
+          ),
         );
       case 2:
         return ClipRRect(
           borderRadius: BorderRadius.circular(4),
-          child: Row(
-            children: [
-              Expanded(child: tile(0)),
-              const SizedBox(width: 2),
-              Expanded(child: tile(1)),
-            ],
+          child: AspectRatio(
+            aspectRatio: 2,
+            child: Row(
+              children: [
+                Expanded(child: image(0)),
+                const SizedBox(width: 2),
+                Expanded(child: image(1)),
+              ],
+            ),
           ),
         );
       case 3:
+        // Bound height via AspectRatio so the right Column Expanded children
+        // never receive unbounded constraints (overflow on narrow devices).
         return ClipRRect(
           borderRadius: BorderRadius.circular(4),
-          child: Row(
-            children: [
-              Expanded(flex: 2, child: tile(0, aspect: 3 / 4)),
-              const SizedBox(width: 2),
-              Expanded(
-                child: Column(
-                  children: [
-                    Expanded(child: tile(1)),
-                    const SizedBox(height: 2),
-                    Expanded(child: tile(2)),
-                  ],
+          child: AspectRatio(
+            aspectRatio: 4 / 3,
+            child: Row(
+              children: [
+                Expanded(flex: 2, child: image(0)),
+                const SizedBox(width: 2),
+                Expanded(
+                  child: Column(
+                    children: [
+                      Expanded(child: image(1)),
+                      const SizedBox(height: 2),
+                      Expanded(child: image(2)),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       default:
+        final extra = urls.length - 4;
         return ClipRRect(
           borderRadius: BorderRadius.circular(4),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(child: tile(0)),
-                  const SizedBox(width: 2),
-                  Expanded(child: tile(1)),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Row(
-                children: [
-                  Expanded(child: tile(2)),
-                  const SizedBox(width: 2),
-                  Expanded(child: tile(3)),
-                ],
-              ),
-            ],
+          child: AspectRatio(
+            aspectRatio: 1,
+            child: Column(
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Expanded(child: image(0)),
+                      const SizedBox(width: 2),
+                      Expanded(child: image(1)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Expanded(child: image(2)),
+                      const SizedBox(width: 2),
+                      Expanded(
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            image(3),
+                            if (extra > 0)
+                              Container(
+                                color: Colors.black54,
+                                alignment: Alignment.center,
+                                child: Text(
+                                  '+$extra',
+                                  style: const TextStyle(
+                                    color: Color(GarraColors.cream),
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 22,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         );
     }

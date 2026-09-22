@@ -79,6 +79,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(find.text('Perfil'), findsOneWidget);
     expect(find.text('Hincha Crema'), findsOneWidget);
     expect(find.text('@cremafan'), findsOneWidget);
     expect(find.textContaining('Puntos Garra'), findsOneWidget);
@@ -89,6 +90,12 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('Encuentra tu clan'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Cerrar sesión'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Cerrar sesión'), findsOneWidget);
   });
 
   testWidgets('PASSPORT_ERROR_STATE', (tester) async {

@@ -471,12 +471,16 @@ void main() {
   });
 
   testWidgets('HOME_STREAK_SUMMARY', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(pumpHome(sampleHomeWithMission()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Partido'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text('Racha Garra'),
       200,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: find.byType(Scrollable).last,
     );
     expect(find.text('Racha Garra'), findsOneWidget);
     expect(find.textContaining('asistencia'), findsNothing);

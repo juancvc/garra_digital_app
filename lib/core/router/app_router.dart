@@ -11,7 +11,6 @@ import 'package:garra_digital_app/features/clans/presentation/create_community_p
 import 'package:garra_digital_app/features/admin/presentation/admin_center_page.dart';
 import 'package:garra_digital_app/features/admin/presentation/admin_communities_page.dart';
 import 'package:garra_digital_app/features/admin/presentation/admin_platform_users_page.dart';
-import 'package:garra_digital_app/features/community/presentation/community_hub_page.dart';
 import 'package:garra_digital_app/features/explore/presentation/explore_page.dart';
 import 'package:garra_digital_app/features/settings/presentation/settings_pages.dart';
 import 'package:garra_digital_app/core/config/app_config_service.dart';
@@ -133,7 +132,7 @@ final GoRouter appRouter = GoRouter(
           name: 'comunidad',
           builder: (context, state) => _featureOrDisabled(
             'community',
-            const CommunityHubPage(),
+            const ClansPage(),
           ),
         ),
       ],

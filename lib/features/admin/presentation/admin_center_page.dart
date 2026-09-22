@@ -78,15 +78,61 @@ class _AdminCenterPageState extends State<AdminCenterPage> {
                   padding: const EdgeInsets.all(GarraSpacing.lg),
                   children: [
                     Text(
-                      'Pendientes',
+                      'Centro Garra',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Administración de la comunidad crema.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: GarraSpacing.lg),
+                    Text(
+                      'Dashboard',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Operación diaria de staging y producción.',
+                      'Pendientes de operación diaria.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: GarraSpacing.lg),
+                    _AdminTile(
+                      title: 'Usuarios',
+                      subtitle: 'Roles de plataforma · SUPERADMIN',
+                      icon: Icons.people_outline,
+                      onTap: () => context.push('/admin/usuarios'),
+                    ),
+                    _AdminTile(
+                      title: 'Comunidades',
+                      subtitle: 'Aprobar, rechazar o suspender',
+                      icon: Icons.groups_outlined,
+                      onTap: () => context.push('/admin/comunidades'),
+                    ),
+                    _AdminTile(
+                      title: 'Eventos',
+                      subtitle: 'Verificar o rechazar propuestas',
+                      icon: Icons.event_outlined,
+                      onTap: () => context.push('/admin/eventos'),
+                    ),
+                    _AdminTile(
+                      title: 'Marketplace',
+                      subtitle: 'Vendedores, tiendas y productos',
+                      icon: Icons.shopping_bag_outlined,
+                      onTap: () => context.push('/admin/marketplace'),
+                    ),
+                    _AdminTile(
+                      title: 'Garra Solidaria',
+                      subtitle: 'Campañas pendientes de verificación',
+                      icon: Icons.volunteer_activism_outlined,
+                      onTap: () => context.push('/admin/solidaria'),
+                    ),
+                    _AdminTile(
+                      title: 'Beneficios',
+                      subtitle: 'Logros y canjes operativos',
+                      icon: Icons.card_giftcard_outlined,
+                      onTap: () => context.push('/admin/logros'),
+                    ),
                     _AdminTile(
                       title: 'Reportes',
                       subtitle: 'Cola de moderación de contenido',
@@ -100,34 +146,10 @@ class _AdminCenterPageState extends State<AdminCenterPage> {
                       onTap: () => context.push('/admin/negocios'),
                     ),
                     _AdminTile(
-                      title: 'Solidaria',
-                      subtitle: 'Campañas pendientes de verificación',
-                      icon: Icons.volunteer_activism_outlined,
-                      onTap: () => context.push('/admin/solidaria'),
-                    ),
-                    _AdminTile(
-                      title: 'Marketplace',
-                      subtitle: 'Vendedores, tiendas y productos',
-                      icon: Icons.shopping_bag_outlined,
-                      onTap: () => context.push('/admin/marketplace'),
-                    ),
-                    _AdminTile(
-                      title: 'Eventos',
-                      subtitle: 'Verificar o rechazar propuestas',
-                      icon: Icons.event_outlined,
-                      onTap: () => context.push('/admin/eventos'),
-                    ),
-                    _AdminTile(
                       title: 'Solicitudes de eliminación',
                       subtitle: 'Pedidos web de borrado de cuenta',
                       icon: Icons.person_off_outlined,
                       onTap: () => context.push('/admin/eliminaciones'),
-                    ),
-                    _AdminTile(
-                      title: 'Comunidades',
-                      subtitle: 'Aprobar, rechazar o suspender',
-                      icon: Icons.groups_outlined,
-                      onTap: () => context.push('/admin/comunidades'),
                     ),
                     _AdminTile(
                       title: 'Feedback Beta',
@@ -137,7 +159,7 @@ class _AdminCenterPageState extends State<AdminCenterPage> {
                     ),
                     const SizedBox(height: GarraSpacing.xl),
                     Text(
-                      'Operación',
+                      'Configuración',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: GarraSpacing.md),
@@ -148,22 +170,10 @@ class _AdminCenterPageState extends State<AdminCenterPage> {
                       onTap: () => context.push('/admin/temporadas'),
                     ),
                     _AdminTile(
-                      title: 'Logros',
-                      subtitle: 'Activar o desactivar logros',
-                      icon: Icons.emoji_events_outlined,
-                      onTap: () => context.push('/admin/logros'),
-                    ),
-                    _AdminTile(
                       title: 'Funciones',
                       subtitle: 'Kill switches operativos',
                       icon: Icons.toggle_on_outlined,
                       onTap: () => context.push('/admin/funciones'),
-                    ),
-                    _AdminTile(
-                      title: 'Usuarios y roles',
-                      subtitle: 'SUPERADMIN · roles de plataforma',
-                      icon: Icons.admin_panel_settings_outlined,
-                      onTap: () => context.push('/admin/usuarios'),
                     ),
                   ],
                 ),

@@ -436,7 +436,10 @@ class SellerProfile {
   final bool ipAcknowledged;
 
   bool get isApproved => status.toUpperCase() == 'APPROVED';
-  bool get isPending => status.toUpperCase() == 'PENDING';
+  bool get isPending =>
+      status.toUpperCase() == 'PENDING' ||
+      status.toUpperCase() == 'PENDING_REVIEW';
+  bool get isDraft => status.toUpperCase() == 'DRAFT';
   bool get isRejected => status.toUpperCase() == 'REJECTED';
   bool get isNone =>
       status.toUpperCase() == 'NONE' || status.toUpperCase() == 'NOT_REGISTERED';

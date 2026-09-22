@@ -142,6 +142,16 @@ Widget pumpHome(HomeModel home) {
         builder: (context, state) => const Scaffold(body: Text('CLANS_ROUTE')),
       ),
       GoRoute(
+        path: '/comunidad/compose',
+        builder: (context, state) =>
+            const Scaffold(body: Text('COMPOSE_ROUTE')),
+      ),
+      GoRoute(
+        path: '/comunidad/buscar',
+        builder: (context, state) =>
+            const Scaffold(body: Text('SEARCH_ROUTE')),
+      ),
+      GoRoute(
         path: '/login',
         builder: (context, state) => const Scaffold(body: Text('LOGIN')),
       ),
@@ -217,16 +227,12 @@ void main() {
     await tester.pumpWidget(
       pumpHome(sampleHome(matchdayState: 'NO_MATCH', withMatch: false)),
     );
-    await tester.pumpAndSettle();
-    expect(find.text('Comunidad'), findsWidgets);
+    // Feed load may keep a progress indicator animating; avoid pumpAndSettle.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.text('Garra Digital'), findsOneWidget);
+    expect(find.text('Para ti'), findsOneWidget);
     expect(find.text('¿Qué vive la crema hoy?'), findsOneWidget);
-    final points = find.textContaining('Puntos Garra');
-    await tester.scrollUntilVisible(
-      points.first,
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(points, findsWidgets);
   });
 
   testWidgets('HOME_PREDICTION_CTA', (tester) async {
@@ -246,12 +252,8 @@ void main() {
   });
 
   testWidgets('HOME_PASSPORT_NAVIGATION', (tester) async {
-    await tester.pumpWidget(pumpHome(sampleHome()));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Hincha Crema').first);
-    await tester.pumpAndSettle();
-    expect(find.text('PASSPORT_ROUTE'), findsOneWidget);
-  });
+    // Identity header removed from Home (V1 social feed); passport lives in Perfil.
+  }, skip: true);
 
   testWidgets('HOME_NOTIFICATION_BADGE', (tester) async {
     await tester.pumpWidget(pumpHome(sampleHome(unread: 3)));

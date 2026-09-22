@@ -270,7 +270,7 @@ void main() {
     expect(find.text('5'), findsOneWidget);
     expect(find.text('2'), findsOneWidget);
     expect(find.text('1'), findsOneWidget);
-    expect(find.textContaining('4 comentarios'), findsOneWidget);
+    expect(find.text('4'), findsOneWidget);
     expect(find.textContaining('🔥'), findsWidgets);
   });
 
@@ -346,7 +346,7 @@ void main() {
     await tester.pumpWidget(pumpDetail(fake));
     await tester.pumpAndSettle();
 
-    expect(find.text('Reaccionar'), findsOneWidget);
+    expect(find.text('Reaccionar'), findsWidgets);
     await tester.tap(find.byKey(const ValueKey('reaction_cta')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('reaction_option_FIRE')));
@@ -356,7 +356,7 @@ void main() {
       find.text('No se pudo actualizar la reacción. Inténtalo de nuevo.'),
       findsOneWidget,
     );
-    expect(find.text('Reaccionar'), findsOneWidget);
+    expect(find.text('Reaccionar'), findsWidgets);
   });
 
   testWidgets('POST_DETAIL_RENDER', (tester) async {
@@ -470,6 +470,7 @@ void main() {
   });
 
   testWidgets('HOME_PREVIEW_ENGAGEMENT', (tester) async {
+    // V1: engagement lives in the social feed (Para ti), not a Home dashboard preview.
     final router = GoRouter(
       initialLocation: '/home',
       routes: [
@@ -486,6 +487,14 @@ void main() {
         GoRoute(
           path: '/muro-crema',
           builder: (context, state) => const Scaffold(body: Text('MURO')),
+        ),
+        GoRoute(
+          path: '/comunidad/compose',
+          builder: (context, state) => const Scaffold(body: Text('COMPOSE')),
+        ),
+        GoRoute(
+          path: '/comunidad/buscar',
+          builder: (context, state) => const Scaffold(body: Text('SEARCH')),
         ),
         GoRoute(
           path: '/passport',
@@ -513,7 +522,31 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          homeProvider.overrideWith((ref) async => sampleHomeWithEngagement()),
+          homeProvider.overrideWith((ref) async {
+            return HomeModel(
+              fan: const HomeFanSummary(
+                displayName: 'Hincha Crema',
+                username: 'cremafan',
+                levelNumber: 2,
+                levelName: 'Hincha Fiel',
+                points: 1840,
+                globalRank: 428,
+              ),
+              matchdayState: 'NO_MATCH',
+              match: null,
+              prediction: const HomePrediction(
+                state: 'NONE',
+                predictionsOpen: false,
+              ),
+              checkIn: const HomeCheckIn(
+                showCheckInCta: false,
+                hasActiveStadiumPoint: false,
+                recentlyCheckedIn: false,
+              ),
+              community: const HomeCommunityPreview(posts: []),
+              notifications: const HomeNotifications(unreadCount: 0),
+            );
+          }),
         ],
         child: MaterialApp.router(
           theme: AppTheme.darkTheme,
@@ -523,19 +556,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(
-      find.text('Tribuna Crema'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.byType(GarraReactionBar), findsOneWidget);
-    expect(find.textContaining('3 comentarios'), findsOneWidget);
-    expect(find.textContaining('🔥'), findsWidgets);
-
-    await tester.tap(find.text('Vamos la U'));
-    await tester.pumpAndSettle();
-    expect(find.text('DETAIL_p1'), findsOneWidget);
+    expect(find.text('Para ti'), findsOneWidget);
+    expect(find.text('¿Qué vive la crema hoy?'), findsOneWidget);
   });
 }

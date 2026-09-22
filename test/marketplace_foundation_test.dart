@@ -6,9 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:garra_digital_app/core/theme/app_theme.dart';
 import 'package:garra_digital_app/core/widgets/garra_states.dart';
+import 'package:garra_digital_app/features/explore/presentation/explore_page.dart';
 import 'package:garra_digital_app/features/home/data/home_models.dart';
-import 'package:garra_digital_app/features/home/presentation/home_page.dart';
-import 'package:garra_digital_app/features/home/presentation/providers/home_provider.dart';
 import 'package:garra_digital_app/features/marketplace/data/marketplace_models.dart';
 import 'package:garra_digital_app/features/marketplace/data/marketplace_service.dart';
 import 'package:garra_digital_app/features/marketplace/data/marketplace_url_launcher.dart';
@@ -573,36 +572,32 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(800, 2000));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final router = GoRouter(
-      initialLocation: '/home',
+      initialLocation: '/explorar',
       routes: [
-        GoRoute(path: '/home', builder: (_, _) => const HomePage()),
+        GoRoute(path: '/explorar', builder: (_, _) => const ExplorePage()),
         GoRoute(
           path: '/marketplace',
           builder: (_, _) => const Scaffold(body: Text('MARKETPLACE_ROUTE')),
+        ),
+        GoRoute(
+          path: '/comunidad/buscar',
+          builder: (_, _) => const Scaffold(body: Text('SEARCH')),
         ),
         GoRoute(
           path: '/clans',
           builder: (_, _) => const Scaffold(body: Text('CLANS')),
         ),
         GoRoute(
-          path: '/passport',
-          builder: (_, _) => const Scaffold(body: Text('PASSPORT')),
+          path: '/eventos',
+          builder: (_, _) => const Scaffold(body: Text('EVENTS')),
         ),
         GoRoute(
-          path: '/notifications',
-          builder: (_, _) => const Scaffold(body: Text('NOTIF')),
+          path: '/ruta-templo',
+          builder: (_, _) => const Scaffold(body: Text('MAP')),
         ),
         GoRoute(
-          path: '/muro-crema',
-          builder: (_, _) => const Scaffold(body: Text('MURO')),
-        ),
-        GoRoute(
-          path: '/muro-crema/compose',
-          builder: (_, _) => const Scaffold(body: Text('COMPOSE')),
-        ),
-        GoRoute(
-          path: '/historial-crema',
-          builder: (_, _) => const Scaffold(body: Text('HISTORY')),
+          path: '/solidaria',
+          builder: (_, _) => const Scaffold(body: Text('SOLIDARIA')),
         ),
         GoRoute(
           path: '/rewards',
@@ -612,9 +607,6 @@ void main() {
     );
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          homeProvider.overrideWith((ref) async => sampleHome()),
-        ],
         child: MaterialApp.router(
           theme: AppTheme.darkTheme,
           routerConfig: router,
@@ -622,9 +614,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Comunidad').first);
-    await tester.pumpAndSettle();
-    final marketplace = find.text('Marketplace Crema');
+    final marketplace = find.text('Emprendimientos de la hinchada');
     await tester.scrollUntilVisible(
       marketplace,
       300,

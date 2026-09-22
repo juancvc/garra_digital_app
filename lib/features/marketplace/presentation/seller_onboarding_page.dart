@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/network/garra_error.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/marketplace_models.dart';
+import '../data/marketplace_service.dart';
 import 'providers/marketplace_provider.dart';
 
 class SellerOnboardingPage extends ConsumerStatefulWidget {
@@ -63,18 +65,27 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
       ref.invalidate(sellerSummaryProvider);
       if (!mounted) return;
       context.go('/marketplace/seller/dashboard');
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No pudimos registrar tu tienda. Inténtalo de nuevo.',
-          ),
-        ),
+        SnackBar(content: Text(_sellerErrorMessage(e))),
       );
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  String _sellerErrorMessage(Object error) {
+    if (error is MarketplaceServiceException) {
+      final msg = error.message.trim();
+      if (msg.isNotEmpty) return msg;
+    }
+    final classified = classifyDioError(error).message;
+    if (classified.isNotEmpty &&
+        classified != 'No pudimos completar la acción.') {
+      return classified;
+    }
+    return 'No pudimos registrar tu tienda. Inténtalo de nuevo.';
   }
 
   @override

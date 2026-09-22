@@ -85,5 +85,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('HOME'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.add_circle_outline));
+    await tester.pumpAndSettle();
+    expect(find.text('¿Qué quieres crear?'), findsOneWidget);
+    expect(find.text('Publicación'), findsOneWidget);
   });
 }
