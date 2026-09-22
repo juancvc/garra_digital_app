@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/design/garra_colors.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/garra_brand_visual.dart';
 import '../../notifications/data/push_session_coordinator.dart';
 import 'providers/auth_provider.dart';
 
@@ -80,14 +82,23 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       body: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: const AssetImage('assets/visual/garra_stadium_splash.png'),
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+            colorFilter: ColorFilter.mode(
+              const Color(GarraColors.background).withValues(alpha: 0.72),
+              BlendMode.srcATop,
+            ),
+          ),
+          gradient: const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              AppTheme.background,
-              Color(0xFF1B070A),
-              AppTheme.background,
+              Color(0x55170D10),
+              Color(0xD91B070A),
+              Color(GarraColors.background),
             ],
           ),
         ),
@@ -99,42 +110,27 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Align(
+                    const Align(
                       alignment: Alignment.centerLeft,
-                      child: Container(
-                        width: 68,
-                        height: 68,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF47101C),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppTheme.cream, width: 1.5),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'G',
-                            style: TextStyle(
-                              color: AppTheme.cream,
-                              fontSize: 32,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ),
+                      child: GarraCrest(size: 72, showGlow: true),
                     ),
                     const SizedBox(height: 28),
                     const Text(
-                      'Garra Digital',
+                      'GARRA DIGITAL',
                       style: TextStyle(
                         color: AppTheme.cream,
                         fontSize: 28,
                         fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      'La red privada de la hinchada crema.',
+                    const Text(
+                      'Comunidad no oficial de hinchas cremas.\n'
+                      'Hecho por hinchas, para hinchas.',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.62),
+                        color: Color(GarraColors.creamMuted),
+                        height: 1.4,
                       ),
                     ),
                     const SizedBox(height: 36),
@@ -157,26 +153,24 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               controller: _passwordController,
                               obscureText: true,
                               decoration: const InputDecoration(
-                                labelText: 'Password',
+                                labelText: 'Contraseña',
                                 prefixIcon: Icon(Icons.lock),
                               ),
                             ),
                             const SizedBox(height: 24),
-
-                            /// 🔥 BOTÓN CON LOADING
                             SizedBox(
                               width: double.infinity,
                               child: FilledButton(
                                 onPressed: _loading ? null : _login,
                                 child: _loading
                                     ? const SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
+                                        height: 18,
+                                        width: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
                                     : const Text('Iniciar sesión'),
                               ),
                             ),
@@ -197,9 +191,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               onPressed: () => context.go('/register'),
                               child: const Text(
                                 'Crear cuenta',
-                                style: TextStyle(
-                                  color: AppTheme.gold,
-                                ),
+                                style: TextStyle(color: AppTheme.gold),
                               ),
                             ),
                           ],

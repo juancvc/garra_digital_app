@@ -96,9 +96,7 @@ MatchPoll samplePoll({
   );
 }
 
-MatchPollResults sampleResults({
-  String? myVote = 'opt-a',
-}) {
+MatchPollResults sampleResults({String? myVote = 'opt-a'}) {
   return MatchPollResults(
     pollId: 'poll-1',
     totalVotes: 10,
@@ -125,11 +123,7 @@ MatchPollResults sampleResults({
 }
 
 class FakePollaService extends PollaService {
-  FakePollaService({
-    required this.polla,
-    this.submitResult,
-    this.voteResults,
-  });
+  FakePollaService({required this.polla, this.submitResult, this.voteResults});
 
   PollaResponse polla;
   CreatePredictionResult? submitResult;
@@ -147,8 +141,8 @@ class FakePollaService extends PollaService {
   ) async {
     submitCount++;
     lastRequest = request;
-    final result = submitResult ??
-        CreatePredictionResult.success('Predicción registrada');
+    final result =
+        submitResult ?? CreatePredictionResult.success('Predicción registrada');
     if (result.success) {
       polla = samplePolla(
         state: 'SUBMITTED',
@@ -223,8 +217,8 @@ HomeModel sampleHome({
       predictedAwayScore: predictionState == 'NOT_PREDICTED' ? null : 1,
       firstScorer: predictionState == 'NOT_PREDICTED' ? null : 'Calcaterra',
       pointsEarned: predictionState == 'SCORED' ? 9 : null,
-      predictionsOpen: predictionState == 'NOT_PREDICTED' ||
-          predictionState == 'PREDICTED',
+      predictionsOpen:
+          predictionState == 'NOT_PREDICTED' || predictionState == 'PREDICTED',
     ),
     checkIn: const HomeCheckIn(
       showCheckInCta: false,
@@ -238,10 +232,7 @@ HomeModel sampleHome({
   );
 }
 
-Widget pumpPolla({
-  required FakePollaService service,
-  String matchId = 'm1',
-}) {
+Widget pumpPolla({required FakePollaService service, String matchId = 'm1'}) {
   return ProviderScope(
     overrides: [
       pollaServiceProvider.overrideWithValue(service),
@@ -279,13 +270,8 @@ Widget pumpHome(HomeModel home) {
   );
 
   return ProviderScope(
-    overrides: [
-      homeProvider.overrideWith((ref) async => home),
-    ],
-    child: MaterialApp.router(
-      theme: AppTheme.darkTheme,
-      routerConfig: router,
-    ),
+    overrides: [homeProvider.overrideWith((ref) async => home)],
+    child: MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
   );
 }
 
@@ -362,7 +348,12 @@ void main() {
 
   testWidgets('POLLA_SUBMITTED_RENDER', (tester) async {
     final service = FakePollaService(
-      polla: samplePolla(state: 'SUBMITTED', home: 2, away: 1, withPrediction: true),
+      polla: samplePolla(
+        state: 'SUBMITTED',
+        home: 2,
+        away: 1,
+        withPrediction: true,
+      ),
     );
     await tester.pumpWidget(pumpPolla(service: service));
     await tester.pumpAndSettle();
@@ -373,7 +364,12 @@ void main() {
 
   testWidgets('POLLA_LOCKED_RENDER', (tester) async {
     final service = FakePollaService(
-      polla: samplePolla(state: 'LOCKED', home: 2, away: 0, withPrediction: true),
+      polla: samplePolla(
+        state: 'LOCKED',
+        home: 2,
+        away: 0,
+        withPrediction: true,
+      ),
     );
     await tester.pumpWidget(pumpPolla(service: service));
     await tester.pumpAndSettle();
@@ -532,6 +528,8 @@ void main() {
   testWidgets('HOME_POLLA_STATE', (tester) async {
     await tester.pumpWidget(pumpHome(sampleHome(predictionState: 'PREDICTED')));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Partido'));
+    await tester.pumpAndSettle();
     expect(find.textContaining('Ya jugaste'), findsOneWidget);
     expect(find.text('Ver mi predicción'), findsOneWidget);
   });
@@ -540,6 +538,8 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(800, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(pumpHome(sampleHome(mvpOpen: true)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Partido'));
     await tester.pumpAndSettle();
     final mvp = find.text('Vota por el MVP');
     expect(mvp, findsOneWidget);
@@ -554,6 +554,8 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(800, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(pumpHome(sampleHome()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Partido'));
     await tester.pumpAndSettle();
     expect(find.text('Haz tu predicción'), findsOneWidget);
     final cta = find.text('Hacer predicción');

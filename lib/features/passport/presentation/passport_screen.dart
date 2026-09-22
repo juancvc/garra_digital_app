@@ -8,6 +8,7 @@ import '../../../core/design/garra_motion.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/design/garra_typography.dart';
 import '../../../core/widgets/garra_avatar.dart';
+import '../../../core/widgets/garra_brand_visual.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
@@ -40,9 +41,8 @@ class PassportScreen extends ConsumerWidget {
       ),
       body: passportAsync.when(
         loading: () => const GarraPassportSkeleton(),
-        error: (error, stackTrace) => GarraErrorState(
-          onRetry: () => ref.invalidate(myPassportProvider),
-        ),
+        error: (error, stackTrace) =>
+            GarraErrorState(onRetry: () => ref.invalidate(myPassportProvider)),
         data: (PassportModel passport) => _PassportBody(passport: passport),
       ),
     );
@@ -82,49 +82,12 @@ class _PassportBody extends StatelessWidget {
               ),
             );
           },
-          child: Column(
-            children: [
-              GarraAvatar(
-                displayName: identity.displayName,
-                avatarUrl: identity.avatarUrl,
-                size: 96,
-              ),
-              const SizedBox(height: GarraSpacing.lg),
-              Text(
-                identity.displayName,
-                style: Theme.of(context).textTheme.headlineMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: GarraSpacing.xs),
-              Text(
-                '@${identity.username}',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              if (_locationLine(identity) != null) ...[
-                const SizedBox(height: GarraSpacing.sm),
-                Text(
-                  _locationLine(identity)!,
-                  style: Theme.of(context).textTheme.labelSmall,
-                ),
-              ],
-              if (identity.supporterSinceYear != null) ...[
-                const SizedBox(height: GarraSpacing.sm),
-                Text(
-                  'Crema desde ${identity.supporterSinceYear}',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: const Color(GarraColors.gold),
-                      ),
-                ),
-              ],
-              if (identity.bio != null && identity.bio!.trim().isNotEmpty) ...[
-                const SizedBox(height: GarraSpacing.md),
-                Text(
-                  identity.bio!,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ],
+          child: _ProfileHero(
+            identity: identity,
+            level: level,
+            stats: stats,
+            globalRank: passport.globalRank,
+            numberFormat: numberFormat,
           ),
         ),
         const SizedBox(height: GarraSpacing.xxl),
@@ -132,10 +95,7 @@ class _PassportBody extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              GarraLevelBadge(
-                levelNumber: level.number,
-                levelName: level.name,
-              ),
+              GarraLevelBadge(levelNumber: level.number, levelName: level.name),
               const SizedBox(height: GarraSpacing.lg),
               Text(
                 '${numberFormat.format(level.points)} Puntos Garra',
@@ -155,8 +115,8 @@ class _PassportBody extends StatelessWidget {
                 Text(
                   'Ranking global #${passport.globalRank}',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: const Color(GarraColors.gold),
-                      ),
+                    color: const Color(GarraColors.gold),
+                  ),
                 ),
               ],
             ],
@@ -223,8 +183,8 @@ class _PassportBody extends StatelessWidget {
               Text(
                 'Participación en fechas',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: const Color(GarraColors.textSecondary),
-                    ),
+                  color: const Color(GarraColors.textSecondary),
+                ),
               ),
             ],
           ),
@@ -298,8 +258,8 @@ class _PassportBody extends StatelessWidget {
                 Text(
                   'Mi Año Crema ${passport.currentYearSummary!.year}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: const Color(GarraColors.gold),
-                      ),
+                    color: const Color(GarraColors.gold),
+                  ),
                 ),
               ],
             ),
@@ -327,11 +287,14 @@ class _PassportBody extends StatelessWidget {
         ),
         const SizedBox(height: GarraSpacing.xxl),
         Text(
-          'Garra Digital es una comunidad independiente creada por hinchas y no representa una aplicación oficial del club.',
+          'Comunidad no oficial de hinchas cremas\n'
+          'Hecho por hinchas, para hinchas\n\n'
+          'Garra Digital es una comunidad independiente y no representa una aplicación oficial del club.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: const Color(GarraColors.creamMuted),
-              ),
+            color: const Color(GarraColors.creamMuted),
+            height: 1.45,
+          ),
         ),
       ],
     );
@@ -362,13 +325,231 @@ class _PassportBody extends StatelessWidget {
   static String? _locationLine(PassportIdentity identity) {
     final city = identity.city?.trim();
     final country = identity.countryCode?.trim();
-    if ((city == null || city.isEmpty) && (country == null || country.isEmpty)) {
+    if ((city == null || city.isEmpty) &&
+        (country == null || country.isEmpty)) {
       return null;
     }
-    if (city != null && city.isNotEmpty && country != null && country.isNotEmpty) {
+    if (city != null &&
+        city.isNotEmpty &&
+        country != null &&
+        country.isNotEmpty) {
       return '$city · $country';
     }
     return city ?? country;
+  }
+}
+
+class _ProfileHero extends StatelessWidget {
+  const _ProfileHero({
+    required this.identity,
+    required this.level,
+    required this.stats,
+    required this.globalRank,
+    required this.numberFormat,
+  });
+
+  final PassportIdentity identity;
+  final PassportLevel level;
+  final PassportStats stats;
+  final int? globalRank;
+  final NumberFormat numberFormat;
+
+  @override
+  Widget build(BuildContext context) {
+    final location = _PassportBody._locationLine(identity);
+
+    return Column(
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.topCenter,
+          children: [
+            GarraAtmosphericHero(
+              height: 218,
+              assetPath: 'assets/visual/garra_match_hero.png',
+              alignment: Alignment.topCenter,
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  GarraCrest(size: 42, showGlow: true),
+                  SizedBox(width: GarraSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'COMUNIDAD NO OFICIAL\nDE HINCHAS CREMAS',
+                      style: TextStyle(
+                        color: Color(GarraColors.cream),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        height: 1.2,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              bottom: -52,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(GarraColors.background),
+                  border: Border.all(
+                    color: const Color(GarraColors.background),
+                    width: 5,
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x99000000),
+                      blurRadius: 18,
+                      offset: Offset(0, 7),
+                    ),
+                  ],
+                ),
+                child: GarraAvatar(
+                  displayName: identity.displayName,
+                  avatarUrl: identity.avatarUrl,
+                  size: 104,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 66),
+        Text(
+          identity.displayName,
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            color: const Color(GarraColors.cream),
+            fontWeight: FontWeight.w900,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: GarraSpacing.xs),
+        Text(
+          '@${identity.username}',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: const Color(GarraColors.creamMuted),
+          ),
+        ),
+        const SizedBox(height: GarraSpacing.md),
+        GarraLevelBadge(levelNumber: level.number, levelName: level.name),
+        if (location != null || identity.supporterSinceYear != null) ...[
+          const SizedBox(height: GarraSpacing.md),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: GarraSpacing.md,
+            runSpacing: GarraSpacing.xs,
+            children: [
+              if (location != null)
+                _IdentityDetail(icon: Icons.place_outlined, label: location),
+              if (identity.supporterSinceYear != null)
+                _IdentityDetail(
+                  icon: Icons.favorite_outline,
+                  label: 'Crema desde ${identity.supporterSinceYear}',
+                ),
+            ],
+          ),
+        ],
+        if (identity.bio != null && identity.bio!.trim().isNotEmpty) ...[
+          const SizedBox(height: GarraSpacing.md),
+          Text(
+            identity.bio!,
+            style: Theme.of(context).textTheme.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
+        ],
+        const SizedBox(height: GarraSpacing.lg),
+        GarraSectionAtmosphere(
+          padding: const EdgeInsets.symmetric(
+            horizontal: GarraSpacing.sm,
+            vertical: GarraSpacing.md,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _HeroStat(
+                  value: numberFormat.format(level.points),
+                  label: 'Puntos',
+                ),
+              ),
+              const _HeroStatDivider(),
+              Expanded(
+                child: _HeroStat(
+                  value: numberFormat.format(stats.checkIns),
+                  label: 'Check-ins',
+                ),
+              ),
+              const _HeroStatDivider(),
+              Expanded(
+                child: _HeroStat(
+                  value: globalRank == null ? '—' : '#$globalRank',
+                  label: 'Ranking',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _IdentityDetail extends StatelessWidget {
+  const _IdentityDetail({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: const Color(GarraColors.gold)),
+        const SizedBox(width: GarraSpacing.xs),
+        Text(label, style: Theme.of(context).textTheme.labelSmall),
+      ],
+    );
+  }
+}
+
+class _HeroStat extends StatelessWidget {
+  const _HeroStat({required this.value, required this.label});
+
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(value, style: GarraTypography.numeric(size: 22)),
+        ),
+        const SizedBox(height: GarraSpacing.xs),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: const Color(GarraColors.creamMuted),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HeroStatDivider extends StatelessWidget {
+  const _HeroStatDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      height: 38,
+      child: VerticalDivider(color: Color(GarraColors.borderSubtle)),
+    );
   }
 }
 
@@ -441,8 +622,7 @@ class _PassportClanSection extends StatelessWidget {
       );
     }
 
-    final members =
-        NumberFormat.decimalPattern('es').format(clan!.memberCount);
+    final members = NumberFormat.decimalPattern('es').format(clan!.memberCount);
     return GarraCard(
       onTap: () => context.push('/clans/${clan!.slug}'),
       child: Column(
@@ -476,8 +656,8 @@ class _PassportClanSection extends StatelessWidget {
                       Text(
                         ClanRoleLabels.label(clan!.role),
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                              color: const Color(GarraColors.gold),
-                            ),
+                          color: const Color(GarraColors.gold),
+                        ),
                       ),
                     ],
                   ],

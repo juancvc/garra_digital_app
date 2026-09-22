@@ -51,8 +51,8 @@ HomeModel sampleHome({
       predictedHomeScore: predictionState == 'NOT_PREDICTED' ? null : 2,
       predictedAwayScore: predictionState == 'NOT_PREDICTED' ? null : 1,
       pointsEarned: predictionState == 'SCORED' ? 10 : null,
-      predictionsOpen: predictionState == 'NOT_PREDICTED' ||
-          predictionState == 'PREDICTED',
+      predictionsOpen:
+          predictionState == 'NOT_PREDICTED' || predictionState == 'PREDICTED',
     ),
     checkIn: HomeCheckIn(
       showCheckInCta: matchdayState == 'MATCHDAY' || matchdayState == 'LIVE',
@@ -86,9 +86,7 @@ HomeModel sampleHome({
             completed: false,
           )
         : null,
-    streak: withMission
-        ? const HomeStreakSummary(current: 2, best: 4)
-        : null,
+    streak: withMission ? const HomeStreakSummary(current: 2, best: 4) : null,
   );
 }
 
@@ -96,10 +94,7 @@ Widget pumpHome(HomeModel home) {
   final router = GoRouter(
     initialLocation: '/home',
     routes: [
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const HomePage(),
-      ),
+      GoRoute(path: '/home', builder: (context, state) => const HomePage()),
       GoRoute(
         path: '/passport',
         builder: (context, state) =>
@@ -125,7 +120,9 @@ Widget pumpHome(HomeModel home) {
       GoRoute(
         path: '/mapa-crema',
         builder: (context, state) => Scaffold(
-          body: Text('MAPA_ROUTE:${state.uri.queryParameters['matchId'] ?? ''}'),
+          body: Text(
+            'MAPA_ROUTE:${state.uri.queryParameters['matchId'] ?? ''}',
+          ),
         ),
       ),
       GoRoute(
@@ -148,8 +145,7 @@ Widget pumpHome(HomeModel home) {
       ),
       GoRoute(
         path: '/comunidad/buscar',
-        builder: (context, state) =>
-            const Scaffold(body: Text('SEARCH_ROUTE')),
+        builder: (context, state) => const Scaffold(body: Text('SEARCH_ROUTE')),
       ),
       GoRoute(
         path: '/login',
@@ -159,13 +155,8 @@ Widget pumpHome(HomeModel home) {
   );
 
   return ProviderScope(
-    overrides: [
-      homeProvider.overrideWith((ref) async => home),
-    ],
-    child: MaterialApp.router(
-      theme: AppTheme.darkTheme,
-      routerConfig: router,
-    ),
+    overrides: [homeProvider.overrideWith((ref) async => home)],
+    child: MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
   );
 }
 
@@ -174,13 +165,8 @@ void main() {
     final completer = Completer<HomeModel>();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          homeProvider.overrideWith((ref) => completer.future),
-        ],
-        child: MaterialApp(
-          theme: AppTheme.darkTheme,
-          home: const HomePage(),
-        ),
+        overrides: [homeProvider.overrideWith((ref) => completer.future)],
+        child: MaterialApp(theme: AppTheme.darkTheme, home: const HomePage()),
       ),
     );
     await tester.pump();
@@ -192,7 +178,10 @@ void main() {
   testWidgets('HOME_UPCOMING_MATCH_STATE', (tester) async {
     await tester.pumpWidget(pumpHome(sampleHome(matchdayState: 'UPCOMING')));
     await tester.pumpAndSettle();
+    expect(find.text('Para ti'), findsOneWidget);
     expect(find.text('Próximo partido'), findsOneWidget);
+    await tester.tap(find.text('Próximo partido'));
+    await tester.pumpAndSettle();
     expect(find.textContaining('Faltan'), findsOneWidget);
     expect(find.text('Rival FC'), findsOneWidget);
   });
@@ -230,9 +219,10 @@ void main() {
     // Feed load may keep a progress indicator animating; avoid pumpAndSettle.
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.text('Garra Digital'), findsOneWidget);
+    expect(find.text('GARRA DIGITAL'), findsOneWidget);
     expect(find.text('Para ti'), findsOneWidget);
     expect(find.text('¿Qué vive la crema hoy?'), findsOneWidget);
+    expect(find.text('LA TRIBUNA CREMA'), findsOneWidget);
   });
 
   testWidgets('HOME_PREDICTION_CTA', (tester) async {
@@ -242,6 +232,8 @@ void main() {
       pumpHome(sampleHome(predictionState: 'NOT_PREDICTED')),
     );
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Partido'));
+    await tester.pumpAndSettle();
     final cta = find.text('Hacer predicción');
     await tester.ensureVisible(cta);
     await tester.pumpAndSettle();
@@ -249,6 +241,23 @@ void main() {
     await tester.tap(cta);
     await tester.pumpAndSettle();
     expect(find.text('POLLA_ROUTE'), findsOneWidget);
+  });
+
+  testWidgets('HOME_NARROW_TEXT_SCALE_HAS_NO_OVERFLOW', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(
+          size: Size(320, 700),
+          textScaler: TextScaler.linear(1.4),
+        ),
+        child: pumpHome(sampleHome(matchdayState: 'MATCHDAY')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Hoy juega la U'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('HOME_PASSPORT_NAVIGATION', (tester) async {
@@ -269,9 +278,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.darkTheme,
-        home: Scaffold(
-          body: GarraErrorState(onRetry: () => retried = true),
-        ),
+        home: Scaffold(body: GarraErrorState(onRetry: () => retried = true)),
       ),
     );
     expect(find.byType(GarraErrorState), findsOneWidget);

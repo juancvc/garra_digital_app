@@ -74,6 +74,15 @@ One community / event / solidarity / business application may remain pending for
 
 Text seed alone is not enough for visual QA.
 
+The mobile bundle includes two original, rights-safe atmospheric fallbacks:
+
+- `assets/visual/garra_stadium_splash.png`
+- `assets/visual/garra_match_hero.png`
+
+They establish brand atmosphere for splash and match surfaces, but they do
+**not** replace record-level staging media for posts, people, communities,
+businesses, products, events, solidaria, rewards and sponsors.
+
 Manifest:
 
 ```

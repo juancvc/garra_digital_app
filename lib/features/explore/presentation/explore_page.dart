@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
-import '../../../core/widgets/garra_card.dart';
+import '../../../core/widgets/garra_brand_visual.dart';
 
 enum _ExploreFilter { all, communities, events, businesses, marketplace }
 
@@ -35,6 +35,39 @@ class _ExplorePageState extends State<ExplorePage> {
           GarraSpacing.section,
         ),
         children: [
+          GarraAtmosphericHero(
+            height: 210,
+            alignment: const Alignment(0.15, -0.25),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const GarraEditorialEyebrow(
+                  label: 'Hecho por la hinchada',
+                  icon: Icons.explore_outlined,
+                ),
+                const SizedBox(height: GarraSpacing.sm),
+                Text(
+                  'Descubre dónde late\nla comunidad crema.',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: const Color(GarraColors.cream),
+                    fontWeight: FontWeight.w900,
+                    height: 1.05,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: GarraSpacing.sm),
+                Text(
+                  'Planes, lugares y proyectos para vivir la pasión.',
+                  maxLines: 2,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(GarraColors.creamMuted),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: GarraSpacing.lg),
           TextField(
             readOnly: true,
             onTap: () => context.push('/comunidad/buscar'),
@@ -79,7 +112,18 @@ class _ExplorePageState extends State<ExplorePage> {
               ],
             ),
           ),
-          const SizedBox(height: GarraSpacing.xl),
+          const SizedBox(height: GarraSpacing.lg),
+          Text(
+            _filter == _ExploreFilter.all
+                ? 'PARA VIVIR LA CREMA'
+                : 'EXPLORA ESTA PASIÓN',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: const Color(GarraColors.gold),
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: GarraSpacing.md),
           if (_show(_ExploreFilter.events))
             _DestinationSection(
               icon: Icons.event_outlined,
@@ -185,35 +229,93 @@ class _DestinationSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: GarraSpacing.md),
-      child: GarraCard(
-        onTap: onTap,
-        child: Row(
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: const Color(GarraColors.garnetDeep),
-                borderRadius: BorderRadius.circular(GarraRadius.md),
-                border: Border.all(
-                  color: const Color(GarraColors.gold).withValues(alpha: 0.35),
+      child: Material(
+        color: const Color(GarraColors.surface),
+        borderRadius: BorderRadius.circular(GarraRadius.md),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            height: 94,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Positioned(
+                  right: 0,
+                  width: 142,
+                  top: 0,
+                  bottom: 0,
+                  child: Image.asset(
+                    'assets/visual/garra_match_hero.png',
+                    fit: BoxFit.cover,
+                    alignment: const Alignment(0.75, -0.3),
+                    errorBuilder: (_, _, _) => const ColoredBox(
+                      color: Color(GarraColors.burgundyDeep),
+                    ),
+                  ),
                 ),
-              ),
-              child: Icon(icon, color: const Color(GarraColors.gold), size: 28),
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Color(GarraColors.surface),
+                        Color(GarraColors.surface),
+                        Color(0xB8171311),
+                      ],
+                      stops: [0, 0.57, 1],
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(GarraSpacing.md),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: const Color(GarraColors.burgundy),
+                          borderRadius: BorderRadius.circular(GarraRadius.sm),
+                        ),
+                        child: Icon(
+                          icon,
+                          color: const Color(GarraColors.cream),
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: GarraSpacing.md),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: GarraSpacing.xs),
+                            Text(
+                              subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.arrow_forward,
+                        color: Color(GarraColors.gold),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: GarraSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: GarraSpacing.xs),
-                  Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
-          ],
+          ),
         ),
       ),
     );

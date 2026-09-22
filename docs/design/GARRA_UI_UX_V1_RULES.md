@@ -1,10 +1,16 @@
 # Garra Digital — UI/UX V1 Rules
 
-**Source of truth:** [`GARRA_UI_UX_V1_REFERENCE.png`](./GARRA_UI_UX_V1_REFERENCE.png)
+**Structural source of truth:** [`GARRA_UI_UX_V1_REFERENCE.png`](./GARRA_UI_UX_V1_REFERENCE.png)
+
+**Brand / emotional source of truth:** [`GARRA_BRAND_VISUAL_V1.png`](./GARRA_BRAND_VISUAL_V1.png)
 
 Cursor and future agents **implement** this design. They do **not** invent an alternate product vision.
 
-When UI code conflicts with the reference PNG, **the PNG wins**.
+When UI code conflicts with the references:
+
+- UI/UX V1 wins for architecture, navigation and screen composition.
+- Brand Visual V1 wins for atmosphere, visual energy and crema identity.
+- Never invent a third direction.
 
 When the reference shows a capability the backend does not support yet: keep the visual intent, adapt content to real APIs, and never invent endpoints or fake backends.
 
@@ -14,11 +20,16 @@ When the reference shows a capability the backend does not support yet: keep the
 
 Garra Digital is **la comunidad digital del hincha crema**.
 
+It is a **non-official supporters community**, made by fans for fans. The
+crest-like Garra community mark, stadium atmosphere and crema passion must be
+present without suggesting official club ownership or endorsement.
+
 It must feel like:
 
 - people, photos, posts, conversation  
 - matches, passion, communities  
 - businesses, events, benefits, social impact  
+- stadium light, tribuna energy and editorial sports imagery
 
 It must **not** feel like:
 
@@ -27,6 +38,17 @@ It must **not** feel like:
 - a stack of equal-weight cards  
 - a CRUD portal  
 - a bank app  
+- an official club product
+
+### Brand realization
+
+- Use the unofficial cream/burgundy `U` community crest as a recurring anchor.
+- Pair near-black surfaces with burgundy flare, cream type and restrained gold.
+- Favor editorial imagery, atmospheric gradients and human content.
+- Keep the phrase **“Comunidad no oficial de hinchas cremas”** visible in
+  splash/profile/settings or other appropriate identity surfaces.
+- Use **“Hecho por hinchas, para hinchas”** as supporting copy.
+- Do not hotlink arbitrary web images or use unlicensed official photography.
 
 ---
 

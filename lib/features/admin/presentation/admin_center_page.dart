@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/widgets/garra_brand_visual.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../auth/data/auth_service.dart';
@@ -68,35 +69,51 @@ class _AdminCenterPageState extends State<AdminCenterPage> {
       body: _checking
           ? const Center(child: CircularProgressIndicator())
           : !_allowed
-              ? GarraEmptyState(
-                  title: 'Sin acceso',
-                  message: _gateError ?? 'No autorizado',
-                  actionLabel: 'Volver',
-                  onAction: () => context.pop(),
-                )
-              : ListView(
-                  padding: const EdgeInsets.all(GarraSpacing.lg),
+          ? GarraEmptyState(
+              title: 'Sin acceso',
+              message: _gateError ?? 'No autorizado',
+              actionLabel: 'Volver',
+              onAction: () => context.pop(),
+            )
+          : ListView(
+              padding: const EdgeInsets.all(GarraSpacing.lg),
+              children: [
+                GarraAtmosphericHero(
+                  height: 228,
+                  assetPath: 'assets/visual/garra_stadium_splash.png',
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const GarraEditorialEyebrow(
+                        label: 'Operación crema',
+                        icon: Icons.shield_outlined,
+                      ),
+                      const SizedBox(height: GarraSpacing.md),
+                      Text(
+                        'Centro Garra',
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(
+                              color: const Color(GarraColors.cream),
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                      const SizedBox(height: GarraSpacing.xs),
+                      Text(
+                        'Cuidamos la comunidad con criterio, respeto y garra.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: const Color(GarraColors.creamMuted),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: GarraSpacing.xxl),
+                _AdminSection(
+                  eyebrow: 'Dashboard',
+                  title: 'Operación diaria',
+                  subtitle: 'Revisión, moderación y gestión de pendientes.',
                   children: [
-                    Text(
-                      'Centro Garra',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Administración de la comunidad crema.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: GarraSpacing.lg),
-                    Text(
-                      'Dashboard',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Pendientes de operación diaria.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: GarraSpacing.lg),
                     _AdminTile(
                       title: 'Usuarios',
                       subtitle: 'Roles de plataforma · SUPERADMIN',
@@ -157,12 +174,14 @@ class _AdminCenterPageState extends State<AdminCenterPage> {
                       icon: Icons.feedback_outlined,
                       onTap: () => context.push('/admin/feedback'),
                     ),
-                    const SizedBox(height: GarraSpacing.xl),
-                    Text(
-                      'Configuración',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: GarraSpacing.md),
+                  ],
+                ),
+                const SizedBox(height: GarraSpacing.xl),
+                _AdminSection(
+                  eyebrow: 'Configuración',
+                  title: 'Ritmo de la temporada',
+                  subtitle: 'Herramientas sensibles de operación.',
+                  children: [
                     _AdminTile(
                       title: 'Temporadas',
                       subtitle: 'Crear, activar y cerrar temporada',
@@ -177,6 +196,54 @@ class _AdminCenterPageState extends State<AdminCenterPage> {
                     ),
                   ],
                 ),
+                const SizedBox(height: GarraSpacing.xxl),
+                Text(
+                  'Centro Garra · Hecho por hinchas, para hinchas',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: const Color(GarraColors.creamMuted),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class _AdminSection extends StatelessWidget {
+  const _AdminSection({
+    required this.eyebrow,
+    required this.title,
+    required this.subtitle,
+    required this.children,
+  });
+
+  final String eyebrow;
+  final String title;
+  final String subtitle;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return GarraSectionAtmosphere(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GarraEditorialEyebrow(label: eyebrow),
+          const SizedBox(height: GarraSpacing.md),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              color: const Color(GarraColors.cream),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: GarraSpacing.xs),
+          Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: GarraSpacing.lg),
+          ...children,
+        ],
+      ),
     );
   }
 }
@@ -261,8 +328,14 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
         title: const Text('Ocultar publicación'),
         content: const Text('La publicación quedará oculta (soft hide).'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Ocultar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Ocultar'),
+          ),
         ],
       ),
     );
@@ -284,53 +357,61 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
-              ? const GarraEmptyState(
-                  title: 'Cola limpia',
-                  message: 'No hay reportes pendientes.',
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(GarraSpacing.lg),
-                    itemCount: _items.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, i) {
-                      final item = _items[i];
-                      final id = item['id']?.toString() ?? '';
-                      final type = item['targetType']?.toString() ?? '';
-                      final reason = item['reason']?.toString() ?? '';
-                      final preview = item['preview']?.toString() ?? '';
-                      final count = item['reportCount']?.toString() ?? '1';
-                      return GarraCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+          ? const GarraEmptyState(
+              title: 'Cola limpia',
+              message: 'No hay reportes pendientes.',
+            )
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView.separated(
+                padding: const EdgeInsets.all(GarraSpacing.lg),
+                itemCount: _items.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, i) {
+                  final item = _items[i];
+                  final id = item['id']?.toString() ?? '';
+                  final type = item['targetType']?.toString() ?? '';
+                  final reason = item['reason']?.toString() ?? '';
+                  final preview = item['preview']?.toString() ?? '';
+                  final count = item['reportCount']?.toString() ?? '1';
+                  return GarraCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$type · $reason · $count reportes',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        if (preview.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            preview,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                        const SizedBox(height: 8),
+                        Row(
                           children: [
-                            Text('$type · $reason · $count reportes',
-                                style: Theme.of(context).textTheme.titleSmall),
-                            if (preview.isNotEmpty) ...[
-                              const SizedBox(height: 6),
-                              Text(preview, maxLines: 3, overflow: TextOverflow.ellipsis),
-                            ],
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                if (type == 'POST')
-                                  TextButton(
-                                    onPressed: id.isEmpty ? null : () => _confirmHide(id),
-                                    child: const Text('Ocultar'),
-                                  ),
-                                TextButton(
-                                  onPressed: id.isEmpty ? null : () => _dismiss(id),
-                                  child: const Text('Descartar'),
-                                ),
-                              ],
+                            if (type == 'POST')
+                              TextButton(
+                                onPressed: id.isEmpty
+                                    ? null
+                                    : () => _confirmHide(id),
+                                child: const Text('Ocultar'),
+                              ),
+                            TextButton(
+                              onPressed: id.isEmpty ? null : () => _dismiss(id),
+                              child: const Text('Descartar'),
                             ),
                           ],
                         ),
-                      );
-                    },
-                  ),
-                ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
     );
   }
 }
@@ -339,7 +420,8 @@ class AdminBusinessReviewPage extends StatefulWidget {
   const AdminBusinessReviewPage({super.key});
 
   @override
-  State<AdminBusinessReviewPage> createState() => _AdminBusinessReviewPageState();
+  State<AdminBusinessReviewPage> createState() =>
+      _AdminBusinessReviewPageState();
 }
 
 class _AdminBusinessReviewPageState extends State<AdminBusinessReviewPage> {
@@ -376,7 +458,10 @@ class _AdminBusinessReviewPageState extends State<AdminBusinessReviewPage> {
         title: const Text('Motivo de rechazo'),
         content: TextField(controller: controller, autofocus: true),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
             child: const Text('Rechazar'),
@@ -394,67 +479,75 @@ class _AdminBusinessReviewPageState extends State<AdminBusinessReviewPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
-              ? const GarraEmptyState(
-                  title: 'Sin solicitudes',
-                  message: 'No hay negocios pendientes de verificar.',
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(GarraSpacing.lg),
-                    itemCount: _items.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, i) {
-                      final item = _items[i];
-                      final id = item['id']?.toString() ?? '';
-                      final name = item['businessName']?.toString() ??
-                          item['name']?.toString() ??
-                          'Negocio';
-                      final address = item['address']?.toString() ?? '';
-                      final contact = item['contactPhone']?.toString() ??
-                          item['whatsapp']?.toString() ??
-                          '';
-                      final status = item['status']?.toString() ?? '';
-                      return GarraCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+          ? const GarraEmptyState(
+              title: 'Sin solicitudes',
+              message: 'No hay negocios pendientes de verificar.',
+            )
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView.separated(
+                padding: const EdgeInsets.all(GarraSpacing.lg),
+                itemCount: _items.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, i) {
+                  final item = _items[i];
+                  final id = item['id']?.toString() ?? '';
+                  final name =
+                      item['businessName']?.toString() ??
+                      item['name']?.toString() ??
+                      'Negocio';
+                  final address = item['address']?.toString() ?? '';
+                  final contact =
+                      item['contactPhone']?.toString() ??
+                      item['whatsapp']?.toString() ??
+                      '';
+                  final status = item['status']?.toString() ?? '';
+                  return GarraCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        if (address.isNotEmpty) Text(address),
+                        if (contact.isNotEmpty) Text(contact),
+                        Text(
+                          'Estado: $status',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        Row(
                           children: [
-                            Text(name, style: Theme.of(context).textTheme.titleMedium),
-                            if (address.isNotEmpty) Text(address),
-                            if (contact.isNotEmpty) Text(contact),
-                            Text('Estado: $status',
-                                style: Theme.of(context).textTheme.bodySmall),
-                            Row(
-                              children: [
-                                FilledButton(
-                                  onPressed: id.isEmpty
-                                      ? null
-                                      : () async {
-                                          await _admin.verifyBusiness(id);
-                                          await _load();
-                                        },
-                                  child: const Text('Verificar'),
-                                ),
-                                const SizedBox(width: 8),
-                                TextButton(
-                                  onPressed: id.isEmpty
-                                      ? null
-                                      : () async {
-                                          final reason = await _askReason();
-                                          if (reason == null || reason.isEmpty) return;
-                                          await _admin.rejectBusiness(id, reason);
-                                          await _load();
-                                        },
-                                  child: const Text('Rechazar'),
-                                ),
-                              ],
+                            FilledButton(
+                              onPressed: id.isEmpty
+                                  ? null
+                                  : () async {
+                                      await _admin.verifyBusiness(id);
+                                      await _load();
+                                    },
+                              child: const Text('Verificar'),
+                            ),
+                            const SizedBox(width: 8),
+                            TextButton(
+                              onPressed: id.isEmpty
+                                  ? null
+                                  : () async {
+                                      final reason = await _askReason();
+                                      if (reason == null || reason.isEmpty)
+                                        return;
+                                      await _admin.rejectBusiness(id, reason);
+                                      await _load();
+                                    },
+                              child: const Text('Rechazar'),
                             ),
                           ],
                         ),
-                      );
-                    },
-                  ),
-                ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
     );
   }
 }
@@ -501,69 +594,79 @@ class _AdminSolidarityReviewPageState extends State<AdminSolidarityReviewPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
-              ? const GarraEmptyState(
-                  title: 'Sin campañas',
-                  message: 'No hay campañas Solidaria pendientes.',
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(GarraSpacing.lg),
-                    itemCount: _items.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, i) {
-                      final item = _items[i];
-                      final id = item['id']?.toString() ?? '';
-                      final title = item['title']?.toString() ??
-                          item['name']?.toString() ??
-                          'Campaña';
-                      final desc = item['description']?.toString() ?? '';
-                      final zone = item['zone']?.toString() ??
-                          item['city']?.toString() ??
-                          '';
-                      final type = item['type']?.toString() ??
-                          item['campaignType']?.toString() ??
-                          '';
-                      return GarraCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+          ? const GarraEmptyState(
+              title: 'Sin campañas',
+              message: 'No hay campañas Solidaria pendientes.',
+            )
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView.separated(
+                padding: const EdgeInsets.all(GarraSpacing.lg),
+                itemCount: _items.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, i) {
+                  final item = _items[i];
+                  final id = item['id']?.toString() ?? '';
+                  final title =
+                      item['title']?.toString() ??
+                      item['name']?.toString() ??
+                      'Campaña';
+                  final desc = item['description']?.toString() ?? '';
+                  final zone =
+                      item['zone']?.toString() ??
+                      item['city']?.toString() ??
+                      '';
+                  final type =
+                      item['type']?.toString() ??
+                      item['campaignType']?.toString() ??
+                      '';
+                  return GarraCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        if (type.isNotEmpty) Text(type),
+                        if (zone.isNotEmpty) Text(zone),
+                        if (desc.isNotEmpty)
+                          Text(
+                            desc,
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        Row(
                           children: [
-                            Text(title, style: Theme.of(context).textTheme.titleMedium),
-                            if (type.isNotEmpty) Text(type),
-                            if (zone.isNotEmpty) Text(zone),
-                            if (desc.isNotEmpty)
-                              Text(desc, maxLines: 4, overflow: TextOverflow.ellipsis),
-                            Row(
-                              children: [
-                                FilledButton(
-                                  onPressed: id.isEmpty
-                                      ? null
-                                      : () async {
-                                          await _admin.verifySolidarity(id);
-                                          await _load();
-                                        },
-                                  child: const Text('Verificar'),
-                                ),
-                                TextButton(
-                                  onPressed: id.isEmpty
-                                      ? null
-                                      : () async {
-                                          await _admin.rejectSolidarity(
-                                            id,
-                                            'No cumple criterios',
-                                          );
-                                          await _load();
-                                        },
-                                  child: const Text('Rechazar'),
-                                ),
-                              ],
+                            FilledButton(
+                              onPressed: id.isEmpty
+                                  ? null
+                                  : () async {
+                                      await _admin.verifySolidarity(id);
+                                      await _load();
+                                    },
+                              child: const Text('Verificar'),
+                            ),
+                            TextButton(
+                              onPressed: id.isEmpty
+                                  ? null
+                                  : () async {
+                                      await _admin.rejectSolidarity(
+                                        id,
+                                        'No cumple criterios',
+                                      );
+                                      await _load();
+                                    },
+                              child: const Text('Rechazar'),
                             ),
                           ],
                         ),
-                      );
-                    },
-                  ),
-                ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
     );
   }
 }
@@ -576,7 +679,8 @@ class AdminMarketplaceReviewPage extends StatefulWidget {
       _AdminMarketplaceReviewPageState();
 }
 
-class _AdminMarketplaceReviewPageState extends State<AdminMarketplaceReviewPage> {
+class _AdminMarketplaceReviewPageState
+    extends State<AdminMarketplaceReviewPage> {
   final _admin = AdminCenterService();
   List<Map<String, dynamic>> _sellers = [];
   List<Map<String, dynamic>> _stores = [];
@@ -617,153 +721,165 @@ class _AdminMarketplaceReviewPageState extends State<AdminMarketplaceReviewPage>
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : empty
-              ? const GarraEmptyState(
-                  title: 'Sin pendientes',
-                  message: 'No hay sellers, tiendas ni listings por revisar.',
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    padding: const EdgeInsets.all(GarraSpacing.lg),
-                    children: [
-                      if (_sellers.isNotEmpty) ...[
-                        Text('Sellers', style: Theme.of(context).textTheme.titleMedium),
-                        const SizedBox(height: 8),
-                        ..._sellers.map((s) {
-                          final id = s['id']?.toString() ?? '';
-                          final name = s['displayName']?.toString() ?? 'Seller';
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: GarraCard(
-                              child: Row(
-                                children: [
-                                  Expanded(child: Text(name)),
-                                  TextButton(
-                                    onPressed: () async {
-                                      final ok = await showDialog<bool>(
-                                        context: context,
-                                        builder: (ctx) => AlertDialog(
-                                          title: const Text('Aprobar seller'),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () => Navigator.pop(ctx, false),
-                                              child: const Text('Cancelar'),
-                                            ),
-                                            FilledButton(
-                                              onPressed: () => Navigator.pop(ctx, true),
-                                              child: const Text('Aprobar'),
-                                            ),
-                                          ],
+          ? const GarraEmptyState(
+              title: 'Sin pendientes',
+              message: 'No hay sellers, tiendas ni listings por revisar.',
+            )
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.all(GarraSpacing.lg),
+                children: [
+                  if (_sellers.isNotEmpty) ...[
+                    Text(
+                      'Sellers',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    ..._sellers.map((s) {
+                      final id = s['id']?.toString() ?? '';
+                      final name = s['displayName']?.toString() ?? 'Seller';
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: GarraCard(
+                          child: Row(
+                            children: [
+                              Expanded(child: Text(name)),
+                              TextButton(
+                                onPressed: () async {
+                                  final ok = await showDialog<bool>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('Aprobar seller'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, false),
+                                          child: const Text('Cancelar'),
                                         ),
-                                      );
-                                      if (ok == true) {
-                                        await _admin.approveSeller(id);
-                                        await _load();
-                                      }
-                                    },
-                                    child: const Text('Aprobar'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () async {
-                                      await _admin.rejectSeller(id, 'OTHER');
-                                      await _load();
-                                    },
-                                    child: const Text('Rechazar'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }),
-                        const SizedBox(height: 16),
-                      ],
-                      if (_stores.isNotEmpty) ...[
-                        Text('Tiendas', style: Theme.of(context).textTheme.titleMedium),
-                        const SizedBox(height: 8),
-                        ..._stores.map((s) {
-                          final id = s['id']?.toString() ?? '';
-                          final name = s['name']?.toString() ?? 'Tienda';
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: GarraCard(
-                              child: Row(
-                                children: [
-                                  Expanded(child: Text(name)),
-                                  TextButton(
-                                    onPressed: () async {
-                                      await _admin.approveStore(id);
-                                      await _load();
-                                    },
-                                    child: const Text('Aprobar'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () async {
-                                      await _admin.rejectStore(id, 'OTHER');
-                                      await _load();
-                                    },
-                                    child: const Text('Rechazar'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }),
-                        const SizedBox(height: 16),
-                      ],
-                      if (_listings.isNotEmpty) ...[
-                        Text('Listings', style: Theme.of(context).textTheme.titleMedium),
-                        const SizedBox(height: 8),
-                        ..._listings.map((s) {
-                          final id = s['id']?.toString() ?? '';
-                          final title = s['title']?.toString() ?? 'Listing';
-                          final media = s['coverImageUrl']?.toString() ??
-                              s['imageUrl']?.toString();
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: GarraCard(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (media != null && media.isNotEmpty)
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.network(
-                                        media,
-                                        height: 120,
-                                        width: double.infinity,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
-                                            const SizedBox.shrink(),
-                                      ),
+                                        FilledButton(
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, true),
+                                          child: const Text('Aprobar'),
+                                        ),
+                                      ],
                                     ),
-                                  Text(title),
-                                  Row(
-                                    children: [
-                                      TextButton(
-                                        onPressed: () async {
-                                          await _admin.approveListing(id);
-                                          await _load();
-                                        },
-                                        child: const Text('Aprobar'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () async {
-                                          await _admin.rejectListing(id, 'OTHER');
-                                          await _load();
-                                        },
-                                        child: const Text('Rechazar'),
-                                      ),
-                                    ],
+                                  );
+                                  if (ok == true) {
+                                    await _admin.approveSeller(id);
+                                    await _load();
+                                  }
+                                },
+                                child: const Text('Aprobar'),
+                              ),
+                              TextButton(
+                                onPressed: () async {
+                                  await _admin.rejectSeller(id, 'OTHER');
+                                  await _load();
+                                },
+                                child: const Text('Rechazar'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 16),
+                  ],
+                  if (_stores.isNotEmpty) ...[
+                    Text(
+                      'Tiendas',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    ..._stores.map((s) {
+                      final id = s['id']?.toString() ?? '';
+                      final name = s['name']?.toString() ?? 'Tienda';
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: GarraCard(
+                          child: Row(
+                            children: [
+                              Expanded(child: Text(name)),
+                              TextButton(
+                                onPressed: () async {
+                                  await _admin.approveStore(id);
+                                  await _load();
+                                },
+                                child: const Text('Aprobar'),
+                              ),
+                              TextButton(
+                                onPressed: () async {
+                                  await _admin.rejectStore(id, 'OTHER');
+                                  await _load();
+                                },
+                                child: const Text('Rechazar'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 16),
+                  ],
+                  if (_listings.isNotEmpty) ...[
+                    Text(
+                      'Listings',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    ..._listings.map((s) {
+                      final id = s['id']?.toString() ?? '';
+                      final title = s['title']?.toString() ?? 'Listing';
+                      final media =
+                          s['coverImageUrl']?.toString() ??
+                          s['imageUrl']?.toString();
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: GarraCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (media != null && media.isNotEmpty)
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    media,
+                                    height: 120,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) =>
+                                        const SizedBox.shrink(),
+                                  ),
+                                ),
+                              Text(title),
+                              Row(
+                                children: [
+                                  TextButton(
+                                    onPressed: () async {
+                                      await _admin.approveListing(id);
+                                      await _load();
+                                    },
+                                    child: const Text('Aprobar'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () async {
+                                      await _admin.rejectListing(id, 'OTHER');
+                                      await _load();
+                                    },
+                                    child: const Text('Rechazar'),
                                   ),
                                 ],
                               ),
-                            ),
-                          );
-                        }),
-                      ],
-                    ],
-                  ),
-                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ],
+              ),
+            ),
     );
   }
 }
@@ -821,10 +937,7 @@ class _AdminFeatureFlagsPageState extends State<AdminFeatureFlagsPage> {
     try {
       await DioClient.instance.post(
         '/admin/ops/features/$key',
-        queryParameters: {
-          'enabled': enabled,
-          'note': 'admin center toggle',
-        },
+        queryParameters: {'enabled': enabled, 'note': 'admin center toggle'},
       );
       await _load();
     } catch (_) {
@@ -843,34 +956,33 @@ class _AdminFeatureFlagsPageState extends State<AdminFeatureFlagsPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? GarraEmptyState(
-                  title: 'Error',
-                  message: _error!,
-                  actionLabel: 'Reintentar',
-                  onAction: _load,
-                )
-              : ListView(
-                  padding: const EdgeInsets.all(GarraSpacing.lg),
-                  children: [
-                    Text(
-                      'Kill switches operativos. No reemplazan autorización.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: GarraSpacing.md),
-                    ..._flags.map((f) {
-                      final key = f['flagKey']?.toString() ??
-                          f['key']?.toString() ??
-                          '';
-                      final enabled = f['enabled'] == true;
-                      return SwitchListTile(
-                        title: Text(key),
-                        subtitle: Text(f['description']?.toString() ?? ''),
-                        value: enabled,
-                        onChanged: (v) => _toggle(key, v),
-                      );
-                    }),
-                  ],
+          ? GarraEmptyState(
+              title: 'Error',
+              message: _error!,
+              actionLabel: 'Reintentar',
+              onAction: _load,
+            )
+          : ListView(
+              padding: const EdgeInsets.all(GarraSpacing.lg),
+              children: [
+                Text(
+                  'Kill switches operativos. No reemplazan autorización.',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
+                const SizedBox(height: GarraSpacing.md),
+                ..._flags.map((f) {
+                  final key =
+                      f['flagKey']?.toString() ?? f['key']?.toString() ?? '';
+                  final enabled = f['enabled'] == true;
+                  return SwitchListTile(
+                    title: Text(key),
+                    subtitle: Text(f['description']?.toString() ?? ''),
+                    value: enabled,
+                    onChanged: (v) => _toggle(key, v),
+                  );
+                }),
+              ],
+            ),
     );
   }
 }
@@ -896,8 +1008,7 @@ class _AdminDeletionRequestsPageState extends State<AdminDeletionRequestsPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final res =
-          await DioClient.instance.get('/admin/ops/deletion-requests');
+      final res = await DioClient.instance.get('/admin/ops/deletion-requests');
       final data = res.data['data'];
       final list = <Map<String, dynamic>>[];
       if (data is List) {
@@ -932,47 +1043,47 @@ class _AdminDeletionRequestsPageState extends State<AdminDeletionRequestsPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
-              ? const GarraEmptyState(
-                  title: 'Sin pendientes',
-                  message: 'No hay solicitudes web por revisar.',
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(GarraSpacing.lg),
-                  itemCount: _items.length,
-                  itemBuilder: (context, i) {
-                    final item = _items[i];
-                    final id = item['id']?.toString() ?? '';
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
-                      child: GarraCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+          ? const GarraEmptyState(
+              title: 'Sin pendientes',
+              message: 'No hay solicitudes web por revisar.',
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(GarraSpacing.lg),
+              itemCount: _items.length,
+              itemBuilder: (context, i) {
+                final item = _items[i];
+                final id = item['id']?.toString() ?? '';
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
+                  child: GarraCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(item['email']?.toString() ?? ''),
+                        Text(
+                          'user=${item['username'] ?? '-'} · ${item['status']}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        if ((item['message']?.toString() ?? '').isNotEmpty)
+                          Text(item['message'].toString()),
+                        Row(
                           children: [
-                            Text(item['email']?.toString() ?? ''),
-                            Text(
-                              'user=${item['username'] ?? '-'} · ${item['status']}',
-                              style: Theme.of(context).textTheme.bodySmall,
+                            TextButton(
+                              onPressed: () => _act(id, true),
+                              child: const Text('Procesar'),
                             ),
-                            if ((item['message']?.toString() ?? '').isNotEmpty)
-                              Text(item['message'].toString()),
-                            Row(
-                              children: [
-                                TextButton(
-                                  onPressed: () => _act(id, true),
-                                  child: const Text('Procesar'),
-                                ),
-                                TextButton(
-                                  onPressed: () => _act(id, false),
-                                  child: const Text('Rechazar'),
-                                ),
-                              ],
+                            TextButton(
+                              onPressed: () => _act(id, false),
+                              child: const Text('Rechazar'),
                             ),
                           ],
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }
@@ -1035,54 +1146,53 @@ class _AdminBetaFeedbackPageState extends State<AdminBetaFeedbackPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
-              ? const GarraEmptyState(
-                  title: 'Sin feedback nuevo',
-                  message: 'Cuando los testers envíen reportes aparecerán aquí.',
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(GarraSpacing.lg),
-                  itemCount: _items.length,
-                  itemBuilder: (context, i) {
-                    final item = _items[i];
-                    final id = item['id']?.toString() ?? '';
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
-                      child: GarraCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+          ? const GarraEmptyState(
+              title: 'Sin feedback nuevo',
+              message: 'Cuando los testers envíen reportes aparecerán aquí.',
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(GarraSpacing.lg),
+              itemCount: _items.length,
+              itemBuilder: (context, i) {
+                final item = _items[i];
+                final id = item['id']?.toString() ?? '';
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
+                  child: GarraCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${item['feedbackType'] ?? item['type'] ?? ''} · ${item['appVersion'] ?? ''}',
+                          style: Theme.of(context).textTheme.labelMedium,
+                        ),
+                        Text(item['message']?.toString() ?? ''),
+                        Text(
+                          'screen=${item['screenContext'] ?? item['screen'] ?? '-'}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        Row(
                           children: [
-                            Text(
-                              '${item['feedbackType'] ?? item['type'] ?? ''} · ${item['appVersion'] ?? ''}',
-                              style: Theme.of(context).textTheme.labelMedium,
+                            TextButton(
+                              onPressed: () => _setStatus(id, 'REVIEWING'),
+                              child: const Text('Revisar'),
                             ),
-                            Text(item['message']?.toString() ?? ''),
-                            Text(
-                              'screen=${item['screenContext'] ?? item['screen'] ?? '-'}',
-                              style: Theme.of(context).textTheme.bodySmall,
+                            TextButton(
+                              onPressed: () => _setStatus(id, 'DONE'),
+                              child: const Text('Hecho'),
                             ),
-                            Row(
-                              children: [
-                                TextButton(
-                                  onPressed: () => _setStatus(id, 'REVIEWING'),
-                                  child: const Text('Revisar'),
-                                ),
-                                TextButton(
-                                  onPressed: () => _setStatus(id, 'DONE'),
-                                  child: const Text('Hecho'),
-                                ),
-                                TextButton(
-                                  onPressed: () => _setStatus(id, 'DISMISSED'),
-                                  child: const Text('Descartar'),
-                                ),
-                              ],
+                            TextButton(
+                              onPressed: () => _setStatus(id, 'DISMISSED'),
+                              child: const Text('Descartar'),
                             ),
                           ],
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }
-

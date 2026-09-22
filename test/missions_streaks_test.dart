@@ -49,7 +49,8 @@ MissionModel sampleMission({
     totalSteps: totalSteps,
     completed: completed,
     completedAt: completed ? DateTime.parse('2026-09-20T20:00:00Z') : null,
-    steps: steps ??
+    steps:
+        steps ??
         [
           const MissionStepModel(
             stepId: 'step-1',
@@ -82,10 +83,7 @@ MissionModel sampleMission({
   );
 }
 
-CheckInModel sampleCheckIn({
-  bool matchLinked = true,
-  int awardedPoints = 10,
-}) {
+CheckInModel sampleCheckIn({bool matchLinked = true, int awardedPoints = 10}) {
   return CheckInModel(
     id: 'checkin-1',
     cremaPointId: 'point-1',
@@ -168,9 +166,7 @@ HomeModel sampleHomeWithMission({
             completed: false,
           )
         : null,
-    streak: withStreak
-        ? const HomeStreakSummary(current: 3, best: 7)
-        : null,
+    streak: withStreak ? const HomeStreakSummary(current: 3, best: 7) : null,
   );
 }
 
@@ -218,15 +214,13 @@ class FakeMissionService extends MissionService {
   Future<List<MissionModel>> getMyMissions({
     String? matchId,
     bool active = true,
-  }) async =>
-      missions;
+  }) async => missions;
 
   @override
   Future<List<MissionModel>> getMyMissionsForMatch(
     String matchId, {
     bool active = true,
-  }) async =>
-      missions;
+  }) async => missions;
 }
 
 Widget pumpMissions(List<MissionModel> missions, {String? matchId}) {
@@ -245,14 +239,12 @@ Widget pumpHome(HomeModel home) {
   final router = GoRouter(
     initialLocation: '/home',
     routes: [
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const HomePage(),
-      ),
+      GoRoute(path: '/home', builder: (context, state) => const HomePage()),
       GoRoute(
         path: '/missions',
-        builder: (context, state) =>
-            Scaffold(body: Text('MISSIONS:${state.uri.queryParameters['matchId'] ?? ''}')),
+        builder: (context, state) => Scaffold(
+          body: Text('MISSIONS:${state.uri.queryParameters['matchId'] ?? ''}'),
+        ),
       ),
       GoRoute(
         path: '/mapa-crema',
@@ -285,13 +277,8 @@ Widget pumpHome(HomeModel home) {
   );
 
   return ProviderScope(
-    overrides: [
-      homeProvider.overrideWith((ref) async => home),
-    ],
-    child: MaterialApp.router(
-      theme: AppTheme.darkTheme,
-      routerConfig: router,
-    ),
+    overrides: [homeProvider.overrideWith((ref) async => home)],
+    child: MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
   );
 }
 
@@ -300,9 +287,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.darkTheme,
-        home: Scaffold(
-          body: GarraMissionCard(mission: sampleMission()),
-        ),
+        home: Scaffold(body: GarraMissionCard(mission: sampleMission())),
       ),
     );
     expect(find.text('Fecha crema completa'), findsOneWidget);
@@ -360,9 +345,7 @@ void main() {
       MaterialApp(
         theme: AppTheme.darkTheme,
         home: const Scaffold(
-          body: GarraStreakCard(
-            streak: StreakSummary(current: 0, best: 0),
-          ),
+          body: GarraStreakCard(streak: StreakSummary(current: 0, best: 0)),
         ),
       ),
     );
@@ -376,9 +359,7 @@ void main() {
       MaterialApp(
         theme: AppTheme.darkTheme,
         home: const Scaffold(
-          body: GarraStreakCard(
-            streak: StreakSummary(current: 3, best: 7),
-          ),
+          body: GarraStreakCard(streak: StreakSummary(current: 3, best: 7)),
         ),
       ),
     );
@@ -421,9 +402,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.darkTheme,
-        home: Scaffold(
-          body: GarraCheckInSuccess(checkIn: sampleCheckIn()),
-        ),
+        home: Scaffold(body: GarraCheckInSuccess(checkIn: sampleCheckIn())),
       ),
     );
     expect(find.text('CHECK-IN COMPLETADO'), findsOneWidget);
@@ -501,6 +480,11 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Racha Garra'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Racha Garra'), findsOneWidget);
     expect(find.text('Mejor racha'), findsOneWidget);
     expect(find.text('Participación en fechas'), findsOneWidget);

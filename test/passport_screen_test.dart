@@ -51,9 +51,7 @@ void main() {
     final completer = Completer<PassportModel>();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          myPassportProvider.overrideWith((ref) => completer.future),
-        ],
+        overrides: [myPassportProvider.overrideWith((ref) => completer.future)],
         child: MaterialApp(
           theme: AppTheme.darkTheme,
           home: const PassportScreen(),
@@ -82,6 +80,16 @@ void main() {
     expect(find.text('Perfil'), findsOneWidget);
     expect(find.text('Hincha Crema'), findsOneWidget);
     expect(find.text('@cremafan'), findsOneWidget);
+    expect(
+      find.text('COMUNIDAD NO OFICIAL\nDE HINCHAS CREMAS'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Nivel 2'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.textContaining('Puntos Garra'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.textContaining('Puntos Garra'), findsOneWidget);
     expect(find.text('Check-ins'), findsOneWidget);
     await tester.scrollUntilVisible(
@@ -96,6 +104,19 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('Cerrar sesión'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.textContaining('Hecho por hinchas, para hinchas'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      find.textContaining('Comunidad no oficial de hinchas cremas'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Hecho por hinchas, para hinchas'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('PASSPORT_ERROR_STATE', (tester) async {
@@ -103,11 +124,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.darkTheme,
-        home: Scaffold(
-          body: GarraErrorState(
-            onRetry: () => retried = true,
-          ),
-        ),
+        home: Scaffold(body: GarraErrorState(onRetry: () => retried = true)),
       ),
     );
     expect(find.byType(GarraErrorState), findsOneWidget);
@@ -146,8 +163,13 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byType(GarraProgressBar),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.byType(GarraProgressBar), findsOneWidget);
-    expect(find.textContaining('Nivel 2'), findsOneWidget);
+    expect(find.textContaining('Nivel 2'), findsWidgets);
   });
 
   testWidgets('PROFILE_EDIT_VALIDATION', (tester) async {
@@ -182,9 +204,8 @@ void main() {
         child: MaterialApp(
           theme: AppTheme.darkTheme,
           home: Navigator(
-            onGenerateRoute: (_) => MaterialPageRoute(
-              builder: (_) => const ProfileEditScreen(),
-            ),
+            onGenerateRoute: (_) =>
+                MaterialPageRoute(builder: (_) => const ProfileEditScreen()),
           ),
         ),
       ),
@@ -199,7 +220,7 @@ void main() {
 
 class _FakePassportService extends PassportService {
   _FakePassportService({required this.onUpdate})
-      : super(dio: Dio(BaseOptions(baseUrl: 'http://localhost')));
+    : super(dio: Dio(BaseOptions(baseUrl: 'http://localhost')));
 
   final VoidCallback onUpdate;
 

@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
-import '../../../core/widgets/garra_card.dart';
+import '../../../core/widgets/garra_brand_visual.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/marketplace_models.dart';
@@ -35,10 +35,8 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
     super.dispose();
   }
 
-  MarketplaceDiscoveryQuery get _query => MarketplaceDiscoveryQuery(
-        search: _search,
-        category: _categorySlug,
-      );
+  MarketplaceDiscoveryQuery get _query =>
+      MarketplaceDiscoveryQuery(search: _search, category: _categorySlug);
 
   void _onSearchChanged(String value) {
     _debounce?.cancel();
@@ -97,7 +95,9 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No pudimos actualizar el favorito. Inténtalo de nuevo.'),
+          content: Text(
+            'No pudimos actualizar el favorito. Inténtalo de nuevo.',
+          ),
         ),
       );
     }
@@ -139,113 +139,153 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
       body: hasError
           ? GarraErrorState(onRetry: _refresh)
           : isLoading && !listingsAsync.hasValue && !categoriesAsync.hasValue
-              ? const _MarketplaceSkeleton()
-              : RefreshIndicator(
-                  color: const Color(GarraColors.gold),
-                  onRefresh: _refresh,
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(
-                      GarraSpacing.lg,
-                      GarraSpacing.md,
-                      GarraSpacing.lg,
-                      100,
+          ? const _MarketplaceSkeleton()
+          : RefreshIndicator(
+              color: const Color(GarraColors.gold),
+              onRefresh: _refresh,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(
+                  GarraSpacing.lg,
+                  GarraSpacing.md,
+                  GarraSpacing.lg,
+                  100,
+                ),
+                children: [
+                  GarraAtmosphericHero(
+                    height: 196,
+                    alignment: const Alignment(0.3, -0.2),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const GarraEditorialEyebrow(
+                          label: 'Hecho con garra',
+                          icon: Icons.storefront_outlined,
+                        ),
+                        const SizedBox(height: GarraSpacing.sm),
+                        Text(
+                          'Compra crema.\nImpulsa a los nuestros.',
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
+                                color: const Color(GarraColors.cream),
+                                fontWeight: FontWeight.w900,
+                                height: 1.02,
+                                letterSpacing: -0.5,
+                              ),
+                        ),
+                        const SizedBox(height: GarraSpacing.sm),
+                        Text(
+                          'Productos e historias de emprendimientos de la hinchada.',
+                          maxLines: 2,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: const Color(GarraColors.creamMuted),
+                              ),
+                        ),
+                      ],
                     ),
-                    children: [
-                      Text(
-                        'Compra, descubre y apoya emprendimientos de la comunidad.',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: const Color(GarraColors.creamMuted),
-                            ),
-                      ),
-                      const SizedBox(height: GarraSpacing.lg),
-                      TextField(
-                        controller: _searchController,
-                        textInputAction: TextInputAction.search,
-                        onChanged: _onSearchChanged,
-                        onSubmitted: (value) {
-                          _debounce?.cancel();
-                          setState(() => _search = value.trim());
-                        },
-                        decoration: const InputDecoration(
-                          hintText: 'Buscar emprendimientos…',
-                          prefixIcon: Icon(Icons.search),
-                        ),
-                      ),
-                      const SizedBox(height: GarraSpacing.lg),
-                      categoriesAsync.when(
-                        loading: () => const GarraSkeleton(height: 40),
-                        error: (_, _) => const SizedBox.shrink(),
-                        data: (categories) => _CategoryChips(
-                          categories: categories,
-                          selectedSlug: _categorySlug,
-                          onSelected: (slug) {
-                            setState(() {
-                              _categorySlug =
-                                  _categorySlug == slug ? null : slug;
-                            });
-                          },
-                        ),
-                      ),
-                      featuredAsync.when(
-                        loading: () => const SizedBox.shrink(),
-                        error: (_, _) => const SizedBox.shrink(),
-                        data: (featured) {
-                          if (!featured.hasHero && !featured.hasFeatured) {
-                            return const SizedBox.shrink();
-                          }
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (featured.hasHero) ...[
-                                const SizedBox(height: GarraSpacing.xl),
-                                const GarraSectionHeader(title: 'Destacados'),
-                                const SizedBox(height: GarraSpacing.md),
-                                for (final listing in featured.heroListings) ...[
-                                  GarraMarketplaceCard(
-                                    listing: listing,
-                                    showFavorite: false,
-                                    onVisible: () =>
-                                        _trackImpression(listing.promotionId),
-                                    onTap: () => _openFeaturedListing(listing),
-                                  ),
-                                  const SizedBox(height: GarraSpacing.md),
-                                ],
-                              ],
-                              if (featured.hasFeatured) ...[
-                                const SizedBox(height: GarraSpacing.xl),
-                                const GarraSectionHeader(title: 'Destacados'),
-                                const SizedBox(height: GarraSpacing.md),
-                                for (final listing
-                                    in featured.featuredListings) ...[
-                                  GarraMarketplaceCard(
-                                    listing: listing,
-                                    onVisible: () =>
-                                        _trackImpression(listing.promotionId),
-                                    onTap: () =>
-                                        _openFeaturedListing(listing),
-                                    onFavoriteTap: () =>
-                                        _toggleFavorite(listing),
-                                  ),
-                                  const SizedBox(height: GarraSpacing.md),
-                                ],
-                              ],
+                  ),
+                  const SizedBox(height: GarraSpacing.lg),
+                  TextField(
+                    controller: _searchController,
+                    textInputAction: TextInputAction.search,
+                    onChanged: _onSearchChanged,
+                    onSubmitted: (value) {
+                      _debounce?.cancel();
+                      setState(() => _search = value.trim());
+                    },
+                    decoration: const InputDecoration(
+                      hintText: 'Buscar emprendimientos…',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                  ),
+                  const SizedBox(height: GarraSpacing.lg),
+                  categoriesAsync.when(
+                    loading: () => const GarraSkeleton(height: 40),
+                    error: (_, _) => const SizedBox.shrink(),
+                    data: (categories) => _CategoryChips(
+                      categories: categories,
+                      selectedSlug: _categorySlug,
+                      onSelected: (slug) {
+                        setState(() {
+                          _categorySlug = _categorySlug == slug ? null : slug;
+                        });
+                      },
+                    ),
+                  ),
+                  featuredAsync.when(
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, _) => const SizedBox.shrink(),
+                    data: (featured) {
+                      if (!featured.hasHero && !featured.hasFeatured) {
+                        return const SizedBox.shrink();
+                      }
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (featured.hasHero) ...[
+                            const SizedBox(height: GarraSpacing.xl),
+                            const GarraSectionHeader(title: 'Destacados'),
+                            const SizedBox(height: GarraSpacing.md),
+                            for (final listing in featured.heroListings) ...[
+                              GarraMarketplaceCard(
+                                listing: listing,
+                                showFavorite: false,
+                                onVisible: () =>
+                                    _trackImpression(listing.promotionId),
+                                onTap: () => _openFeaturedListing(listing),
+                              ),
+                              const SizedBox(height: GarraSpacing.md),
                             ],
-                          );
-                        },
+                          ],
+                          if (featured.hasFeatured) ...[
+                            const SizedBox(height: GarraSpacing.xl),
+                            const GarraSectionHeader(title: 'Destacados'),
+                            const SizedBox(height: GarraSpacing.md),
+                            for (final listing
+                                in featured.featuredListings) ...[
+                              GarraMarketplaceCard(
+                                listing: listing,
+                                onVisible: () =>
+                                    _trackImpression(listing.promotionId),
+                                onTap: () => _openFeaturedListing(listing),
+                                onFavoriteTap: () => _toggleFavorite(listing),
+                              ),
+                              const SizedBox(height: GarraSpacing.md),
+                            ],
+                          ],
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: GarraSpacing.lg),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => context.push(
+                        isSeller
+                            ? '/marketplace/seller/dashboard'
+                            : '/marketplace/seller',
                       ),
-                      const SizedBox(height: GarraSpacing.lg),
-                      GarraCard(
-                        onTap: () => context.push(
-                          isSeller
-                              ? '/marketplace/seller/dashboard'
-                              : '/marketplace/seller',
-                        ),
+                      borderRadius: BorderRadius.circular(GarraRadius.lg),
+                      child: GarraSectionAtmosphere(
+                        padding: const EdgeInsets.all(GarraSpacing.md),
                         child: Row(
                           children: [
-                            const Icon(
-                              Icons.storefront_outlined,
-                              color: Color(GarraColors.gold),
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: const Color(GarraColors.gold),
+                                borderRadius: BorderRadius.circular(
+                                  GarraRadius.sm,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.storefront_outlined,
+                                color: Color(GarraColors.burgundyDeep),
+                              ),
                             ),
                             const SizedBox(width: GarraSpacing.md),
                             Expanded(
@@ -254,63 +294,72 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
                                 children: [
                                   Text(
                                     isSeller
-                                        ? 'Mi negocio'
-                                        : 'Publica tu emprendimiento',
-                                    style:
-                                        Theme.of(context).textTheme.titleMedium,
+                                        ? 'Tu vitrina crema'
+                                        : 'Pon tu talento en vitrina',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          color: const Color(GarraColors.cream),
+                                          fontWeight: FontWeight.w800,
+                                        ),
                                   ),
                                   const SizedBox(height: GarraSpacing.xs),
                                   Text(
                                     isSeller
-                                        ? 'Administra tu tienda crema'
-                                        : 'Vende desde la comunidad crema',
-                                    style:
-                                        Theme.of(context).textTheme.bodySmall,
+                                        ? 'Entra a tu negocio'
+                                        : 'Publica tu emprendimiento',
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: const Color(
+                                            GarraColors.creamMuted,
+                                          ),
+                                        ),
                                   ),
                                 ],
                               ),
                             ),
                             const Icon(
-                              Icons.chevron_right,
+                              Icons.arrow_forward,
                               color: Color(GarraColors.gold),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: GarraSpacing.xxl),
-                      GarraSectionHeader(title: 'Publicaciones recientes'),
-                      const SizedBox(height: GarraSpacing.md),
-                      listingsAsync.when(
-                        loading: () => const GarraSkeleton(height: 140),
-                        error: (_, _) => GarraErrorState(onRetry: _refresh),
-                        data: (listings) {
-                          if (listings.isEmpty) {
-                            return const GarraEmptyState(
-                              title: 'Marketplace Crema',
-                              message:
-                                  'Los emprendimientos crema aparecerán aquí.',
-                            );
-                          }
-                          return Column(
-                            children: [
-                              for (final listing in listings) ...[
-                                GarraMarketplaceCard(
-                                  listing: listing,
-                                  onTap: () => context.push(
-                                    '/marketplace/listings/${listing.slug}',
-                                  ),
-                                  onFavoriteTap: () =>
-                                      _toggleFavorite(listing),
-                                ),
-                                const SizedBox(height: GarraSpacing.md),
-                              ],
-                            ],
-                          );
-                        },
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: GarraSpacing.xxl),
+                  GarraSectionHeader(title: 'Publicaciones recientes'),
+                  const SizedBox(height: GarraSpacing.md),
+                  listingsAsync.when(
+                    loading: () => const GarraSkeleton(height: 140),
+                    error: (_, _) => GarraErrorState(onRetry: _refresh),
+                    data: (listings) {
+                      if (listings.isEmpty) {
+                        return const GarraEmptyState(
+                          title: 'Marketplace Crema',
+                          message: 'Los emprendimientos crema aparecerán aquí.',
+                        );
+                      }
+                      return Column(
+                        children: [
+                          for (final listing in listings) ...[
+                            GarraMarketplaceCard(
+                              listing: listing,
+                              onTap: () => context.push(
+                                '/marketplace/listings/${listing.slug}',
+                              ),
+                              onFavoriteTap: () => _toggleFavorite(listing),
+                            ),
+                            const SizedBox(height: GarraSpacing.md),
+                          ],
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
     );
   }
 }
@@ -342,8 +391,9 @@ class _CategoryChips extends StatelessWidget {
             label: Text(category.name),
             selected: selected,
             onSelected: (_) => onSelected(category.slug),
-            selectedColor:
-                const Color(GarraColors.garnet).withValues(alpha: 0.35),
+            selectedColor: const Color(
+              GarraColors.garnet,
+            ).withValues(alpha: 0.35),
             checkmarkColor: const Color(GarraColors.gold),
             labelStyle: TextStyle(
               color: selected

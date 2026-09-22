@@ -8,6 +8,7 @@ import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_avatar.dart';
+import '../../../core/widgets/garra_brand_visual.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../community/data/community_service.dart';
 import '../../community/data/wall_post_model.dart';
@@ -93,8 +94,10 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
       if (!mounted) return;
       setState(() {
         _posts = _posts
-            .map((p) =>
-                p.id == post.id ? p.copyWith(savedByMe: post.savedByMe) : p)
+            .map(
+              (p) =>
+                  p.id == post.id ? p.copyWith(savedByMe: post.savedByMe) : p,
+            )
             .toList();
       });
     }
@@ -121,9 +124,9 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
     if (ok != true) return;
     await _service.blockUser(userId);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Usuario bloqueado')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Usuario bloqueado')));
     _load();
   }
 
@@ -141,10 +144,8 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: GarraSpacing.xxl),
         children: [
-          _ComposerRow(
-            displayName: me?.fullName,
-            onCompose: _openCompose,
-          ),
+          _ComposerRow(displayName: me?.fullName, onCompose: _openCompose),
+          if (widget.mode == 'FOR_YOU') const _EditorialFeedMarker(),
           ...widget.topInserts,
           if (_loading && _posts.isEmpty)
             const Padding(
@@ -185,29 +186,25 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
                 child: Text(
                   _error!,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: const Color(GarraColors.creamMuted),
-                      ),
+                    color: const Color(GarraColors.creamMuted),
+                  ),
                 ),
               ),
             ..._posts.map((post) {
-              final mine = post.isMine ||
-                  (meId != null &&
-                      meId.isNotEmpty &&
-                      post.authorId == meId);
+              final mine =
+                  post.isMine ||
+                  (meId != null && meId.isNotEmpty && post.authorId == meId);
               final view = post.copyWith(isMine: mine);
               return GarraSocialPostCard(
                 post: view,
                 onOpen: () => context
                     .push('/muro-crema/posts/${post.id}')
                     .then((_) => _load()),
-                onOpenProfile: mine ||
-                        post.authorId == null ||
-                        post.authorId!.isEmpty
+                onOpenProfile:
+                    mine || post.authorId == null || post.authorId!.isEmpty
                     ? null
                     : () => context.push('/comunidad/u/${post.authorId}'),
-                onBlock: mine ||
-                        post.authorId == null ||
-                        post.authorId!.isEmpty
+                onBlock: mine || post.authorId == null || post.authorId!.isEmpty
                     ? null
                     : () => _confirmBlock(post.authorId!),
                 onReport: mine
@@ -229,11 +226,47 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
   }
 }
 
+class _EditorialFeedMarker extends StatelessWidget {
+  const _EditorialFeedMarker();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        GarraSpacing.lg,
+        0,
+        GarraSpacing.lg,
+        GarraSpacing.md,
+      ),
+      child: Row(
+        children: [
+          const GarraEditorialEyebrow(
+            label: 'La tribuna crema',
+            icon: Icons.local_fire_department_outlined,
+          ),
+          const SizedBox(width: GarraSpacing.sm),
+          Expanded(
+            child: Container(
+              height: 1,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Color(GarraColors.gold),
+                    Color(GarraColors.borderSubtle),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ComposerRow extends StatelessWidget {
-  const _ComposerRow({
-    required this.onCompose,
-    this.displayName,
-  });
+  const _ComposerRow({required this.onCompose, this.displayName});
 
   final String? displayName;
   final VoidCallback onCompose;
@@ -247,49 +280,66 @@ class _ComposerRow extends StatelessWidget {
         GarraSpacing.lg,
         GarraSpacing.md,
       ),
-      child: Row(
-        children: [
-          GarraAvatar(
-            displayName:
-                (displayName != null && displayName!.trim().isNotEmpty)
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact =
+              constraints.maxWidth < 340 ||
+              MediaQuery.textScalerOf(context).scale(1) > 1.25;
+          return Row(
+            children: [
+              GarraAvatar(
+                displayName:
+                    (displayName != null && displayName!.trim().isNotEmpty)
                     ? displayName!
                     : 'Crema',
-            size: 40,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Material(
-              color: const Color(GarraColors.surface),
-              borderRadius: BorderRadius.circular(GarraRadius.lg),
-              child: InkWell(
-                onTap: onCompose,
-                borderRadius: BorderRadius.circular(GarraRadius.lg),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
-                  child: Text(
-                    '¿Qué vive la crema hoy?',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                size: 40,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Material(
+                  color: const Color(GarraColors.surface),
+                  borderRadius: BorderRadius.circular(GarraRadius.lg),
+                  child: InkWell(
+                    onTap: onCompose,
+                    borderRadius: BorderRadius.circular(GarraRadius.lg),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 11,
+                      ),
+                      child: Text(
+                        '¿Qué vive la crema hoy?',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: const Color(GarraColors.creamMuted),
                         ),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          TextButton.icon(
-            onPressed: onCompose,
-            icon: const Icon(Icons.photo_outlined, size: 18),
-            label: const Text('Foto'),
-            style: TextButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-            ),
-          ),
-        ],
+              const SizedBox(width: 6),
+              if (compact)
+                IconButton(
+                  tooltip: 'Foto',
+                  onPressed: onCompose,
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.photo_outlined, size: 19),
+                )
+              else
+                TextButton.icon(
+                  onPressed: onCompose,
+                  icon: const Icon(Icons.photo_outlined, size: 18),
+                  label: const Text('Foto'),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }

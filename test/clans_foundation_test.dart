@@ -298,29 +298,21 @@ Widget pumpClans(FakeClanService service) {
       ),
       GoRoute(
         path: '/clans/:slug/manage',
-        builder: (context, state) => Scaffold(
-          body: Text('MANAGE:${state.pathParameters['slug']}'),
-        ),
+        builder: (context, state) =>
+            Scaffold(body: Text('MANAGE:${state.pathParameters['slug']}')),
       ),
     ],
   );
 
   return ProviderScope(
-    overrides: [
-      clanServiceProvider.overrideWithValue(service),
-    ],
-    child: MaterialApp.router(
-      theme: AppTheme.darkTheme,
-      routerConfig: router,
-    ),
+    overrides: [clanServiceProvider.overrideWithValue(service)],
+    child: MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
   );
 }
 
 Widget pumpClanDetail(FakeClanService service, String slug) {
   return ProviderScope(
-    overrides: [
-      clanServiceProvider.overrideWithValue(service),
-    ],
+    overrides: [clanServiceProvider.overrideWithValue(service)],
     child: MaterialApp(
       theme: AppTheme.darkTheme,
       home: ClanDetailPage(slug: slug),
@@ -388,9 +380,7 @@ void main() {
   });
 
   testWidgets('REQUEST_CLAN_JOIN', (tester) async {
-    final service = FakeClanService(
-      detail: sampleClan(joinPolicy: 'REQUEST'),
-    );
+    final service = FakeClanService(detail: sampleClan(joinPolicy: 'REQUEST'));
     await tester.pumpWidget(pumpClanDetail(service, 'garra-surco'));
     await tester.pumpAndSettle();
     expect(find.text('Solicitar ingreso'), findsOneWidget);
@@ -439,7 +429,7 @@ void main() {
     );
     await tester.pumpWidget(pumpClans(service));
     await tester.pumpAndSettle();
-    expect(find.text('Mis comunidades'), findsWidgets);
+    expect(find.text('Mis'), findsOneWidget);
     expect(find.text('Garra Surco'), findsWidgets);
     expect(find.text('Crema Norte'), findsOneWidget);
     expect(find.text('Principal'), findsWidgets);
@@ -516,14 +506,10 @@ void main() {
   });
 
   testWidgets('INVITE_ACCEPT', (tester) async {
-    final service = FakeClanService(
-      invitations: [sampleInvitation()],
-    );
+    final service = FakeClanService(invitations: [sampleInvitation()]);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          clanServiceProvider.overrideWithValue(service),
-        ],
+        overrides: [clanServiceProvider.overrideWithValue(service)],
         child: MaterialApp(
           theme: AppTheme.darkTheme,
           home: const ClanInvitationsPage(),
@@ -538,14 +524,10 @@ void main() {
   });
 
   testWidgets('INVITE_DECLINE', (tester) async {
-    final service = FakeClanService(
-      invitations: [sampleInvitation()],
-    );
+    final service = FakeClanService(invitations: [sampleInvitation()]);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          clanServiceProvider.overrideWithValue(service),
-        ],
+        overrides: [clanServiceProvider.overrideWithValue(service)],
         child: MaterialApp(
           theme: AppTheme.darkTheme,
           home: const ClanInvitationsPage(),
@@ -577,17 +559,14 @@ void main() {
         ),
         GoRoute(
           path: '/clans/:slug/manage',
-          builder: (context, state) => Scaffold(
-            body: Text('MANAGE:${state.pathParameters['slug']}'),
-          ),
+          builder: (context, state) =>
+              Scaffold(body: Text('MANAGE:${state.pathParameters['slug']}')),
         ),
       ],
     );
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          clanServiceProvider.overrideWithValue(service),
-        ],
+        overrides: [clanServiceProvider.overrideWithValue(service)],
         child: MaterialApp.router(
           theme: AppTheme.darkTheme,
           routerConfig: router,
@@ -607,10 +586,7 @@ void main() {
     final router = GoRouter(
       initialLocation: '/explorar',
       routes: [
-        GoRoute(
-          path: '/explorar',
-          builder: (_, __) => const ExplorePage(),
-        ),
+        GoRoute(path: '/explorar', builder: (_, __) => const ExplorePage()),
         GoRoute(
           path: '/clans',
           builder: (_, __) => const Scaffold(body: Text('CLANS_ROUTE')),

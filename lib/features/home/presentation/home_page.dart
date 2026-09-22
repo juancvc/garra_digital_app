@@ -9,6 +9,7 @@ import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/design/garra_typography.dart';
+import '../../../core/widgets/garra_brand_visual.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
@@ -32,28 +33,10 @@ class HomePage extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: const Color(GarraColors.burgundyDeep),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              alignment: Alignment.center,
-              child: const Text(
-                'G',
-                style: TextStyle(
-                  color: Color(GarraColors.cream),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Text('Garra Digital'),
-          ],
+        title: const FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: GarraBrandLockup(compact: true, crestSize: 30),
         ),
         actions: [
           IconButton(
@@ -76,9 +59,8 @@ class HomePage extends ConsumerWidget {
       ),
       body: homeAsync.when(
         loading: () => const GarraHomeSkeleton(),
-        error: (error, stackTrace) => GarraErrorState(
-          onRetry: () => ref.invalidate(homeProvider),
-        ),
+        error: (error, stackTrace) =>
+            GarraErrorState(onRetry: () => ref.invalidate(homeProvider)),
         data: (home) => _HomeBody(home: home),
       ),
     );
@@ -86,10 +68,7 @@ class HomePage extends ConsumerWidget {
 }
 
 class _NotificationBell extends StatelessWidget {
-  const _NotificationBell({
-    required this.unreadCount,
-    required this.onTap,
-  });
+  const _NotificationBell({required this.unreadCount, required this.onTap});
 
   final int unreadCount;
   final VoidCallback onTap;
@@ -138,7 +117,7 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
   }
 
   static _HomeFeedTab _defaultTab(HomeModel home) {
-    if (home.isLive || home.isMatchday || home.isUpcoming) {
+    if (home.isLive || home.isMatchday) {
       return _HomeFeedTab.match;
     }
     return _HomeFeedTab.forYou;
@@ -146,8 +125,7 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
 
   bool get _showCompactMatch {
     final home = widget.home;
-    return home.hasMatch &&
-        (home.isLive || home.isUpcoming || home.isMatchday);
+    return home.hasMatch && (home.isLive || home.isUpcoming || home.isMatchday);
   }
 
   @override
@@ -175,46 +153,46 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
         Expanded(
           child: switch (_tab) {
             _HomeFeedTab.match => RefreshIndicator(
-                color: const Color(GarraColors.burgundy),
-                onRefresh: () async => ref.invalidate(homeProvider),
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(
-                    GarraSpacing.lg,
-                    GarraSpacing.sm,
-                    GarraSpacing.lg,
-                    GarraSpacing.xxl,
-                  ),
-                  children: _matchChildren(context, home),
+              color: const Color(GarraColors.burgundy),
+              onRefresh: () async => ref.invalidate(homeProvider),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(
+                  GarraSpacing.lg,
+                  GarraSpacing.sm,
+                  GarraSpacing.lg,
+                  GarraSpacing.xxl,
                 ),
+                children: _matchChildren(context, home),
               ),
+            ),
             _HomeFeedTab.forYou => SocialFeedTab(
-                key: const ValueKey('FOR_YOU'),
-                mode: 'FOR_YOU',
-                topInserts: _showCompactMatch
-                    ? [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            GarraSpacing.lg,
-                            0,
-                            GarraSpacing.lg,
-                            GarraSpacing.md,
-                          ),
-                          child: _CompactMatchInsert(
-                            home: home,
-                            onOpenMatch: () => setState(() {
-                              _manual = true;
-                              _tab = _HomeFeedTab.match;
-                            }),
-                          ),
+              key: const ValueKey('FOR_YOU'),
+              mode: 'FOR_YOU',
+              topInserts: _showCompactMatch
+                  ? [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          GarraSpacing.lg,
+                          0,
+                          GarraSpacing.lg,
+                          GarraSpacing.md,
                         ),
-                      ]
-                    : const [],
-              ),
+                        child: _CompactMatchInsert(
+                          home: home,
+                          onOpenMatch: () => setState(() {
+                            _manual = true;
+                            _tab = _HomeFeedTab.match;
+                          }),
+                        ),
+                      ),
+                    ]
+                  : const [],
+            ),
             _HomeFeedTab.following => const SocialFeedTab(
-                key: ValueKey('FOLLOWING'),
-                mode: 'FOLLOWING',
-              ),
+              key: ValueKey('FOLLOWING'),
+              mode: 'FOLLOWING',
+            ),
           },
         ),
       ],
@@ -302,10 +280,7 @@ class _FeedTabChips extends StatelessWidget {
 }
 
 class _CompactMatchInsert extends StatelessWidget {
-  const _CompactMatchInsert({
-    required this.home,
-    required this.onOpenMatch,
-  });
+  const _CompactMatchInsert({required this.home, required this.onOpenMatch});
 
   final HomeModel home;
   final VoidCallback onOpenMatch;
@@ -316,38 +291,93 @@ class _CompactMatchInsert extends StatelessWidget {
     final label = home.isLive
         ? 'EN VIVO'
         : home.isMatchday
-            ? 'Hoy juega la U'
-            : 'Próximo partido';
+        ? 'Hoy juega la U'
+        : 'Próximo partido';
     final score = home.isLive || home.isFinished
         ? '${match.homeScore ?? '-'} : ${match.awayScore ?? '-'}'
         : 'VS';
 
-    return GarraCard(
-      onTap: onOpenMatch,
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: const Color(GarraColors.gold),
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    return Semantics(
+      button: true,
+      label: '$label, ${match.homeTeam} $score ${match.awayTeam}',
+      child: InkWell(
+        onTap: onOpenMatch,
+        borderRadius: BorderRadius.circular(GarraRadius.lg),
+        child: GarraAtmosphericHero(
+          height: 124 + ((textScale - 1).clamp(0, 1) * 34),
+          padding: const EdgeInsets.all(GarraSpacing.md),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const GarraCrest(size: 42, showGlow: true),
+              const SizedBox(width: GarraSpacing.md),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _MatchStatusLabel(
+                      label: label,
+                      icon: home.isLive ? Icons.sensors : Icons.sports_soccer,
+                    ),
+                    const SizedBox(height: GarraSpacing.sm),
+                    Text(
+                      '${match.homeTeam}  $score  ${match.awayTeam}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: const Color(GarraColors.cream),
                         fontWeight: FontWeight.w800,
                       ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '${match.homeTeam} $score ${match.awayTeam}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-              ],
+              ),
+              const SizedBox(width: GarraSpacing.xs),
+              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MatchStatusLabel extends StatelessWidget {
+  const _MatchStatusLabel({required this.label, required this.icon});
+
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(GarraColors.burgundy).withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(GarraRadius.pill),
+        border: Border.all(
+          color: const Color(GarraColors.gold).withValues(alpha: 0.5),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: const Color(GarraColors.cream)),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: const Color(GarraColors.cream),
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.7,
+              ),
             ),
           ),
-          const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
         ],
       ),
     );
@@ -369,29 +399,26 @@ class _PulsoCremaCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final (subtitle, predictionCta) = switch (prediction.state) {
       'PREDICTED' => (
-          prediction.predictedHomeScore != null
-              ? 'Ya jugaste · ${prediction.predictedHomeScore}-${prediction.predictedAwayScore}'
-              : 'Ya jugaste',
-          'Ver mi predicción',
-        ),
+        prediction.predictedHomeScore != null
+            ? 'Ya jugaste · ${prediction.predictedHomeScore}-${prediction.predictedAwayScore}'
+            : 'Ya jugaste',
+        'Ver mi predicción',
+      ),
       'LOCKED' => (
-          prediction.predictedHomeScore != null
-              ? 'Marcador cerrado · ${prediction.predictedHomeScore}-${prediction.predictedAwayScore}'
-              : 'Predicción cerrada',
-          'Ver mi predicción',
-        ),
+        prediction.predictedHomeScore != null
+            ? 'Marcador cerrado · ${prediction.predictedHomeScore}-${prediction.predictedAwayScore}'
+            : 'Predicción cerrada',
+        'Ver mi predicción',
+      ),
       'SCORED' => (
-          prediction.pointsEarned != null
-              ? (prediction.pointsEarned! > 0
+        prediction.pointsEarned != null
+            ? (prediction.pointsEarned! > 0
                   ? 'Ganaste ${prediction.pointsEarned} pts'
                   : 'Resultado disponible')
-              : 'Resultado disponible',
-          'Ver resultado',
-        ),
-      _ => (
-          'Haz tu predicción',
-          'Hacer predicción',
-        ),
+            : 'Resultado disponible',
+        'Ver resultado',
+      ),
+      _ => ('Haz tu predicción', 'Hacer predicción'),
     };
 
     final pollaRoute = '/polla/$matchId';
@@ -404,8 +431,8 @@ class _PulsoCremaCard extends StatelessWidget {
           Text(
             'Pulso Crema',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: const Color(GarraColors.cream),
-                ),
+              color: const Color(GarraColors.cream),
+            ),
           ),
           const SizedBox(height: GarraSpacing.xs),
           Text(
@@ -488,9 +515,9 @@ class _MatchHeroState extends State<_MatchHero> {
   Widget build(BuildContext context) {
     final home = widget.home;
     final match = home.match!;
-    final dateLabel = DateFormat('EEE d MMM · HH:mm').format(
-      match.matchDateTime.toLocal(),
-    );
+    final dateLabel = DateFormat(
+      'EEE d MMM · HH:mm',
+    ).format(match.matchDateTime.toLocal());
 
     String headline;
     String? liveBadge;
@@ -505,92 +532,112 @@ class _MatchHeroState extends State<_MatchHero> {
       headline = 'Próximo partido';
     }
 
-    return GarraCard(
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    return GarraAtmosphericHero(
+      height: 350 + ((textScale - 1).clamp(0, 1.5) * 180),
+      alignment: Alignment.topCenter,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
               Expanded(
-                child: Text(
-                  headline,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: const Color(GarraColors.gold),
-                        letterSpacing: 1.1,
-                      ),
+                child: _MatchStatusLabel(
+                  label: headline,
+                  icon: home.isLive ? Icons.sensors : Icons.stadium_outlined,
                 ),
               ),
               if (liveBadge != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: GarraSpacing.sm,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(GarraColors.garnet),
-                    borderRadius: BorderRadius.circular(GarraRadius.sm),
-                  ),
-                  child: Text(
-                    liveBadge,
-                    style: const TextStyle(
-                      color: Color(GarraColors.cream),
-                      fontWeight: FontWeight.w800,
-                      fontSize: 11,
-                    ),
+                Text(
+                  liveBadge,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: const Color(GarraColors.gold),
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: GarraSpacing.md),
+          const SizedBox(height: GarraSpacing.sm),
+          Text(
+            match.competition.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: const Color(GarraColors.gold),
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '$dateLabel · ${match.stadium}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: const Color(GarraColors.creamMuted),
+            ),
+          ),
+          const SizedBox(height: GarraSpacing.lg),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _TeamBlock(name: match.homeTeam)),
+              Expanded(
+                child: _TeamBlock(
+                  name: match.homeTeam,
+                  isUniversitario: _isUniversitario(match.homeTeam),
+                ),
+              ),
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: GarraSpacing.sm),
+                padding: const EdgeInsets.fromLTRB(
+                  GarraSpacing.xs,
+                  GarraSpacing.sm,
+                  GarraSpacing.xs,
+                  0,
+                ),
                 child: home.isLive || home.isFinished
                     ? Text(
                         '${match.homeScore ?? '-'} : ${match.awayScore ?? '-'}',
-                        style: GarraTypography.numeric(size: 28),
+                        style: GarraTypography.numeric(size: 30),
                       )
                     : Text(
                         'VS',
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: const Color(GarraColors.gold),
-                                  fontWeight: FontWeight.w800,
-                                ),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: const Color(GarraColors.gold),
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
               ),
-              Expanded(child: _TeamBlock(name: match.awayTeam, alignEnd: true)),
+              Expanded(
+                child: _TeamBlock(
+                  name: match.awayTeam,
+                  alignEnd: true,
+                  isUniversitario: _isUniversitario(match.awayTeam),
+                ),
+              ),
             ],
-          ),
-          const SizedBox(height: GarraSpacing.md),
-          Text(
-            match.competition,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: GarraSpacing.xs),
-          Text(
-            '${match.stadium} · $dateLabel',
-            style: Theme.of(context).textTheme.bodyMedium,
           ),
           if (home.isUpcoming || home.isMatchday) ...[
             const SizedBox(height: GarraSpacing.md),
-            Text(
-              _countdownLabel(_remaining),
-              style: GarraTypography.numeric(size: 20),
+            Center(
+              child: Text(
+                _countdownLabel(_remaining),
+                style: GarraTypography.numeric(
+                  size: 20,
+                ).copyWith(color: const Color(GarraColors.cream)),
+              ),
             ),
           ],
           if (home.isLive || home.isMatchday) ...[
-            const SizedBox(height: GarraSpacing.lg),
+            const SizedBox(height: GarraSpacing.md),
             GarraPrimaryButton(
               label: home.isLive ? 'Entrar al partido' : 'Entrar al Matchday',
               onPressed: () => context.push('/matchday/${match.id}/polls'),
             ),
           ],
           if (home.isFinished) ...[
-            const SizedBox(height: GarraSpacing.lg),
+            const SizedBox(height: GarraSpacing.md),
             GarraSecondaryButton(
               label: 'Ver encuestas',
               onPressed: () => context.push('/matchday/${match.id}/polls'),
@@ -599,6 +646,13 @@ class _MatchHeroState extends State<_MatchHero> {
         ],
       ),
     );
+  }
+
+  bool _isUniversitario(String name) {
+    final normalized = name.toLowerCase();
+    return normalized.contains('universitario') ||
+        normalized == 'la u' ||
+        normalized == 'u';
   }
 
   String _countdownLabel(Duration remaining) {
@@ -619,43 +673,54 @@ class _MatchHeroState extends State<_MatchHero> {
 }
 
 class _TeamBlock extends StatelessWidget {
-  const _TeamBlock({required this.name, this.alignEnd = false});
+  const _TeamBlock({
+    required this.name,
+    this.alignEnd = false,
+    this.isUniversitario = false,
+  });
 
   final String name;
   final bool alignEnd;
+  final bool isUniversitario;
 
   @override
   Widget build(BuildContext context) {
     final initials = name.trim().isEmpty
         ? '?'
         : name
-            .trim()
-            .split(RegExp(r'\s+'))
-            .take(2)
-            .map((w) => w[0].toUpperCase())
-            .join();
+              .trim()
+              .split(RegExp(r'\s+'))
+              .take(2)
+              .map((w) => w[0].toUpperCase())
+              .join();
 
     return Column(
-      crossAxisAlignment:
-          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 44,
-          height: 44,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: const Color(GarraColors.surfaceRaised),
-            borderRadius: BorderRadius.circular(GarraRadius.md),
-            border: Border.all(color: const Color(GarraColors.borderSubtle)),
-          ),
-          child: Text(
-            initials,
-            style: const TextStyle(
-              color: Color(GarraColors.cream),
-              fontWeight: FontWeight.w800,
+        if (isUniversitario)
+          const GarraCrest(size: 52, showGlow: true)
+        else
+          Container(
+            width: 52,
+            height: 52,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(
+                GarraColors.surfaceRaised,
+              ).withValues(alpha: 0.88),
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(GarraColors.borderSubtle)),
+            ),
+            child: Text(
+              initials,
+              style: const TextStyle(
+                color: Color(GarraColors.cream),
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
-        ),
         const SizedBox(height: GarraSpacing.sm),
         Text(
           name,
@@ -698,10 +763,7 @@ class _NoMatchCard extends StatelessWidget {
 }
 
 class _CheckInCard extends StatelessWidget {
-  const _CheckInCard({
-    required this.checkIn,
-    this.matchId,
-  });
+  const _CheckInCard({required this.checkIn, this.matchId});
 
   final HomeCheckIn checkIn;
   final String? matchId;
@@ -760,9 +822,9 @@ class _HomeCommercialSection extends ConsumerWidget {
             Text(
               commercial.label,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: const Color(GarraColors.gold),
-                    fontWeight: FontWeight.w700,
-                  ),
+                color: const Color(GarraColors.gold),
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: GarraSpacing.sm),
             Text(
@@ -856,11 +918,7 @@ class _HomeSponsoredSection extends ConsumerWidget {
 }
 
 class _MissionStreakSection extends StatelessWidget {
-  const _MissionStreakSection({
-    this.mission,
-    this.streak,
-    this.matchId,
-  });
+  const _MissionStreakSection({this.mission, this.streak, this.matchId});
 
   final HomeMissionSummary? mission;
   final HomeStreakSummary? streak;
@@ -883,12 +941,12 @@ class _MissionStreakSection extends StatelessWidget {
                 Text(
                   mission!.isSponsored
                       ? (mission!.sponsorLabel ??
-                          'Patrocinado por ${mission!.sponsorName ?? 'sponsor'}')
+                            'Patrocinado por ${mission!.sponsorName ?? 'sponsor'}')
                       : 'Misión',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: const Color(GarraColors.gold),
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: const Color(GarraColors.gold),
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: GarraSpacing.xs),
                 Text(
@@ -927,10 +985,7 @@ class _MissionStreakSection extends StatelessWidget {
         ],
         if (streak != null)
           GarraStreakCard(
-            streak: StreakSummary(
-              current: streak!.current,
-              best: streak!.best,
-            ),
+            streak: StreakSummary(current: streak!.current, best: streak!.best),
             compact: true,
           ),
       ],
