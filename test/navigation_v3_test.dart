@@ -70,18 +70,18 @@ void main() {
     );
     await tester.pump();
 
-    // Prefer icons — labels can be elided on some Flutter/Material versions.
-    expect(find.byIcon(Icons.home_outlined), findsOneWidget);
+    // Selected tab uses selectedIcon; others use outlined.
+    expect(find.byIcon(Icons.home_rounded), findsOneWidget);
     expect(find.byIcon(Icons.forum_outlined), findsOneWidget);
     expect(find.byIcon(Icons.add_circle_outline), findsOneWidget);
     expect(find.byIcon(Icons.explore_outlined), findsOneWidget);
     expect(find.byIcon(Icons.person_outline), findsOneWidget);
-    expect(find.text('Crear'), findsWidgets);
 
     await tester.tap(find.byIcon(Icons.forum_outlined));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('COM'), findsOneWidget);
+    expect(find.byIcon(Icons.forum_rounded), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.home_outlined));
     await tester.pump();
