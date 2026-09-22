@@ -50,6 +50,7 @@ class MainShell extends StatelessWidget {
         child: SafeArea(
           top: false,
           child: NavigationBar(
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
             selectedIndex: _navIndex,
             onDestinationSelected: (i) => _onTap(context, i),
             destinations: const [
