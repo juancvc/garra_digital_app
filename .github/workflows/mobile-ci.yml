@@ -17,13 +17,25 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos
       - name: flutter test
+        id: flutter_test
         run: |
-          set -o pipefail
-          flutter test --reporter expanded 2>&1 | tee test_out.txt
-      - name: surface failing test name
-        if: failure()
-        run: |
-          echo "::error::Failed tests:"
-          grep -E '\[E\]|Some tests failed|Expected:|Actual:|Test failed|which:|package:flutter_test' test_out.txt | tail -n 80 || true
-          exit 1
+          set +e
+          flutter test --reporter expanded > test_out.txt 2>&1
+          code=$?
+          set -e
+          # Keep last chunk in step summary (public on Actions UI)
+          {
+            echo '## flutter test tail'
+            echo '```'
+            tail -n 120 test_out.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Emit compact error annotation with likely failure lines
+          fail_lines=$(grep -nE '\[E\]|Expected:|Actual:|Test failed|Which:|══╡|EXCEPTION CAUGHT' test_out.txt | tail -n 40 || true)
+          if [ -n "$fail_lines" ]; then
+            echo "::error::${fail_lines}"
+          else
+            echo "::error::No standard failure markers; see job summary tail"
+          fi
+          exit $code
       - run: flutter build apk --debug
