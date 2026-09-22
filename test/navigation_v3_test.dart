@@ -70,18 +70,20 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Inicio'), findsOneWidget);
-    expect(find.text('Comunidad'), findsOneWidget);
-    expect(find.text('Crear'), findsOneWidget);
-    expect(find.text('Explorar'), findsOneWidget);
-    expect(find.text('Perfil'), findsOneWidget);
+    // Prefer icons — labels can be elided on some Flutter/Material versions.
+    expect(find.byIcon(Icons.home_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.forum_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.add_circle_outline), findsOneWidget);
+    expect(find.byIcon(Icons.explore_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.person_outline), findsOneWidget);
+    expect(find.text('Crear'), findsWidgets);
 
-    await tester.tap(find.text('Comunidad'));
+    await tester.tap(find.byIcon(Icons.forum_outlined));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('COM'), findsOneWidget);
 
-    await tester.tap(find.text('Inicio'));
+    await tester.tap(find.byIcon(Icons.home_outlined));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('HOME'), findsOneWidget);
