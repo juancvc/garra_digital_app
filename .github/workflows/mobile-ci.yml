@@ -16,5 +16,14 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos
-      - run: flutter test
+      - name: flutter test
+        run: |
+          set -o pipefail
+          flutter test --reporter expanded 2>&1 | tee test_out.txt
+      - name: surface failing test name
+        if: failure()
+        run: |
+          echo "::error::Failed tests:"
+          grep -E '\[E\]|Some tests failed|Expected:|Actual:|Test failed|which:|package:flutter_test' test_out.txt | tail -n 80 || true
+          exit 1
       - run: flutter build apk --debug
