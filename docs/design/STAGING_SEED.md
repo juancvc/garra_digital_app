@@ -2,77 +2,111 @@
 
 ## Goal
 
-Staging must feel like a living community for UI/UX evaluation: posts, communities,
-businesses, products, events, solidaria, benefits, sponsors, and match context.
+Staging must feel like a living crema community for UI/UX QA:
+posts, communities, businesses, marketplace listings, events, solidaria,
+benefits, and sponsors.
 
-User-visible copy must **never** say DEMO / TEST / SEED / FAKE / MOCK.
+**User-visible copy must never contain:** `demo`, `test`, `seed`, `fake`, `mock`, `dataset`
+(case-insensitive).
+
+Technical identifiers (emails, slug prefixes like `crema-vivo-…`) may exist
+server-side as long as they are not shown as product copy.
 
 ## Mechanism
 
-Idempotent operator script (preferred — no HTTP backdoor):
+Operator-driven PowerShell script (no HTTP backdoor, no auto-run in production):
 
 ```
 api/scripts/staging/seed-product-demo.ps1
 ```
 
-Requires:
+### Dry run (no staging calls)
 
-```
-ALLOW_STAGING_SMOKE=true
-STAGING_BASE_URL=https://<staging-host>
-STAGING_EXPECTED_HOST=<staging-host>
-STAGING_ACCESS_TOKEN=...          # optional actor
-STAGING_ADMIN_ACCESS_TOKEN=...    # optional admin verify flows
+```powershell
+cd api
+.\scripts\staging\seed-product-demo.ps1 -DryRun -DataSetName 'crema-vivo'
 ```
 
-Run from `api/`:
+Validates planned payloads, target counts, and forbidden visible words.
+
+### Live run (operator only — after review)
 
 ```powershell
 $env:ALLOW_STAGING_SMOKE='true'
 $env:STAGING_BASE_URL='https://YOUR_STAGING_HOST'
 $env:STAGING_EXPECTED_HOST='YOUR_STAGING_HOST'
-# optional tokens...
+$env:STAGING_ADMIN_ACCESS_TOKEN='...'   # required for approvals + rewards + sponsors
+
 .\scripts\staging\seed-product-demo.ps1 -DataSetName 'crema-vivo'
 ```
 
-Property flag (documentation / future runners):
+Idempotent design:
 
-```
-garra.staging.seed-enabled=${GARRA_STAGING_SEED_ENABLED:false}
-```
+- Fans: register → on conflict, login
+- Communities / stores / listings / rewards / sponsors: GET/list by slug before create
+- Marketplace: real contracts only (`POST/PATCH /marketplace/seller/me`, `POST .../store`, `POST .../listings`, submit + admin approve)
+- Failures are counted; script exits non-zero if critical ops fail
 
-Default **false**. Do not turn on in production.
+There is **no** `GARRA_STAGING_SEED_ENABLED` application runner.
+Seed is operator-run only.
 
-## Images / R2
-
-Marketplace and sponsor URLs require **https** absolute URLs.
-
-If media storage (R2) is enabled on staging:
-
-1. Confirm `MEDIA_STORAGE_ENABLED=true`
-2. Confirm `MEDIA_PUBLIC_BASE_URL` points at the public CDN/base
-3. Upload covers/avatars/products via existing media upload APIs used by the app
-4. Re-run the seed script so posts/listings attach media asset IDs or https URLs
-
-Manual ops (no Railway CLI / no Cloudflare CLI from agents):
-
-| Step | Owner |
-|------|--------|
-| Confirm R2 bucket + public base URL env vars on staging | Operator |
-| Upload hero images if seed used placeholder https | Operator |
-| Run `seed-product-demo.ps1` once after deploy | Operator |
-
-## Target counts (approx.)
+## Target counts (V1 QA)
 
 | Domain | Count |
 |--------|------:|
-| Posts | 12–20 |
+| Users | 16 |
+| Posts | 22 |
 | Communities | 6 |
 | Businesses / stores | 8 |
-| Products / listings | 15–20 |
+| Listings | 17 |
 | Events | 5 |
 | Solidaria | 4 |
 | Benefits | 6 |
 | Sponsors | 3 |
+| Comments | ≥12 |
+| Reactions | ≥20 |
+| Follows | ≥15 |
+| Saved | ≥6 |
 
-Exact numbers depend on admin token availability for verify/approve steps.
+One community / event / solidarity / business application may remain pending for Centro Garra.
+
+## Images / R2
+
+Text seed alone is not enough for visual QA.
+
+Manifest:
+
+```
+api/scripts/staging/assets/staging-media-manifest.json
+```
+
+Upload flow (existing APIs):
+
+1. `POST /api/v1/media/uploads`
+2. Upload bytes to `uploadUrl`
+3. `POST /api/v1/media/{assetId}/confirm`
+4. Attach `mediaAssetId` / public https URL on domain records
+
+Requires staging env:
+
+- `MEDIA_STORAGE_ENABLED=true`
+- `MEDIA_PUBLIC_BASE_URL=https://…`
+
+**Manual operator step (no Railway CLI / no Cloudflare CLI):**
+
+1. Drop royalty-safe images into `api/scripts/staging/assets/` per manifest filenames  
+2. Confirm media env vars on staging  
+3. Upload + attach via media APIs (or an approved internal tool)  
+4. Verify images render in the app  
+
+Do **not** declare `STAGING_IMAGES=PASS` until remote UI evidence exists.
+
+## Report keys from script
+
+```
+FANS / POSTS / COMMUNITIES / BUSINESSES / STORES / LISTINGS
+EVENTS / SOLIDARITY / BENEFITS / SPONSORS
+COMMENTS / REACTIONS / FOLLOWS / SAVED / IMAGES
+FAILED_OPERATIONS
+SEED_RESULT=PASS|PARTIAL|FAIL
+```
