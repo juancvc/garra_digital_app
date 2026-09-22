@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garra_digital_app/core/navigation/main_shell.dart';
+import 'package:garra_digital_app/core/theme/app_theme.dart';
 import 'package:go_router/go_router.dart';
 
 void main() {
   testWidgets('main shell exposes five destinations including Crear', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     final router = GoRouter(
       initialLocation: '/home',
       routes: [
@@ -16,7 +20,8 @@ void main() {
               routes: [
                 GoRoute(
                   path: '/home',
-                  builder: (_, __) => const Scaffold(body: Text('HOME')),
+                  builder: (context, state) =>
+                      const Scaffold(body: Text('HOME')),
                 ),
               ],
             ),
@@ -24,7 +29,8 @@ void main() {
               routes: [
                 GoRoute(
                   path: '/comunidad',
-                  builder: (_, __) => const Scaffold(body: Text('COM')),
+                  builder: (context, state) =>
+                      const Scaffold(body: Text('COM')),
                 ),
               ],
             ),
@@ -32,7 +38,8 @@ void main() {
               routes: [
                 GoRoute(
                   path: '/explorar',
-                  builder: (_, __) => const Scaffold(body: Text('EXP')),
+                  builder: (context, state) =>
+                      const Scaffold(body: Text('EXP')),
                 ),
               ],
             ),
@@ -40,7 +47,8 @@ void main() {
               routes: [
                 GoRoute(
                   path: '/passport',
-                  builder: (_, __) => const Scaffold(body: Text('PASS')),
+                  builder: (context, state) =>
+                      const Scaffold(body: Text('PASS')),
                 ),
               ],
             ),
@@ -48,12 +56,20 @@ void main() {
         ),
         GoRoute(
           path: '/comunidad/compose',
-          builder: (_, __) => const Scaffold(body: Text('COMPOSE')),
+          builder: (context, state) =>
+              const Scaffold(body: Text('COMPOSE')),
         ),
       ],
     );
 
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpWidget(
+      MaterialApp.router(
+        theme: AppTheme.darkTheme,
+        routerConfig: router,
+      ),
+    );
+    await tester.pump();
+
     expect(find.text('Inicio'), findsOneWidget);
     expect(find.text('Comunidad'), findsOneWidget);
     expect(find.text('Crear'), findsOneWidget);
@@ -61,11 +77,13 @@ void main() {
     expect(find.text('Perfil'), findsOneWidget);
 
     await tester.tap(find.text('Comunidad'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('COM'), findsOneWidget);
 
     await tester.tap(find.text('Inicio'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('HOME'), findsOneWidget);
   });
 }
