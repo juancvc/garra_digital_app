@@ -5,7 +5,9 @@ import 'package:garra_digital_app/core/theme/app_theme.dart';
 import 'package:go_router/go_router.dart';
 
 void main() {
-  testWidgets('main shell exposes five destinations including Crear', (tester) async {
+  testWidgets('main shell exposes five destinations including Crear', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(400, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -56,23 +58,19 @@ void main() {
         ),
         GoRoute(
           path: '/comunidad/compose',
-          builder: (context, state) =>
-              const Scaffold(body: Text('COMPOSE')),
+          builder: (context, state) => const Scaffold(body: Text('COMPOSE')),
         ),
       ],
     );
 
     await tester.pumpWidget(
-      MaterialApp.router(
-        theme: AppTheme.darkTheme,
-        routerConfig: router,
-      ),
+      MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
     );
     await tester.pump();
 
     expect(find.byIcon(Icons.home_rounded), findsOneWidget);
     expect(find.byIcon(Icons.forum_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.add_circle_outline), findsOneWidget);
+    expect(find.byIcon(Icons.add_rounded), findsOneWidget);
     expect(find.byIcon(Icons.explore_outlined), findsOneWidget);
     expect(find.byIcon(Icons.person_outline), findsOneWidget);
 
@@ -86,9 +84,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('HOME'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.add_circle_outline));
+    await tester.tap(find.text('Crear'));
     await tester.pumpAndSettle();
     expect(find.text('¿Qué quieres crear?'), findsOneWidget);
     expect(find.text('Publicación'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
+import '../../../core/widgets/garra_states.dart';
 import '../data/checkin_model.dart';
 import '../data/crema_point_model.dart';
 import '../data/create_checkin_request.dart';
@@ -12,7 +13,6 @@ import '../../../core/location/location_service.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../retention/data/retention_models.dart';
 import '../../retention/data/retention_service.dart';
-
 
 class RutaAlTemploPage extends ConsumerStatefulWidget {
   const RutaAlTemploPage({super.key});
@@ -34,10 +34,7 @@ class _RutaAlTemploPageState extends ConsumerState<RutaAlTemploPage> {
       appBar: AppBar(
         title: const Text(
           'Ruta al Templo',
-          style: TextStyle(
-            color: AppTheme.cream,
-            fontWeight: FontWeight.w900,
-          ),
+          style: TextStyle(color: AppTheme.cream, fontWeight: FontWeight.w900),
         ),
         actions: [
           TextButton(
@@ -63,23 +60,31 @@ class _RutaAlTemploPageState extends ConsumerState<RutaAlTemploPage> {
             loading: () => const Center(
               child: CircularProgressIndicator(color: AppTheme.gold),
             ),
-            error: (error, _) => _ErrorState(
-              message: 'No se pudieron cargar los puntos crema.',
-              detail: error.toString(),
+            error: (_, _) => GarraErrorState(
+              title: 'No pudimos cargar los puntos crema',
+              onRetry: () {
+                ref.invalidate(cremaPointsProvider);
+                ref.invalidate(myCheckInsProvider);
+              },
             ),
             data: (points) {
               return checkInsAsync.when(
                 loading: () => const Center(
                   child: CircularProgressIndicator(color: AppTheme.gold),
                 ),
-                error: (error, _) => _ErrorState(
-                  message: 'No se pudieron cargar tus check-ins.',
-                  detail: error.toString(),
+                error: (_, _) => GarraErrorState(
+                  title: 'No pudimos cargar tus check-ins',
+                  onRetry: () {
+                    ref.invalidate(cremaPointsProvider);
+                    ref.invalidate(myCheckInsProvider);
+                  },
                 ),
                 data: (checkIns) {
                   final filteredPoints = _selectedType == 'ALL'
                       ? points
-                      : points.where((point) => point.type == _selectedType).toList();
+                      : points
+                            .where((point) => point.type == _selectedType)
+                            .toList();
 
                   if (points.isEmpty) {
                     return const _EmptyState();
@@ -121,10 +126,7 @@ class _RutaAlTemploPageState extends ConsumerState<RutaAlTemploPage> {
                         cremaPointId: point.id,
                       );
 
-                      return _CremaPointCard(
-                        point: point,
-                        checkIn: checkIn,
-                      );
+                      return _CremaPointCard(point: point, checkIn: checkIn);
                     },
                   );
                 },
@@ -153,7 +155,6 @@ class _RutaAlTemploPageState extends ConsumerState<RutaAlTemploPage> {
 class _Header extends StatelessWidget {
   const _Header();
 
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -163,23 +164,14 @@ class _Header extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            AppTheme.burgundy,
-            Color(0xFF2A0B0F),
-          ],
+          colors: [AppTheme.burgundy, Color(0xFF2A0B0F)],
         ),
-        border: Border.all(
-          color: AppTheme.cream.withOpacity(0.08),
-        ),
+        border: Border.all(color: AppTheme.cream.withOpacity(0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.route_rounded,
-            color: AppTheme.gold,
-            size: 32,
-          ),
+          const Icon(Icons.route_rounded, color: AppTheme.gold, size: 32),
           const SizedBox(height: 14),
           const Text(
             'Ruta al Templo',
@@ -207,18 +199,13 @@ class _Header extends StatelessWidget {
 }
 
 class _TypeFilters extends StatelessWidget {
-  const _TypeFilters({
-    required this.selectedType,
-    required this.onChanged,
-  });
+  const _TypeFilters({required this.selectedType, required this.onChanged});
 
   final String selectedType;
   final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
-
-
     const filters = [
       _PointTypeFilter(label: 'Todos', value: 'ALL'),
       _PointTypeFilter(label: 'Estadio', value: 'STADIUM'),
@@ -245,7 +232,9 @@ class _TypeFilters extends StatelessWidget {
                 fontWeight: FontWeight.w800,
               ),
               side: BorderSide(
-                color: selected ? AppTheme.gold : AppTheme.cream.withOpacity(0.12),
+                color: selected
+                    ? AppTheme.gold
+                    : AppTheme.cream.withOpacity(0.12),
               ),
               onSelected: (_) => onChanged(filter.value),
             ),
@@ -257,20 +246,14 @@ class _TypeFilters extends StatelessWidget {
 }
 
 class _PointTypeFilter {
-  const _PointTypeFilter({
-    required this.label,
-    required this.value,
-  });
+  const _PointTypeFilter({required this.label, required this.value});
 
   final String label;
   final String value;
 }
 
 class _CremaPointCard extends ConsumerStatefulWidget {
-  const _CremaPointCard({
-    required this.point,
-    required this.checkIn,
-  });
+  const _CremaPointCard({required this.point, required this.checkIn});
 
   final CremaPointModel point;
   final CheckInModel? checkIn;
@@ -401,10 +384,7 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
                     color: AppTheme.gold.withOpacity(0.14),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(
-                    Icons.place_rounded,
-                    color: AppTheme.gold,
-                  ),
+                  child: const Icon(Icons.place_rounded, color: AppTheme.gold),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -481,15 +461,14 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
             const SizedBox(height: 16),
             if (hasCheckIn)
               _CheckInDone(checkIn: checkIn)
-            else
-              if (_loadingDistance)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    'Calculando distancia...',
-                    style: TextStyle(color: AppTheme.gold),
-                  ),
+            else if (_loadingDistance)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'Calculando distancia...',
+                  style: TextStyle(color: AppTheme.gold),
                 ),
+              ),
 
             if (_distanceMeters != null)
               Padding(
@@ -513,33 +492,35 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
                         ? 'Estás a ${_distanceMeters!.toStringAsFixed(0)} m. Puedes hacer check-in.'
                         : 'Estás a ${(_distanceMeters! / 1000).toStringAsFixed(2)} km. Estás fuera del rango permitido.',
                     style: TextStyle(
-                      color: _distanceMeters! <= 100 ? Colors.greenAccent : Colors.orange,
+                      color: _distanceMeters! <= 100
+                          ? Colors.greenAccent
+                          : Colors.orange,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
               ),
 
-              FilledButton.icon(
-                onPressed: (_submitting || !canCheckIn) ? null : _createCheckIn,
-                icon: _submitting
-                    ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppTheme.burgundy,
-                  ),
-                )
-                    : const Icon(Icons.check_circle_outline_rounded),
-                label: Text(canCheckIn ? 'Hacer check-in' : 'Fuera de rango',),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () => _openReviews(point.id, point.name),
-                icon: const Icon(Icons.rate_review_outlined),
-                label: const Text('Opiniones de la comunidad'),
-              ),
+            FilledButton.icon(
+              onPressed: (_submitting || !canCheckIn) ? null : _createCheckIn,
+              icon: _submitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppTheme.burgundy,
+                      ),
+                    )
+                  : const Icon(Icons.check_circle_outline_rounded),
+              label: Text(canCheckIn ? 'Hacer check-in' : 'Fuera de rango'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: () => _openReviews(point.id, point.name),
+              icon: const Icon(Icons.rate_review_outlined),
+              label: const Text('Opiniones de la comunidad'),
+            ),
           ],
         ),
       ),
@@ -594,9 +575,7 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
                 TextField(
                   controller: ratingController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Tu nota (1-5)',
-                  ),
+                  decoration: const InputDecoration(labelText: 'Tu nota (1-5)'),
                 ),
                 TextField(
                   controller: commentController,
@@ -618,9 +597,7 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
                       if (ctx.mounted) Navigator.pop(ctx);
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Opinión guardada'),
-                          ),
+                          const SnackBar(content: Text('Opinión guardada')),
                         );
                       }
                     } catch (_) {
@@ -647,9 +624,7 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
 }
 
 class _CheckInDone extends StatelessWidget {
-  const _CheckInDone({
-    required this.checkIn,
-  });
+  const _CheckInDone({required this.checkIn});
 
   final CheckInModel checkIn;
 
@@ -665,18 +640,12 @@ class _CheckInDone extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.green.withOpacity(0.12),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: Colors.green.withOpacity(0.35),
-        ),
+        border: Border.all(color: Colors.green.withOpacity(0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-           _Badge(
-            label: title,
-            color: color,
-            icon: icon,
-          ),
+          _Badge(label: title, color: color, icon: icon),
           const SizedBox(height: 10),
           Text(
             '+${checkIn.pointsEarned} puntos crema',
@@ -709,11 +678,7 @@ class _CheckInDone extends StatelessWidget {
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge({
-    required this.label,
-    required this.color,
-    required this.icon,
-  });
+  const _Badge({required this.label, required this.color, required this.icon});
 
   final String label;
   final Color color;
@@ -722,25 +687,16 @@ class _Badge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 7,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: color.withOpacity(0.14),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: color.withOpacity(0.28),
-        ),
+        border: Border.all(color: color.withOpacity(0.28)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: 15,
-          ),
+          Icon(icon, color: color, size: 15),
           const SizedBox(width: 5),
           Text(
             label,
@@ -774,19 +730,12 @@ class _InfoRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          color: AppTheme.gold,
-          size: small ? 16 : 18,
-        ),
+        Icon(icon, color: AppTheme.gold, size: small ? 16 : 18),
         const SizedBox(width: 8),
         Expanded(
           child: RichText(
             text: TextSpan(
-              style: TextStyle(
-                fontSize: small ? 12 : 13,
-                height: 1.3,
-              ),
+              style: TextStyle(fontSize: small ? 12 : 13, height: 1.3),
               children: [
                 TextSpan(
                   text: '$label: ',
@@ -842,52 +791,6 @@ class _EmptyState extends StatelessWidget {
           style: TextStyle(
             color: Colors.white.withOpacity(0.62),
             fontSize: 14,
-            height: 1.35,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({
-    required this.message,
-    required this.detail,
-  });
-
-  final String message;
-  final String detail;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        const SizedBox(height: 80),
-        Icon(
-          Icons.error_outline_rounded,
-          color: Colors.redAccent.withOpacity(0.9),
-          size: 54,
-        ),
-        const SizedBox(height: 18),
-        Text(
-          message,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: AppTheme.cream,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          detail,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.55),
-            fontSize: 12,
             height: 1.35,
             fontWeight: FontWeight.w500,
           ),

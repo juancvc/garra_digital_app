@@ -8,6 +8,7 @@ import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_brand_visual.dart';
+import '../../../core/widgets/garra_cached_network_image.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../passport/presentation/providers/passport_provider.dart';
 import '../data/clan_models.dart';
@@ -91,19 +92,16 @@ class _ClansPageState extends ConsumerState<ClansPage>
               child: const Icon(Icons.mail_outline),
             ),
           ),
-          IconButton(
-            tooltip: 'Crear comunidad',
-            onPressed: () => context.push('/clans/create'),
-            icon: const Icon(Icons.add),
-          ),
         ],
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           indicatorColor: const Color(GarraColors.gold),
           labelColor: const Color(GarraColors.cream),
           unselectedLabelColor: const Color(GarraColors.creamMuted),
           tabs: const [
-            Tab(text: 'Mis'),
+            Tab(text: 'Mis comunidades'),
             Tab(text: 'Descubrir'),
             Tab(text: 'Cercanas'),
           ],
@@ -276,7 +274,7 @@ class _CommunitiesHero extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const GarraEditorialEyebrow(
-                  label: 'La tribuna se encuentra',
+                  label: 'Tribuna crema',
                   icon: Icons.groups_outlined,
                 ),
                 const SizedBox(height: GarraSpacing.sm),
@@ -508,13 +506,12 @@ class _ClanListTile extends StatelessWidget {
                     ? const Color(GarraColors.gold)
                     : const Color(GarraColors.burgundy),
               ),
-              const SizedBox(width: GarraSpacing.md),
-              GarraAvatar(
-                displayName: clan.name,
-                avatarUrl: clan.logoUrl,
-                size: 48,
+              _ClanVisual(
+                name: clan.name,
+                logoUrl: clan.logoUrl,
+                bannerUrl: clan.bannerUrl,
               ),
-              const SizedBox(width: GarraSpacing.md),
+              const SizedBox(width: GarraSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -542,29 +539,157 @@ class _ClanListTile extends StatelessWidget {
                 ),
               ),
               if (onSetPrimary != null)
-                IconButton(
-                  tooltip: 'Marcar principal',
-                  onPressed: onSetPrimary,
-                  icon: Icon(
-                    isPrimary ? Icons.star : Icons.star_border,
-                    color: isPrimary
-                        ? const Color(GarraColors.gold)
-                        : const Color(GarraColors.creamMuted),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const _MembershipLabel(label: 'Miembro'),
+                    IconButton(
+                      tooltip: 'Marcar principal',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: onSetPrimary,
+                      icon: Icon(
+                        isPrimary ? Icons.star : Icons.star_border,
+                        color: isPrimary
+                            ? const Color(GarraColors.gold)
+                            : const Color(GarraColors.creamMuted),
+                      ),
+                    ),
+                  ],
+                )
+              else if (member)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: GarraSpacing.sm,
+                  ),
+                  child: _MembershipLabel(
+                    label: isPrimary ? 'Principal' : 'Miembro',
                   ),
                 )
               else
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    isPrimary ? 'Principal' : cta,
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: const Color(GarraColors.gold),
-                      fontWeight: FontWeight.w800,
-                    ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: GarraSpacing.sm,
                   ),
+                  child: _JoinLabel(label: cta),
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ClanVisual extends StatelessWidget {
+  const _ClanVisual({
+    required this.name,
+    required this.logoUrl,
+    required this.bannerUrl,
+  });
+
+  final String name;
+  final String? logoUrl;
+  final String? bannerUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 72,
+      height: 76,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(
+            child: bannerUrl != null && bannerUrl!.isNotEmpty
+                ? GarraCachedNetworkImage(
+                    imageUrl: bannerUrl!,
+                    fit: BoxFit.cover,
+                    errorWidget: const _ClanBannerFallback(),
+                  )
+                : const _ClanBannerFallback(),
+          ),
+          Container(
+            color: const Color(GarraColors.charcoal).withValues(alpha: 0.3),
+          ),
+          GarraAvatar(displayName: name, avatarUrl: logoUrl, size: 44),
+        ],
+      ),
+    );
+  }
+}
+
+class _ClanBannerFallback extends StatelessWidget {
+  const _ClanBannerFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(GarraColors.burgundyDeep),
+            Color(GarraColors.surfaceRaised),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MembershipLabel extends StatelessWidget {
+  const _MembershipLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: label == 'Principal' ? 'Comunidad principal' : 'Ya eres miembro',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.check_circle,
+            size: 18,
+            color: Color(GarraColors.success),
+          ),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: const Color(GarraColors.creamMuted),
+              fontSize: 9,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _JoinLabel extends StatelessWidget {
+  const _JoinLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 74),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(GarraColors.gold)),
+        borderRadius: BorderRadius.circular(GarraRadius.pill),
+      ),
+      child: Text(
+        label,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: const Color(GarraColors.gold),
+          fontWeight: FontWeight.w800,
         ),
       ),
     );

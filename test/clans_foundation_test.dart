@@ -30,6 +30,7 @@ ClanModel sampleClan({
   String status = 'ACTIVE',
   int memberCount = 1284,
   String? logoUrl,
+  String? bannerUrl,
   ClanMembershipSummary? myMembership,
   ClanJoinRequestSummary? pendingJoinRequest,
 }) {
@@ -45,6 +46,7 @@ ClanModel sampleClan({
     status: status,
     memberCount: memberCount,
     logoUrl: logoUrl,
+    bannerUrl: bannerUrl,
     myMembership: myMembership,
     pendingJoinRequest: pendingJoinRequest,
   );
@@ -429,7 +431,7 @@ void main() {
     );
     await tester.pumpWidget(pumpClans(service));
     await tester.pumpAndSettle();
-    expect(find.text('Mis'), findsOneWidget);
+    expect(find.text('Mis comunidades'), findsOneWidget);
     expect(find.text('Garra Surco'), findsWidgets);
     expect(find.text('Crema Norte'), findsOneWidget);
     expect(find.text('Principal'), findsWidgets);
@@ -450,6 +452,33 @@ void main() {
     await tester.tap(find.byTooltip('Marcar principal'));
     await tester.pumpAndSettle();
     expect(service.lastPrimarySlug, 'crema-norte');
+  });
+
+  testWidgets('COMMUNITIES_NARROW_LAYOUT_HAS_CLEAR_MEMBER_STATE', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final service = FakeClanService(
+      myClans: [
+        sampleMembership(
+          clan: sampleClan(
+            name: 'Comunidad Crema de Nombre Extenso',
+            city: '',
+            countryCode: '',
+          ),
+          isPrimary: true,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(pumpClans(service));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mis comunidades'), findsOneWidget);
+    expect(find.text('Principal'), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsOneWidget);
+    expect(find.byTooltip('Crear comunidad'), findsNothing);
   });
 
   testWidgets('PASSPORT_PRIMARY_CLAN', (tester) async {
@@ -586,34 +615,34 @@ void main() {
     final router = GoRouter(
       initialLocation: '/explorar',
       routes: [
-        GoRoute(path: '/explorar', builder: (_, __) => const ExplorePage()),
+        GoRoute(path: '/explorar', builder: (_, _) => const ExplorePage()),
         GoRoute(
           path: '/clans',
-          builder: (_, __) => const Scaffold(body: Text('CLANS_ROUTE')),
+          builder: (_, _) => const Scaffold(body: Text('CLANS_ROUTE')),
         ),
         GoRoute(
           path: '/comunidad/buscar',
-          builder: (_, __) => const Scaffold(body: Text('SEARCH')),
+          builder: (_, _) => const Scaffold(body: Text('SEARCH')),
         ),
         GoRoute(
           path: '/marketplace',
-          builder: (_, __) => const Scaffold(body: Text('MARKET')),
+          builder: (_, _) => const Scaffold(body: Text('MARKET')),
         ),
         GoRoute(
           path: '/eventos',
-          builder: (_, __) => const Scaffold(body: Text('EVENTS')),
+          builder: (_, _) => const Scaffold(body: Text('EVENTS')),
         ),
         GoRoute(
           path: '/ruta-templo',
-          builder: (_, __) => const Scaffold(body: Text('MAP')),
+          builder: (_, _) => const Scaffold(body: Text('MAP')),
         ),
         GoRoute(
           path: '/solidaria',
-          builder: (_, __) => const Scaffold(body: Text('SOLIDARIA')),
+          builder: (_, _) => const Scaffold(body: Text('SOLIDARIA')),
         ),
         GoRoute(
           path: '/rewards',
-          builder: (_, __) => const Scaffold(body: Text('REWARDS')),
+          builder: (_, _) => const Scaffold(body: Text('REWARDS')),
         ),
       ],
     );

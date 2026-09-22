@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/location/location_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/garra_states.dart';
 import '../data/checkin_model.dart';
 import '../data/crema_business_engagement_service.dart';
 import '../data/crema_point_model.dart';
@@ -86,20 +87,12 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
       return;
     }
 
-    final current = LatLng(
-      gpsResult.latitude!,
-      gpsResult.longitude!,
-    );
+    final current = LatLng(gpsResult.latitude!, gpsResult.longitude!);
 
     setState(() => _currentLatLng = current);
 
     await _mapController?.animateCamera(
-      CameraUpdate.newCameraPosition(
-        CameraPosition(
-          target: current,
-          zoom: 15,
-        ),
-      ),
+      CameraUpdate.newCameraPosition(CameraPosition(target: current, zoom: 15)),
     );
   }
 
@@ -112,10 +105,7 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
 
     await _mapController?.animateCamera(
       CameraUpdate.newCameraPosition(
-        CameraPosition(
-          target: target,
-          zoom: _currentLatLng == null ? 12 : 16,
-        ),
+        CameraPosition(target: target, zoom: _currentLatLng == null ? 12 : 16),
       ),
     );
   }
@@ -136,14 +126,11 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
   Future<void> _openGoogleMaps(CremaPointModel point) async {
     final uri = Uri.parse(
       'https://www.google.com/maps/dir/?api=1'
-          '&destination=${point.latitude},${point.longitude}'
-          '&travelmode=driving',
+      '&destination=${point.latitude},${point.longitude}'
+      '&travelmode=driving',
     );
 
-    final launched = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
 
     if (!launched && mounted) {
       _showSnackBar(
@@ -174,10 +161,7 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
       }
 
       setState(() {
-        _currentLatLng = LatLng(
-          gpsResult.latitude!,
-          gpsResult.longitude!,
-        );
+        _currentLatLng = LatLng(gpsResult.latitude!, gpsResult.longitude!);
       });
 
       final service = ref.read(locationServiceProvider);
@@ -249,9 +233,7 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
         markerId: const MarkerId('current_location'),
         position: _currentLatLng!,
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-        infoWindow: const InfoWindow(
-          title: 'Mi ubicación',
-        ),
+        infoWindow: const InfoWindow(title: 'Mi ubicación'),
       ),
     };
   }
@@ -329,10 +311,7 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
         ),
         title: const Text(
           'Mapa Crema',
-          style: TextStyle(
-            color: AppTheme.cream,
-            fontWeight: FontWeight.w900,
-          ),
+          style: TextStyle(color: AppTheme.cream, fontWeight: FontWeight.w900),
         ),
       ),
       body: SafeArea(
@@ -340,9 +319,9 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
           loading: () => const Center(
             child: CircularProgressIndicator(color: AppTheme.gold),
           ),
-          error: (error, _) => _MapErrorState(
-            message: 'No se pudieron cargar los puntos crema.',
-            detail: error.toString(),
+          error: (_, _) => GarraErrorState(
+            title: 'No pudimos cargar el Mapa Crema',
+            onRetry: () => ref.invalidate(cremaPointsProvider),
           ),
           data: (points) {
             return Stack(
@@ -391,30 +370,36 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
                     child: _selectedPoint == null
                         ? const SizedBox.shrink()
                         : _SelectedPointCard(
-                      key: ValueKey(_selectedPoint!.id),
-                      point: _selectedPoint!,
-                      distanceMeters: _distanceToPoint(_selectedPoint!),
-                      matchContext: widget.matchId != null &&
-                          widget.matchId!.isNotEmpty,
-                      checkingIn: _checkingIn,
-                      following: _followingIds.contains(_selectedPoint!.id),
-                      onClose: () {
-                        setState(() => _selectedPoint = null);
-                      },
-                      onDirections: () => _openGoogleMaps(_selectedPoint!),
-                      onCheckIn: () => _createCheckIn(_selectedPoint!),
-                      onFollow: _selectedPoint!.type.toUpperCase() ==
-                                  'BUSINESS' &&
-                              _selectedPoint!.verified
-                          ? () => _toggleFollow(_selectedPoint!)
-                          : null,
-                      onOpenStore:
-                          (_selectedPoint!.marketplaceStoreSlug ?? '').isEmpty
-                              ? null
-                              : () => context.push(
+                            key: ValueKey(_selectedPoint!.id),
+                            point: _selectedPoint!,
+                            distanceMeters: _distanceToPoint(_selectedPoint!),
+                            matchContext:
+                                widget.matchId != null &&
+                                widget.matchId!.isNotEmpty,
+                            checkingIn: _checkingIn,
+                            following: _followingIds.contains(
+                              _selectedPoint!.id,
+                            ),
+                            onClose: () {
+                              setState(() => _selectedPoint = null);
+                            },
+                            onDirections: () =>
+                                _openGoogleMaps(_selectedPoint!),
+                            onCheckIn: () => _createCheckIn(_selectedPoint!),
+                            onFollow:
+                                _selectedPoint!.type.toUpperCase() ==
+                                        'BUSINESS' &&
+                                    _selectedPoint!.verified
+                                ? () => _toggleFollow(_selectedPoint!)
+                                : null,
+                            onOpenStore:
+                                (_selectedPoint!.marketplaceStoreSlug ?? '')
+                                    .isEmpty
+                                ? null
+                                : () => context.push(
                                     '/marketplace/stores/${_selectedPoint!.marketplaceStoreSlug}',
                                   ),
-                    ),
+                          ),
                   ),
                 ),
               ],
@@ -468,9 +453,7 @@ class _SelectedPointCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF1A1A1A),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: AppTheme.gold.withOpacity(0.24),
-          ),
+          border: Border.all(color: AppTheme.gold.withOpacity(0.24)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.48),
@@ -547,10 +530,7 @@ class _SelectedPointCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 11),
-              _InfoLine(
-                icon: Icons.location_on_outlined,
-                text: point.address,
-              ),
+              _InfoLine(icon: Icons.location_on_outlined, text: point.address),
               const SizedBox(height: 8),
               _InfoLine(
                 icon: Icons.social_distance_rounded,
@@ -604,10 +584,7 @@ class _SelectedPointCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(18),
                           ),
                         ),
-                        icon: const Icon(
-                          Icons.directions_rounded,
-                          size: 18,
-                        ),
+                        icon: const Icon(Icons.directions_rounded, size: 18),
                         label: const Text(
                           'Cómo llegar',
                           maxLines: 1,
@@ -624,19 +601,19 @@ class _SelectedPointCard extends StatelessWidget {
                         onPressed: _isInRange && !checkingIn ? onCheckIn : null,
                         icon: checkingIn
                             ? const SizedBox(
-                          width: 17,
-                          height: 17,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppTheme.burgundy,
-                          ),
-                        )
+                                width: 17,
+                                height: 17,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppTheme.burgundy,
+                                ),
+                              )
                             : Icon(
-                          _isInRange
-                              ? Icons.check_circle_outline_rounded
-                              : Icons.block_rounded,
-                          size: 18,
-                        ),
+                                _isInRange
+                                    ? Icons.check_circle_outline_rounded
+                                    : Icons.block_rounded,
+                                size: 18,
+                              ),
                         label: Text(
                           _isInRange ? 'Check-in' : 'Fuera de rango',
                           maxLines: 1,
@@ -686,10 +663,7 @@ class _SelectedPointCard extends StatelessWidget {
 }
 
 class _InfoLine extends StatelessWidget {
-  const _InfoLine({
-    required this.icon,
-    required this.text,
-  });
+  const _InfoLine({required this.icon, required this.text});
 
   final IconData icon;
   final String text;
@@ -699,11 +673,7 @@ class _InfoLine extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          color: AppTheme.gold,
-          size: 16,
-        ),
+        Icon(icon, color: AppTheme.gold, size: 16),
         const SizedBox(width: 7),
         Expanded(
           child: Text(
@@ -751,14 +721,9 @@ class _FloatingMapButton extends StatelessWidget {
             height: 48,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: AppTheme.gold.withOpacity(0.22),
-              ),
+              border: Border.all(color: AppTheme.gold.withOpacity(0.22)),
             ),
-            child: Icon(
-              icon,
-              color: AppTheme.gold,
-            ),
+            child: Icon(icon, color: AppTheme.gold),
           ),
         ),
       ),
@@ -780,25 +745,16 @@ class _PointBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.14),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: color.withOpacity(0.28),
-        ),
+        border: Border.all(color: color.withOpacity(0.28)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: 14,
-          ),
+          Icon(icon, color: color, size: 14),
           const SizedBox(width: 5),
           Text(
             label,
@@ -810,52 +766,6 @@ class _PointBadge extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _MapErrorState extends StatelessWidget {
-  const _MapErrorState({
-    required this.message,
-    required this.detail,
-  });
-
-  final String message;
-  final String detail;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 130),
-      children: [
-        const SizedBox(height: 80),
-        Icon(
-          Icons.map_outlined,
-          color: Colors.redAccent.withOpacity(0.9),
-          size: 54,
-        ),
-        const SizedBox(height: 18),
-        Text(
-          message,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: AppTheme.cream,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          detail,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.55),
-            fontSize: 12,
-            height: 1.35,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
     );
   }
 }

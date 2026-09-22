@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../design/garra_colors.dart';
 import '../design/garra_typography.dart';
+import 'garra_cached_network_image.dart';
 
 class GarraAvatar extends StatelessWidget {
   const GarraAvatar({
@@ -38,11 +39,13 @@ class GarraAvatar extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: hasUrl
-          ? Image.network(
-              avatarUrl!,
+          ? GarraCachedNetworkImage(
+              imageUrl: avatarUrl!,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) =>
-                  _Initials(initials: initials, size: size),
+              width: size,
+              height: size,
+              placeholder: _Initials(initials: initials, size: size),
+              errorWidget: _Initials(initials: initials, size: size),
             )
           : _Initials(initials: initials, size: size),
     );
@@ -52,7 +55,9 @@ class GarraAvatar extends StatelessWidget {
     final parts = name.trim().split(RegExp(r'\s+'));
     if (parts.isEmpty || parts.first.isEmpty) return 'GC';
     if (parts.length == 1) {
-      return parts.first.substring(0, parts.first.length >= 2 ? 2 : 1).toUpperCase();
+      return parts.first
+          .substring(0, parts.first.length >= 2 ? 2 : 1)
+          .toUpperCase();
     }
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
@@ -69,9 +74,9 @@ class _Initials extends StatelessWidget {
     return Center(
       child: Text(
         initials,
-        style: GarraTypography.numeric(size: size * 0.32).copyWith(
-          color: const Color(GarraColors.cream),
-        ),
+        style: GarraTypography.numeric(
+          size: size * 0.32,
+        ).copyWith(color: const Color(GarraColors.cream)),
       ),
     );
   }

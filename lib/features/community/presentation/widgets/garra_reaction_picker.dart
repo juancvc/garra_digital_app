@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/design/garra_colors.dart';
 import '../../../../core/design/garra_radius.dart';
@@ -23,11 +24,7 @@ Future<ReactionType?> showGarraReactionPicker(
 
 /// Modal bottom sheet with the 6 Garra reaction options (Spanish labels).
 class GarraReactionPicker extends StatelessWidget {
-  const GarraReactionPicker({
-    super.key,
-    this.currentReaction,
-    this.onSelected,
-  });
+  const GarraReactionPicker({super.key, this.currentReaction, this.onSelected});
 
   final String? currentReaction;
   final ValueChanged<ReactionType>? onSelected;
@@ -54,8 +51,9 @@ class GarraReactionPicker extends StatelessWidget {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color:
-                        const Color(GarraColors.cream).withValues(alpha: 0.2),
+                    color: const Color(
+                      GarraColors.cream,
+                    ).withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(GarraRadius.pill),
                   ),
                 ),
@@ -64,16 +62,16 @@ class GarraReactionPicker extends StatelessWidget {
               Text(
                 'Reaccionar',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: const Color(GarraColors.cream),
-                      fontWeight: FontWeight.w900,
-                    ),
+                  color: const Color(GarraColors.cream),
+                  fontWeight: FontWeight.w900,
+                ),
               ),
               const SizedBox(height: GarraSpacing.sm),
               Text(
                 'Elige cómo sientes esta arenga',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: const Color(GarraColors.textSecondary),
-                    ),
+                  color: const Color(GarraColors.textSecondary),
+                ),
               ),
               const SizedBox(height: GarraSpacing.lg),
               ...ReactionType.all.map((type) {
@@ -82,14 +80,16 @@ class GarraReactionPicker extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
                   child: Material(
                     color: isSelected
-                        ? const Color(GarraColors.garnet)
-                            .withValues(alpha: 0.35)
+                        ? const Color(
+                            GarraColors.garnet,
+                          ).withValues(alpha: 0.35)
                         : const Color(GarraColors.surfaceRaised),
                     borderRadius: BorderRadius.circular(GarraRadius.md),
                     child: InkWell(
                       key: ValueKey('reaction_option_${type.apiValue}'),
                       borderRadius: BorderRadius.circular(GarraRadius.md),
                       onTap: () {
+                        HapticFeedback.lightImpact();
                         if (onSelected != null) {
                           onSelected!(type);
                         } else {
@@ -111,9 +111,7 @@ class GarraReactionPicker extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 type.labelEs,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
+                                style: Theme.of(context).textTheme.titleMedium
                                     ?.copyWith(
                                       color: const Color(GarraColors.cream),
                                       fontWeight: FontWeight.w800,

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
@@ -18,6 +19,7 @@ import '../data/reaction_type.dart';
 import '../data/wall_comment_model.dart';
 import '../data/wall_post_model.dart';
 import 'providers/community_provider.dart';
+import 'widgets/garra_post_media_grid.dart';
 import 'widgets/garra_reaction_bar.dart';
 import 'widgets/garra_reaction_picker.dart';
 import 'widgets/garra_share_card.dart';
@@ -72,8 +74,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     });
 
     try {
-      final post =
-          await ref.read(communityServiceProvider).getPost(widget.postId);
+      final post = await ref
+          .read(communityServiceProvider)
+          .getPost(widget.postId);
       if (!mounted) return;
       setState(() {
         _post = post;
@@ -103,7 +106,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     }
 
     try {
-      final page = await ref.read(communityServiceProvider).listComments(
+      final page = await ref
+          .read(communityServiceProvider)
+          .listComments(
             postId: widget.postId,
             cursor: reset ? null : _nextCursor,
           );
@@ -136,7 +141,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     if (selected == null || !mounted) return;
 
     final previous = post;
-    final same = post.myReaction != null &&
+    final same =
+        post.myReaction != null &&
         post.myReaction!.toUpperCase() == selected.apiValue;
     final optimistic = applyOptimisticReaction(
       post,
@@ -198,10 +204,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     }
 
     setState(() => _sendingComment = true);
-    final result = await ref.read(communityServiceProvider).createComment(
-          postId: widget.postId,
-          content: content,
-        );
+    final result = await ref
+        .read(communityServiceProvider)
+        .createComment(postId: widget.postId, content: content);
 
     if (!mounted) return;
 
@@ -231,8 +236,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   }
 
   Future<void> _deleteComment(WallCommentModel comment) async {
-    final result =
-        await ref.read(communityServiceProvider).deleteComment(comment.id);
+    final result = await ref
+        .read(communityServiceProvider)
+        .deleteComment(comment.id);
     if (!mounted) return;
     if (!result.success) {
       _showSnack(result.message, isError: true);
@@ -284,6 +290,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 _post!.savedByMe ? Icons.bookmark : Icons.bookmark_border,
               ),
               onPressed: () async {
+                HapticFeedback.lightImpact();
                 final svc = ref.read(communityServiceProvider);
                 if (_post!.savedByMe) {
                   await svc.unsavePost(_post!.id);
@@ -331,10 +338,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 }
               },
               itemBuilder: (_) => const [
-                PopupMenuItem(
-                  value: 'delete',
-                  child: Text('Eliminar'),
-                ),
+                PopupMenuItem(value: 'delete', child: Text('Eliminar')),
               ],
             ),
         ],
@@ -369,7 +373,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     }
 
     if (_postError != null || _post == null) {
-      final isMembershipLost = _postError is DioException &&
+      final isMembershipLost =
+          _postError is DioException &&
           (_postError as DioException).response?.statusCode == 403;
       if (isMembershipLost) {
         return const Padding(
@@ -409,23 +414,17 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 Text(
                   post.content,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: const Color(GarraColors.cream),
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    color: const Color(GarraColors.cream),
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
+                if ((post.imageUrl != null && post.imageUrl!.isNotEmpty) ||
+                    post.media.isNotEmpty) ...[
                   const SizedBox(height: GarraSpacing.md),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(GarraRadius.md),
-                    child: AspectRatio(
-                      aspectRatio: 16 / 9,
-                      child: Image.network(
-                        post.imageUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                      ),
-                    ),
+                  GarraPostMediaGrid(
+                    media: post.media,
+                    legacyImageUrl: post.imageUrl,
                   ),
                 ],
                 const SizedBox(height: GarraSpacing.lg),
@@ -557,15 +556,15 @@ class _PostHeader extends StatelessWidget {
             children: [
               Text(
                 post.fullName,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
               ),
               Text(
                 '@${post.username}',
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: const Color(GarraColors.textSecondary),
-                    ),
+                  color: const Color(GarraColors.textSecondary),
+                ),
               ),
               Text(
                 _safeFormat(post.createdAt),
@@ -605,9 +604,9 @@ class _CommentTile extends StatelessWidget {
                   comment.fullName.isNotEmpty
                       ? comment.fullName
                       : '@${comment.username}',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
               if (onDelete != null)
@@ -619,10 +618,7 @@ class _CommentTile extends StatelessWidget {
                 ),
             ],
           ),
-          Text(
-            comment.content,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+          Text(comment.content, style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: GarraSpacing.xs),
           Text(
             _safeFormat(comment.createdAt),
@@ -765,10 +761,7 @@ class _SharePostSheetState extends State<_SharePostSheet> {
     setState(() => _busy = true);
     try {
       await Future<void>.delayed(const Duration(milliseconds: 50));
-      await shareGarraCardPng(
-        boundaryKey: _boundaryKey,
-        text: _shareText,
-      );
+      await shareGarraCardPng(boundaryKey: _boundaryKey, text: _shareText);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -787,8 +780,8 @@ class _SharePostSheetState extends State<_SharePostSheet> {
               Text(
                 'Compartir',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: const Color(GarraColors.cream),
-                    ),
+                  color: const Color(GarraColors.cream),
+                ),
               ),
               const SizedBox(height: 12),
               FilledButton.icon(
@@ -807,8 +800,8 @@ class _SharePostSheetState extends State<_SharePostSheet> {
               Text(
                 'Garra Share Card',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: const Color(GarraColors.gold),
-                    ),
+                  color: const Color(GarraColors.gold),
+                ),
               ),
               const SizedBox(height: 8),
               Wrap(

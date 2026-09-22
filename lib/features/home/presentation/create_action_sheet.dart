@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_config_service.dart';
@@ -194,7 +195,10 @@ class _CreateActionTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(GarraRadius.md),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: action.onTap,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          action.onTap();
+        },
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
             GarraSpacing.md,

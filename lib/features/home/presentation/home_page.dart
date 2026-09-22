@@ -117,9 +117,6 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
   }
 
   static _HomeFeedTab _defaultTab(HomeModel home) {
-    if (home.isLive || home.isMatchday) {
-      return _HomeFeedTab.match;
-    }
     return _HomeFeedTab.forYou;
   }
 
@@ -131,6 +128,34 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
   @override
   Widget build(BuildContext context) {
     final home = widget.home;
+    final forYouInserts = <Widget>[
+      if (_showCompactMatch)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            GarraSpacing.lg,
+            0,
+            GarraSpacing.lg,
+            GarraSpacing.md,
+          ),
+          child: _CompactMatchInsert(
+            home: home,
+            onOpenMatch: () => setState(() {
+              _manual = true;
+              _tab = _HomeFeedTab.match;
+            }),
+          ),
+        ),
+      if (_hasContextualInsert(home))
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            GarraSpacing.lg,
+            0,
+            GarraSpacing.lg,
+            GarraSpacing.md,
+          ),
+          child: _HomeContextualInsert(home: home),
+        ),
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -169,25 +194,7 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
             _HomeFeedTab.forYou => SocialFeedTab(
               key: const ValueKey('FOR_YOU'),
               mode: 'FOR_YOU',
-              topInserts: _showCompactMatch
-                  ? [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          GarraSpacing.lg,
-                          0,
-                          GarraSpacing.lg,
-                          GarraSpacing.md,
-                        ),
-                        child: _CompactMatchInsert(
-                          home: home,
-                          onOpenMatch: () => setState(() {
-                            _manual = true;
-                            _tab = _HomeFeedTab.match;
-                          }),
-                        ),
-                      ),
-                    ]
-                  : const [],
+              contextualInserts: forYouInserts,
             ),
             _HomeFeedTab.following => const SocialFeedTab(
               key: ValueKey('FOLLOWING'),
@@ -197,6 +204,13 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
         ),
       ],
     );
+  }
+
+  bool _hasContextualInsert(HomeModel home) {
+    return home.clan != null ||
+        home.community.posts.isNotEmpty ||
+        home.commercial != null ||
+        home.sponsored != null;
   }
 
   List<Widget> _matchChildren(BuildContext context, HomeModel home) {
@@ -242,6 +256,117 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
       children.add(_HomeSponsoredSection(sponsored: home.sponsored!));
     }
     return children;
+  }
+}
+
+class _HomeContextualInsert extends StatelessWidget {
+  const _HomeContextualInsert({required this.home});
+
+  final HomeModel home;
+
+  @override
+  Widget build(BuildContext context) {
+    final clan = home.clan;
+    final communityPost = home.community.posts.firstOrNull;
+    final commercial = home.commercial;
+    final sponsored = home.sponsored;
+
+    String eyebrow;
+    String title;
+    String detail;
+    IconData icon;
+    VoidCallback onTap;
+
+    if (clan != null) {
+      eyebrow = 'TU COMUNIDAD';
+      title = clan.name;
+      detail = '${clan.memberCount} miembros';
+      icon = Icons.groups_outlined;
+      onTap = () => context.push('/clans/${clan.slug}');
+    } else if (communityPost != null) {
+      eyebrow = 'EN LA TRIBUNA';
+      title = communityPost.displayName;
+      detail = communityPost.content;
+      icon = Icons.forum_outlined;
+      onTap = () => context.push('/comunidad');
+    } else {
+      final card = commercial;
+      eyebrow = card?.label ?? sponsored!.label;
+      title = card?.headline ?? sponsored!.headline;
+      detail = card?.body ?? sponsored!.body ?? '';
+      icon = Icons.workspace_premium_outlined;
+      onTap = () {
+        final rewardSlug = card?.rewardSlug;
+        if (rewardSlug != null && rewardSlug.isNotEmpty) {
+          context.push('/rewards/$rewardSlug');
+        }
+      };
+    }
+
+    return Semantics(
+      button: true,
+      label: '$eyebrow, $title',
+      child: Material(
+        key: const ValueKey('home-contextual-insert'),
+        color: const Color(GarraColors.surface),
+        borderRadius: BorderRadius.circular(GarraRadius.md),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(GarraSpacing.md),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(
+                      GarraColors.burgundy,
+                    ).withValues(alpha: 0.28),
+                    borderRadius: BorderRadius.circular(GarraRadius.sm),
+                  ),
+                  child: Icon(icon, color: const Color(GarraColors.gold)),
+                ),
+                const SizedBox(width: GarraSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        eyebrow.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: const Color(GarraColors.gold),
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      if (detail.isNotEmpty)
+                        Text(
+                          detail,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -488,7 +613,7 @@ class _MatchHeroState extends State<_MatchHero> {
   void initState() {
     super.initState();
     _remaining = _computeRemaining();
-    _ticker = Timer.periodic(const Duration(seconds: 30), (_) {
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       final next = _computeRemaining();
       final crossed = _remaining.inSeconds > 0 && next.inSeconds <= 0;
@@ -534,7 +659,7 @@ class _MatchHeroState extends State<_MatchHero> {
 
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     return GarraAtmosphericHero(
-      height: 350 + ((textScale - 1).clamp(0, 1.5) * 180),
+      height: 370 + ((textScale - 1).clamp(0, 1.5) * 180),
       alignment: Alignment.topCenter,
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -620,14 +745,7 @@ class _MatchHeroState extends State<_MatchHero> {
           ),
           if (home.isUpcoming || home.isMatchday) ...[
             const SizedBox(height: GarraSpacing.md),
-            Center(
-              child: Text(
-                _countdownLabel(_remaining),
-                style: GarraTypography.numeric(
-                  size: 20,
-                ).copyWith(color: const Color(GarraColors.cream)),
-              ),
-            ),
+            _MatchCountdown(remaining: _remaining),
           ],
           if (home.isLive || home.isMatchday) ...[
             const SizedBox(height: GarraSpacing.md),
@@ -654,21 +772,84 @@ class _MatchHeroState extends State<_MatchHero> {
         normalized == 'la u' ||
         normalized == 'u';
   }
+}
 
-  String _countdownLabel(Duration remaining) {
-    if (remaining.isNegative || remaining.inSeconds == 0) {
-      return 'Kickoff';
+class _MatchCountdown extends StatelessWidget {
+  const _MatchCountdown({required this.remaining});
+
+  final Duration remaining;
+
+  @override
+  Widget build(BuildContext context) {
+    if (remaining.inSeconds <= 0) {
+      return const Center(child: Text('Kickoff'));
     }
-    final days = remaining.inDays;
-    final hours = remaining.inHours.remainder(24);
-    final minutes = remaining.inMinutes.remainder(60);
-    if (days > 0) {
-      return 'Faltan ${days}d ${hours.toString().padLeft(2, '0')}h';
-    }
-    if (remaining.inHours > 0) {
-      return 'Faltan ${hours}h ${minutes.toString().padLeft(2, '0')} min';
-    }
-    return 'Faltan $minutes min';
+    final values = [
+      remaining.inDays,
+      remaining.inHours.remainder(24),
+      remaining.inMinutes.remainder(60),
+      remaining.inSeconds.remainder(60),
+    ];
+    const labels = ['DD', 'HH', 'MM', 'SS'];
+
+    return Semantics(
+      label: 'Cuenta regresiva DD HH MM SS',
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (var index = 0; index < values.length; index++) ...[
+            Flexible(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 56),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: GarraSpacing.xs,
+                  vertical: GarraSpacing.sm,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(
+                    GarraColors.surfaceRaised,
+                  ).withValues(alpha: 0.88),
+                  borderRadius: BorderRadius.circular(GarraRadius.sm),
+                  border: Border.all(
+                    color: const Color(GarraColors.borderSubtle),
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      values[index].toString().padLeft(2, '0'),
+                      key: ValueKey('countdown-${labels[index]}'),
+                      style: GarraTypography.numeric(
+                        size: 18,
+                      ).copyWith(color: const Color(GarraColors.cream)),
+                    ),
+                    Text(
+                      labels[index],
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: const Color(GarraColors.creamMuted),
+                        fontSize: 9,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (index < values.length - 1)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 3),
+                child: Text(
+                  ':',
+                  style: TextStyle(
+                    color: Color(GarraColors.gold),
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
   }
 }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/design/garra_colors.dart';
+import '../../../../core/widgets/garra_cached_network_image.dart';
 import '../../data/wall_post_model.dart';
 
 /// Social media grid: 1 full / 2 split / 3 hero+2 / 4 2x2.
@@ -16,11 +17,9 @@ class GarraPostMediaGrid extends StatelessWidget {
 
   List<String> get _urls {
     if (media.isNotEmpty) {
-      final sorted = [...media]..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-      return sorted
-          .map((m) => m.url)
-          .where((u) => u.isNotEmpty)
-          .toList();
+      final sorted = [...media]
+        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+      return sorted.map((m) => m.url).where((u) => u.isNotEmpty).toList();
     }
     if (legacyImageUrl != null && legacyImageUrl!.isNotEmpty) {
       return [legacyImageUrl!];
@@ -45,15 +44,11 @@ class GarraPostMediaGrid extends StatelessWidget {
     Widget image(int i) {
       return GestureDetector(
         onTap: () => _openViewer(context, i),
-        child: Image.network(
-          urls[i],
+        child: GarraCachedNetworkImage(
+          imageUrl: urls[i],
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
-          errorBuilder: (_, __, ___) => Container(
-            color: const Color(GarraColors.surfaceRaised),
-            child: const Icon(Icons.broken_image_outlined),
-          ),
         ),
       );
     }
@@ -62,10 +57,7 @@ class GarraPostMediaGrid extends StatelessWidget {
       case 1:
         return ClipRRect(
           borderRadius: BorderRadius.circular(4),
-          child: AspectRatio(
-            aspectRatio: 4 / 5,
-            child: image(0),
-          ),
+          child: AspectRatio(aspectRatio: 4 / 5, child: image(0)),
         );
       case 2:
         return ClipRRect(
@@ -171,8 +163,9 @@ class _MediaViewer extends StatefulWidget {
 }
 
 class _MediaViewerState extends State<_MediaViewer> {
-  late final PageController _controller =
-      PageController(initialPage: widget.initialIndex);
+  late final PageController _controller = PageController(
+    initialPage: widget.initialIndex,
+  );
 
   @override
   void dispose() {
@@ -193,7 +186,12 @@ class _MediaViewerState extends State<_MediaViewer> {
         itemCount: widget.urls.length,
         itemBuilder: (_, i) => InteractiveViewer(
           child: Center(
-            child: Image.network(widget.urls[i], fit: BoxFit.contain),
+            child: GarraCachedNetworkImage(
+              imageUrl: widget.urls[i],
+              fit: BoxFit.contain,
+              width: double.infinity,
+              height: double.infinity,
+            ),
           ),
         ),
       ),

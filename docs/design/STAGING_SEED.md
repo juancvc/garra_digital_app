@@ -89,24 +89,63 @@ Manifest:
 api/scripts/staging/assets/staging-media-manifest.json
 ```
 
-Upload flow (existing APIs):
+The showcase manifest is schema V2 and enumerates 77 operator-supplied files
+across profiles, posts, communities, stores, listings, events, solidarity,
+rewards, sponsors and match imagery. Exact filenames and dimensions:
+
+```
+api/scripts/staging/assets/ASSET_REQUIREMENTS.md
+```
+
+One-command offline validation:
+
+```powershell
+cd api
+.\scripts\staging\prepare-showcase.ps1 `
+  -ShowcaseId 'GARRA_SHOWCASE_V1' `
+  -DataSetName 'crema-vivo' `
+  -DryRun
+```
+
+Live operator flow, only after review and local assets are present:
+
+```powershell
+$env:ALLOW_STAGING_SMOKE='true'
+$env:STAGING_BASE_URL='https://YOUR_STAGING_HOST'
+$env:STAGING_EXPECTED_HOST='YOUR_STAGING_HOST'
+$env:STAGING_ADMIN_ACCESS_TOKEN='...'
+
+.\scripts\staging\prepare-showcase.ps1 `
+  -ShowcaseId 'GARRA_SHOWCASE_V1' `
+  -DataSetName 'crema-vivo'
+```
+
+The uploader uses existing APIs:
 
 1. `POST /api/v1/media/uploads`
 2. Upload bytes to `uploadUrl`
 3. `POST /api/v1/media/{assetId}/confirm`
-4. Attach `mediaAssetId` / public https URL on domain records
+4. Attach through verified post, clan, marketplace and sponsor contracts
+5. Persist upload/association state atomically in the manifest for re-runs
 
 Requires staging env:
 
 - `MEDIA_STORAGE_ENABLED=true`
 - `MEDIA_PUBLIC_BASE_URL=https://…`
 
-**Manual operator step (no Railway CLI / no Cloudflare CLI):**
+Profiles, events and match currently have no media attachment endpoint.
+Submitted solidarity campaigns and active rewards have no safe media backfill.
+Those 32 manifest entries are reported as `BLOCKED`, while 45 entries use
+verified contracts. Therefore tooling reports `PARTIAL` honestly until those
+backend gaps are implemented; it never treats blocked media as success.
 
-1. Drop royalty-safe images into `api/scripts/staging/assets/` per manifest filenames  
-2. Confirm media env vars on staging  
-3. Upload + attach via media APIs (or an approved internal tool)  
-4. Verify images render in the app  
+**Single manual operator step (no Railway CLI / no Cloudflare CLI):**
+
+1. Place the 77 royalty-safe files under `api/scripts/staging/assets/` exactly
+   as listed in `ASSET_REQUIREMENTS.md`, provide the guarded environment values
+   above, and run the single `prepare-showcase.ps1` command.
+2. Verify supported images render in the physical-device app and retain the
+   redacted preparation report.
 
 Do **not** declare `STAGING_IMAGES=PASS` until remote UI evidence exists.
 

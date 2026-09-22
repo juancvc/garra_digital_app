@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/home/presentation/create_action_sheet.dart';
@@ -7,10 +8,7 @@ import '../theme/app_theme.dart';
 
 /// V1 shell — Inicio / Comunidad / Crear / Explorar / Perfil
 class MainShell extends StatelessWidget {
-  const MainShell({
-    required this.navigationShell,
-    super.key,
-  });
+  const MainShell({required this.navigationShell, super.key});
 
   final StatefulNavigationShell navigationShell;
 
@@ -24,6 +22,7 @@ class MainShell extends StatelessWidget {
 
   void _onTap(BuildContext context, int index) {
     if (index == 2) {
+      HapticFeedback.lightImpact();
       showCreateActionSheet(context);
       return;
     }
@@ -43,9 +42,7 @@ class MainShell extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(GarraColors.surface),
           border: Border(
-            top: BorderSide(
-              color: AppTheme.cream.withValues(alpha: 0.08),
-            ),
+            top: BorderSide(color: AppTheme.cream.withValues(alpha: 0.08)),
           ),
         ),
         child: SafeArea(
@@ -66,8 +63,8 @@ class MainShell extends StatelessWidget {
                 label: 'Comunidad',
               ),
               NavigationDestination(
-                icon: Icon(Icons.add_circle_outline, size: 30),
-                selectedIcon: Icon(Icons.add_circle, size: 30),
+                icon: _CreateDestinationIcon(),
+                selectedIcon: _CreateDestinationIcon(selected: true),
                 label: 'Crear',
               ),
               NavigationDestination(
@@ -83,6 +80,39 @@ class MainShell extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _CreateDestinationIcon extends StatelessWidget {
+  const _CreateDestinationIcon({this.selected = false});
+
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 38,
+      height: 32,
+      decoration: BoxDecoration(
+        color: selected
+            ? const Color(GarraColors.gold)
+            : const Color(GarraColors.burgundy),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(GarraColors.burgundy).withValues(alpha: 0.28),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: Icon(
+        Icons.add_rounded,
+        size: 25,
+        color: selected
+            ? const Color(GarraColors.burgundyDeep)
+            : const Color(GarraColors.cream),
       ),
     );
   }

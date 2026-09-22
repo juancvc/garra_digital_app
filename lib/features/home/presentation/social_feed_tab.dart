@@ -11,7 +11,10 @@ import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_brand_visual.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../community/data/community_service.dart';
+import '../../community/data/engagement_utils.dart';
 import '../../community/data/wall_post_model.dart';
+import '../../community/presentation/providers/community_provider.dart';
+import '../../community/presentation/widgets/garra_reaction_picker.dart';
 import '../../community/presentation/widgets/garra_social_post_card.dart';
 
 /// Home social feed for Para ti / Siguiendo modes.
@@ -19,22 +22,24 @@ class SocialFeedTab extends ConsumerStatefulWidget {
   const SocialFeedTab({
     super.key,
     required this.mode,
-    this.topInserts = const [],
+    this.contextualInserts = const [],
   });
 
   /// `FOR_YOU` or `FOLLOWING`.
   final String mode;
-  final List<Widget> topInserts;
+  final List<Widget> contextualInserts;
 
   @override
   ConsumerState<SocialFeedTab> createState() => _SocialFeedTabState();
 }
 
 class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
-  final _service = CommunityService();
   List<WallPostModel> _posts = [];
+  final Set<String> _reactingPostIds = {};
   bool _loading = true;
   String? _error;
+
+  CommunityService get _service => ref.read(communityServiceProvider);
 
   @override
   void initState() {
@@ -100,7 +105,73 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
             )
             .toList();
       });
+      _showError('No se pudo actualizar el guardado. Inténtalo de nuevo.');
     }
+  }
+
+  Future<void> _react(WallPostModel post) async {
+    if (_reactingPostIds.contains(post.id)) return;
+
+    final selected = await showGarraReactionPicker(
+      context,
+      currentReaction: post.myReaction,
+    );
+    if (selected == null || !mounted) return;
+
+    final same = post.myReaction?.toUpperCase() == selected.apiValue;
+    final optimistic = applyOptimisticReaction(
+      post,
+      same ? null : selected.apiValue,
+    );
+    setState(() {
+      _reactingPostIds.add(post.id);
+      _replacePost(optimistic);
+    });
+
+    final result = same
+        ? await _service.removeReaction(post.id)
+        : await _service.upsertReaction(
+            postId: post.id,
+            type: selected.apiValue,
+          );
+    if (!mounted) return;
+
+    setState(() {
+      _reactingPostIds.remove(post.id);
+      if (!result.success) {
+        _replacePost(post);
+      } else if (result.reactionSummary != null &&
+          result.reactionCount != null) {
+        _replacePost(
+          applyReactionResponse(
+            post: optimistic,
+            myReaction: result.myReaction,
+            reactionSummary: result.reactionSummary!,
+            reactionCount: result.reactionCount!,
+          ),
+        );
+      }
+    });
+
+    if (!result.success) {
+      _showError('No se pudo actualizar la reacción. Inténtalo de nuevo.');
+    }
+  }
+
+  void _replacePost(WallPostModel replacement) {
+    _posts = _posts
+        .map((post) => post.id == replacement.id ? replacement : post)
+        .toList();
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(GarraColors.danger),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _confirmBlock(String userId) async {
@@ -146,15 +217,18 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
         children: [
           _ComposerRow(displayName: me?.fullName, onCompose: _openCompose),
           if (widget.mode == 'FOR_YOU') const _EditorialFeedMarker(),
-          ...widget.topInserts,
+          if (_posts.isEmpty) ...widget.contextualInserts,
           if (_loading && _posts.isEmpty)
             const Padding(
-              padding: EdgeInsets.symmetric(vertical: 48),
-              child: Center(
-                child: Text(
-                  'Cargando feed…',
-                  style: TextStyle(color: Color(GarraColors.creamMuted)),
-                ),
+              padding: EdgeInsets.all(GarraSpacing.lg),
+              child: Column(
+                children: [
+                  GarraSkeleton(height: 112),
+                  SizedBox(height: GarraSpacing.md),
+                  GarraSkeleton(height: 260),
+                  SizedBox(height: GarraSpacing.md),
+                  GarraSkeleton(height: 180),
+                ],
               ),
             )
           else if (_error != null && _posts.isEmpty)
@@ -190,39 +264,56 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
                   ),
                 ),
               ),
-            ..._posts.map((post) {
-              final mine =
-                  post.isMine ||
-                  (meId != null && meId.isNotEmpty && post.authorId == meId);
-              final view = post.copyWith(isMine: mine);
-              return GarraSocialPostCard(
-                post: view,
-                onOpen: () => context
-                    .push('/muro-crema/posts/${post.id}')
-                    .then((_) => _load()),
-                onOpenProfile:
-                    mine || post.authorId == null || post.authorId!.isEmpty
-                    ? null
-                    : () => context.push('/comunidad/u/${post.authorId}'),
-                onBlock: mine || post.authorId == null || post.authorId!.isEmpty
-                    ? null
-                    : () => _confirmBlock(post.authorId!),
-                onReport: mine
-                    ? null
-                    : () => context.push('/muro-crema/posts/${post.id}'),
-                onShare: () => SharePlus.instance.share(
-                  ShareParams(
-                    text:
-                        '${post.fullName}: ${post.content}\n\nÚnete a Garra Digital',
-                  ),
-                ),
-                onSave: () => _toggleSave(post),
-              );
-            }),
+            ..._buildFeedItems(meId),
           ],
         ],
       ),
     );
+  }
+
+  List<Widget> _buildFeedItems(String? meId) {
+    final items = <Widget>[];
+    var insertIndex = 0;
+    for (var index = 0; index < _posts.length; index++) {
+      final post = _posts[index];
+      final mine =
+          post.isMine ||
+          (meId != null && meId.isNotEmpty && post.authorId == meId);
+      final view = post.copyWith(isMine: mine);
+      items.add(
+        GarraSocialPostCard(
+          post: view,
+          onOpen: () =>
+              context.push('/muro-crema/posts/${post.id}').then((_) => _load()),
+          onOpenProfile: mine || post.authorId == null || post.authorId!.isEmpty
+              ? null
+              : () => context.push('/comunidad/u/${post.authorId}'),
+          onBlock: mine || post.authorId == null || post.authorId!.isEmpty
+              ? null
+              : () => _confirmBlock(post.authorId!),
+          onReport: mine
+              ? null
+              : () => context.push('/muro-crema/posts/${post.id}'),
+          onShare: () => SharePlus.instance.share(
+            ShareParams(
+              text:
+                  '${post.fullName}: ${post.content}\n\nÚnete a Garra Digital',
+            ),
+          ),
+          onSave: () => _toggleSave(post),
+          onReact: () => _react(post),
+          onComment: () =>
+              context.push('/muro-crema/posts/${post.id}').then((_) => _load()),
+        ),
+      );
+
+      final shouldInsert = index == 1 || (index > 1 && (index - 1) % 4 == 0);
+      if (shouldInsert && insertIndex < widget.contextualInserts.length) {
+        items.add(widget.contextualInserts[insertIndex]);
+        insertIndex++;
+      }
+    }
+    return items;
   }
 }
 

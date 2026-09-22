@@ -433,6 +433,8 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(pumpHome(sampleHomeWithMission()));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Partido'));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text('Fecha crema completa'),
       200,

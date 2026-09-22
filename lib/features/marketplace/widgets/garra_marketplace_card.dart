@@ -1,11 +1,14 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../data/marketplace_models.dart';
+
+enum GarraMarketplaceCardLayout { list, compactGrid }
 
 /// Listing card for Marketplace Crema — cream/garnet identity, not a ML clone.
 class GarraMarketplaceCard extends StatelessWidget {
@@ -16,14 +19,17 @@ class GarraMarketplaceCard extends StatelessWidget {
     this.onFavoriteTap,
     this.showFavorite = true,
     this.onVisible,
+    this.layout = GarraMarketplaceCardLayout.list,
   });
 
   final MarketplaceListing listing;
   final VoidCallback? onTap;
   final VoidCallback? onFavoriteTap;
   final bool showFavorite;
+
   /// Fired once when featured card is built (caller dedupes).
   final VoidCallback? onVisible;
+  final GarraMarketplaceCardLayout layout;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +40,16 @@ class GarraMarketplaceCard extends StatelessWidget {
     }
 
     final cover = listing.coverImageUrl;
+
+    if (layout == GarraMarketplaceCardLayout.compactGrid) {
+      return _CompactMarketplaceCard(
+        listing: listing,
+        cover: cover,
+        onTap: onTap,
+        showFavorite: showFavorite,
+        onFavoriteTap: onFavoriteTap,
+      );
+    }
 
     return GarraCard(
       onTap: onTap,
@@ -49,8 +65,8 @@ class GarraMarketplaceCard extends StatelessWidget {
                   ? CachedNetworkImage(
                       imageUrl: cover,
                       fit: BoxFit.cover,
-                      placeholder: (_, __) => const _FallbackThumb(),
-                      errorWidget: (_, __, ___) => const _FallbackThumb(),
+                      placeholder: (_, _) => const _FallbackThumb(),
+                      errorWidget: (_, _, _) => const _FallbackThumb(),
                     )
                   : const _FallbackThumb(),
             ),
@@ -89,9 +105,9 @@ class GarraMarketplaceCard extends StatelessWidget {
                     Text(
                       listing.priceLabel,
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: const Color(GarraColors.gold),
-                            fontWeight: FontWeight.w800,
-                          ),
+                        color: const Color(GarraColors.gold),
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     if (listing.category != null &&
                         listing.category!.isNotEmpty)
@@ -107,7 +123,10 @@ class GarraMarketplaceCard extends StatelessWidget {
               tooltip: listing.isFavorite
                   ? 'Quitar de favoritos'
                   : 'Agregar a favoritos',
-              onPressed: onFavoriteTap,
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                onFavoriteTap?.call();
+              },
               icon: Icon(
                 listing.isFavorite ? Icons.favorite : Icons.favorite_border,
                 color: listing.isFavorite
@@ -117,6 +136,120 @@ class GarraMarketplaceCard extends StatelessWidget {
             ),
           ] else if (onTap != null)
             const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactMarketplaceCard extends StatelessWidget {
+  const _CompactMarketplaceCard({
+    required this.listing,
+    required this.cover,
+    required this.onTap,
+    required this.showFavorite,
+    required this.onFavoriteTap,
+  });
+
+  final MarketplaceListing listing;
+  final String? cover;
+  final VoidCallback? onTap;
+  final bool showFavorite;
+  final VoidCallback? onFavoriteTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GarraCard(
+      padding: EdgeInsets.zero,
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 112,
+            width: double.infinity,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                cover != null && cover!.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: cover!,
+                        fit: BoxFit.cover,
+                        placeholder: (_, _) => const _FallbackThumb(),
+                        errorWidget: (_, _, _) => const _FallbackThumb(),
+                      )
+                    : const _FallbackThumb(),
+                if (showFavorite && onFavoriteTap != null)
+                  Positioned(
+                    top: GarraSpacing.xs,
+                    right: GarraSpacing.xs,
+                    child: Material(
+                      color: const Color(
+                        GarraColors.charcoal,
+                      ).withValues(alpha: 0.82),
+                      shape: const CircleBorder(),
+                      child: IconButton(
+                        visualDensity: VisualDensity.compact,
+                        tooltip: listing.isFavorite
+                            ? 'Quitar de favoritos'
+                            : 'Agregar a favoritos',
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          onFavoriteTap?.call();
+                        },
+                        icon: Icon(
+                          listing.isFavorite
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                          size: 20,
+                          color: listing.isFavorite
+                              ? const Color(GarraColors.garnet)
+                              : const Color(GarraColors.gold),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(GarraSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    listing.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      height: 1.15,
+                    ),
+                  ),
+                  if (listing.store != null) ...[
+                    const SizedBox(height: GarraSpacing.xs),
+                    Text(
+                      listing.store!.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                  const Spacer(),
+                  Text(
+                    listing.priceLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: const Color(GarraColors.gold),
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -156,9 +289,9 @@ class _DestacadoBadge extends StatelessWidget {
       child: Text(
         'Destacado',
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: const Color(GarraColors.gold),
-              fontWeight: FontWeight.w700,
-            ),
+          color: const Color(GarraColors.gold),
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -184,8 +317,8 @@ class _Pill extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: const Color(GarraColors.textSecondary),
-            ),
+          color: const Color(GarraColors.textSecondary),
+        ),
       ),
     );
   }

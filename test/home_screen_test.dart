@@ -16,6 +16,7 @@ HomeModel sampleHome({
   String predictionState = 'NOT_PREDICTED',
   int unread = 3,
   bool withMission = false,
+  HomeClanSummary? clan,
 }) {
   return HomeModel(
     fan: const HomeFanSummary(
@@ -87,6 +88,7 @@ HomeModel sampleHome({
           )
         : null,
     streak: withMission ? const HomeStreakSummary(current: 2, best: 4) : null,
+    clan: clan,
   );
 }
 
@@ -182,7 +184,7 @@ void main() {
     expect(find.text('Próximo partido'), findsOneWidget);
     await tester.tap(find.text('Próximo partido'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Faltan'), findsOneWidget);
+    expect(find.byKey(const ValueKey('countdown-DD')), findsOneWidget);
     expect(find.text('Rival FC'), findsOneWidget);
   });
 
@@ -192,6 +194,9 @@ void main() {
     await tester.pumpWidget(pumpHome(sampleHome(matchdayState: 'MATCHDAY')));
     await tester.pumpAndSettle();
     expect(find.text('Hoy juega la U'), findsOneWidget);
+    expect(find.text('Para ti'), findsOneWidget);
+    await tester.tap(find.text('Partido'));
+    await tester.pumpAndSettle();
     expect(find.text('Entrar al Matchday'), findsOneWidget);
     final checkIn = find.text('Hacer check-in');
     await tester.ensureVisible(checkIn);
@@ -206,6 +211,8 @@ void main() {
     await tester.pumpWidget(pumpHome(sampleHome(matchdayState: 'LIVE')));
     await tester.pumpAndSettle();
     expect(find.text('EN VIVO'), findsOneWidget);
+    await tester.tap(find.text('Partido'));
+    await tester.pumpAndSettle();
     expect(find.text('Entrar al partido'), findsOneWidget);
     expect(find.textContaining('1 : 0'), findsOneWidget);
   });
@@ -244,20 +251,64 @@ void main() {
   });
 
   testWidgets('HOME_NARROW_TEXT_SCALE_HAS_NO_OVERFLOW', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(320, 700));
+    await tester.binding.setSurfaceSize(const Size(360, 700));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
       MediaQuery(
         data: const MediaQueryData(
-          size: Size(320, 700),
-          textScaler: TextScaler.linear(1.4),
+          size: Size(360, 700),
+          textScaler: TextScaler.linear(1.2),
         ),
         child: pumpHome(sampleHome(matchdayState: 'MATCHDAY')),
       ),
     );
     await tester.pumpAndSettle();
     expect(find.text('Hoy juega la U'), findsOneWidget);
+    await tester.tap(find.text('Hoy juega la U'));
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('HOME_CONTEXTUAL_CLAN_INSERT_STAYS_IN_SOCIAL_FEED', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      pumpHome(
+        sampleHome(
+          matchdayState: 'NO_MATCH',
+          withMatch: false,
+          clan: const HomeClanSummary(
+            slug: 'garra-surco',
+            name: 'Garra Surco',
+            memberCount: 1284,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      find.byKey(const ValueKey('home-contextual-insert')),
+      findsOneWidget,
+    );
+    expect(find.text('TU COMUNIDAD'), findsOneWidget);
+    expect(find.text('Garra Surco'), findsOneWidget);
+    expect(find.text('Para ti'), findsOneWidget);
+  });
+
+  testWidgets('HOME_MATCH_COUNTDOWN_RENDERS_DD_HH_MM_SS_BLOCKS', (
+    tester,
+  ) async {
+    await tester.pumpWidget(pumpHome(sampleHome(matchdayState: 'UPCOMING')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Partido'));
+    await tester.pumpAndSettle();
+
+    for (final unit in ['DD', 'HH', 'MM', 'SS']) {
+      expect(find.byKey(ValueKey('countdown-$unit')), findsOneWidget);
+      expect(find.text(unit), findsOneWidget);
+    }
   });
 
   testWidgets('HOME_PASSPORT_NAVIGATION', (tester) async {

@@ -153,7 +153,7 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
                 ),
                 children: [
                   GarraAtmosphericHero(
-                    height: 196,
+                    height: 230,
                     alignment: const Alignment(0.3, -0.2),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -341,19 +341,29 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
                           message: 'Los emprendimientos crema aparecerán aquí.',
                         );
                       }
-                      return Column(
-                        children: [
-                          for (final listing in listings) ...[
-                            GarraMarketplaceCard(
-                              listing: listing,
-                              onTap: () => context.push(
-                                '/marketplace/listings/${listing.slug}',
-                              ),
-                              onFavoriteTap: () => _toggleFavorite(listing),
+                      return GridView.builder(
+                        key: const Key('recent-products-grid'),
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: listings.length,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: GarraSpacing.md,
+                              mainAxisSpacing: GarraSpacing.md,
+                              mainAxisExtent: 272,
                             ),
-                            const SizedBox(height: GarraSpacing.md),
-                          ],
-                        ],
+                        itemBuilder: (context, index) {
+                          final listing = listings[index];
+                          return GarraMarketplaceCard(
+                            listing: listing,
+                            layout: GarraMarketplaceCardLayout.compactGrid,
+                            onTap: () => context.push(
+                              '/marketplace/listings/${listing.slug}',
+                            ),
+                            onFavoriteTap: () => _toggleFavorite(listing),
+                          );
+                        },
                       );
                     },
                   ),

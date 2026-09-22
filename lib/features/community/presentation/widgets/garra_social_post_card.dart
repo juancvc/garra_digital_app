@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/design/garra_colors.dart';
 import '../../../../core/design/garra_spacing.dart';
@@ -18,6 +19,8 @@ class GarraSocialPostCard extends StatelessWidget {
     this.onReport,
     this.onShare,
     this.onSave,
+    this.onReact,
+    this.onComment,
   });
 
   final WallPostModel post;
@@ -27,6 +30,8 @@ class GarraSocialPostCard extends StatelessWidget {
   final VoidCallback? onReport;
   final VoidCallback? onShare;
   final VoidCallback? onSave;
+  final VoidCallback? onReact;
+  final VoidCallback? onComment;
 
   @override
   Widget build(BuildContext context) {
@@ -64,9 +69,22 @@ class GarraSocialPostCard extends StatelessWidget {
                             post.fullName,
                             style: Theme.of(context).textTheme.titleSmall,
                           ),
-                          Text(
-                            '@${post.username}',
-                            style: Theme.of(context).textTheme.bodySmall,
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  '@${post.username}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ),
+                              const Text(' · '),
+                              Text(
+                                formatGarraRelativeTime(post.createdAt),
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -75,11 +93,12 @@ class GarraSocialPostCard extends StatelessWidget {
                   if (onSave != null)
                     IconButton(
                       tooltip: post.savedByMe ? 'Quitar guardado' : 'Guardar',
-                      onPressed: onSave,
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        onSave!();
+                      },
                       icon: Icon(
-                        post.savedByMe
-                            ? Icons.bookmark
-                            : Icons.bookmark_border,
+                        post.savedByMe ? Icons.bookmark : Icons.bookmark_border,
                         color: const Color(GarraColors.cream),
                       ),
                     ),
@@ -89,7 +108,10 @@ class GarraSocialPostCard extends StatelessWidget {
                       if (v == 'block') onBlock?.call();
                       if (v == 'share') onShare?.call();
                       if (v == 'report') onReport?.call();
-                      if (v == 'save') onSave?.call();
+                      if (v == 'save') {
+                        HapticFeedback.lightImpact();
+                        onSave?.call();
+                      }
                     },
                     itemBuilder: (_) {
                       if (post.isMine) {
@@ -133,11 +155,7 @@ class GarraSocialPostCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 10),
-              Text(
-                post.content,
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-              ),
+              Text(post.content, maxLines: 4, overflow: TextOverflow.ellipsis),
               if ((post.imageUrl != null && post.imageUrl!.isNotEmpty) ||
                   post.media.isNotEmpty) ...[
                 const SizedBox(height: 10),
@@ -152,6 +170,8 @@ class GarraSocialPostCard extends StatelessWidget {
                 reactionCount: post.reactionCount,
                 commentCount: post.commentCount,
                 myReaction: post.myReaction,
+                onTapReactions: onReact,
+                onTapComments: onComment ?? onOpen,
               ),
               if (post.commentCount > 0)
                 TextButton(
@@ -164,4 +184,20 @@ class GarraSocialPostCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String formatGarraRelativeTime(String value, {DateTime? now}) {
+  final parsed = DateTime.tryParse(value);
+  if (parsed == null) return 'ahora';
+
+  final reference = now ?? DateTime.now();
+  final local = parsed.isUtc ? parsed.toLocal() : parsed;
+  final difference = reference.difference(local);
+  if (difference.isNegative || difference.inMinutes < 1) return 'ahora';
+  if (difference.inMinutes < 60) return 'hace ${difference.inMinutes} min';
+  if (difference.inHours < 24) return 'hace ${difference.inHours} h';
+  if (difference.inDays < 7) return 'hace ${difference.inDays} d';
+  if (difference.inDays < 30) return 'hace ${difference.inDays ~/ 7} sem';
+  if (difference.inDays < 365) return 'hace ${difference.inDays ~/ 30} mes';
+  return 'hace ${difference.inDays ~/ 365} a';
 }

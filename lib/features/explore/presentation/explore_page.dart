@@ -124,14 +124,27 @@ class _ExplorePageState extends State<ExplorePage> {
             ),
           ),
           const SizedBox(height: GarraSpacing.md),
-          if (_show(_ExploreFilter.events))
+          if (_filter == _ExploreFilter.all) ...[
+            const _DiscoveryPreviewGrid(),
+            const SizedBox(height: GarraSpacing.lg),
+            Text(
+              'MÁS FORMAS DE CONECTAR',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: const Color(GarraColors.gold),
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: GarraSpacing.md),
+          ],
+          if (_filter == _ExploreFilter.events)
             _DestinationSection(
               icon: Icons.event_outlined,
               title: 'Eventos cercanos',
               subtitle: 'Quedadas y actividades de la hinchada',
               onTap: () => context.push('/eventos'),
             ),
-          if (_show(_ExploreFilter.businesses))
+          if (_filter == _ExploreFilter.businesses)
             _DestinationSection(
               icon: Icons.map_outlined,
               title: 'Negocios cerca de ti',
@@ -167,6 +180,130 @@ class _ExplorePageState extends State<ExplorePage> {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _DiscoveryPreviewGrid extends StatelessWidget {
+  const _DiscoveryPreviewGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      key: const Key('explore-preview-grid'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: _DiscoveryPreviewCard(
+            icon: Icons.event_outlined,
+            eyebrow: 'AGENDA',
+            title: 'Eventos cercanos',
+            imageAlignment: const Alignment(-0.65, -0.15),
+            onTap: () => context.push('/eventos'),
+          ),
+        ),
+        const SizedBox(width: GarraSpacing.md),
+        Expanded(
+          child: _DiscoveryPreviewCard(
+            icon: Icons.map_outlined,
+            eyebrow: 'RUTA CREMA',
+            title: 'Negocios cerca de ti',
+            imageAlignment: const Alignment(0.75, -0.2),
+            onTap: () => context.push('/ruta-templo'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DiscoveryPreviewCard extends StatelessWidget {
+  const _DiscoveryPreviewCard({
+    required this.icon,
+    required this.eyebrow,
+    required this.title,
+    required this.imageAlignment,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String eyebrow;
+  final String title;
+  final Alignment imageAlignment;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(GarraColors.surface),
+      borderRadius: BorderRadius.circular(GarraRadius.lg),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height: 176,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                'assets/visual/garra_match_hero.png',
+                fit: BoxFit.cover,
+                alignment: imageAlignment,
+                errorBuilder: (_, _, _) =>
+                    const ColoredBox(color: Color(GarraColors.burgundyDeep)),
+              ),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0x22171311), Color(0xF2171311)],
+                    stops: [0.2, 1],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(GarraSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: Icon(
+                        icon,
+                        color: const Color(GarraColors.gold),
+                        size: 24,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      eyebrow,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: const Color(GarraColors.gold),
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: GarraSpacing.xs),
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: const Color(GarraColors.cream),
+                        fontWeight: FontWeight.w900,
+                        height: 1.08,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

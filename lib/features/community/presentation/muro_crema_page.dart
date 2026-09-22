@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
+import '../../../core/widgets/garra_cached_network_image.dart';
 import '../data/create_wall_post_request.dart';
 import '../data/engagement_utils.dart';
 import '../data/reaction_type.dart';
@@ -47,10 +48,7 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
         ),
         title: const Text(
           'Muro Crema',
-          style: TextStyle(
-            color: AppTheme.cream,
-            fontWeight: FontWeight.w900,
-          ),
+          style: TextStyle(color: AppTheme.cream, fontWeight: FontWeight.w900),
         ),
         actions: [
           IconButton(
@@ -119,10 +117,7 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
                       0,
                     ),
                     children: [
-                      _Header(
-                        status: status,
-                        isMobile: isMobile,
-                      ),
+                      _Header(status: status, isMobile: isMobile),
                       SizedBox(height: isMobile ? 12 : 16),
                       _FilterChips(
                         selectedTag: _selectedFilter,
@@ -165,7 +160,7 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
                           return Column(
                             children: [
                               ...posts.map(
-                                    (post) => Padding(
+                                (post) => Padding(
                                   padding: EdgeInsets.only(
                                     bottom: isMobile ? 10 : 14,
                                   ),
@@ -198,9 +193,7 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
     );
   }
 
-  Future<void> _publish({
-    required String matchId,
-  }) async {
+  Future<void> _publish({required String matchId}) async {
     final content = _contentController.text.trim();
 
     if (content.isEmpty) {
@@ -237,17 +230,11 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
     if (result.success) {
       _contentController.clear();
 
-      _showSnackBar(
-        message: result.message,
-        backgroundColor: Colors.green,
-      );
+      _showSnackBar(message: result.message, backgroundColor: Colors.green);
 
       ref.invalidate(
         wallPostsProvider(
-          WallPostsParams(
-            matchId: matchId,
-            locationTag: _selectedFilter,
-          ),
+          WallPostsParams(matchId: matchId, locationTag: _selectedFilter),
         ),
       );
       ref.invalidate(myWallPostsProvider);
@@ -410,10 +397,7 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({
-    required this.status,
-    required this.isMobile,
-  });
+  const _Header({required this.status, required this.isMobile});
 
   final WallStatusModel status;
   final bool isMobile;
@@ -427,14 +411,9 @@ class _Header extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            AppTheme.burgundy,
-            Color(0xFF2A0B0F),
-          ],
+          colors: [AppTheme.burgundy, Color(0xFF2A0B0F)],
         ),
-        border: Border.all(
-          color: AppTheme.cream.withOpacity(0.08),
-        ),
+        border: Border.all(color: AppTheme.cream.withOpacity(0.08)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -446,10 +425,7 @@ class _Header extends StatelessWidget {
               color: AppTheme.gold.withOpacity(0.16),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(
-              Icons.forum_rounded,
-              color: AppTheme.gold,
-            ),
+            child: const Icon(Icons.forum_rounded, color: AppTheme.gold),
           ),
           SizedBox(width: isMobile ? 12 : 16),
           Expanded(
@@ -509,10 +485,7 @@ class _Header extends StatelessWidget {
 }
 
 class _FilterChips extends StatelessWidget {
-  const _FilterChips({
-    required this.selectedTag,
-    required this.onChanged,
-  });
+  const _FilterChips({required this.selectedTag, required this.onChanged});
 
   final String selectedTag;
   final ValueChanged<String> onChanged;
@@ -595,9 +568,7 @@ class _CreatePostCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.orange.withOpacity(0.14),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.orange.withOpacity(0.24),
-                  ),
+                  border: Border.all(color: Colors.orange.withOpacity(0.24)),
                 ),
                 child: const Icon(
                   Icons.lock_clock_rounded,
@@ -694,9 +665,7 @@ class _CreatePostCard extends StatelessWidget {
                       backgroundColor: const Color(0xFF242424),
                       visualDensity: VisualDensity.compact,
                       labelStyle: TextStyle(
-                        color: selected
-                            ? AppTheme.background
-                            : AppTheme.cream,
+                        color: selected ? AppTheme.background : AppTheme.cream,
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
                       ),
@@ -721,13 +690,13 @@ class _CreatePostCard extends StatelessWidget {
                 onPressed: publishing ? null : onPublish,
                 icon: publishing
                     ? const SizedBox(
-                  width: 17,
-                  height: 17,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppTheme.burgundy,
-                  ),
-                )
+                        width: 17,
+                        height: 17,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppTheme.burgundy,
+                        ),
+                      )
                     : const Icon(Icons.send_rounded, size: 18),
                 label: const Text('Publicar'),
               ),
@@ -787,7 +756,8 @@ class _WallPostCardState extends ConsumerState<_WallPostCard> {
     if (selected == null || !mounted) return;
 
     final previous = _post;
-    final same = _post.myReaction != null &&
+    final same =
+        _post.myReaction != null &&
         _post.myReaction!.toUpperCase() == selected.apiValue;
     final optimistic = applyOptimisticReaction(
       _post,
@@ -940,10 +910,9 @@ class _WallPostCardState extends ConsumerState<_WallPostCard> {
                       borderRadius: BorderRadius.circular(12),
                       child: AspectRatio(
                         aspectRatio: 16 / 9,
-                        child: Image.network(
-                          post.imageUrl!,
+                        child: GarraCachedNetworkImage(
+                          imageUrl: post.imageUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                         ),
                       ),
                     ),
@@ -1045,18 +1014,12 @@ class _Badge extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withOpacity(0.14),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: color.withOpacity(0.28),
-        ),
+        border: Border.all(color: color.withOpacity(0.28)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: compact ? 13 : 15,
-          ),
+          Icon(icon, color: color, size: compact ? 13 : 15),
           SizedBox(width: compact ? 4 : 5),
           Flexible(
             child: Text(
@@ -1118,16 +1081,19 @@ class _NoPostsState extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({
-    required this.horizontalPadding,
-  });
+  const _EmptyState({required this.horizontalPadding});
 
   final double horizontalPadding;
 
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: EdgeInsets.fromLTRB(horizontalPadding, 24, horizontalPadding, 130),
+      padding: EdgeInsets.fromLTRB(
+        horizontalPadding,
+        24,
+        horizontalPadding,
+        130,
+      ),
       children: [
         const SizedBox(height: 80),
         Icon(
@@ -1175,7 +1141,12 @@ class _ErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: EdgeInsets.fromLTRB(horizontalPadding, 24, horizontalPadding, 130),
+      padding: EdgeInsets.fromLTRB(
+        horizontalPadding,
+        24,
+        horizontalPadding,
+        130,
+      ),
       children: [
         const SizedBox(height: 80),
         Icon(
@@ -1210,10 +1181,7 @@ class _ErrorState extends StatelessWidget {
 }
 
 class _InlineErrorState extends StatelessWidget {
-  const _InlineErrorState({
-    required this.message,
-    required this.detail,
-  });
+  const _InlineErrorState({required this.message, required this.detail});
 
   final String message;
   final String detail;
@@ -1226,9 +1194,7 @@ class _InlineErrorState extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.redAccent.withOpacity(0.10),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: Colors.redAccent.withOpacity(0.24),
-        ),
+        border: Border.all(color: Colors.redAccent.withOpacity(0.24)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1273,10 +1239,7 @@ class _InlineErrorState extends StatelessWidget {
 }
 
 class _TagFilter {
-  const _TagFilter({
-    required this.label,
-    required this.value,
-  });
+  const _TagFilter({required this.label, required this.value});
 
   final String label;
   final String value;

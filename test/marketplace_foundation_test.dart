@@ -53,7 +53,8 @@ MarketplaceListing sampleListing({
     category: category,
     categorySlug: categorySlug,
     isFavorite: isFavorite,
-    store: store ??
+    store:
+        store ??
         const MarketplaceStoreSummary(
           slug: 'tienda-sur',
           name: 'Tienda Sur',
@@ -67,12 +68,16 @@ MarketplaceStore sampleStore({
   String slug = 'tienda-sur',
   String name = 'Tienda Sur',
   List<MarketplaceListing>? listings,
+  String? whatsapp,
+  String? cremaPointId,
 }) {
   return MarketplaceStore(
     slug: slug,
     name: name,
     description: 'Emprendimiento crema del sur.',
     city: 'Lima',
+    whatsapp: whatsapp,
+    cremaPointId: cremaPointId,
     listings: listings ?? [sampleListing()],
   );
 }
@@ -89,10 +94,7 @@ HomeModel sampleHome() {
     ),
     matchdayState: 'NO_MATCH',
     match: null,
-    prediction: HomePrediction(
-      state: 'NOT_PREDICTED',
-      predictionsOpen: false,
-    ),
+    prediction: HomePrediction(state: 'NOT_PREDICTED', predictionsOpen: false),
     checkIn: HomeCheckIn(
       showCheckInCta: false,
       hasActiveStadiumPoint: false,
@@ -284,14 +286,14 @@ class FakeMarketplaceService extends MarketplaceService {
   Future<List<MarketplaceListing>> getSellerListings() async => sellerListings;
 }
 
-Widget pumpMarketplace(FakeMarketplaceService service, {String initial = '/marketplace'}) {
+Widget pumpMarketplace(
+  FakeMarketplaceService service, {
+  String initial = '/marketplace',
+}) {
   final router = GoRouter(
     initialLocation: initial,
     routes: [
-      GoRoute(
-        path: '/marketplace',
-        builder: (_, _) => const MarketplacePage(),
-      ),
+      GoRoute(path: '/marketplace', builder: (_, _) => const MarketplacePage()),
       GoRoute(
         path: '/marketplace/favorites',
         builder: (_, _) => const FavoritesPage(),
@@ -314,17 +316,16 @@ Widget pumpMarketplace(FakeMarketplaceService service, {String initial = '/marke
         path: '/marketplace/seller/dashboard',
         builder: (_, _) => const SellerDashboardPage(),
       ),
+      GoRoute(
+        path: '/mapa-crema',
+        builder: (_, _) => const Scaffold(body: Text('MAP_ROUTE')),
+      ),
     ],
   );
 
   return ProviderScope(
-    overrides: [
-      marketplaceServiceProvider.overrideWithValue(service),
-    ],
-    child: MaterialApp.router(
-      theme: AppTheme.darkTheme,
-      routerConfig: router,
-    ),
+    overrides: [marketplaceServiceProvider.overrideWithValue(service)],
+    child: MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
   );
 }
 
@@ -353,9 +354,7 @@ void main() {
   });
 
   testWidgets('82_MARKETPLACE_DISCOVERY_EMPTY', (tester) async {
-    final service = FakeMarketplaceService(
-      categories: [sampleCategory()],
-    );
+    final service = FakeMarketplaceService(categories: [sampleCategory()]);
     await tester.pumpWidget(pumpMarketplace(service));
     await tester.pumpAndSettle();
     expect(find.text('Marketplace Crema'), findsWidgets);
@@ -368,7 +367,10 @@ void main() {
 
   testWidgets('82_MARKETPLACE_DISCOVERY_RENDER', (tester) async {
     final service = FakeMarketplaceService(
-      categories: [sampleCategory(), sampleCategory(slug: 'comida', name: 'Comida')],
+      categories: [
+        sampleCategory(),
+        sampleCategory(slug: 'comida', name: 'Comida'),
+      ],
       listings: [
         sampleListing(),
         sampleListing(slug: 'llavero', title: 'Llavero Garra', price: 15),
@@ -380,6 +382,28 @@ void main() {
     expect(find.text('Llavero Garra'), findsOneWidget);
     expect(find.text('Merch'), findsWidgets);
     expect(find.byType(GarraMarketplaceCard), findsNWidgets(2));
+  });
+
+  testWidgets('82_MARKETPLACE_TWO_COLUMN_GRID_NARROW', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final service = FakeMarketplaceService(
+      listings: [
+        sampleListing(title: 'Bandera crema edición tribuna'),
+        sampleListing(slug: 'llavero', title: 'Llavero Garra', price: 15),
+      ],
+    );
+
+    await tester.pumpWidget(pumpMarketplace(service));
+    await tester.pumpAndSettle();
+
+    final grid = tester.widget<GridView>(
+      find.byKey(const Key('recent-products-grid')),
+    );
+    final delegate =
+        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(delegate.crossAxisCount, 2);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('82_MARKETPLACE_CATEGORY_FILTER', (tester) async {
@@ -409,9 +433,7 @@ void main() {
   });
 
   testWidgets('82_MARKETPLACE_LISTING_DETAIL', (tester) async {
-    final service = FakeMarketplaceService(
-      detail: sampleListing(),
-    );
+    final service = FakeMarketplaceService(detail: sampleListing());
     await tester.pumpWidget(
       pumpMarketplace(service, initial: '/marketplace/listings/bandera-crema'),
     );
@@ -498,15 +520,42 @@ void main() {
   });
 
   testWidgets('82_MARKETPLACE_STORE_RENDER', (tester) async {
-    final service = FakeMarketplaceService(
-      store: sampleStore(),
-    );
+    final service = FakeMarketplaceService(store: sampleStore());
     await tester.pumpWidget(
       pumpMarketplace(service, initial: '/marketplace/stores/tienda-sur'),
     );
     await tester.pumpAndSettle();
     expect(find.text('Tienda Sur'), findsWidgets);
     expect(find.text('Bandera Crema'), findsOneWidget);
+  });
+
+  testWidgets('82_MARKETPLACE_STORE_SUPPORTED_ACTIONS', (tester) async {
+    Uri? launchedUri;
+    marketplaceUrlLauncher = (uri) async {
+      launchedUri = uri;
+      return true;
+    };
+    addTearDown(() {
+      marketplaceUrlLauncher = (uri) =>
+          launchUrl(uri, mode: LaunchMode.externalApplication);
+    });
+    final service = FakeMarketplaceService(
+      store: sampleStore(whatsapp: '+51 999 999 999', cremaPointId: 'point-1'),
+    );
+
+    await tester.pumpWidget(
+      pumpMarketplace(service, initial: '/marketplace/stores/tienda-sur'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('WhatsApp'), findsOneWidget);
+    expect(find.text('Cómo llegar'), findsOneWidget);
+    await tester.tap(find.text('WhatsApp'));
+    await tester.pump();
+    expect(launchedUri.toString(), 'https://wa.me/51999999999');
+    await tester.tap(find.text('Cómo llegar'));
+    await tester.pumpAndSettle();
+    expect(find.text('MAP_ROUTE'), findsOneWidget);
   });
 
   testWidgets('82_MARKETPLACE_FAVORITES_EMPTY', (tester) async {
@@ -624,6 +673,37 @@ void main() {
     await tester.tap(marketplace);
     await tester.pumpAndSettle();
     expect(find.text('MARKETPLACE_ROUTE'), findsOneWidget);
+  });
+
+  testWidgets('82_EXPLORE_IMAGE_PREVIEW_COMPOSITION', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(360, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final router = GoRouter(
+      initialLocation: '/explorar',
+      routes: [
+        GoRoute(path: '/explorar', builder: (_, _) => const ExplorePage()),
+        GoRoute(
+          path: '/eventos',
+          builder: (_, _) => const Scaffold(body: Text('EVENTS_ROUTE')),
+        ),
+        GoRoute(
+          path: '/ruta-templo',
+          builder: (_, _) => const Scaffold(body: Text('BUSINESS_ROUTE')),
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('explore-preview-grid')), findsOneWidget);
+    expect(find.text('AGENDA'), findsOneWidget);
+    expect(find.text('RUTA CREMA'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Negocios cerca de ti').first);
+    await tester.pumpAndSettle();
+    expect(find.text('BUSINESS_ROUTE'), findsOneWidget);
   });
 
   testWidgets('82_MARKETPLACE_QUIERO_VENDER_NAV', (tester) async {
