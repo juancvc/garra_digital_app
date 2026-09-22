@@ -7,7 +7,6 @@ import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
-import '../../../core/widgets/garra_ui.dart';
 import '../data/crema_business_engagement_service.dart';
 
 class BusinessOffersPage extends StatefulWidget {

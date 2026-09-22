@@ -13,14 +13,10 @@ import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
-import '../../auth/presentation/providers/auth_provider.dart';
 import '../../clans/data/clan_models.dart';
 import '../../community/presentation/widgets/garra_reaction_bar.dart';
-import '../../matches/presentation/providers/matches_provider.dart';
 import '../../missions/data/mission_models.dart';
 import '../../missions/presentation/widgets/garra_streak_card.dart';
-import '../../predictions/presentation/providers/prediction_provider.dart';
-import '../../ranking/presentation/providers/ranking_provider.dart';
 import '../../marketplace/widgets/garra_sponsored_card.dart';
 import '../../rewards/data/reward_service.dart';
 import '../../sponsors/data/sponsor_service.dart';
@@ -87,37 +83,6 @@ class HomePage extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Cerrar sesión'),
-        content: const Text('¿Seguro que quieres salir de Garra Digital?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Salir'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    await ref.read(authServiceProvider).logout();
-    ref.invalidate(currentUserProvider);
-    ref.invalidate(homeProvider);
-    ref.invalidate(upcomingMatchesProvider);
-    ref.invalidate(myPredictionsProvider);
-    ref.invalidate(rankingProvider);
-    if (context.mounted) {
-      context.go('/login');
-    }
   }
 }
 
