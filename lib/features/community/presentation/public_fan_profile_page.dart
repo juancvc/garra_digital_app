@@ -8,21 +8,33 @@ import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
+import '../../chat/data/chat_models.dart';
+import '../../chat/data/chat_service.dart';
 import '../data/community_service.dart';
 import '../data/wall_post_model.dart';
 
 class PublicFanProfilePage extends StatefulWidget {
-  const PublicFanProfilePage({super.key, required this.userId});
+  const PublicFanProfilePage({
+    super.key,
+    required this.userId,
+    this.communityService,
+    this.chatService,
+  });
 
   final String userId;
+  final CommunityService? communityService;
+  final ChatService? chatService;
 
   @override
   State<PublicFanProfilePage> createState() => _PublicFanProfilePageState();
 }
 
 class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
-  final _service = CommunityService();
+  late final CommunityService _service =
+      widget.communityService ?? CommunityService();
+  late final ChatService _chat = widget.chatService ?? ChatService();
   Map<String, dynamic>? _profile;
+  ChatRelationship _chatRelationship = ChatRelationship.none();
   bool _loading = true;
   String? _error;
   bool _busy = false;
@@ -40,9 +52,18 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
     });
     try {
       final profile = await _service.getPublicProfile(widget.userId);
+      var relationship = ChatRelationship.none();
+      if (profile['isMe'] != true) {
+        try {
+          relationship = await _chat.relationship(widget.userId);
+        } catch (_) {
+          relationship = ChatRelationship.none();
+        }
+      }
       if (!mounted) return;
       setState(() {
         _profile = profile;
+        _chatRelationship = relationship;
         _loading = false;
       });
     } catch (_) {
@@ -66,6 +87,73 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
         await _service.followUser(widget.userId);
       }
       await _load();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _message() async {
+    if (_busy || _chatRelationship.blocked) return;
+    final relationship = _chatRelationship;
+    if (relationship.isActive && relationship.conversationId != null) {
+      context.push('/chat/${relationship.conversationId}');
+      return;
+    }
+    if (relationship.isPending && !relationship.outgoing) {
+      setState(() => _busy = true);
+      try {
+        final accepted = await _chat.accept(relationship.conversationId!);
+        if (!mounted) return;
+        context.push('/chat/${accepted.id}');
+      } catch (_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No pudimos aceptar el chat')),
+        );
+      } finally {
+        if (mounted) setState(() => _busy = false);
+      }
+      return;
+    }
+    if (relationship.isPending && relationship.outgoing) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Solicitar chat'),
+        content: const Text(
+          'Esta persona recibirá tu solicitud antes de que puedan escribirse.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Enviar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await _chat.request(widget.userId);
+      if (!mounted) return;
+      setState(() {
+        _chatRelationship = ChatRelationship(
+          status: 'PENDING',
+          outgoing: true,
+        );
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Solicitud enviada')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No pudimos enviar la solicitud')),
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -98,6 +186,26 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
       const SnackBar(content: Text('Usuario bloqueado')),
     );
     context.pop();
+  }
+
+  Widget _messageButton() {
+    final relationship = _chatRelationship;
+    final pendingOut = relationship.isPending && relationship.outgoing;
+    final pendingIn = relationship.isPending && !relationship.outgoing;
+    final label = pendingOut
+        ? 'Solicitud enviada'
+        : pendingIn
+            ? 'Aceptar chat'
+            : 'Mensaje';
+    return OutlinedButton(
+      key: const Key('profile-message-action'),
+      onPressed: _busy || pendingOut ? null : _message,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: const Color(GarraColors.cream),
+        side: const BorderSide(color: Color(GarraColors.burgundy)),
+      ),
+      child: Text(label),
+    );
   }
 
   @override
@@ -227,20 +335,28 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
         else
           SizedBox(
             width: double.infinity,
-            child: blocked
+            child: blocked || _chatRelationship.blocked
                 ? const OutlinedButton(
                     onPressed: null,
                     child: Text('Bloqueado'),
                   )
-                : FilledButton(
-                    onPressed: _busy ? null : _toggleFollow,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: followed
-                          ? const Color(GarraColors.burgundyDeep)
-                          : const Color(GarraColors.burgundy),
-                      foregroundColor: const Color(GarraColors.cream),
-                    ),
-                    child: Text(followed ? 'Siguiendo' : 'Seguir'),
+                : Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: _busy ? null : _toggleFollow,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: followed
+                                ? const Color(GarraColors.burgundyDeep)
+                                : const Color(GarraColors.burgundy),
+                            foregroundColor: const Color(GarraColors.cream),
+                          ),
+                          child: Text(followed ? 'Siguiendo' : 'Seguir'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: _messageButton()),
+                    ],
                   ),
           ),
         const SizedBox(height: GarraSpacing.lg),

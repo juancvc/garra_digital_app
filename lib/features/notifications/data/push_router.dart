@@ -60,6 +60,9 @@ class PushRouter {
     if (ref == 'CREMA_POINT' || ref == 'FOLLOWED_BUSINESS') {
       return '/ruta-templo';
     }
+    if (ref == 'CHAT_CONVERSATION') {
+      return id.isNotEmpty ? '/chat/$id' : '/notifications';
+    }
     return '/notifications';
   }
 

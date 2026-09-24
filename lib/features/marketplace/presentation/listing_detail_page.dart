@@ -12,6 +12,7 @@ import '../../../core/widgets/garra_ui.dart';
 import '../data/marketplace_models.dart';
 import '../data/marketplace_service.dart';
 import '../data/marketplace_url_launcher.dart';
+import 'marketplace_chat_button.dart';
 import 'providers/marketplace_provider.dart';
 
 class ListingDetailPage extends ConsumerStatefulWidget {
@@ -301,6 +302,11 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
                 loading: _contacting,
                 onPressed: () => _contact(current),
               ),
+              if (current.sellerUserId != null &&
+                  current.sellerUserId!.isNotEmpty) ...[
+                const SizedBox(height: GarraSpacing.md),
+                ConsultarPorChatButton(sellerUserId: current.sellerUserId!),
+              ],
               const SizedBox(height: GarraSpacing.md),
               Text(
                 'Sin compra en la app. Coordina directamente con el vendedor.',

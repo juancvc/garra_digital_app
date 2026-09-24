@@ -61,6 +61,7 @@ class MarketplaceListing {
     this.images = const [],
     this.featured = false,
     this.promotionId,
+    this.sellerUserId,
   });
 
   final String id;
@@ -81,6 +82,7 @@ class MarketplaceListing {
   final List<MarketplaceListingImage> images;
   final bool featured;
   final String? promotionId;
+  final String? sellerUserId;
 
   bool get isPublished =>
       status.toUpperCase() == 'PUBLISHED' || status.toUpperCase() == 'ACTIVE';
@@ -122,6 +124,7 @@ class MarketplaceListing {
     List<MarketplaceListingImage>? images,
     bool? featured,
     String? promotionId,
+    String? sellerUserId,
   }) {
     return MarketplaceListing(
       id: id ?? this.id,
@@ -142,6 +145,7 @@ class MarketplaceListing {
       images: images ?? this.images,
       featured: featured ?? this.featured,
       promotionId: promotionId ?? this.promotionId,
+      sellerUserId: sellerUserId ?? this.sellerUserId,
     );
   }
 
@@ -210,6 +214,7 @@ class MarketplaceListing {
       images: images,
       featured: json['featured'] as bool? ?? false,
       promotionId: json['promotionId']?.toString(),
+      sellerUserId: json['sellerUserId']?.toString(),
     );
   }
 

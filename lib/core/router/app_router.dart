@@ -21,6 +21,9 @@ import 'package:garra_digital_app/features/community/presentation/global_search_
 import 'package:garra_digital_app/features/community/presentation/muro_crema_page.dart';
 import 'package:garra_digital_app/features/community/presentation/post_detail_screen.dart';
 import 'package:garra_digital_app/features/community/presentation/public_fan_profile_page.dart';
+import 'package:garra_digital_app/features/chat/data/chat_service.dart';
+import 'package:garra_digital_app/features/chat/presentation/chat_conversation_page.dart';
+import 'package:garra_digital_app/features/chat/presentation/chat_inbox_page.dart';
 import 'package:garra_digital_app/features/community/presentation/saved_posts_page.dart';
 import 'package:garra_digital_app/features/solidarity/presentation/solidaria_page.dart';
 import 'package:garra_digital_app/features/locations/presentation/business_offers_page.dart';
@@ -131,8 +134,10 @@ final GoRouter appRouter = GoRouter(
             GoRoute(
               path: '/comunidad',
               name: 'comunidad',
-              builder: (context, state) =>
-                  _featureOrDisabled('community', const CommunitySocialPage()),
+              builder: (context, state) => _featureOrDisabled(
+                'community',
+                CommunitySocialPage(chatService: ChatService()),
+              ),
             ),
           ],
         ),
@@ -182,6 +187,19 @@ final GoRouter appRouter = GoRouter(
       name: 'comunidad-perfil',
       builder: (context, state) =>
           PublicFanProfilePage(userId: state.pathParameters['userId']!),
+    ),
+    GoRoute(
+      path: '/chat',
+      name: 'chat-inbox',
+      builder: (context, state) => ChatInboxPage(chatService: ChatService()),
+    ),
+    GoRoute(
+      path: '/chat/:conversationId',
+      name: 'chat-conversation',
+      builder: (context, state) => ChatConversationPage(
+        conversationId: state.pathParameters['conversationId']!,
+        chatService: ChatService(),
+      ),
     ),
     GoRoute(
       path: '/admin',
