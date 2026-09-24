@@ -48,6 +48,12 @@ class MainShell extends StatelessWidget {
         child: SafeArea(
           top: false,
           child: NavigationBar(
+            height: 66,
+            backgroundColor: const Color(GarraColors.surface),
+            surfaceTintColor: Colors.transparent,
+            indicatorColor: const Color(
+              GarraColors.burgundy,
+            ).withValues(alpha: 0.72),
             labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
             selectedIndex: _navIndex,
             onDestinationSelected: (i) => _onTap(context, i),

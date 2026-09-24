@@ -50,8 +50,8 @@ class _FakeMarketplaceService extends MarketplaceService {
 
   @override
   Future<List<MarketplaceCategory>> getCategories() async => [
-        const MarketplaceCategory(id: '1', slug: 'merch', name: 'Merch'),
-      ];
+    const MarketplaceCategory(id: '1', slug: 'merch', name: 'Merch'),
+  ];
 
   @override
   Future<MarketplacePageResult<MarketplaceListing>> getListings({
@@ -134,9 +134,7 @@ void main() {
     );
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          marketplaceServiceProvider.overrideWithValue(fake),
-        ],
+        overrides: [marketplaceServiceProvider.overrideWithValue(fake)],
         child: MaterialApp(
           theme: AppTheme.darkTheme,
           home: const MarketplacePage(),
@@ -145,7 +143,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Destacados'), findsNothing);
-    expect(find.text('Publicaciones recientes'), findsOneWidget);
+    expect(find.text('Productos recientes'), findsOneWidget);
   });
 
   testWidgets('FEATURED_HERO_RENDER', (tester) async {
@@ -163,9 +161,7 @@ void main() {
     );
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          marketplaceServiceProvider.overrideWithValue(fake),
-        ],
+        overrides: [marketplaceServiceProvider.overrideWithValue(fake)],
         child: MaterialApp(
           theme: AppTheme.darkTheme,
           home: const MarketplacePage(),
@@ -182,20 +178,14 @@ void main() {
     final fake = _FakeMarketplaceService(
       featured: FeaturedDiscovery(
         featuredListings: [
-          sampleListing(
-            featured: true,
-            promotionId: 'imp-1',
-            title: 'Feat A',
-          ),
+          sampleListing(featured: true, promotionId: 'imp-1', title: 'Feat A'),
         ],
       ),
       listings: const [],
     );
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          marketplaceServiceProvider.overrideWithValue(fake),
-        ],
+        overrides: [marketplaceServiceProvider.overrideWithValue(fake)],
         child: MaterialApp(
           theme: AppTheme.darkTheme,
           home: const MarketplacePage(),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garra_digital_app/core/theme/app_theme.dart';
+import 'package:garra_digital_app/core/widgets/garra_cached_network_image.dart';
 import 'package:garra_digital_app/core/widgets/garra_states.dart';
 import 'package:garra_digital_app/features/clans/data/clan_models.dart';
 import 'package:garra_digital_app/features/clans/data/clan_service.dart';
@@ -339,6 +340,23 @@ void main() {
     expect(find.text('Crema Norte'), findsOneWidget);
   });
 
+  testWidgets('CLAN_DISCOVERY_LOGO_RENDER', (tester) async {
+    final service = FakeClanService(
+      discover: [
+        sampleClan(
+          logoUrl: 'https://cdn.garra.test/clans/garra-surco-logo.png',
+        ),
+      ],
+    );
+    await tester.pumpWidget(pumpClans(service));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Descubrir'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(GarraCachedNetworkImage), findsOneWidget);
+    expect(find.text('Comunidad crema del sur.'), findsOneWidget);
+  });
+
   testWidgets('CLAN_EMPTY_STATE', (tester) async {
     final service = FakeClanService();
     await tester.pumpWidget(pumpClans(service));
@@ -431,7 +449,7 @@ void main() {
     );
     await tester.pumpWidget(pumpClans(service));
     await tester.pumpAndSettle();
-    expect(find.text('Mis comunidades'), findsOneWidget);
+    expect(find.text('Tus comunidades'), findsOneWidget);
     expect(find.text('Garra Surco'), findsWidgets);
     expect(find.text('Crema Norte'), findsOneWidget);
     expect(find.text('Principal'), findsWidgets);
@@ -475,7 +493,7 @@ void main() {
     await tester.pumpWidget(pumpClans(service));
     await tester.pumpAndSettle();
 
-    expect(find.text('Mis comunidades'), findsOneWidget);
+    expect(find.text('Tus comunidades'), findsOneWidget);
     expect(find.text('Principal'), findsOneWidget);
     expect(find.byType(FloatingActionButton), findsOneWidget);
     expect(find.byTooltip('Crear comunidad'), findsNothing);

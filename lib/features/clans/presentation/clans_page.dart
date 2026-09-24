@@ -7,7 +7,6 @@ import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_avatar.dart';
-import '../../../core/widgets/garra_brand_visual.dart';
 import '../../../core/widgets/garra_cached_network_image.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../passport/presentation/providers/passport_provider.dart';
@@ -81,7 +80,7 @@ class _ClansPageState extends ConsumerState<ClansPage>
     return Scaffold(
       backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
-        title: const Text('Comunidades'),
+        title: const Text('Comunidades Cremas'),
         actions: [
           IconButton(
             tooltip: 'Invitaciones',
@@ -101,9 +100,9 @@ class _ClansPageState extends ConsumerState<ClansPage>
           labelColor: const Color(GarraColors.cream),
           unselectedLabelColor: const Color(GarraColors.creamMuted),
           tabs: const [
-            Tab(text: 'Mis comunidades'),
+            Tab(text: 'Tus comunidades'),
             Tab(text: 'Descubrir'),
-            Tab(text: 'Cercanas'),
+            Tab(text: 'Cerca de ti'),
           ],
         ),
       ),
@@ -119,15 +118,6 @@ class _ClansPageState extends ConsumerState<ClansPage>
           ? const _CommunitiesSkeleton()
           : Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    GarraSpacing.lg,
-                    GarraSpacing.md,
-                    GarraSpacing.lg,
-                    0,
-                  ),
-                  child: const _CommunitiesHero(),
-                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
                     GarraSpacing.lg,
@@ -250,48 +240,6 @@ class _ClansPageState extends ConsumerState<ClansPage>
                 ),
               ],
             ),
-    );
-  }
-}
-
-class _CommunitiesHero extends StatelessWidget {
-  const _CommunitiesHero();
-
-  @override
-  Widget build(BuildContext context) {
-    return GarraAtmosphericHero(
-      height: 116,
-      alignment: const Alignment(0, -0.35),
-      padding: const EdgeInsets.all(GarraSpacing.md),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          const GarraCrest(size: 42, showGlow: true),
-          const SizedBox(width: GarraSpacing.md),
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const GarraEditorialEyebrow(
-                  label: 'Tribuna crema',
-                  icon: Icons.groups_outlined,
-                ),
-                const SizedBox(height: GarraSpacing.sm),
-                Text(
-                  'Tu gente. Tu barrio. Tu crema.',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: const Color(GarraColors.cream),
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -501,7 +449,7 @@ class _ClanListTile extends StatelessWidget {
             children: [
               Container(
                 width: 6,
-                height: 76,
+                height: 96,
                 color: isPrimary
                     ? const Color(GarraColors.gold)
                     : const Color(GarraColors.burgundy),
@@ -535,6 +483,17 @@ class _ClanListTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
+                    if (clan.description?.trim().isNotEmpty == true) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        clan.description!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: const Color(GarraColors.creamMuted),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -595,7 +554,7 @@ class _ClanVisual extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: 72,
-      height: 76,
+      height: 96,
       child: Stack(
         alignment: Alignment.center,
         children: [

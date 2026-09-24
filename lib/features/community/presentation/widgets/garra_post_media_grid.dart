@@ -56,14 +56,18 @@ class GarraPostMediaGrid extends StatelessWidget {
     switch (urls.length) {
       case 1:
         return ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: AspectRatio(aspectRatio: 4 / 5, child: image(0)),
+          borderRadius: BorderRadius.circular(14),
+          child: AspectRatio(
+            // Large editorial treatment without forcing a portrait crop.
+            aspectRatio: 4 / 3,
+            child: image(0),
+          ),
         );
       case 2:
         return ClipRRect(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(14),
           child: AspectRatio(
-            aspectRatio: 2,
+            aspectRatio: 16 / 9,
             child: Row(
               children: [
                 Expanded(child: image(0)),
@@ -77,7 +81,7 @@ class GarraPostMediaGrid extends StatelessWidget {
         // Bound height via AspectRatio so the right Column Expanded children
         // never receive unbounded constraints (overflow on narrow devices).
         return ClipRRect(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(14),
           child: AspectRatio(
             aspectRatio: 4 / 3,
             child: Row(
@@ -100,7 +104,7 @@ class GarraPostMediaGrid extends StatelessWidget {
       default:
         final extra = urls.length - 4;
         return ClipRRect(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(14),
           child: AspectRatio(
             aspectRatio: 1,
             child: Column(

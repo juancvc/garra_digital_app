@@ -37,20 +37,26 @@ class PollaPage extends ConsumerWidget {
     return homeAsync.when(
       loading: () => const Scaffold(
         backgroundColor: Color(GarraColors.charcoal),
-        body: Center(child: CircularProgressIndicator(color: Color(GarraColors.gold))),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(GarraColors.gold)),
+        ),
       ),
       error: (error, stackTrace) => matchesAsync.when(
         loading: () => const Scaffold(
           backgroundColor: Color(GarraColors.charcoal),
-          body: Center(child: CircularProgressIndicator(color: Color(GarraColors.gold))),
+          body: Center(
+            child: CircularProgressIndicator(color: Color(GarraColors.gold)),
+          ),
         ),
         error: (e, _) => Scaffold(
           backgroundColor: Color(GarraColors.charcoal),
           appBar: AppBar(title: const Text('La Polla')),
-          body: GarraErrorState(onRetry: () {
-            ref.invalidate(homeProvider);
-            ref.invalidate(upcomingMatchesProvider);
-          }),
+          body: GarraErrorState(
+            onRetry: () {
+              ref.invalidate(homeProvider);
+              ref.invalidate(upcomingMatchesProvider);
+            },
+          ),
         ),
         data: (matches) {
           if (matches.isEmpty) {
@@ -67,11 +73,11 @@ class PollaPage extends ConsumerWidget {
           if (matches.length == 1) {
             return _PollaMatchScreen(matchId: matches.first.id);
           }
-          return _PollaMatchPicker(matchIds: matches.map((m) => (
-                id: m.id,
-                home: m.homeTeam,
-                away: m.awayTeam,
-              )).toList());
+          return _PollaMatchPicker(
+            matchIds: matches
+                .map((m) => (id: m.id, home: m.homeTeam, away: m.awayTeam))
+                .toList(),
+          );
         },
       ),
       data: (home) {
@@ -82,15 +88,19 @@ class PollaPage extends ConsumerWidget {
         return matchesAsync.when(
           loading: () => const Scaffold(
             backgroundColor: Color(GarraColors.charcoal),
-            body: Center(child: CircularProgressIndicator(color: Color(GarraColors.gold))),
+            body: Center(
+              child: CircularProgressIndicator(color: Color(GarraColors.gold)),
+            ),
           ),
           error: (e, st) => Scaffold(
             backgroundColor: const Color(GarraColors.charcoal),
             appBar: AppBar(title: const Text('La Polla')),
-            body: GarraErrorState(onRetry: () {
-              ref.invalidate(homeProvider);
-              ref.invalidate(upcomingMatchesProvider);
-            }),
+            body: GarraErrorState(
+              onRetry: () {
+                ref.invalidate(homeProvider);
+                ref.invalidate(upcomingMatchesProvider);
+              },
+            ),
           ),
           data: (matches) {
             if (matches.isEmpty) {
@@ -125,7 +135,8 @@ class _PollaMatchPicker extends StatelessWidget {
       body: ListView.separated(
         padding: const EdgeInsets.all(GarraSpacing.lg),
         itemCount: matchIds.length,
-        separatorBuilder: (context, index) => const SizedBox(height: GarraSpacing.md),
+        separatorBuilder: (context, index) =>
+            const SizedBox(height: GarraSpacing.md),
         itemBuilder: (context, index) {
           final m = matchIds[index];
           return GarraCard(
@@ -226,7 +237,8 @@ class _PollaBody extends ConsumerWidget {
         if (polla.isNotOpen)
           const GarraEmptyState(
             title: 'La Polla aún no abre',
-            message: 'Vuelve más cerca del partido para registrar tu predicción.',
+            message:
+                'Vuelve más cerca del partido para registrar tu predicción.',
           )
         else if (polla.isLocked && !(polla.myPrediction?.hasScores ?? false))
           const _ClosedBanner()
@@ -272,9 +284,9 @@ class _MatchHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final match = polla.match;
-    final dateLabel = DateFormat('EEE d MMM Â· HH:mm').format(
-      match.matchDateTime.toLocal(),
-    );
+    final dateLabel = DateFormat(
+      'EEE d MMM · HH:mm',
+    ).format(match.matchDateTime.toLocal());
     final closes = polla.closesAt ?? match.predictionClosesAt;
 
     return GarraCard(
@@ -284,8 +296,8 @@ class _MatchHero extends StatelessWidget {
           Text(
             match.competition,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: const Color(GarraColors.gold),
-                ),
+              color: const Color(GarraColors.gold),
+            ),
           ),
           const SizedBox(height: GarraSpacing.md),
           Row(
@@ -298,7 +310,9 @@ class _MatchHero extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: GarraSpacing.sm),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: GarraSpacing.sm,
+                ),
                 child: match.homeScore != null && match.awayScore != null
                     ? Text(
                         '${match.homeScore} : ${match.awayScore}',
@@ -306,7 +320,8 @@ class _MatchHero extends StatelessWidget {
                       )
                     : Text(
                         'VS',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
                               color: const Color(GarraColors.gold),
                               fontWeight: FontWeight.w800,
                             ),
@@ -328,7 +343,7 @@ class _MatchHero extends StatelessWidget {
           if (closes != null) ...[
             const SizedBox(height: GarraSpacing.sm),
             Text(
-              'Cierra: ${DateFormat('d MMM Â· HH:mm').format(closes.toLocal())}',
+              'Cierra: ${DateFormat('d MMM · HH:mm').format(closes.toLocal())}',
               style: Theme.of(context).textTheme.labelSmall,
             ),
           ],
@@ -386,7 +401,10 @@ class _ClosedBanner extends StatelessWidget {
     return GarraCard(
       child: Row(
         children: [
-          const Icon(Icons.lock_clock_rounded, color: Color(GarraColors.warning)),
+          const Icon(
+            Icons.lock_clock_rounded,
+            color: Color(GarraColors.warning),
+          ),
           const SizedBox(width: GarraSpacing.md),
           Expanded(
             child: Text(
@@ -507,7 +525,9 @@ class _PredictionEditorState extends ConsumerState<_PredictionEditor> {
           : null;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(backendMessage ?? 'No se pudo registrar la predicción.'),
+          content: Text(
+            backendMessage ?? 'No se pudo registrar la predicción.',
+          ),
           backgroundColor: const Color(GarraColors.danger),
           behavior: SnackBarBehavior.floating,
         ),
@@ -555,7 +575,9 @@ class _PredictionEditorState extends ConsumerState<_PredictionEditor> {
           ),
           const SizedBox(height: GarraSpacing.lg),
           GarraPrimaryButton(
-            label: hasExisting ? 'Actualizar predicción' : 'Registrar predicción',
+            label: hasExisting
+                ? 'Actualizar predicción'
+                : 'Registrar predicción',
             loading: _submitting,
             onPressed: _submitting ? null : _submit,
           ),
@@ -665,24 +687,15 @@ class _SentimentCard extends StatelessWidget {
           ),
           const SizedBox(height: GarraSpacing.xs),
           Text(
-            'Sentimiento de la comunidad Â· no es probabilidad',
+            'Sentimiento de la comunidad · no es probabilidad',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: GarraSpacing.lg),
-          _SentimentBar(
-            label: homeTeam,
-            percent: sentiment.homeWinPercent,
-          ),
+          _SentimentBar(label: homeTeam, percent: sentiment.homeWinPercent),
           const SizedBox(height: GarraSpacing.sm),
-          _SentimentBar(
-            label: 'Empate',
-            percent: sentiment.drawPercent,
-          ),
+          _SentimentBar(label: 'Empate', percent: sentiment.drawPercent),
           const SizedBox(height: GarraSpacing.sm),
-          _SentimentBar(
-            label: awayTeam,
-            percent: sentiment.awayWinPercent,
-          ),
+          _SentimentBar(label: awayTeam, percent: sentiment.awayWinPercent),
         ],
       ),
     );
@@ -766,7 +779,9 @@ class _RuleRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: GarraSpacing.xs),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: Theme.of(context).textTheme.bodyMedium)),
+          Expanded(
+            child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          ),
           Text('+$points', style: GarraTypography.numeric(size: 16)),
         ],
       ),
@@ -800,26 +815,17 @@ class _ResultBreakdown extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: GarraSpacing.lg),
-          _RuleRow(
-            label: 'Marcador exacto',
-            points: b.exactScorePoints,
-          ),
-          _RuleRow(
-            label: 'Resultado correcto',
-            points: b.outcomePoints,
-          ),
-          _RuleRow(
-            label: 'Primer goleador',
-            points: b.firstScorerPoints,
-          ),
+          _RuleRow(label: 'Marcador exacto', points: b.exactScorePoints),
+          _RuleRow(label: 'Resultado correcto', points: b.outcomePoints),
+          _RuleRow(label: 'Primer goleador', points: b.firstScorerPoints),
           const Divider(height: GarraSpacing.xxl),
           Text(
             b.totalPoints > 0
                 ? 'Sumaste ${b.totalPoints} Puntos Garra'
                 : 'Esta vez no sumaste puntos',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: const Color(GarraColors.gold),
-                ),
+              color: const Color(GarraColors.gold),
+            ),
           ),
         ],
       ),

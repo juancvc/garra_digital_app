@@ -153,8 +153,9 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
                 ),
                 children: [
                   GarraAtmosphericHero(
-                    height: 230,
+                    height: 164,
                     alignment: const Alignment(0.3, -0.2),
+                    padding: const EdgeInsets.all(GarraSpacing.md),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,22 +166,15 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
                         ),
                         const SizedBox(height: GarraSpacing.sm),
                         Text(
-                          'Compra crema.\nImpulsa a los nuestros.',
-                          style: Theme.of(context).textTheme.headlineSmall
+                          'Compra crema. Impulsa a los nuestros.',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(
                                 color: const Color(GarraColors.cream),
                                 fontWeight: FontWeight.w900,
-                                height: 1.02,
+                                height: 1.06,
                                 letterSpacing: -0.5,
-                              ),
-                        ),
-                        const SizedBox(height: GarraSpacing.sm),
-                        Text(
-                          'Productos e historias de emprendimientos de la hinchada.',
-                          maxLines: 2,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: const Color(GarraColors.creamMuted),
                               ),
                         ),
                       ],
@@ -259,77 +253,8 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
                       );
                     },
                   ),
-                  const SizedBox(height: GarraSpacing.lg),
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => context.push(
-                        isSeller
-                            ? '/marketplace/seller/dashboard'
-                            : '/marketplace/seller',
-                      ),
-                      borderRadius: BorderRadius.circular(GarraRadius.lg),
-                      child: GarraSectionAtmosphere(
-                        padding: const EdgeInsets.all(GarraSpacing.md),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: const Color(GarraColors.gold),
-                                borderRadius: BorderRadius.circular(
-                                  GarraRadius.sm,
-                                ),
-                              ),
-                              child: const Icon(
-                                Icons.storefront_outlined,
-                                color: Color(GarraColors.burgundyDeep),
-                              ),
-                            ),
-                            const SizedBox(width: GarraSpacing.md),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    isSeller
-                                        ? 'Tu vitrina crema'
-                                        : 'Pon tu talento en vitrina',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                          color: const Color(GarraColors.cream),
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                  ),
-                                  const SizedBox(height: GarraSpacing.xs),
-                                  Text(
-                                    isSeller
-                                        ? 'Entra a tu negocio'
-                                        : 'Publica tu emprendimiento',
-                                    style: Theme.of(context).textTheme.bodySmall
-                                        ?.copyWith(
-                                          color: const Color(
-                                            GarraColors.creamMuted,
-                                          ),
-                                        ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Icon(
-                              Icons.arrow_forward,
-                              color: Color(GarraColors.gold),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: GarraSpacing.xxl),
-                  GarraSectionHeader(title: 'Publicaciones recientes'),
+                  const SizedBox(height: GarraSpacing.xl),
+                  GarraSectionHeader(title: 'Productos recientes'),
                   const SizedBox(height: GarraSpacing.md),
                   listingsAsync.when(
                     loading: () => const GarraSkeleton(height: 140),

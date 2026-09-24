@@ -166,7 +166,7 @@ class _CompactMarketplaceCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            height: 112,
+            height: 132,
             width: double.infinity,
             child: Stack(
               fit: StackFit.expand,

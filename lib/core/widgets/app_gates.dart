@@ -31,9 +31,9 @@ class MaintenanceGatePage extends StatelessWidget {
                 'Estamos preparando la tribuna',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: const Color(GarraColors.gold),
-                      fontWeight: FontWeight.w800,
-                    ),
+                  color: const Color(GarraColors.gold),
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(height: GarraSpacing.md),
               Text(
@@ -42,8 +42,8 @@ class MaintenanceGatePage extends StatelessWidget {
                     : message,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: const Color(GarraColors.creamMuted),
-                    ),
+                  color: const Color(GarraColors.creamMuted),
+                ),
               ),
               const Spacer(),
               GarraPrimaryButton(label: 'Reintentar', onPressed: onRetry),
@@ -56,10 +56,7 @@ class MaintenanceGatePage extends StatelessWidget {
 }
 
 class UpdateRequiredPage extends StatelessWidget {
-  const UpdateRequiredPage({
-    super.key,
-    required this.config,
-  });
+  const UpdateRequiredPage({super.key, required this.config});
 
   final AppConfigModel config;
 
@@ -79,9 +76,9 @@ class UpdateRequiredPage extends StatelessWidget {
                 'Actualización requerida',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: const Color(GarraColors.gold),
-                      fontWeight: FontWeight.w800,
-                    ),
+                  color: const Color(GarraColors.gold),
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(height: GarraSpacing.md),
               Text(
@@ -89,8 +86,8 @@ class UpdateRequiredPage extends StatelessWidget {
                 'Actualiza para continuar (mínimo ${config.minimumSupportedVersion}).',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: const Color(GarraColors.creamMuted),
-                    ),
+                  color: const Color(GarraColors.creamMuted),
+                ),
               ),
               const Spacer(),
               if (store != null && store.isNotEmpty)
@@ -131,8 +128,8 @@ class FeatureDisabledPage extends StatelessWidget {
             'Esta función está temporalmente no disponible.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: const Color(GarraColors.cream),
-                ),
+              color: const Color(GarraColors.cream),
+            ),
           ),
         ),
       ),
@@ -156,35 +153,58 @@ class OptionalUpdateBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: const Color(0xFF2A1518),
-      child: SafeArea(
-        bottom: false,
+      elevation: 5,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        height: 42,
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: GarraSpacing.md,
-            vertical: GarraSpacing.sm,
-          ),
+          padding: const EdgeInsets.only(left: GarraSpacing.md, right: 4),
           child: Row(
             children: [
+              const Icon(
+                Icons.system_update_alt_rounded,
+                size: 16,
+                color: Color(GarraColors.gold),
+              ),
+              const SizedBox(width: GarraSpacing.sm),
               Expanded(
                 child: Text(
-                  'Hay una nueva versión ($latestVersion).',
+                  'Nueva versión $latestVersion',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: const Color(GarraColors.cream),
-                      ),
+                    color: const Color(GarraColors.cream),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               if (storeUrl != null && storeUrl!.isNotEmpty)
                 TextButton(
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 34),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    visualDensity: VisualDensity.compact,
+                  ),
                   onPressed: () => launchUrl(
                     Uri.parse(storeUrl!),
                     mode: LaunchMode.externalApplication,
                   ),
                   child: const Text('Actualizar'),
                 ),
-              IconButton(
-                tooltip: 'Cerrar',
-                onPressed: onDismiss,
-                icon: const Icon(Icons.close, size: 18),
+              Semantics(
+                button: true,
+                label: 'Cerrar',
+                child: IconButton(
+                  onPressed: onDismiss,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 34,
+                    height: 34,
+                  ),
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.close, size: 18),
+                ),
               ),
             ],
           ),

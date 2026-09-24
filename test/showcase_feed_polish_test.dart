@@ -96,8 +96,8 @@ void main() {
 
         final size = tester.getSize(find.byType(GarraPostMediaGrid));
         final expectedHeight = switch (count) {
-          1 => 350.0,
-          2 => 140.0,
+          1 => 210.0,
+          2 => 157.5,
           3 => 210.0,
           _ => 280.0,
         };

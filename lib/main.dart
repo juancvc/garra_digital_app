@@ -66,9 +66,9 @@ class _GarraDigitalAppState extends State<GarraDigitalApp> {
 
   Future<void> _bootstrapAppConfig() async {
     try {
-      final cfg = await appConfigService
-          .fetch()
-          .timeout(const Duration(seconds: 4));
+      final cfg = await appConfigService.fetch().timeout(
+        const Duration(seconds: 4),
+      );
       final info = await PackageInfo.fromPlatform();
       final status = evaluateVersion(
         installed: info.version,
@@ -149,14 +149,20 @@ class _GarraDigitalAppState extends State<GarraDigitalApp> {
         final content = child ?? const SizedBox.shrink();
         Widget body = content;
         if (_updateAvailable && !_dismissOptionalUpdate) {
-          body = Column(
+          body = Stack(
             children: [
-              OptionalUpdateBanner(
-                latestVersion: _config.latestVersion,
-                storeUrl: _config.storeUrl,
-                onDismiss: () => setState(() => _dismissOptionalUpdate = true),
+              content,
+              Positioned(
+                top: MediaQuery.paddingOf(context).top + 6,
+                left: 12,
+                right: 12,
+                child: OptionalUpdateBanner(
+                  latestVersion: _config.latestVersion,
+                  storeUrl: _config.storeUrl,
+                  onDismiss: () =>
+                      setState(() => _dismissOptionalUpdate = true),
+                ),
               ),
-              Expanded(child: content),
             ],
           );
         }

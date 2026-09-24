@@ -16,6 +16,7 @@ import 'package:garra_digital_app/features/settings/presentation/settings_pages.
 import 'package:garra_digital_app/core/config/app_config_service.dart';
 import 'package:garra_digital_app/core/widgets/app_gates.dart';
 import 'package:garra_digital_app/features/community/presentation/create_community_post_page.dart';
+import 'package:garra_digital_app/features/community/presentation/community_social_page.dart';
 import 'package:garra_digital_app/features/community/presentation/global_search_page.dart';
 import 'package:garra_digital_app/features/community/presentation/muro_crema_page.dart';
 import 'package:garra_digital_app/features/community/presentation/post_detail_screen.dart';
@@ -117,43 +118,41 @@ final GoRouter appRouter = GoRouter(
       },
       branches: [
         StatefulShellBranch(
-      routes: [
-        GoRoute(
-          path: '/home',
-          name: 'home',
-          builder: (context, state) => const HomePage(),
-        ),
-      ],
-        ),
-        StatefulShellBranch(
-      routes: [
-        GoRoute(
-          path: '/comunidad',
-          name: 'comunidad',
-          builder: (context, state) => _featureOrDisabled(
-            'community',
-            const ClansPage(),
-          ),
-        ),
-      ],
+          routes: [
+            GoRoute(
+              path: '/home',
+              name: 'home',
+              builder: (context, state) => const HomePage(),
+            ),
+          ],
         ),
         StatefulShellBranch(
-      routes: [
-        GoRoute(
-          path: '/explorar',
-          name: 'explorar',
-          builder: (context, state) => const ExplorePage(),
-        ),
-      ],
+          routes: [
+            GoRoute(
+              path: '/comunidad',
+              name: 'comunidad',
+              builder: (context, state) =>
+                  _featureOrDisabled('community', const CommunitySocialPage()),
+            ),
+          ],
         ),
         StatefulShellBranch(
-      routes: [
-        GoRoute(
-          path: '/passport',
-          name: 'passport',
-          builder: (context, state) => const PassportScreen(),
+          routes: [
+            GoRoute(
+              path: '/explorar',
+              name: 'explorar',
+              builder: (context, state) => const ExplorePage(),
+            ),
+          ],
         ),
-      ],
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/passport',
+              name: 'passport',
+              builder: (context, state) => const PassportScreen(),
+            ),
+          ],
         ),
       ],
     ),
@@ -181,9 +180,8 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/comunidad/u/:userId',
       name: 'comunidad-perfil',
-      builder: (context, state) => PublicFanProfilePage(
-        userId: state.pathParameters['userId']!,
-      ),
+      builder: (context, state) =>
+          PublicFanProfilePage(userId: state.pathParameters['userId']!),
     ),
     GoRoute(
       path: '/admin',
@@ -223,18 +221,14 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/ruta-templo/ofertas',
       name: 'business-offers',
-      builder: (context, state) => _featureOrDisabled(
-        'businessOffers',
-        const BusinessOffersPage(),
-      ),
+      builder: (context, state) =>
+          _featureOrDisabled('businessOffers', const BusinessOffersPage()),
     ),
     GoRoute(
       path: '/solidaria',
       name: 'solidaria',
-      builder: (context, state) => _featureOrDisabled(
-        'solidaria',
-        const SolidariaPage(),
-      ),
+      builder: (context, state) =>
+          _featureOrDisabled('solidaria', const SolidariaPage()),
     ),
     GoRoute(
       path: '/solidaria/nueva',
@@ -244,9 +238,8 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/solidaria/:id',
       name: 'solidaria-detail',
-      builder: (context, state) => SolidariaDetailPage(
-        campaignId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          SolidariaDetailPage(campaignId: state.pathParameters['id']!),
     ),
     GoRoute(
       path: '/passport/edit',
@@ -271,10 +264,8 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/eventos',
       name: 'events',
-      builder: (context, state) => _featureOrDisabled(
-        'events',
-        const EventsPage(),
-      ),
+      builder: (context, state) =>
+          _featureOrDisabled('events', const EventsPage()),
     ),
     GoRoute(
       path: '/eventos/nuevo',
@@ -292,82 +283,82 @@ final GoRouter appRouter = GoRouter(
           initial: extra is GarraEventModel ? extra : null,
         );
       },
-        ),
+    ),
     GoRoute(
       path: '/onboarding',
       name: 'onboarding-interests',
       builder: (context, state) => const OnboardingInterestsPage(),
-        ),
+    ),
     GoRoute(
       path: '/admin/temporadas',
       name: 'admin-seasons',
       builder: (context, state) => const AdminSeasonsPage(),
-        ),
+    ),
     GoRoute(
       path: '/admin/logros',
       name: 'admin-achievements',
       builder: (context, state) => const AdminAchievementsPage(),
-        ),
+    ),
     GoRoute(
       path: '/admin/eventos',
       name: 'admin-events',
       builder: (context, state) => const AdminEventsPage(),
-        ),
+    ),
     GoRoute(
       path: '/admin/funciones',
       name: 'admin-features',
       builder: (context, state) => const AdminFeatureFlagsPage(),
-        ),
+    ),
     GoRoute(
       path: '/admin/eliminaciones',
       name: 'admin-deletions',
       builder: (context, state) => const AdminDeletionRequestsPage(),
-        ),
+    ),
     GoRoute(
       path: '/admin/feedback',
       name: 'admin-feedback',
       builder: (context, state) => const AdminBetaFeedbackPage(),
-        ),
+    ),
     GoRoute(
       path: '/settings',
       name: 'settings',
       builder: (context, state) => const SettingsHubPage(),
-        ),
+    ),
     GoRoute(
       path: '/settings/privacy',
       name: 'settings-privacy',
       builder: (context, state) => const PrivacySettingsPage(),
-        ),
+    ),
     GoRoute(
       path: '/settings/legal',
       name: 'settings-legal',
       builder: (context, state) => const LegalSettingsPage(),
-        ),
+    ),
     GoRoute(
       path: '/settings/help',
       name: 'settings-help',
       builder: (context, state) => const HelpDiagnosticsPage(),
-        ),
+    ),
     GoRoute(
       path: '/settings/feedback',
       name: 'settings-feedback',
       builder: (context, state) => const BetaFeedbackPage(),
-        ),
+    ),
     GoRoute(
       path: '/settings/delete-account',
       name: 'settings-delete-account',
       builder: (context, state) => const DeleteAccountPage(),
-        ),
+    ),
     GoRoute(
       path: '/settings/data-export',
       name: 'settings-data-export',
       builder: (context, state) => const DataExportPage(),
-        ),
+    ),
     GoRoute(
       path: '/history',
       name: 'history',
       builder: (context, state) => const HistoryPage(),
-        ),
+    ),
     GoRoute(
       path: '/history/year/:year',
       name: 'history-year',
@@ -376,17 +367,17 @@ final GoRouter appRouter = GoRouter(
         final year = int.tryParse(raw) ?? DateTime.now().year;
         return YearRecapPage(year: year);
       },
-        ),
+    ),
     GoRoute(
       path: '/notifications',
       name: 'notifications',
       builder: (context, state) => const NotificationsScreen(),
-        ),
+    ),
     GoRoute(
       path: '/polla',
       name: 'polla',
       builder: (context, state) => const PollaPage(),
-        ),
+    ),
     GoRoute(
       path: '/polla/:matchId',
       name: 'polla-match',
@@ -394,7 +385,7 @@ final GoRouter appRouter = GoRouter(
         final matchId = state.pathParameters['matchId'] ?? '';
         return PollaPage(matchId: matchId);
       },
-        ),
+    ),
     GoRoute(
       path: '/matchday/:matchId',
       name: 'matchday',
@@ -405,7 +396,7 @@ final GoRouter appRouter = GoRouter(
           MatchdayPollsPage(matchId: matchId),
         );
       },
-        ),
+    ),
     GoRoute(
       path: '/matchday/:matchId/polls',
       name: 'matchday-polls',
@@ -416,17 +407,17 @@ final GoRouter appRouter = GoRouter(
           MatchdayPollsPage(matchId: matchId),
         );
       },
-        ),
+    ),
     GoRoute(
       path: '/ruta-templo',
       name: 'ruta-templo',
       builder: (context, state) => const RutaAlTemploPage(),
-        ),
+    ),
     GoRoute(
       path: '/ruta-templo/mi-negocio',
       name: 'mi-negocio-crema',
       builder: (context, state) => const MiNegocioCremaPage(),
-        ),
+    ),
     GoRoute(
       path: '/ruta-templo/mi-negocio/nuevo',
       name: 'mi-negocio-nuevo',
@@ -436,7 +427,7 @@ final GoRouter appRouter = GoRouter(
             : null;
         return RegistrarNegocioCremaPage(existing: existing);
       },
-        ),
+    ),
     GoRoute(
       path: '/ruta-templo/mi-negocio/ubicacion',
       name: 'mi-negocio-ubicacion',
@@ -449,12 +440,12 @@ final GoRouter appRouter = GoRouter(
           initialLng: (extra['lng'] as num?)?.toDouble() ?? -77.0379,
         );
       },
-        ),
+    ),
     GoRoute(
       path: '/muro-crema',
       name: 'muro-crema',
       builder: (context, state) => const MuroCremaPage(),
-        ),
+    ),
     GoRoute(
       path: '/muro-crema/compose',
       name: 'muro-crema-compose',
@@ -462,7 +453,7 @@ final GoRouter appRouter = GoRouter(
         final matchId = state.uri.queryParameters['matchId'];
         return CreateCommunityPostPage(matchId: matchId);
       },
-        ),
+    ),
     GoRoute(
       path: '/muro-crema/posts/:id',
       name: 'muro-crema-post-detail',
@@ -470,12 +461,12 @@ final GoRouter appRouter = GoRouter(
         final postId = state.pathParameters['id'] ?? '';
         return PostDetailScreen(postId: postId);
       },
-        ),
+    ),
     GoRoute(
       path: '/ranking',
       name: 'ranking',
       builder: (context, state) => const RankingPage(),
-        ),
+    ),
     GoRoute(
       path: '/missions',
       name: 'missions',
@@ -483,17 +474,17 @@ final GoRouter appRouter = GoRouter(
         final matchId = state.uri.queryParameters['matchId'];
         return MissionsPage(matchId: matchId);
       },
-        ),
+    ),
     GoRoute(
       path: '/rewards',
       name: 'rewards',
       builder: (context, state) => const RewardsPage(),
-        ),
+    ),
     GoRoute(
       path: '/rewards/me',
       name: 'rewards-me',
       builder: (context, state) => const MyRewardsPage(),
-        ),
+    ),
     GoRoute(
       path: '/rewards/:slug',
       name: 'reward-detail',
@@ -501,32 +492,32 @@ final GoRouter appRouter = GoRouter(
         final slug = state.pathParameters['slug'] ?? '';
         return RewardDetailPage(slug: slug);
       },
-        ),
+    ),
     GoRoute(
       path: '/referrals',
       name: 'referrals',
       builder: (context, state) => const ReferralsPage(),
-        ),
+    ),
     GoRoute(
       path: '/clans',
       name: 'clans',
       builder: (context, state) => const ClansPage(),
-        ),
+    ),
     GoRoute(
       path: '/clans/invitations',
       name: 'clans-invitations',
       builder: (context, state) => const ClanInvitationsPage(),
-        ),
+    ),
     GoRoute(
       path: '/clans/create',
       name: 'clans-create',
       builder: (context, state) => const CreateCommunityPage(),
-        ),
+    ),
     GoRoute(
       path: '/clans/ranking',
       name: 'clans-ranking',
       builder: (context, state) => const ClanRankingPage(),
-        ),
+    ),
     GoRoute(
       path: '/clans/:slug',
       name: 'clan-detail',
@@ -534,7 +525,7 @@ final GoRouter appRouter = GoRouter(
         final slug = state.pathParameters['slug'] ?? '';
         return ClanDetailPage(slug: slug);
       },
-        ),
+    ),
     GoRoute(
       path: '/clans/:slug/tribuna',
       name: 'clan-tribuna',
@@ -542,7 +533,7 @@ final GoRouter appRouter = GoRouter(
         final slug = state.pathParameters['slug'] ?? '';
         return ClanTribunaPage(slug: slug);
       },
-        ),
+    ),
     GoRoute(
       path: '/clans/:slug/polla',
       name: 'clan-polla',
@@ -551,7 +542,7 @@ final GoRouter appRouter = GoRouter(
         final matchId = state.uri.queryParameters['matchId'];
         return ClanPollaPage(slug: slug, matchId: matchId);
       },
-        ),
+    ),
     GoRoute(
       path: '/clans/:slug/manage',
       name: 'clan-manage',
@@ -559,7 +550,7 @@ final GoRouter appRouter = GoRouter(
         final slug = state.pathParameters['slug'] ?? '';
         return ClanManagePage(slug: slug);
       },
-        ),
+    ),
     GoRoute(
       path: '/mapa-crema',
       name: 'mapa-crema',
@@ -567,25 +558,23 @@ final GoRouter appRouter = GoRouter(
         final matchId = state.uri.queryParameters['matchId'];
         return MapCremaPage(matchId: matchId);
       },
-        ),
+    ),
     GoRoute(
       path: '/historial-crema',
       name: 'historial-crema',
       builder: (context, state) => const HistorialCremaPage(),
-        ),
+    ),
     GoRoute(
       path: '/marketplace',
       name: 'marketplace',
-      builder: (context, state) => _featureOrDisabled(
-        'marketplace',
-        const MarketplacePage(),
-      ),
-        ),
+      builder: (context, state) =>
+          _featureOrDisabled('marketplace', const MarketplacePage()),
+    ),
     GoRoute(
       path: '/marketplace/favorites',
       name: 'marketplace-favorites',
       builder: (context, state) => const FavoritesPage(),
-        ),
+    ),
     GoRoute(
       path: '/marketplace/listings/:slug',
       name: 'marketplace-listing',
@@ -594,7 +583,7 @@ final GoRouter appRouter = GoRouter(
         final promotionId = state.uri.queryParameters['promotionId'];
         return ListingDetailPage(slug: slug, promotionId: promotionId);
       },
-        ),
+    ),
     GoRoute(
       path: '/marketplace/stores/:slug',
       name: 'marketplace-store',
@@ -602,27 +591,27 @@ final GoRouter appRouter = GoRouter(
         final slug = state.pathParameters['slug'] ?? '';
         return StorePage(slug: slug);
       },
-        ),
+    ),
     GoRoute(
       path: '/marketplace/seller',
       name: 'marketplace-seller',
       builder: (context, state) => const SellerOnboardingPage(),
-        ),
+    ),
     GoRoute(
       path: '/marketplace/seller/dashboard',
       name: 'marketplace-seller-dashboard',
       builder: (context, state) => const SellerDashboardPage(),
-        ),
+    ),
     GoRoute(
       path: '/marketplace/seller/plan',
       name: 'marketplace-seller-plan',
       builder: (context, state) => const SellerPlanPage(),
-        ),
+    ),
     GoRoute(
       path: '/marketplace/seller/listings/new',
       name: 'marketplace-seller-listing-new',
       builder: (context, state) => const SellerListingFormPage(),
-        ),
+    ),
     GoRoute(
       path: '/marketplace/seller/listings/:slug/edit',
       name: 'marketplace-seller-listing-edit',
@@ -630,7 +619,7 @@ final GoRouter appRouter = GoRouter(
         final slug = state.pathParameters['slug'] ?? '';
         return SellerListingFormPage(slug: slug);
       },
-        ),
+    ),
   ],
 );
 

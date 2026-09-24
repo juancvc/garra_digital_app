@@ -17,22 +17,24 @@ class StagingBanner extends StatelessWidget {
       children: [
         child,
         Positioned(
-          left: 8,
-          bottom: 8,
+          right: 5,
+          top: 3,
           child: IgnorePointer(
             child: SafeArea(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                 decoration: BoxDecoration(
-                  color: const Color(GarraColors.burgundy).withValues(alpha: 0.85),
-                  borderRadius: BorderRadius.circular(6),
+                  color: const Color(
+                    GarraColors.burgundy,
+                  ).withValues(alpha: 0.68),
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Text(
                   'STAGING',
                   style: TextStyle(
-                    fontSize: 9,
+                    fontSize: 7,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
+                    letterSpacing: 0.6,
                     color: Color(GarraColors.cream),
                   ),
                 ),
