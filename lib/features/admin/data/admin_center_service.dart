@@ -8,12 +8,24 @@ class AdminCenterService {
 
   final Dio _dio;
 
+  Future<StagingShowcasePreview> stagingShowcasePreview() async {
+    final response = await _dio.get('/admin/staging-showcase/preview');
+    return StagingShowcasePreview.fromJson(
+      Map<String, dynamic>.from(response.data['data'] as Map),
+    );
+  }
+
+  Future<StagingShowcaseResult> activateStagingShowcase() async {
+    final response = await _dio.post('/admin/staging-showcase/activate');
+    return StagingShowcaseResult.fromJson(
+      Map<String, dynamic>.from(response.data['data'] as Map),
+    );
+  }
+
   Future<List<Map<String, dynamic>>> moderationQueue({String? type}) async {
     final response = await _dio.get(
       '/admin/moderation/queue',
-      queryParameters: {
-        if (type != null && type.isNotEmpty) 'type': type,
-      },
+      queryParameters: {if (type != null && type.isNotEmpty) 'type': type},
     );
     final List data = response.data['data'] ?? [];
     return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
@@ -118,6 +130,77 @@ class AdminCenterService {
     await _dio.post(
       '/admin/marketplace/listings/$id/reject',
       data: {'reason': reason, 'note': reason},
+    );
+  }
+}
+
+class StagingShowcasePreview {
+  const StagingShowcasePreview({
+    required this.communities,
+    required this.sellers,
+    required this.stores,
+    required this.listings,
+    required this.mojibakeRecords,
+  });
+
+  final int communities;
+  final int sellers;
+  final int stores;
+  final int listings;
+  final int mojibakeRecords;
+
+  int get totalPending => communities + sellers + stores + listings;
+
+  factory StagingShowcasePreview.fromJson(Map<String, dynamic> json) {
+    int read(String key) => (json[key] as num?)?.toInt() ?? 0;
+    return StagingShowcasePreview(
+      communities: read('communities'),
+      sellers: read('sellers'),
+      stores: read('stores'),
+      listings: read('listings'),
+      mojibakeRecords: read('mojibakeRecords'),
+    );
+  }
+}
+
+class StagingShowcaseResult {
+  const StagingShowcaseResult({
+    required this.communitiesActivated,
+    required this.sellersActivated,
+    required this.storesActivated,
+    required this.listingsActivated,
+    required this.mojibakeRecordsRepaired,
+    required this.failures,
+  });
+
+  final int communitiesActivated;
+  final int sellersActivated;
+  final int storesActivated;
+  final int listingsActivated;
+  final int mojibakeRecordsRepaired;
+  final List<Map<String, dynamic>> failures;
+
+  int get activated =>
+      communitiesActivated +
+      sellersActivated +
+      storesActivated +
+      listingsActivated;
+
+  factory StagingShowcaseResult.fromJson(Map<String, dynamic> json) {
+    int read(String key) => (json[key] as num?)?.toInt() ?? 0;
+    final rawFailures = json['failures'];
+    return StagingShowcaseResult(
+      communitiesActivated: read('communitiesActivated'),
+      sellersActivated: read('sellersActivated'),
+      storesActivated: read('storesActivated'),
+      listingsActivated: read('listingsActivated'),
+      mojibakeRecordsRepaired: read('mojibakeRecordsRepaired'),
+      failures: rawFailures is List
+          ? rawFailures
+                .whereType<Map>()
+                .map((item) => Map<String, dynamic>.from(item))
+                .toList()
+          : const [],
     );
   }
 }

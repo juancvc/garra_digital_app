@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/config/app_config_service.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/network/dio_client.dart';
@@ -9,18 +11,30 @@ import '../../../core/widgets/garra_brand_visual.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../auth/data/auth_service.dart';
+import '../../clans/presentation/providers/clans_provider.dart';
+import '../../marketplace/presentation/providers/marketplace_provider.dart';
 import '../data/admin_center_service.dart';
 
 /// Operational admin hub. Visibility gated by backend role (ADMIN).
-class AdminCenterPage extends StatefulWidget {
-  const AdminCenterPage({super.key});
+class AdminCenterPage extends ConsumerStatefulWidget {
+  const AdminCenterPage({
+    super.key,
+    this.authService,
+    this.adminService,
+    this.appConfig,
+  });
 
   @override
-  State<AdminCenterPage> createState() => _AdminCenterPageState();
+  ConsumerState<AdminCenterPage> createState() => _AdminCenterPageState();
+
+  final AuthService? authService;
+  final AdminCenterService? adminService;
+  final AppConfigModel? appConfig;
 }
 
-class _AdminCenterPageState extends State<AdminCenterPage> {
-  final _auth = AuthService();
+class _AdminCenterPageState extends ConsumerState<AdminCenterPage> {
+  late final AuthService _auth;
+  late final AdminCenterService _admin;
   bool _checking = true;
   bool _allowed = false;
   String? _gateError;
@@ -28,8 +42,15 @@ class _AdminCenterPageState extends State<AdminCenterPage> {
   @override
   void initState() {
     super.initState();
+    _auth = widget.authService ?? AuthService();
+    _admin = widget.adminService ?? AdminCenterService();
     _gate();
   }
+
+  bool get _isStaging =>
+      (widget.appConfig ?? appConfigService.current).environment
+          .toLowerCase() ==
+      'staging';
 
   Future<void> _gate() async {
     try {
@@ -61,6 +82,76 @@ class _AdminCenterPageState extends State<AdminCenterPage> {
     }
   }
 
+  Future<void> _activateStagingShowcase() async {
+    try {
+      final preview = await _admin.stagingShowcasePreview();
+      if (!mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Activar contenido de staging'),
+          content: Text(
+            '${preview.totalPending} registros pendientes encontrados:\n'
+            '• ${preview.communities} comunidades\n'
+            '• ${preview.sellers} vendedores\n'
+            '• ${preview.stores} tiendas\n'
+            '• ${preview.listings} publicaciones\n'
+            'También se repararán ${preview.mojibakeRecords} textos del '
+            'showcase con codificación dañada.\n\n'
+            'Solo se procesarán registros crema-vivo y cuentas '
+            '@garra.staging.internal.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Activar'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+
+      final result = await _admin.activateStagingShowcase();
+      ref.invalidate(myClansProvider);
+      ref.invalidate(clanDiscoveryProvider);
+      ref.invalidate(marketplaceListingsProvider);
+      ref.invalidate(marketplaceFeaturedProvider);
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(
+            result.failures.isEmpty
+                ? 'Contenido activado'
+                : 'Activación completada con observaciones',
+          ),
+          content: SingleChildScrollView(
+            child: Text(
+              '${result.activated} registros activados.\n'
+              '${result.mojibakeRecordsRepaired} textos reparados.'
+              '${result.failures.isEmpty ? '' : '\n\nFallos:\n${result.failures.map((failure) => '• ${failure['type']}:${failure['identifier']} — ${failure['message']}').join('\n')}'}',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo activar el showcase: $error')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -78,6 +169,24 @@ class _AdminCenterPageState extends State<AdminCenterPage> {
           : ListView(
               padding: const EdgeInsets.all(GarraSpacing.lg),
               children: [
+                if (_isStaging) ...[
+                  GarraCard(
+                    onTap: _activateStagingShowcase,
+                    child: const ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        Icons.auto_awesome_outlined,
+                        color: Color(GarraColors.gold),
+                      ),
+                      title: Text('Activar contenido de staging'),
+                      subtitle: Text(
+                        'Finaliza únicamente registros crema-vivo del showcase',
+                      ),
+                      trailing: Icon(Icons.chevron_right),
+                    ),
+                  ),
+                  const SizedBox(height: GarraSpacing.lg),
+                ],
                 GarraAtmosphericHero(
                   height: 228,
                   assetPath: 'assets/visual/garra_stadium_splash.png',
