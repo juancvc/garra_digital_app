@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/network/garra_error.dart';
+import '../../../core/widgets/garra_form.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/marketplace_models.dart';
@@ -93,7 +94,6 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
     final sellerAsync = ref.watch(sellerMeProvider);
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(title: const Text('Publica tu emprendimiento')),
       body: sellerAsync.when(
         loading: () => const Center(
@@ -134,47 +134,43 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: GarraSpacing.xxl),
-                TextFormField(
-                  controller: _whatsappController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'WhatsApp',
-                    hintText: '51999999999',
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Ingresa tu WhatsApp';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: GarraSpacing.lg),
-                TextFormField(
-                  controller: _storeNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nombre de la tienda',
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Ingresa el nombre de tu tienda';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: GarraSpacing.lg),
-                TextFormField(
-                  controller: _cityController,
-                  decoration: const InputDecoration(
-                    labelText: 'Ciudad (opcional)',
-                  ),
-                ),
-                const SizedBox(height: GarraSpacing.lg),
-                TextFormField(
-                  controller: _descriptionController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Descripción (opcional)',
-                  ),
+                GarraFormSection(
+                  title: 'TU EMPRENDIMIENTO',
+                  children: [
+                    GarraTextField(
+                      label: 'WhatsApp',
+                      controller: _whatsappController,
+                      keyboardType: TextInputType.phone,
+                      helper: 'Ejemplo: 51999999999',
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Ingresa tu WhatsApp';
+                        }
+                        return null;
+                      },
+                    ),
+                    GarraTextField(
+                      label: 'Nombre de la tienda',
+                      controller: _storeNameController,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Ingresa el nombre de tu tienda';
+                        }
+                        return null;
+                      },
+                    ),
+                    GarraTextField(
+                      label: 'Ciudad',
+                      controller: _cityController,
+                      helper: 'Opcional',
+                    ),
+                    GarraTextArea(
+                      label: 'Descripción',
+                      controller: _descriptionController,
+                      helper: 'Opcional',
+                      minLines: 3,
+                    ),
+                  ],
                 ),
                 const SizedBox(height: GarraSpacing.xxl),
                 CheckboxListTile(

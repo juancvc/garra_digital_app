@@ -82,7 +82,6 @@ class _ChatInboxPageState extends State<ChatInboxPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(title: const Text('Mensajes')),
       body: Column(
         children: [

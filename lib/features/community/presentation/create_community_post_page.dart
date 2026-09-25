@@ -183,7 +183,6 @@ class _CreateCommunityPostPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.background),
       appBar: AppBar(
         leading: IconButton(
           tooltip: 'Cancelar',

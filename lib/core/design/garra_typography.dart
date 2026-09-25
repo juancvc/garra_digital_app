@@ -6,9 +6,16 @@ import 'garra_colors.dart';
 class GarraTypography {
   GarraTypography._();
 
-  static TextTheme textTheme() {
+  static TextTheme textTheme({
+    Color primary = const Color(GarraColors.textPrimary),
+    Color secondary = const Color(GarraColors.textSecondary),
+    Brightness brightness = Brightness.dark,
+  }) {
     final base = GoogleFonts.montserratTextTheme(
-      ThemeData.dark(useMaterial3: true).textTheme,
+      (brightness == Brightness.dark
+              ? ThemeData.dark(useMaterial3: true)
+              : ThemeData.light(useMaterial3: true))
+          .textTheme,
     );
 
     return base.copyWith(
@@ -16,52 +23,66 @@ class GarraTypography {
         fontSize: 36,
         fontWeight: FontWeight.w900,
         letterSpacing: -0.5,
-        color: const Color(GarraColors.textPrimary),
+        color: primary,
       ),
       headlineMedium: base.headlineMedium?.copyWith(
-        fontSize: 24,
+        fontSize: 28,
         fontWeight: FontWeight.w800,
-        color: const Color(GarraColors.textPrimary),
+        color: primary,
+      ),
+      headlineSmall: base.headlineSmall?.copyWith(
+        fontSize: 22,
+        fontWeight: FontWeight.w800,
+        color: primary,
       ),
       titleLarge: base.titleLarge?.copyWith(
         fontSize: 18,
         fontWeight: FontWeight.w800,
-        color: const Color(GarraColors.textPrimary),
+        color: primary,
       ),
       titleMedium: base.titleMedium?.copyWith(
         fontSize: 16,
         fontWeight: FontWeight.w700,
-        color: const Color(GarraColors.textPrimary),
+        color: primary,
       ),
       bodyLarge: base.bodyLarge?.copyWith(
         fontSize: 16,
         fontWeight: FontWeight.w500,
-        color: const Color(GarraColors.textPrimary),
+        color: primary,
       ),
       bodyMedium: base.bodyMedium?.copyWith(
         fontSize: 14,
         fontWeight: FontWeight.w500,
-        color: const Color(GarraColors.textSecondary),
+        color: secondary,
+      ),
+      bodySmall: base.bodySmall?.copyWith(
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+        color: secondary,
       ),
       labelLarge: base.labelLarge?.copyWith(
         fontSize: 14,
         fontWeight: FontWeight.w800,
-        color: const Color(GarraColors.textPrimary),
+        color: primary,
       ),
       labelSmall: base.labelSmall?.copyWith(
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.6,
-        color: const Color(GarraColors.textSecondary),
+        color: secondary,
       ),
     );
   }
 
-  static TextStyle numeric({double size = 28, FontWeight weight = FontWeight.w900}) {
+  static TextStyle numeric({
+    double size = 28,
+    FontWeight weight = FontWeight.w900,
+    Color? color,
+  }) {
     return GoogleFonts.montserrat(
       fontSize: size,
       fontWeight: weight,
-      color: const Color(GarraColors.textPrimary),
+      color: color,
       height: 1.1,
     );
   }

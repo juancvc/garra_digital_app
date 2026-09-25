@@ -14,7 +14,6 @@ class NegociosCremasPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(title: const Text('Negocios Cremas')),
       body: ListView(
         padding: const EdgeInsets.all(GarraSpacing.lg),
@@ -192,7 +191,6 @@ class _NegociosCremasBrowsePageState extends State<NegociosCremasBrowsePage> {
   Widget build(BuildContext context) {
     final visible = _visible;
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(title: const Text('Negocios Cremas')),
       body: Column(
         children: [
@@ -366,7 +364,6 @@ class _NegocioCremaDetailPageState extends State<NegocioCremaDetailPage> {
   Widget build(BuildContext context) {
     final point = _point;
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(title: Text(point?.name ?? 'Negocio')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

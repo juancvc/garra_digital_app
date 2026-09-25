@@ -49,10 +49,8 @@ class _MiNegocioCremaPageState extends State<MiNegocioCremaPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
         title: const Text('Mi Negocio Crema'),
-        backgroundColor: const Color(GarraColors.charcoal),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
@@ -253,10 +251,8 @@ class _RegistrarNegocioCremaPageState extends State<RegistrarNegocioCremaPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
         title: const Text('Registrar mi negocio'),
-        backgroundColor: const Color(GarraColors.charcoal),
       ),
       resizeToAvoidBottomInset: true,
       body: ListView(

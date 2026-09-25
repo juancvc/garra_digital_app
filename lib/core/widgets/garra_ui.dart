@@ -48,8 +48,9 @@ class GarraSecondaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = foregroundColor ?? const Color(GarraColors.cream);
-    final border = borderColor ?? const Color(GarraColors.gold);
+    final colors = context.garraColors;
+    final fg = foregroundColor ?? colors.textPrimary;
+    final border = borderColor ?? colors.border;
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(

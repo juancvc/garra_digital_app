@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/design/garra_colors.dart';
+import '../../../../core/theme/garra_semantic_colors.dart';
 import '../../../../core/widgets/garra_cached_network_image.dart';
 import '../../data/wall_post_model.dart';
 
@@ -40,6 +41,7 @@ class GarraPostMediaGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final urls = _urls;
     if (urls.isEmpty) return const SizedBox.shrink();
+    final backdrop = context.garraColors.mediaBackdrop;
 
     Widget image(int i) {
       return GestureDetector(
@@ -56,16 +58,21 @@ class GarraPostMediaGrid extends StatelessWidget {
 
     switch (urls.length) {
       case 1:
-        return ClipRRect(
+        return ColoredBox(
+          color: backdrop,
+          child: ClipRRect(
           borderRadius: BorderRadius.circular(14),
           child: AspectRatio(
             // Large editorial treatment without forcing a portrait crop.
             aspectRatio: 4 / 3,
             child: image(0),
           ),
+          ),
         );
       case 2:
-        return ClipRRect(
+        return ColoredBox(
+          color: backdrop,
+          child: ClipRRect(
           borderRadius: BorderRadius.circular(14),
           child: AspectRatio(
             aspectRatio: 16 / 9,
@@ -77,11 +84,14 @@ class GarraPostMediaGrid extends StatelessWidget {
               ],
             ),
           ),
+          ),
         );
       case 3:
         // Bound height via AspectRatio so the right Column Expanded children
         // never receive unbounded constraints (overflow on narrow devices).
-        return ClipRRect(
+        return ColoredBox(
+          color: backdrop,
+          child: ClipRRect(
           borderRadius: BorderRadius.circular(14),
           child: AspectRatio(
             aspectRatio: 4 / 3,
@@ -101,10 +111,13 @@ class GarraPostMediaGrid extends StatelessWidget {
               ],
             ),
           ),
+          ),
         );
       default:
         final extra = urls.length - 4;
-        return ClipRRect(
+        return ColoredBox(
+          color: backdrop,
+          child: ClipRRect(
           borderRadius: BorderRadius.circular(14),
           child: AspectRatio(
             aspectRatio: 1,
@@ -151,6 +164,7 @@ class GarraPostMediaGrid extends StatelessWidget {
                 ),
               ],
             ),
+          ),
           ),
         );
     }

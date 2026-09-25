@@ -6,17 +6,15 @@ import '../../../core/config/app_config_service.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_brand_visual.dart';
+import '../../../core/widgets/garra_sheet.dart';
 
 /// V1 Crear intention selector — never jump straight into a form.
 Future<void> showCreateActionSheet(BuildContext context) {
-  return showModalBottomSheet<void>(
+  return showGarraSheet<void>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: const Color(GarraColors.surface),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
+    showHandle: false,
     builder: (ctx) => const _CreateActionSheet(),
   );
 }
@@ -102,9 +100,9 @@ class _CreateActionSheet extends StatelessWidget {
                 width: 42,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(
-                    GarraColors.creamMuted,
-                  ).withValues(alpha: 0.45),
+                  color: context.garraColors.textSecondary.withValues(
+                    alpha: 0.45,
+                  ),
                   borderRadius: BorderRadius.circular(GarraRadius.pill),
                 ),
               ),
@@ -128,7 +126,7 @@ class _CreateActionSheet extends StatelessWidget {
                         '¿Qué quieres crear?',
                         style: Theme.of(context).textTheme.headlineSmall
                             ?.copyWith(
-                              color: const Color(GarraColors.cream),
+                              color: context.garraColors.textPrimary,
                               fontWeight: FontWeight.w900,
                               letterSpacing: -0.4,
                             ),
@@ -136,7 +134,7 @@ class _CreateActionSheet extends StatelessWidget {
                       Text(
                         'Elige una forma de mover a la comunidad.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: const Color(GarraColors.creamMuted),
+                          color: context.garraColors.textSecondary,
                         ),
                       ),
                     ],
@@ -189,9 +187,9 @@ class _CreateActionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final iconColor = action.color == const Color(GarraColors.gold)
         ? const Color(GarraColors.burgundyDeep)
-        : const Color(GarraColors.cream);
+        : context.garraColors.onBrand;
     return Material(
-      color: const Color(GarraColors.surfaceRaised),
+      color: context.garraColors.surfaceRaised,
       borderRadius: BorderRadius.circular(GarraRadius.md),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -228,7 +226,7 @@ class _CreateActionTile extends StatelessWidget {
                       maxLines: compact ? 2 : 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: const Color(GarraColors.cream),
+                        color: context.garraColors.textPrimary,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -238,7 +236,7 @@ class _CreateActionTile extends StatelessWidget {
                       maxLines: compact ? 2 : 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: const Color(GarraColors.creamMuted),
+                        color: context.garraColors.textSecondary,
                       ),
                     ),
                   ],

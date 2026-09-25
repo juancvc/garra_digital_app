@@ -116,7 +116,6 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
     final isSeller = sellerAsync.asData?.value != null;
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
         title: const Text('Marketplace Crema'),
         actions: [

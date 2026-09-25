@@ -30,7 +30,6 @@ class _RutaAlTemploPageState extends ConsumerState<RutaAlTemploPage> {
     final checkInsAsync = ref.watch(myCheckInsProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text(
           'Ruta al Templo',

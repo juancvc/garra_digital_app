@@ -78,7 +78,6 @@ class _ClansPageState extends ConsumerState<ClansPage>
     final hasError = myClansAsync.hasError && discoveryAsync.hasError;
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
         title: const Text('Comunidades Cremas'),
         actions: [

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_brand_visual.dart';
 
 enum _ExploreFilter { all, communities, events, businesses, marketplace }
@@ -22,7 +23,6 @@ class _ExplorePageState extends State<ExplorePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.background),
       appBar: AppBar(title: const Text('Explorar')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
@@ -267,8 +267,9 @@ class _DiscoveryPreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.garraColors;
     return Material(
-      color: const Color(GarraColors.surface),
+      color: colors.surface,
       borderRadius: BorderRadius.circular(GarraRadius.lg),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -360,18 +361,18 @@ class _FilterChip extends StatelessWidget {
         label: Text(label),
         selected: selected,
         onSelected: (_) => onTap(),
-        selectedColor: const Color(GarraColors.garnet),
-        checkmarkColor: const Color(GarraColors.cream),
+        selectedColor: context.garraColors.brandPrimary,
+        checkmarkColor: context.garraColors.onBrand,
         labelStyle: TextStyle(
           color: selected
-              ? const Color(GarraColors.cream)
-              : const Color(GarraColors.textPrimary),
+              ? context.garraColors.onBrand
+              : context.garraColors.textPrimary,
           fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
         ),
         side: BorderSide(
           color: selected
-              ? const Color(GarraColors.gold)
-              : const Color(GarraColors.surfaceRaised),
+              ? context.garraColors.brandPrestige
+              : context.garraColors.border,
         ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(GarraRadius.pill),
@@ -400,7 +401,7 @@ class _DestinationSection extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: GarraSpacing.md),
       child: Material(
-        color: const Color(GarraColors.surface),
+        color: context.garraColors.surface,
         borderRadius: BorderRadius.circular(GarraRadius.md),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -424,15 +425,15 @@ class _DestinationSection extends StatelessWidget {
                     ),
                   ),
                 ),
-                const DecoratedBox(
+                DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        Color(GarraColors.surface),
-                        Color(GarraColors.surface),
-                        Color(0xB8171311),
+                        context.garraColors.surface,
+                        context.garraColors.surface,
+                        const Color(0xB8171311),
                       ],
-                      stops: [0, 0.57, 1],
+                      stops: const [0, 0.57, 1],
                     ),
                   ),
                 ),

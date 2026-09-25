@@ -31,7 +31,6 @@ class HomePage extends ConsumerWidget {
     final homeAsync = ref.watch(homeProvider);
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
         title: const FittedBox(
           fit: BoxFit.scaleDown,

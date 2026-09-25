@@ -20,6 +20,7 @@ import '../../../core/telemetry/telemetry.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../../auth/data/auth_service.dart';
+import 'appearance_settings_page.dart';
 import '../../splash/presentation/intro_replay_action.dart';
 
 class SettingsHubPage extends StatelessWidget {
@@ -28,11 +29,17 @@ class SettingsHubPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(title: const Text('Ajustes')),
       body: ListView(
         padding: const EdgeInsets.all(GarraSpacing.lg),
         children: [
+          _tile(
+            context,
+            title: 'Apariencia',
+            subtitle: 'Sistema, Crema o Noche Monumental',
+            icon: Icons.palette_outlined,
+            route: '/settings/apariencia',
+          ),
           _tile(
             context,
             title: 'Privacidad',
@@ -113,7 +120,6 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(title: const Text('Privacidad')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -194,7 +200,6 @@ class LegalSettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final cfg = appConfigService.current;
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(title: const Text('Legal y privacidad')),
       body: ListView(
         padding: const EdgeInsets.all(GarraSpacing.lg),
@@ -264,7 +269,6 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(title: const Text('Eliminar mi cuenta')),
       body: Padding(
         padding: const EdgeInsets.all(GarraSpacing.lg),
@@ -334,7 +338,6 @@ class _DataExportPageState extends State<DataExportPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(title: const Text('Descargar mis datos')),
       body: Padding(
         padding: const EdgeInsets.all(GarraSpacing.lg),
@@ -404,7 +407,6 @@ class _HelpDiagnosticsPageState extends State<HelpDiagnosticsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(title: const Text('Diagnóstico')),
       body: Padding(
         padding: const EdgeInsets.all(GarraSpacing.lg),
@@ -494,7 +496,6 @@ class _BetaFeedbackPageState extends State<BetaFeedbackPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(title: const Text('Feedback Beta')),
       body: Padding(
         padding: const EdgeInsets.all(GarraSpacing.lg),

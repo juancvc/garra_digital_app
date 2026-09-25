@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../design/garra_colors.dart';
 import '../design/garra_radius.dart';
+import '../theme/garra_semantic_colors.dart';
 import '../design/garra_spacing.dart';
 import 'garra_ui.dart';
 
@@ -17,7 +17,7 @@ class GarraSkeleton extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: const Color(GarraColors.surfaceRaised),
+        color: context.garraColors.surfaceMuted,
         borderRadius: BorderRadius.circular(GarraRadius.sm),
       ),
     );
@@ -127,7 +127,7 @@ class GarraErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.wifi_off_rounded, color: Color(GarraColors.gold), size: 40),
+            Icon(Icons.wifi_off_rounded, color: context.garraColors.brandPrestige, size: 40),
             const SizedBox(height: GarraSpacing.lg),
             Text(title, style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
             const SizedBox(height: GarraSpacing.sm),

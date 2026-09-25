@@ -269,7 +269,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
         title: const Text('Publicación'),
         leading: IconButton(
@@ -357,7 +356,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   Future<void> _openShareSheet(WallPostModel post) async {
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(GarraColors.charcoal),
       isScrollControlled: true,
       builder: (ctx) => _SharePostSheet(post: post),
     );

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/widgets/garra_form.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/clan_models.dart';
 import 'providers/clans_provider.dart';
@@ -95,10 +96,8 @@ class _CreateCommunityPageState extends ConsumerState<CreateCommunityPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
         title: const Text('Crear comunidad'),
-        backgroundColor: const Color(GarraColors.charcoal),
       ),
       body: Form(
         key: _formKey,
@@ -107,57 +106,53 @@ class _CreateCommunityPageState extends ConsumerState<CreateCommunityPage> {
           children: [
             Text(
               'Dale un nombre a tu gente',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: const Color(GarraColors.cream),
-                  ),
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: GarraSpacing.lg),
-            TextFormField(
-              controller: _nameCtrl,
-              decoration: const InputDecoration(labelText: 'Nombre'),
-              textCapitalization: TextCapitalization.words,
-              onChanged: (value) {
-                if (!_slugEdited) {
-                  _slugCtrl.text = _slugify(value);
-                }
-              },
-              validator: (v) {
-                if (v == null || v.trim().length < 2) {
-                  return 'El nombre es obligatorio';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: GarraSpacing.md),
-            TextFormField(
-              controller: _slugCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Identificador (URL)',
-                helperText: 'Solo minúsculas, números y guiones',
-              ),
-              onChanged: (_) => _slugEdited = true,
-              validator: (v) {
-                final s = v?.trim() ?? '';
-                if (s.length < 3) return 'Mínimo 3 caracteres';
-                if (!RegExp(r'^[a-z0-9-]+$').hasMatch(s)) {
-                  return 'Solo a-z, 0-9 y guiones';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: GarraSpacing.md),
-            TextFormField(
-              controller: _descCtrl,
-              decoration: const InputDecoration(labelText: 'Descripción'),
-              maxLines: 3,
-            ),
-            const SizedBox(height: GarraSpacing.md),
-            TextFormField(
-              controller: _cityCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Ciudad',
-                hintText: 'Lima, Arequipa…',
-              ),
+            GarraFormSection(
+              title: 'COMUNIDAD',
+              children: [
+                GarraTextField(
+                  label: 'Nombre',
+                  controller: _nameCtrl,
+                  textCapitalization: TextCapitalization.words,
+                  onChanged: (value) {
+                    if (!_slugEdited) {
+                      _slugCtrl.text = _slugify(value);
+                    }
+                  },
+                  validator: (v) {
+                    if (v == null || v.trim().length < 2) {
+                      return 'El nombre es obligatorio';
+                    }
+                    return null;
+                  },
+                ),
+                GarraTextField(
+                  label: 'Identificador',
+                  controller: _slugCtrl,
+                  helper: 'Solo minúsculas, números y guiones',
+                  onChanged: (_) => _slugEdited = true,
+                  validator: (v) {
+                    final s = v?.trim() ?? '';
+                    if (s.length < 3) return 'Mínimo 3 caracteres';
+                    if (!RegExp(r'^[a-z0-9-]+$').hasMatch(s)) {
+                      return 'Solo a-z, 0-9 y guiones';
+                    }
+                    return null;
+                  },
+                ),
+                GarraTextArea(
+                  label: 'Descripción',
+                  controller: _descCtrl,
+                  minLines: 3,
+                ),
+                GarraTextField(
+                  label: 'Ciudad',
+                  controller: _cityCtrl,
+                  helper: 'Lima, Arequipa…',
+                ),
+              ],
             ),
             const SizedBox(height: GarraSpacing.xs),
             Text(

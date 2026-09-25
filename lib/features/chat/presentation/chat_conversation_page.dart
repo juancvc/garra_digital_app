@@ -202,7 +202,6 @@ class _ChatConversationPageState extends State<ChatConversationPage>
   Widget build(BuildContext context) {
     final conversation = _conversation;
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: conversation == null

@@ -14,6 +14,7 @@ import 'core/router/app_router.dart';
 import 'core/storage/secure_storage_service.dart';
 import 'core/telemetry/telemetry.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/garra_appearance.dart';
 import 'core/widgets/app_gates.dart';
 import 'core/widgets/staging_banner.dart';
 import 'features/notifications/data/push_router.dart';
@@ -36,17 +37,29 @@ Future<void> main() async {
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   unawaited(initializeDateFormatting('es_PE', null));
 
-  runApp(const ProviderScope(child: GarraDigitalApp()));
+  final appearance = await GarraThemeStore().read().catchError(
+    (_) => GarraAppearance.system,
+  );
+  runApp(
+    ProviderScope(
+      overrides: [
+        garraAppearanceProvider.overrideWith(
+          () => GarraAppearanceNotifier(appearance),
+        ),
+      ],
+      child: const GarraDigitalApp(),
+    ),
+  );
 }
 
-class GarraDigitalApp extends StatefulWidget {
+class GarraDigitalApp extends ConsumerStatefulWidget {
   const GarraDigitalApp({super.key});
 
   @override
-  State<GarraDigitalApp> createState() => _GarraDigitalAppState();
+  ConsumerState<GarraDigitalApp> createState() => _GarraDigitalAppState();
 }
 
-class _GarraDigitalAppState extends State<GarraDigitalApp> {
+class _GarraDigitalAppState extends ConsumerState<GarraDigitalApp> {
   final _pushRouter = const PushRouter();
   final _storage = SecureStorageService();
   bool _handledInitial = false;
@@ -122,6 +135,7 @@ class _GarraDigitalAppState extends State<GarraDigitalApp> {
 
   @override
   Widget build(BuildContext context) {
+    final themeMode = themeModeFor(ref.watch(garraAppearanceProvider));
     if (_bootstrapped && (_maintenance || _updateRequired)) {
       final gate = _maintenance
           ? MaintenanceGatePage(
@@ -135,15 +149,19 @@ class _GarraDigitalAppState extends State<GarraDigitalApp> {
       return MaterialApp(
         title: 'GarraDigital',
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.darkTheme,
-        home: StagingBanner(child: gate),
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: themeMode,
+        home: GarraSystemOverlay(child: StagingBanner(child: gate)),
       );
     }
 
     return MaterialApp.router(
       title: 'GarraDigital',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeMode,
       routerConfig: appRouter,
       builder: (context, child) {
         final content = child ?? const SizedBox.shrink();
@@ -166,7 +184,7 @@ class _GarraDigitalAppState extends State<GarraDigitalApp> {
             ],
           );
         }
-        return StagingBanner(child: body);
+        return GarraSystemOverlay(child: StagingBanner(child: body));
       },
     );
   }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../design/garra_colors.dart';
 import '../design/garra_spacing.dart';
+import '../theme/garra_semantic_colors.dart';
 
 class GarraFormIntro extends StatelessWidget {
   const GarraFormIntro({
@@ -25,7 +25,7 @@ class GarraFormIntro extends StatelessWidget {
           Text(
             subtitle,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: const Color(GarraColors.creamMuted),
+              color: context.garraColors.textSecondary,
             ),
           ),
         ],
@@ -55,11 +55,14 @@ class GarraFormSection extends StatelessWidget {
           Text(
             title,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: const Color(GarraColors.gold),
+              color: context.garraColors.brandPrestige,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.1,
+              fontSize: 12,
             ),
           ),
+          const SizedBox(height: 8),
+          Divider(color: context.garraColors.border, height: 1),
           const SizedBox(height: 12),
           ..._withRhythm(children),
         ],
@@ -91,37 +94,47 @@ class GarraFieldLabel extends StatelessWidget {
       child: Text(
         text,
         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-          color: const Color(GarraColors.cream),
+          color: context.garraColors.textPrimary,
           fontWeight: FontWeight.w600,
+          fontSize: 13,
         ),
       ),
     );
   }
 }
 
-InputDecoration garraControlDecoration({String? helper, String? error}) {
+InputDecoration garraControlDecoration(
+  BuildContext context, {
+  String? helper,
+  String? error,
+}) {
+  final colors = context.garraColors;
+  final radius = BorderRadius.circular(12);
   return InputDecoration(
     helperText: helper,
     helperMaxLines: 3,
     errorText: error,
     errorMaxLines: 3,
     floatingLabelBehavior: FloatingLabelBehavior.never,
-    isDense: false,
+    isDense: true,
     filled: true,
-    fillColor: const Color(GarraColors.surface),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-    constraints: const BoxConstraints(minHeight: 56),
+    fillColor: colors.surface,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    constraints: const BoxConstraints(minHeight: 52),
+    hintStyle: TextStyle(color: colors.textSecondary, fontSize: 16),
+    helperStyle: TextStyle(color: colors.textSecondary, fontSize: 12, height: 1.3),
+    errorStyle: TextStyle(color: colors.danger, fontSize: 12, height: 1.3),
     border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: Color(0x33C7A45B)),
+      borderRadius: radius,
+      borderSide: BorderSide(color: colors.border),
     ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: Color(0x33C7A45B)),
+      borderRadius: radius,
+      borderSide: BorderSide(color: colors.border),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: Color(GarraColors.gold)),
+      borderRadius: radius,
+      borderSide: BorderSide(color: colors.brandPrimary, width: 1.4),
     ),
   );
 }
@@ -136,6 +149,8 @@ class GarraTextField extends StatelessWidget {
     this.keyboardType,
     this.maxLength,
     this.fieldKey,
+    this.onChanged,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   final String label;
@@ -145,6 +160,8 @@ class GarraTextField extends StatelessWidget {
   final TextInputType? keyboardType;
   final int? maxLength;
   final Key? fieldKey;
+  final ValueChanged<String>? onChanged;
+  final TextCapitalization textCapitalization;
 
   @override
   Widget build(BuildContext context) {
@@ -157,9 +174,11 @@ class GarraTextField extends StatelessWidget {
           controller: controller,
           keyboardType: keyboardType,
           maxLength: maxLength,
+          onChanged: onChanged,
+          textCapitalization: textCapitalization,
           validator: validator,
-          style: const TextStyle(color: Color(GarraColors.textPrimary)),
-          decoration: garraControlDecoration(helper: helper),
+          style: TextStyle(color: context.garraColors.textPrimary, fontSize: 16),
+          decoration: garraControlDecoration(context, helper: helper),
         ),
       ],
     );
@@ -196,9 +215,9 @@ class GarraTextArea extends StatelessWidget {
           maxLines: minLines + 2,
           maxLength: maxLength,
           validator: validator,
-          style: const TextStyle(color: Color(GarraColors.textPrimary)),
-          decoration: garraControlDecoration(helper: helper).copyWith(
-            constraints: const BoxConstraints(minHeight: 120),
+          style: TextStyle(color: context.garraColors.textPrimary, fontSize: 16),
+          decoration: garraControlDecoration(context, helper: helper).copyWith(
+            constraints: const BoxConstraints(minHeight: 96),
           ),
         ),
       ],
@@ -231,9 +250,10 @@ class GarraSelectField<T> extends StatelessWidget {
           initialValue: value,
           items: items,
           onChanged: onChanged,
-          dropdownColor: const Color(GarraColors.surfaceRaised),
-          style: const TextStyle(color: Color(GarraColors.textPrimary)),
-          decoration: garraControlDecoration(),
+          dropdownColor: context.garraColors.surfaceRaised,
+          style: TextStyle(color: context.garraColors.textPrimary, fontSize: 16),
+          iconEnabledColor: context.garraColors.textSecondary,
+          decoration: garraControlDecoration(context),
         ),
       ],
     );
@@ -274,8 +294,8 @@ class GarraFormActionBar extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             footnote!,
-            style: const TextStyle(
-              color: Color(GarraColors.creamMuted),
+            style: TextStyle(
+              color: context.garraColors.textSecondary,
               fontSize: 12,
               height: 1.35,
             ),

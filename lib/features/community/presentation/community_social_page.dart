@@ -14,7 +14,6 @@ class CommunitySocialPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text('Comunidad'),

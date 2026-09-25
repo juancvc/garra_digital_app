@@ -12,6 +12,7 @@ import 'package:garra_digital_app/features/admin/presentation/admin_center_page.
 import 'package:garra_digital_app/features/admin/presentation/admin_communities_page.dart';
 import 'package:garra_digital_app/features/admin/presentation/admin_platform_users_page.dart';
 import 'package:garra_digital_app/features/explore/presentation/explore_page.dart';
+import 'package:garra_digital_app/features/settings/presentation/appearance_settings_page.dart';
 import 'package:garra_digital_app/features/settings/presentation/settings_pages.dart';
 import 'package:garra_digital_app/core/config/app_config_service.dart';
 import 'package:garra_digital_app/core/widgets/app_gates.dart';
@@ -384,11 +385,16 @@ List<RouteBase> _buildRoutes() => [
     name: 'admin-feedback',
     builder: (context, state) => const AdminBetaFeedbackPage(),
   ),
-  GoRoute(
-    path: '/settings',
-    name: 'settings',
-    builder: (context, state) => const SettingsHubPage(),
-  ),
+    GoRoute(
+      path: '/settings',
+      name: 'settings',
+      builder: (context, state) => const SettingsHubPage(),
+    ),
+    GoRoute(
+      path: '/settings/apariencia',
+      name: 'settings-apariencia',
+      builder: (context, state) => const AppearanceSettingsPage(),
+    ),
   GoRoute(
     path: '/settings/privacy',
     name: 'settings-privacy',

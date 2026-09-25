@@ -56,7 +56,6 @@ class _SolidariaPageState extends State<SolidariaPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(title: const Text('Garra Solidaria')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
@@ -211,7 +210,6 @@ class _SolidariaDetailPageState extends State<SolidariaDetailPage> {
   Widget build(BuildContext context) {
     final c = _campaign;
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
         title: const Text('Campaña'),
         actions: [
@@ -314,7 +312,6 @@ class _SolidariaCreatePageState extends State<SolidariaCreatePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       resizeToAvoidBottomInset: true,
       appBar: AppBar(title: const Text('Solicitud solidaria')),
       body: ListView(

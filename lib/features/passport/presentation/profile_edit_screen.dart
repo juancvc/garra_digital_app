@@ -9,6 +9,7 @@ import '../../../core/media/media_upload_service.dart';
 import '../../../core/utils/country_labels.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_form.dart';
+import '../../../core/widgets/garra_sheet.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../data/passport_models.dart';
 import 'providers/passport_provider.dart';
@@ -72,12 +73,20 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   }
 
   Future<void> _changePhoto() async {
-    final source = await showModalBottomSheet<ImageSource>(
+    final source = await showGarraSheet<ImageSource>(
       context: context,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Text(
+                'Cambiar foto',
+                style: Theme.of(ctx).textTheme.titleLarge,
+              ),
+            ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
               title: const Text('Galería'),
@@ -88,6 +97,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
               title: const Text('Cámara'),
               onTap: () => Navigator.pop(ctx, ImageSource.camera),
             ),
+            const SizedBox(height: 8),
           ],
         ),
       ),
@@ -160,7 +170,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     final passportAsync = ref.watch(myPassportProvider);
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       resizeToAvoidBottomInset: true,
       appBar: AppBar(title: const Text('Editar perfil')),
       body: passportAsync.when(

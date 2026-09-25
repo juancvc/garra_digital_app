@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../design/garra_colors.dart';
 import '../design/garra_radius.dart';
 import '../design/garra_spacing.dart';
+import '../theme/garra_semantic_colors.dart';
 
 class GarraCard extends StatelessWidget {
   const GarraCard({
@@ -26,8 +26,9 @@ class GarraCard extends StatelessWidget {
 
     // Material surface is required so nested ListTiles can paint ink/splash
     // (Flutter asserts when ListTile sits under a colored DecoratedBox only).
+    final colors = context.garraColors;
     return Material(
-      color: const Color(GarraColors.surface),
+      color: colors.surface,
       borderRadius: radius,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -36,7 +37,7 @@ class GarraCard extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: radius,
-            border: Border.all(color: const Color(GarraColors.borderSubtle)),
+            border: Border.all(color: colors.border),
           ),
           child: body,
         ),

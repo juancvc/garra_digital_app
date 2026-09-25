@@ -28,7 +28,6 @@ class PassportScreen extends ConsumerWidget {
     final passportAsync = ref.watch(myPassportProvider);
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
         title: const Text('Perfil'),
         actions: [

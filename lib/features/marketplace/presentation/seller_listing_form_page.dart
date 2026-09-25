@@ -235,7 +235,6 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
       appBar: AppBar(
         title: Text(widget.isEditing ? 'Editar publicación' : 'Nueva publicación'),
       ),
@@ -376,27 +375,31 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
               ),
             ),
             const SizedBox(height: GarraSpacing.xxl),
-            TextFormField(
-              controller: _titleController,
-              decoration: const InputDecoration(labelText: 'Título'),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Ingresa un título';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: GarraSpacing.lg),
-            TextFormField(
-              controller: _descriptionController,
-              maxLines: 4,
-              decoration: const InputDecoration(labelText: 'Descripción'),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Ingresa una descripción';
-                }
-                return null;
-              },
+            GarraFormSection(
+              title: 'PUBLICACIÓN',
+              children: [
+                GarraTextField(
+                  label: 'Título',
+                  controller: _titleController,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Ingresa un título';
+                    }
+                    return null;
+                  },
+                ),
+                GarraTextArea(
+                  label: 'Descripción',
+                  controller: _descriptionController,
+                  minLines: 4,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Ingresa una descripción';
+                    }
+                    return null;
+                  },
+                ),
+              ],
             ),
             const SizedBox(height: GarraSpacing.lg),
             categoriesAsync.when(
@@ -405,21 +408,29 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
                 onRetry: () => ref.invalidate(marketplaceCategoriesProvider),
               ),
               data: (categories) {
-                return DropdownButtonFormField<String>(
-                  // ignore: deprecated_member_use
-                  value: _categorySlug != null &&
-                          categories.any((c) => c.slug == _categorySlug)
-                      ? _categorySlug
-                      : null,
-                  decoration: const InputDecoration(labelText: 'Categoría'),
-                  items: [
-                    for (final category in categories)
-                      DropdownMenuItem(
-                        value: category.slug,
-                        child: Text(category.name),
-                      ),
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const GarraFieldLabel('Categoría'),
+                    DropdownButtonFormField<String>(
+                      // ignore: deprecated_member_use
+                      value: _categorySlug != null &&
+                              categories.any((c) => c.slug == _categorySlug)
+                          ? _categorySlug
+                          : null,
+                      decoration: garraControlDecoration(context),
+                      dropdownColor: Theme.of(context).colorScheme.surface,
+                      items: [
+                        for (final category in categories)
+                          DropdownMenuItem(
+                            value: category.slug,
+                            child: Text(category.name),
+                          ),
+                      ],
+                      onChanged: (value) =>
+                          setState(() => _categorySlug = value),
+                    ),
                   ],
-                  onChanged: (value) => setState(() => _categorySlug = value),
                 );
               },
             ),
@@ -433,12 +444,11 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
             ),
             if (!_priceOnRequest) ...[
               const SizedBox(height: GarraSpacing.md),
-              TextFormField(
+              GarraTextField(
+                label: 'Precio (S/)',
                 controller: _priceController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Precio (S/)',
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
                 ),
                 validator: (value) {
                   if (_priceOnRequest) return null;

@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/home/presentation/create_action_sheet.dart';
 import '../design/garra_colors.dart';
-import '../theme/app_theme.dart';
+import '../theme/garra_semantic_colors.dart';
 
 /// V1 shell — Inicio / Comunidad / Crear / Explorar / Perfil
 class MainShell extends StatelessWidget {
@@ -35,21 +35,20 @@ class MainShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.garraColors;
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: colors.background,
       body: navigationShell,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: const Color(GarraColors.surface),
-          border: Border(
-            top: BorderSide(color: AppTheme.cream.withValues(alpha: 0.08)),
-          ),
+          color: colors.surface,
+          border: Border(top: BorderSide(color: colors.border)),
         ),
         child: SafeArea(
           top: false,
           child: NavigationBar(
             height: 66,
-            backgroundColor: const Color(GarraColors.surface),
+            backgroundColor: colors.surface,
             surfaceTintColor: Colors.transparent,
             indicatorColor: const Color(
               GarraColors.burgundy,
