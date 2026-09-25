@@ -7,6 +7,7 @@ class WallCommentModel {
     required this.content,
     required this.createdAt,
     this.isMine = false,
+    this.avatarUrl,
   });
 
   final String id;
@@ -16,6 +17,7 @@ class WallCommentModel {
   final String content;
   final String createdAt;
   final bool isMine;
+  final String? avatarUrl;
 
   factory WallCommentModel.fromJson(Map<String, dynamic> json) {
     return WallCommentModel(
@@ -31,6 +33,7 @@ class WallCommentModel {
       content: json['content']?.toString() ?? '',
       createdAt: json['createdAt']?.toString() ?? '',
       isMine: json['isMine'] as bool? ?? json['mine'] as bool? ?? false,
+      avatarUrl: json['avatarUrl']?.toString(),
     );
   }
 }

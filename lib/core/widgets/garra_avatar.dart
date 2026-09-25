@@ -44,6 +44,7 @@ class GarraAvatar extends StatelessWidget {
               fit: BoxFit.cover,
               width: size,
               height: size,
+              memCacheWidth: (size * 3).round().clamp(64, 96),
               placeholder: _Initials(initials: initials, size: size),
               errorWidget: _Initials(initials: initials, size: size),
             )

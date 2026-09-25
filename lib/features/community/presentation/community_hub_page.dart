@@ -111,6 +111,17 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
     }
   }
 
+  Future<void> _deletePost(String postId) async {
+    await confirmAndDeletePublication(
+      context: context,
+      delete: () async {
+        await _service.deleteOwnPost(postId);
+        if (!mounted) return;
+        setState(() => _posts = _posts.where((p) => p.id != postId).toList());
+      },
+    );
+  }
+
   Future<void> _confirmBlock(String userId) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -323,6 +334,7 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
                               ),
                             ),
                             onSave: () => _toggleSave(post),
+                            onDelete: mine ? () => _deletePost(post.id) : null,
                           );
                         }),
                     ],

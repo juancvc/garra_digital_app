@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../chat/data/chat_service.dart';
+import '../../chat/presentation/floating_chat_panel.dart';
 
 /// Consent-based chat with the fan who owns the listing.
 class ConsultarPorChatButton extends StatefulWidget {
@@ -10,11 +10,13 @@ class ConsultarPorChatButton extends StatefulWidget {
     super.key,
     required this.sellerUserId,
     this.listingTitle = '',
+    this.listingPrice = '',
     this.chatService,
   });
 
   final String sellerUserId;
   final String listingTitle;
+  final String listingPrice;
   final ChatService? chatService;
 
   @override
@@ -37,20 +39,14 @@ class _ConsultarPorChatButtonState extends State<ConsultarPorChatButton> {
         );
         return;
       }
-      if (relationship.conversationId != null &&
-          (relationship.isActive || relationship.isPending)) {
-        context.push('/chat/${relationship.conversationId}');
-        return;
-      }
-      final message = await _compose();
-      if (message == null || !mounted) return;
-      final created = await _chat.request(
-        widget.sellerUserId,
-        initialMessage: message,
+      await showGarraFloatingChat(
+        context: context,
+        chatService: _chat,
+        otherUserId: widget.sellerUserId,
+        listingTitle: widget.listingTitle,
+        listingPrice: widget.listingPrice,
+        relationship: relationship,
       );
-      if (!mounted) return;
-      final sent = created.status == 'PENDING' ? '?sent=1' : '';
-      context.push('/chat/${created.id}$sent');
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -59,26 +55,6 @@ class _ConsultarPorChatButtonState extends State<ConsultarPorChatButton> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
-  }
-
-  Future<String?> _compose() {
-    return showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(GarraColors.surface),
-      builder: (ctx) => _ConsultarComposer(
-        listingTitle: widget.listingTitle.trim(),
-        suggestion: _suggestion(widget.listingTitle),
-      ),
-    );
-  }
-
-  String _suggestion(String title) {
-    final name = title.trim();
-    if (name.isEmpty) {
-      return 'Hola, me interesa este anuncio. ¿Sigue disponible?';
-    }
-    return 'Hola, me interesa $name. ¿Sigue disponible?';
   }
 
   @override
@@ -93,79 +69,6 @@ class _ConsultarPorChatButtonState extends State<ConsultarPorChatButton> {
         minimumSize: const Size.fromHeight(48),
       ),
       child: const Text('Consultar por chat'),
-    );
-  }
-}
-
-class _ConsultarComposer extends StatefulWidget {
-  const _ConsultarComposer({
-    required this.listingTitle,
-    required this.suggestion,
-  });
-
-  final String listingTitle;
-  final String suggestion;
-
-  @override
-  State<_ConsultarComposer> createState() => _ConsultarComposerState();
-}
-
-class _ConsultarComposerState extends State<_ConsultarComposer> {
-  late final TextEditingController _draft = TextEditingController(
-    text: widget.suggestion,
-  );
-
-  @override
-  void dispose() {
-    _draft.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        20 + MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Consultar al vendedor',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          if (widget.listingTitle.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(widget.listingTitle, style: Theme.of(context).textTheme.bodyMedium),
-          ],
-          const SizedBox(height: 16),
-          TextField(
-            key: const Key('marketplace-chat-draft'),
-            controller: _draft,
-            minLines: 3,
-            maxLines: 6,
-            maxLength: 1000,
-            decoration: const InputDecoration(
-              filled: true,
-              fillColor: Color(GarraColors.charcoal),
-            ),
-          ),
-          const SizedBox(height: 8),
-          FilledButton(
-            key: const Key('marketplace-chat-send'),
-            onPressed: () {
-              final text = _draft.text.trim();
-              if (text.isEmpty) return;
-              Navigator.pop(context, text);
-            },
-            child: const Text('Enviar consulta'),
-          ),
-        ],
-      ),
     );
   }
 }

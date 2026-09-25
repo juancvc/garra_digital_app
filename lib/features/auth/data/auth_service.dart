@@ -157,7 +157,7 @@ class AuthService {
   Future<AuthActionResult<void>> completeProfile({
     required String username,
     required String favoriteStand,
-    required String favoritePlayer,
+    String? favoritePlayer,
     required bool cremaDeclarationAccepted,
   }) async {
     try {
@@ -166,7 +166,8 @@ class AuthService {
         data: {
           "username": username.trim(),
           "favoriteStand": favoriteStand,
-          "favoritePlayer": favoritePlayer,
+          if (favoritePlayer != null && favoritePlayer.trim().isNotEmpty)
+            "favoritePlayer": favoritePlayer.trim(),
           "cremaDeclarationAccepted": cremaDeclarationAccepted,
         },
       );

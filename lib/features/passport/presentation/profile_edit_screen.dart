@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/widgets/garra_form.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/passport_models.dart';
@@ -124,6 +125,10 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
             child: ListView(
               padding: const EdgeInsets.all(GarraSpacing.lg),
               children: [
+                const GarraFormIntro(
+                  title: 'Tu perfil',
+                  subtitle: 'Así te ven los demás hinchas. Los cambios se guardan al pulsar Guardar.',
+                ),
                 TextFormField(
                   controller: _displayName,
                   decoration: const InputDecoration(labelText: 'Nombre visible'),

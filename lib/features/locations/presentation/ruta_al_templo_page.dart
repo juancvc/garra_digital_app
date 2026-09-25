@@ -36,12 +36,7 @@ class _RutaAlTemploPageState extends ConsumerState<RutaAlTemploPage> {
           'Ruta al Templo',
           style: TextStyle(color: AppTheme.cream, fontWeight: FontWeight.w900),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => context.push('/ruta-templo/mi-negocio'),
-            child: const Text('Mi negocio'),
-          ),
-        ],
+        actions: const [],
       ),
       body: SafeArea(
         child: RefreshIndicator(

@@ -14,6 +14,7 @@ class GarraCachedNetworkImage extends StatelessWidget {
     this.placeholder,
     this.errorWidget,
     this.fadeInDuration = const Duration(milliseconds: 240),
+    this.memCacheWidth,
   });
 
   final String imageUrl;
@@ -23,6 +24,7 @@ class GarraCachedNetworkImage extends StatelessWidget {
   final Widget? placeholder;
   final Widget? errorWidget;
   final Duration fadeInDuration;
+  final int? memCacheWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +37,7 @@ class GarraCachedNetworkImage extends StatelessWidget {
       width: width,
       height: height,
       fadeInDuration: fadeInDuration,
+      memCacheWidth: memCacheWidth,
       fadeOutDuration: const Duration(milliseconds: 120),
       placeholder: (_, _) => placeholder ?? const _GarraImagePlaceholder(),
       errorWidget: (_, _, _) => fallback,

@@ -113,8 +113,10 @@ class _CreateCommunityPostPageState
       setState(() => _error = 'Hay fotos con error. Reintenta o quítalas.');
       return;
     }
-    final readyIds =
-        _drafts.where((d) => d.isReady).map((d) => d.assetId!).toList();
+    final readyIds = _drafts
+        .where((d) => d.isReady)
+        .map((d) => d.assetId!)
+        .toList();
 
     setState(() {
       _publishing = true;
@@ -154,9 +156,10 @@ class _CreateCommunityPostPageState
     return Scaffold(
       backgroundColor: const Color(GarraColors.background),
       appBar: AppBar(
-        leading: TextButton(
+        leading: IconButton(
+          tooltip: 'Cancelar',
           onPressed: () => context.pop(),
-          child: const Text('Cancelar'),
+          icon: const Icon(Icons.close),
         ),
         title: const Text('Nueva publicación'),
         actions: [
@@ -187,6 +190,7 @@ class _CreateCommunityPostPageState
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
                   filled: false,
+                  counterText: '',
                 ),
               ),
             ),
@@ -196,10 +200,11 @@ class _CreateCommunityPostPageState
               height: 96,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: GarraSpacing.lg),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: GarraSpacing.lg,
+                ),
                 itemCount: _drafts.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, i) {
                   final d = _drafts[i];
                   return Stack(
@@ -225,12 +230,12 @@ class _CreateCommunityPostPageState
                                 ),
                               )
                             : d.state == MediaUploadState.uploading
-                                ? Center(
-                                    child: CircularProgressIndicator(
-                                      value: d.progress > 0 ? d.progress : null,
-                                    ),
-                                  )
-                                : null,
+                            ? Center(
+                                child: CircularProgressIndicator(
+                                  value: d.progress > 0 ? d.progress : null,
+                                ),
+                              )
+                            : null,
                       ),
                       Positioned(
                         top: 0,

@@ -109,6 +109,17 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
     }
   }
 
+  Future<void> _deletePost(String postId) async {
+    await confirmAndDeletePublication(
+      context: context,
+      delete: () async {
+        await _service.deleteOwnPost(postId);
+        if (!mounted) return;
+        setState(() => _posts = _posts.where((p) => p.id != postId).toList());
+      },
+    );
+  }
+
   Future<void> _react(WallPostModel post) async {
     if (_reactingPostIds.contains(post.id)) return;
 
@@ -301,6 +312,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
             ),
           ),
           onSave: () => _toggleSave(post),
+          onDelete: mine ? () => _deletePost(post.id) : null,
           onReact: () => _react(post),
           onComment: () =>
               context.push('/muro-crema/posts/${post.id}').then((_) => _load()),

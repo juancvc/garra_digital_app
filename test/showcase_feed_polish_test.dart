@@ -31,6 +31,7 @@ WallPostModel _post({
     status: 'ACTIVE',
     reportCount: 0,
     createdAt: DateTime.now()
+        .toUtc()
         .subtract(const Duration(minutes: 8))
         .toIso8601String(),
     myReaction: myReaction,
@@ -137,7 +138,7 @@ void main() {
   });
 
   test('relative timestamp uses compact Spanish labels', () {
-    final now = DateTime(2026, 9, 22, 13);
+    final now = DateTime.utc(2026, 9, 22, 18);
     expect(
       formatGarraRelativeTime(
         now.subtract(const Duration(minutes: 12)).toIso8601String(),

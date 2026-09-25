@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
+import '../../../core/widgets/garra_form.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/crema_business_application_service.dart';
@@ -56,7 +57,7 @@ class _MiNegocioCremaPageState extends State<MiNegocioCremaPage> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
-          final ok = await context.push<bool>('/ruta-templo/mi-negocio/nuevo');
+          final ok = await context.push<bool>('/negocios/mi-negocio/nuevo');
           if (ok == true) _load();
         },
         backgroundColor: const Color(GarraColors.garnet),
@@ -65,79 +66,80 @@ class _MiNegocioCremaPageState extends State<MiNegocioCremaPage> {
         icon: const Icon(Icons.add_business_outlined),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(GarraColors.gold)))
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(GarraColors.gold)),
+            )
           : _error != null
-              ? Center(child: Text(_error!))
-              : _items.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.all(GarraSpacing.xl),
-                      child: Text(
-                        '¿Tienes un negocio?\nRegístralo para aparecer en Puntos Crema tras revisión de Garra.',
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(GarraSpacing.lg),
-                      itemCount: _items.length,
-                      separatorBuilder: (_, __) =>
-                          const SizedBox(height: GarraSpacing.md),
-                      itemBuilder: (context, i) {
-                        final item = _items[i];
-                        return Material(
-                          color: const Color(GarraColors.surface),
-                          borderRadius: BorderRadius.circular(12),
-                          child: Padding(
-                            padding: const EdgeInsets.all(GarraSpacing.md),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.businessName,
-                                  style: Theme.of(context).textTheme.titleMedium,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(item.status.label),
-                                if (item.status ==
-                                    CremaBusinessApplicationStatus.verified)
-                                  const Padding(
-                                    padding: EdgeInsets.only(top: 6),
-                                    child: Text(
-                                      '✓ Verificado por Garra',
-                                      style: TextStyle(
-                                        color: Color(GarraColors.gold),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                if (item.rejectionReason != null) ...[
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    item.rejectionReason!,
-                                    style: const TextStyle(
-                                      color: Color(GarraColors.danger),
-                                    ),
-                                  ),
-                                ],
-                                if (item.status ==
-                                        CremaBusinessApplicationStatus.rejected ||
-                                    item.status ==
-                                        CremaBusinessApplicationStatus.draft)
-                                  TextButton(
-                                    onPressed: () async {
-                                      await context.push(
-                                        '/ruta-templo/mi-negocio/nuevo',
-                                        extra: item,
-                                      );
-                                      _load();
-                                    },
-                                    child: const Text('Corregir / reenviar'),
-                                  ),
-                              ],
+          ? Center(child: Text(_error!))
+          : _items.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.all(GarraSpacing.xl),
+              child: Text(
+                '¿Tienes un negocio?\nRegístralo para aparecer en Puntos Crema tras revisión de Garra.',
+                textAlign: TextAlign.center,
+              ),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(GarraSpacing.lg),
+              itemCount: _items.length,
+              separatorBuilder: (_, __) =>
+                  const SizedBox(height: GarraSpacing.md),
+              itemBuilder: (context, i) {
+                final item = _items[i];
+                return Material(
+                  color: const Color(GarraColors.surface),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(GarraSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.businessName,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(item.status.label),
+                        if (item.status ==
+                            CremaBusinessApplicationStatus.verified)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 6),
+                            child: Text(
+                              '✓ Verificado por Garra',
+                              style: TextStyle(
+                                color: Color(GarraColors.gold),
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
-                        );
-                      },
+                        if (item.rejectionReason != null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            item.rejectionReason!,
+                            style: const TextStyle(
+                              color: Color(GarraColors.danger),
+                            ),
+                          ),
+                        ],
+                        if (item.status ==
+                                CremaBusinessApplicationStatus.rejected ||
+                            item.status == CremaBusinessApplicationStatus.draft)
+                          TextButton(
+                            onPressed: () async {
+                              await context.push(
+                                '/negocios/mi-negocio/nuevo',
+                                extra: item,
+                              );
+                              _load();
+                            },
+                            child: const Text('Corregir / reenviar'),
+                          ),
+                      ],
                     ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }
@@ -195,20 +197,18 @@ class _RegistrarNegocioCremaPageState extends State<RegistrarNegocioCremaPage> {
   }
 
   Map<String, dynamic> _body() => {
-        'businessName': _name.text.trim(),
-        'category': _category.text.trim(),
-        'description': _description.text.trim().isEmpty
-            ? null
-            : _description.text.trim(),
-        'address': _address.text.trim(),
-        'latitude': _lat,
-        'longitude': _lng,
-        'phone': _phone.text.trim().isEmpty ? null : _phone.text.trim(),
-        'whatsapp':
-            _whatsapp.text.trim().isEmpty ? null : _whatsapp.text.trim(),
-        'instagram':
-            _instagram.text.trim().isEmpty ? null : _instagram.text.trim(),
-      };
+    'businessName': _name.text.trim(),
+    'category': _category.text.trim(),
+    'description': _description.text.trim().isEmpty
+        ? null
+        : _description.text.trim(),
+    'address': _address.text.trim(),
+    'latitude': _lat,
+    'longitude': _lng,
+    'phone': _phone.text.trim().isEmpty ? null : _phone.text.trim(),
+    'whatsapp': _whatsapp.text.trim().isEmpty ? null : _whatsapp.text.trim(),
+    'instagram': _instagram.text.trim().isEmpty ? null : _instagram.text.trim(),
+  };
 
   Future<void> _submit() async {
     if (_name.text.trim().isEmpty || _address.text.trim().isEmpty) {
@@ -253,26 +253,45 @@ class _RegistrarNegocioCremaPageState extends State<RegistrarNegocioCremaPage> {
       body: ListView(
         padding: const EdgeInsets.all(GarraSpacing.lg),
         children: [
-          TextField(controller: _name, decoration: const InputDecoration(labelText: 'Nombre')),
-          TextField(controller: _category, decoration: const InputDecoration(labelText: 'Categoría')),
+          const GarraFormIntro(
+            title: 'Registrar negocio',
+            subtitle:
+                'Cuéntanos qué ofreces. Revisaremos la solicitud antes de publicarla en Negocios Cremas.',
+          ),
+          TextField(
+            controller: _name,
+            decoration: const InputDecoration(labelText: 'Nombre'),
+          ),
+          TextField(
+            controller: _category,
+            decoration: const InputDecoration(labelText: 'Categoría'),
+          ),
           TextField(
             controller: _description,
             maxLines: 3,
             decoration: const InputDecoration(labelText: 'Descripción'),
           ),
-          TextField(controller: _address, decoration: const InputDecoration(labelText: 'Dirección')),
+          TextField(
+            controller: _address,
+            decoration: const InputDecoration(labelText: 'Dirección'),
+          ),
           const SizedBox(height: GarraSpacing.md),
-          Text('Ubicación (ajusta con el mapa)', style: Theme.of(context).textTheme.titleSmall),
+          Text(
+            'Ubicación (ajusta con el mapa)',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
           const SizedBox(height: GarraSpacing.sm),
           Row(
             children: [
               Expanded(
-                child: Text('Lat: ${_lat.toStringAsFixed(4)}\nLng: ${_lng.toStringAsFixed(4)}'),
+                child: Text(
+                  'Lat: ${_lat.toStringAsFixed(4)}\nLng: ${_lng.toStringAsFixed(4)}',
+                ),
               ),
               TextButton(
                 onPressed: () async {
                   final picked = await context.push<Map<String, double>>(
-                    '/ruta-templo/mi-negocio/ubicacion',
+                    '/negocios/mi-negocio/ubicacion',
                     extra: {'lat': _lat, 'lng': _lng},
                   );
                   if (picked != null) {
@@ -286,9 +305,18 @@ class _RegistrarNegocioCremaPageState extends State<RegistrarNegocioCremaPage> {
               ),
             ],
           ),
-          TextField(controller: _whatsapp, decoration: const InputDecoration(labelText: 'WhatsApp')),
-          TextField(controller: _phone, decoration: const InputDecoration(labelText: 'Teléfono')),
-          TextField(controller: _instagram, decoration: const InputDecoration(labelText: 'Instagram')),
+          TextField(
+            controller: _whatsapp,
+            decoration: const InputDecoration(labelText: 'WhatsApp'),
+          ),
+          TextField(
+            controller: _phone,
+            decoration: const InputDecoration(labelText: 'Teléfono'),
+          ),
+          TextField(
+            controller: _instagram,
+            decoration: const InputDecoration(labelText: 'Instagram'),
+          ),
           const SizedBox(height: GarraSpacing.xxl),
           GarraPrimaryButton(
             label: _submitting ? 'Enviando…' : 'Enviar a revisión',

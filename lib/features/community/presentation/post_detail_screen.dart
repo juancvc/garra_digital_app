@@ -12,6 +12,8 @@ import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
+import '../../../core/auth/current_fan_provider.dart';
+import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/engagement_utils.dart';
@@ -306,17 +308,15 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
               icon: const Icon(Icons.ios_share_rounded),
               onPressed: () => _openShareSheet(_post!),
             ),
-          if (_post != null)
+          if (_post != null && _ownsPost(_post!))
             PopupMenuButton<String>(
               onSelected: (v) async {
                 if (v == 'delete') {
                   final ok = await showDialog<bool>(
                     context: context,
                     builder: (ctx) => AlertDialog(
-                      title: const Text('Eliminar publicación'),
-                      content: const Text(
-                        'Se ocultará de la comunidad (soft delete).',
-                      ),
+                      title: const Text('¿Eliminar esta publicación?'),
+                      content: const Text('Esta acción no se puede deshacer.'),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, false),
@@ -333,12 +333,20 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                     await ref
                         .read(communityServiceProvider)
                         .deleteOwnPost(_post!.id);
-                    if (context.mounted) context.pop();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Publicación eliminada')),
+                      );
+                      context.pop(true);
+                    }
                   }
                 }
               },
               itemBuilder: (_) => const [
-                PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Text('Eliminar publicación'),
+                ),
               ],
             ),
         ],
@@ -354,6 +362,12 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       isScrollControlled: true,
       builder: (ctx) => _SharePostSheet(post: post),
     );
+  }
+
+  bool _ownsPost(WallPostModel post) {
+    if (post.isMine) return true;
+    final meId = ref.watch(currentFanProvider).asData?.value?.id;
+    return meId != null && meId.isNotEmpty && post.authorId == meId;
   }
 
   Widget _buildBody() {
@@ -594,35 +608,46 @@ class _CommentTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(GarraRadius.lg),
         border: Border.all(color: const Color(GarraColors.borderSubtle)),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  comment.fullName.isNotEmpty
-                      ? comment.fullName
-                      : '@${comment.username}',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
-                ),
-              ),
-              if (onDelete != null)
-                IconButton(
-                  tooltip: 'Eliminar',
-                  onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline, size: 18),
-                  color: const Color(GarraColors.gold),
-                ),
-            ],
+          GarraAvatar(
+            displayName: comment.fullName.isNotEmpty
+                ? comment.fullName
+                : comment.username,
+            avatarUrl: comment.avatarUrl,
+            size: 30,
           ),
-          Text(comment.content, style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: GarraSpacing.xs),
-          Text(
-            _safeFormat(comment.createdAt),
-            style: Theme.of(context).textTheme.labelSmall,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${comment.fullName.isNotEmpty ? comment.fullName : '@${comment.username}'} · ${formatGarraRelativeTime(comment.createdAt)}',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    if (onDelete != null)
+                      IconButton(
+                        tooltip: 'Eliminar',
+                        onPressed: onDelete,
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        color: const Color(GarraColors.gold),
+                      ),
+                  ],
+                ),
+                Text(
+                  comment.content,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
           ),
         ],
       ),

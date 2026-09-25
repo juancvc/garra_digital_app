@@ -663,7 +663,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    final marketplace = find.text('Emprendimientos de la hinchada');
+    final marketplace = find.text('Anuncios, productos y servicios');
     await tester.scrollUntilVisible(
       marketplace,
       300,
@@ -688,7 +688,11 @@ void main() {
         ),
         GoRoute(
           path: '/ruta-templo',
-          builder: (_, _) => const Scaffold(body: Text('BUSINESS_ROUTE')),
+          builder: (_, _) => const Scaffold(body: Text('STADIUM_ROUTE')),
+        ),
+        GoRoute(
+          path: '/negocios',
+          builder: (_, _) => const Scaffold(body: Text('NEGOCIOS_ROUTE')),
         ),
       ],
     );
@@ -699,11 +703,18 @@ void main() {
 
     expect(find.byKey(const Key('explore-preview-grid')), findsOneWidget);
     expect(find.text('AGENDA'), findsOneWidget);
-    expect(find.text('RUTA CREMA'), findsOneWidget);
+    expect(find.text('NEGOCIOS'), findsOneWidget);
+    expect(find.text('RUTA CREMA'), findsNothing);
     expect(tester.takeException(), isNull);
-    await tester.tap(find.text('Negocios cerca de ti').first);
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('explore-preview-grid')),
+        matching: find.text('Negocios Cremas'),
+      ),
+    );
     await tester.pumpAndSettle();
-    expect(find.text('BUSINESS_ROUTE'), findsOneWidget);
+    expect(find.text('NEGOCIOS_ROUTE'), findsOneWidget);
+    expect(find.text('STADIUM_ROUTE'), findsNothing);
   });
 
   testWidgets('82_MARKETPLACE_QUIERO_VENDER_NAV', (tester) async {

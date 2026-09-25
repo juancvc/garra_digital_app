@@ -149,9 +149,12 @@ void main() {
     );
     await tester.pump();
 
-    final mine = tester.widget<Align>(find.byKey(const Key('chat-bubble-mine')));
-    final other =
-        tester.widget<Align>(find.byKey(const Key('chat-bubble-other')));
+    final mine = tester.widget<Align>(
+      find.byKey(const Key('chat-bubble-mine')),
+    );
+    final other = tester.widget<Align>(
+      find.byKey(const Key('chat-bubble-other')),
+    );
     expect(mine.alignment, Alignment.centerRight);
     expect(other.alignment, Alignment.centerLeft);
     expect(find.text('¿Vas a la previa este sábado?'), findsOneWidget);
@@ -216,12 +219,14 @@ void main() {
     tester,
   ) async {
     final chat = _FakeChat();
-    await tester.pumpWidget(_marketplaceApp(chat, listingTitle: 'Camiseta crema'));
+    await tester.pumpWidget(
+      _marketplaceApp(chat, listingTitle: 'Camiseta crema'),
+    );
     await tester.tap(find.byKey(const Key('marketplace-chat-cta')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Consultar al vendedor'), findsOneWidget);
-    expect(find.text('Camiseta crema'), findsOneWidget);
+    expect(find.byKey(const Key('floating-chat-panel')), findsOneWidget);
+    expect(find.textContaining('Consultando: Camiseta crema'), findsOneWidget);
     final draft = tester.widget<TextField>(
       find.byKey(const Key('marketplace-chat-draft')),
     );
@@ -238,22 +243,27 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(chat.requestedUser, 'seller-lucia');
-    expect(
-      chat.requestedMessage,
-      '¿La camiseta sigue disponible en talla M?',
-    );
+    expect(chat.requestedMessage, '¿La camiseta sigue disponible en talla M?');
     expect(find.text('Solicitud enviada'), findsOneWidget);
     expect(
-      find.text('El vendedor podrá responder cuando acepte tu solicitud.'),
+      find.text('Esperando que el vendedor acepte tu solicitud'),
       findsOneWidget,
     );
-    expect(find.text('¿La camiseta sigue disponible en talla M?'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
+    expect(
+      find.text('¿La camiseta sigue disponible en talla M?'),
+      findsOneWidget,
+    );
     expect(find.text('Esperando que acepte tu solicitud'), findsWidgets);
-    final composer = tester.widget<TextField>(find.byKey(const Key('chat-composer')));
+    final composer = tester.widget<TextField>(
+      find.byKey(const Key('chat-composer')),
+    );
     expect(composer.enabled, isFalse);
   });
 
-  testWidgets('existing pending marketplace chat opens the thread', (tester) async {
+  testWidgets('existing pending marketplace chat opens the thread', (
+    tester,
+  ) async {
     final chat = _FakeChat()
       ..relationshipResult = const ChatRelationship(
         conversationId: 'pending-1',
@@ -281,7 +291,7 @@ void main() {
     await tester.tap(find.byKey(const Key('marketplace-chat-cta')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Consultar al vendedor'), findsNothing);
+    expect(find.byKey(const Key('floating-chat-panel')), findsOneWidget);
     expect(find.text('Hola, me interesa la camiseta.'), findsOneWidget);
     expect(find.text('Esperando que acepte tu solicitud'), findsWidgets);
     expect(chat.requestedUser, isNull);
@@ -315,9 +325,12 @@ void main() {
     await tester.tap(find.byKey(const Key('marketplace-chat-cta')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Consultar al vendedor'), findsNothing);
+    expect(find.byKey(const Key('floating-chat-panel')), findsOneWidget);
+    expect(find.byKey(const Key('chat-attach-photo')), findsOneWidget);
     expect(find.text('Sigue disponible'), findsOneWidget);
-    final composer = tester.widget<TextField>(find.byKey(const Key('chat-composer')));
+    final composer = tester.widget<TextField>(
+      find.byKey(const Key('chat-composer')),
+    );
     expect(composer.enabled, isTrue);
   });
 
@@ -361,7 +374,9 @@ void main() {
     await tester.pump();
 
     expect(chat.acceptedId, 'pending-in');
-    final composer = tester.widget<TextField>(find.byKey(const Key('chat-composer')));
+    final composer = tester.widget<TextField>(
+      find.byKey(const Key('chat-composer')),
+    );
     expect(composer.enabled, isTrue);
   });
 
@@ -396,7 +411,10 @@ Widget _app(Widget home) {
   return MaterialApp(theme: AppTheme.darkTheme, home: home);
 }
 
-Widget _marketplaceApp(_FakeChat chat, {String listingTitle = 'Camiseta crema'}) {
+Widget _marketplaceApp(
+  _FakeChat chat, {
+  String listingTitle = 'Camiseta crema',
+}) {
   final router = GoRouter(
     initialLocation: '/',
     routes: [
@@ -489,7 +507,8 @@ class _FakeChat extends ChatService {
   int messageLoads = 0;
 
   @override
-  Future<ChatRelationship> relationship(String userId) async => relationshipResult;
+  Future<ChatRelationship> relationship(String userId) async =>
+      relationshipResult;
 
   @override
   Future<ChatConversation> request(
@@ -564,7 +583,11 @@ class _FakeChat extends ChatService {
   }
 
   @override
-  Future<ChatMessage> send(String conversationId, String content) async {
+  Future<ChatMessage> send(
+    String conversationId,
+    String content, {
+    List<String> mediaAssetIds = const [],
+  }) async {
     sent.add(content);
     return ChatMessage(
       id: 'sent',

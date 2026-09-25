@@ -13,7 +13,8 @@ class CompleteProfilePage extends ConsumerStatefulWidget {
   const CompleteProfilePage({super.key});
 
   @override
-  ConsumerState<CompleteProfilePage> createState() => _CompleteProfilePageState();
+  ConsumerState<CompleteProfilePage> createState() =>
+      _CompleteProfilePageState();
 }
 
 class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
@@ -21,19 +22,10 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
   final _usernameController = TextEditingController();
 
   String? _tribuna;
-  String? _jugador;
   bool _isCrema = false;
   bool _loading = false;
 
   final List<String> tribunas = ['Norte', 'Oriente', 'Occidente', 'Sur'];
-
-  final List<String> jugadores = [
-    'Valera',
-    'Polo',
-    'Carabalí',
-    'Pérez Guedes',
-    'Otro',
-  ];
 
   @override
   void dispose() {
@@ -66,7 +58,6 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
       final result = await authService.completeProfile(
         username: _usernameController.text,
         favoriteStand: _tribuna!,
-        favoritePlayer: _jugador!,
         cremaDeclarationAccepted: _isCrema,
       );
 
@@ -104,9 +95,9 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -170,14 +161,6 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                     onChanged: (value) => setState(() => _tribuna = value),
                   ),
 
-                  _buildDropdown(
-                    label: 'Jugador favorito',
-                    value: _jugador,
-                    items: jugadores,
-                    icon: Icons.sports_soccer_rounded,
-                    onChanged: (value) => setState(() => _jugador = value),
-                  ),
-
                   const SizedBox(height: 8),
 
                   Container(
@@ -195,8 +178,8 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                           onChanged: _loading
                               ? null
                               : (value) {
-                            setState(() => _isCrema = value ?? false);
-                          },
+                                  setState(() => _isCrema = value ?? false);
+                                },
                         ),
                         const Expanded(
                           child: Text(
@@ -227,20 +210,20 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                       ),
                       child: _loading
                           ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          color: Colors.black,
-                          strokeWidth: 2,
-                        ),
-                      )
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                color: Colors.black,
+                                strokeWidth: 2,
+                              ),
+                            )
                           : const Text(
-                        'Entrar a la tribuna',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 15,
-                        ),
-                      ),
+                              'Entrar a la tribuna',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 15,
+                              ),
+                            ),
                     ),
                   ),
                 ],
@@ -336,11 +319,9 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
         ),
         items: items
             .map(
-              (item) => DropdownMenuItem<String>(
-            value: item,
-            child: Text(item),
-          ),
-        )
+              (item) =>
+                  DropdownMenuItem<String>(value: item, child: Text(item)),
+            )
             .toList(),
         onChanged: _loading ? null : onChanged,
         validator: (value) {

@@ -28,6 +28,7 @@ import 'package:garra_digital_app/features/community/presentation/saved_posts_pa
 import 'package:garra_digital_app/features/solidarity/presentation/solidaria_page.dart';
 import 'package:garra_digital_app/features/locations/presentation/business_offers_page.dart';
 import 'package:garra_digital_app/features/locations/presentation/mi_negocio_crema_page.dart';
+import 'package:garra_digital_app/features/locations/presentation/negocios_cremas_page.dart';
 import 'package:garra_digital_app/features/locations/presentation/pick_business_location_page.dart';
 import 'package:garra_digital_app/features/locations/data/crema_business_application_service.dart';
 import 'package:garra_digital_app/features/history/presentation/history_page.dart';
@@ -447,12 +448,31 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const RutaAlTemploPage(),
     ),
     GoRoute(
-      path: '/ruta-templo/mi-negocio',
+      path: '/negocios',
+      name: 'negocios-cremas',
+      builder: (context, state) => const NegociosCremasPage(),
+    ),
+    GoRoute(
+      path: '/negocios/mapa',
+      name: 'negocios-mapa',
+      builder: (context, state) => const MapCremaPage(),
+    ),
+    GoRoute(
+      path: '/negocios/buscar',
+      name: 'negocios-buscar',
+      builder: (context, state) => const NegociosCremasBrowsePage(),
+    ),
+    GoRoute(
+      path: '/negocios/mi-negocio',
       name: 'mi-negocio-crema',
       builder: (context, state) => const MiNegocioCremaPage(),
     ),
     GoRoute(
-      path: '/ruta-templo/mi-negocio/nuevo',
+      path: '/ruta-templo/mi-negocio',
+      redirect: (context, state) => '/negocios/mi-negocio',
+    ),
+    GoRoute(
+      path: '/negocios/mi-negocio/nuevo',
       name: 'mi-negocio-nuevo',
       builder: (context, state) {
         final existing = state.extra is CremaBusinessApplication
@@ -462,7 +482,7 @@ final GoRouter appRouter = GoRouter(
       },
     ),
     GoRoute(
-      path: '/ruta-templo/mi-negocio/ubicacion',
+      path: '/negocios/mi-negocio/ubicacion',
       name: 'mi-negocio-ubicacion',
       builder: (context, state) {
         final extra = state.extra is Map
@@ -473,6 +493,12 @@ final GoRouter appRouter = GoRouter(
           initialLng: (extra['lng'] as num?)?.toDouble() ?? -77.0379,
         );
       },
+    ),
+    GoRoute(
+      path: '/negocios/:id',
+      name: 'negocio-crema-detail',
+      builder: (context, state) =>
+          NegocioCremaDetailPage(idOrSlug: state.pathParameters['id'] ?? ''),
     ),
     GoRoute(
       path: '/muro-crema',

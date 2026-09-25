@@ -98,7 +98,7 @@ class _ExplorePageState extends State<ExplorePage> {
                   onTap: () => setState(() => _filter = _ExploreFilter.events),
                 ),
                 _FilterChip(
-                  label: 'Negocios',
+                  label: 'Negocios Cremas',
                   selected: _filter == _ExploreFilter.businesses,
                   onTap: () =>
                       setState(() => _filter = _ExploreFilter.businesses),
@@ -147,9 +147,9 @@ class _ExplorePageState extends State<ExplorePage> {
           if (_filter == _ExploreFilter.businesses)
             _DestinationSection(
               icon: Icons.map_outlined,
-              title: 'Negocios cerca de ti',
-              subtitle: 'Puntos Crema y lugares de la hinchada',
-              onTap: () => context.push('/ruta-templo'),
+              title: 'Negocios Cremas',
+              subtitle: 'Negocios registrados de la hinchada',
+              onTap: () => context.push('/negocios'),
             ),
           if (_show(_ExploreFilter.communities))
             _DestinationSection(
@@ -162,7 +162,7 @@ class _ExplorePageState extends State<ExplorePage> {
             _DestinationSection(
               icon: Icons.storefront_outlined,
               title: 'Marketplace',
-              subtitle: 'Emprendimientos de la hinchada',
+              subtitle: 'Anuncios, productos y servicios',
               onTap: () => context.push('/marketplace'),
             ),
           if (_filter == _ExploreFilter.all) ...[
@@ -207,10 +207,10 @@ class _DiscoveryPreviewGrid extends StatelessWidget {
         Expanded(
           child: _DiscoveryPreviewCard(
             icon: Icons.map_outlined,
-            eyebrow: 'RUTA CREMA',
-            title: 'Negocios cerca de ti',
+            eyebrow: 'NEGOCIOS',
+            title: 'Negocios Cremas',
             imageAlignment: const Alignment(0.75, -0.2),
-            onTap: () => context.push('/ruta-templo'),
+            onTap: () => context.push('/negocios'),
           ),
         ),
       ],

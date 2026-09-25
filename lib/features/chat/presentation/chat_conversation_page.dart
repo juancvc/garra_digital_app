@@ -9,6 +9,7 @@ import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../data/chat_models.dart';
 import '../data/chat_service.dart';
+import 'floating_chat_panel.dart';
 
 class ChatConversationPage extends StatefulWidget {
   const ChatConversationPage({
@@ -113,7 +114,8 @@ class _ChatConversationPageState extends State<ChatConversationPage>
       final conversation = await _chat.conversation(widget.conversationId);
       final messages = await _chat.messages(widget.conversationId);
       if (!mounted) return;
-      final changed = messages.length != _messages.length ||
+      final changed =
+          messages.length != _messages.length ||
           (messages.isNotEmpty &&
               _messages.isNotEmpty &&
               messages.last.id != _messages.last.id);
@@ -206,7 +208,8 @@ class _ChatConversationPageState extends State<ChatConversationPage>
         title: conversation == null
             ? const Text('Mensajes')
             : InkWell(
-                onTap: () => context.push('/comunidad/u/${conversation.otherUserId}'),
+                onTap: () =>
+                    context.push('/comunidad/u/${conversation.otherUserId}'),
                 child: Row(
                   children: [
                     GarraAvatar(
@@ -340,7 +343,8 @@ class _ChatConversationPageState extends State<ChatConversationPage>
 
   Widget _transcript() {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) return GarraErrorState(message: _error!, onRetry: _load);
+    if (_error != null)
+      return GarraErrorState(message: _error!, onRetry: _load);
     if (_messages.isEmpty) {
       return const GarraEmptyState(
         title: 'Conversación lista',
@@ -358,7 +362,9 @@ class _ChatConversationPageState extends State<ChatConversationPage>
         final message = _messages[index];
         return Align(
           key: Key(message.mine ? 'chat-bubble-mine' : 'chat-bubble-other'),
-          alignment: message.mine ? Alignment.centerRight : Alignment.centerLeft,
+          alignment: message.mine
+              ? Alignment.centerRight
+              : Alignment.centerLeft,
           child: Container(
             margin: const EdgeInsets.only(bottom: 8),
             constraints: BoxConstraints(
@@ -376,12 +382,20 @@ class _ChatConversationPageState extends State<ChatConversationPage>
                 bottomRight: Radius.circular(message.mine ? 4 : 16),
               ),
             ),
-            child: Text(
-              message.content,
-              style: const TextStyle(
-                color: Color(GarraColors.cream),
-                height: 1.3,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (message.media.isNotEmpty)
+                  ChatImageStrip(media: message.media),
+                if (message.content.trim().isNotEmpty)
+                  Text(
+                    message.content,
+                    style: const TextStyle(
+                      color: Color(GarraColors.cream),
+                      height: 1.3,
+                    ),
+                  ),
+              ],
             ),
           ),
         );

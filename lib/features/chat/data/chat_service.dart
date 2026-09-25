@@ -40,12 +40,18 @@ class ChatService {
   }
 
   Future<ChatConversation> accept(String conversationId) async {
-    final data = await _data('/chat/requests/$conversationId/accept', body: const {});
+    final data = await _data(
+      '/chat/requests/$conversationId/accept',
+      body: const {},
+    );
     return ChatConversation.fromJson(data);
   }
 
   Future<ChatConversation> reject(String conversationId) async {
-    final data = await _data('/chat/requests/$conversationId/reject', body: const {});
+    final data = await _data(
+      '/chat/requests/$conversationId/reject',
+      body: const {},
+    );
     return ChatConversation.fromJson(data);
   }
 
@@ -64,10 +70,17 @@ class ChatService {
     return data.map(ChatMessage.fromJson).toList();
   }
 
-  Future<ChatMessage> send(String conversationId, String content) async {
+  Future<ChatMessage> send(
+    String conversationId,
+    String content, {
+    List<String> mediaAssetIds = const [],
+  }) async {
     final data = await _data(
       '/chat/conversations/$conversationId/messages',
-      body: {'content': content},
+      body: {
+        'content': content,
+        if (mediaAssetIds.isNotEmpty) 'mediaAssetIds': mediaAssetIds,
+      },
     );
     return ChatMessage.fromJson(data);
   }

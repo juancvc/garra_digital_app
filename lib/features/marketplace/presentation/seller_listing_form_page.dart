@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/widgets/garra_form.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/marketplace_media_service.dart';
@@ -248,6 +249,10 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
             GarraSpacing.section,
           ),
           children: [
+            GarraFormIntro(
+              title: widget.isEditing ? 'Editar anuncio' : 'Nuevo anuncio',
+              subtitle: 'Esto se publica en Marketplace, aparte de tu ficha en Negocios Cremas.',
+            ),
             Text(
               'Fotos (máx. $_maxImages) — la primera es la portada',
               style: Theme.of(context).textTheme.titleSmall,

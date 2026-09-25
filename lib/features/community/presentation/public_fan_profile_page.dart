@@ -10,6 +10,7 @@ import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../../chat/data/chat_models.dart';
 import '../../chat/data/chat_service.dart';
+import '../../chat/presentation/floating_chat_panel.dart';
 import '../data/community_service.dart';
 import '../data/wall_post_model.dart';
 
@@ -95,60 +96,15 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
   Future<void> _message() async {
     if (_busy || _chatRelationship.blocked) return;
     final relationship = _chatRelationship;
-    if (relationship.isActive && relationship.conversationId != null) {
-      context.push('/chat/${relationship.conversationId}');
-      return;
-    }
-    if (relationship.isPending && !relationship.outgoing) {
-      setState(() => _busy = true);
-      try {
-        final accepted = await _chat.accept(relationship.conversationId!);
-        if (!mounted) return;
-        context.push('/chat/${accepted.id}');
-      } catch (_) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No pudimos aceptar el chat')),
-        );
-      } finally {
-        if (mounted) setState(() => _busy = false);
-      }
-      return;
-    }
-    if (relationship.isPending && relationship.outgoing) {
-      if (relationship.conversationId != null) {
-        context.push('/chat/${relationship.conversationId}');
-      }
-      return;
-    }
-    final message = await showDialog<String>(
+    final name = _profile?['displayName']?.toString() ?? '';
+    await showGarraFloatingChat(
       context: context,
-      builder: (ctx) => const _ChatRequestDialog(),
+      chatService: _chat,
+      otherUserId: widget.userId,
+      otherDisplayName: name,
+      openingSuggestion: 'Hola',
+      relationship: relationship.status == 'NONE' ? null : relationship,
     );
-    if (message == null || message.isEmpty || !mounted) return;
-    setState(() => _busy = true);
-    try {
-      final created = await _chat.request(
-        widget.userId,
-        initialMessage: message,
-      );
-      if (!mounted) return;
-      setState(() {
-        _chatRelationship = ChatRelationship(
-          conversationId: created.id,
-          status: 'PENDING',
-          outgoing: true,
-        );
-      });
-      context.push('/chat/${created.id}?sent=1');
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No pudimos enviar la solicitud')),
-      );
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
   }
 
   Future<void> _block() async {
@@ -174,24 +130,19 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
     if (ok != true) return;
     await _service.blockUser(widget.userId);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Usuario bloqueado')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Usuario bloqueado')));
     context.pop();
   }
 
   Widget _messageButton() {
     final relationship = _chatRelationship;
-    final pendingOut = relationship.isPending && relationship.outgoing;
     final pendingIn = relationship.isPending && !relationship.outgoing;
-    final label = pendingOut
-        ? 'Solicitud enviada'
-        : pendingIn
-            ? 'Aceptar chat'
-            : 'Mensaje';
+    final label = pendingIn ? 'Aceptar chat' : 'Mensaje';
     return OutlinedButton(
       key: const Key('profile-message-action'),
-      onPressed: _busy || pendingOut ? null : _message,
+      onPressed: _busy ? null : _message,
       style: OutlinedButton.styleFrom(
         foregroundColor: const Color(GarraColors.cream),
         side: const BorderSide(color: Color(GarraColors.burgundy)),
@@ -235,8 +186,8 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? GarraErrorState(message: _error!, onRetry: _load)
-              : _buildBody(),
+          ? GarraErrorState(message: _error!, onRetry: _load)
+          : _buildBody(),
     );
   }
 
@@ -256,9 +207,9 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
     final rawPosts = p['globalPosts'];
     final posts = rawPosts is List
         ? rawPosts
-            .whereType<Map>()
-            .map((e) => WallPostModel.fromJson(Map<String, dynamic>.from(e)))
-            .toList()
+              .whereType<Map>()
+              .map((e) => WallPostModel.fromJson(Map<String, dynamic>.from(e)))
+              .toList()
         : <WallPostModel>[];
 
     return ListView(
@@ -294,8 +245,8 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
                     Text(
                       'Nivel $level',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: const Color(GarraColors.gold),
-                          ),
+                        color: const Color(GarraColors.gold),
+                      ),
                     ),
                   if (since != null && since.isNotEmpty)
                     Text(
@@ -443,100 +394,46 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _blocks.isEmpty
-              ? const GarraEmptyState(
-                  title: 'Nadie bloqueado',
-                  message: 'Cuando bloquees a alguien, aparecerá aquí.',
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(GarraSpacing.lg),
-                  itemCount: _blocks.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, i) {
-                    final b = _blocks[i];
-                    final id = b['userId']?.toString() ?? '';
-                    final name = b['displayName']?.toString() ?? '';
-                    final username = b['username']?.toString() ?? '';
-                    return GarraCard(
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  name,
-                                  style: Theme.of(context).textTheme.titleSmall,
-                                ),
-                                Text(
-                                  '@$username',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
+          ? const GarraEmptyState(
+              title: 'Nadie bloqueado',
+              message: 'Cuando bloquees a alguien, aparecerá aquí.',
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(GarraSpacing.lg),
+              itemCount: _blocks.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, i) {
+                final b = _blocks[i];
+                final id = b['userId']?.toString() ?? '';
+                final name = b['displayName']?.toString() ?? '';
+                final username = b['username']?.toString() ?? '';
+                return GarraCard(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              style: Theme.of(context).textTheme.titleSmall,
                             ),
-                          ),
-                          TextButton(
-                            onPressed: id.isEmpty ? null : () => _unblock(id),
-                            child: const Text('Desbloquear'),
-                          ),
-                        ],
+                            Text(
+                              '@$username',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
                       ),
-                    );
-                  },
-                ),
-    );
-  }
-}
-
-class _ChatRequestDialog extends StatefulWidget {
-  const _ChatRequestDialog();
-
-  @override
-  State<_ChatRequestDialog> createState() => _ChatRequestDialogState();
-}
-
-class _ChatRequestDialogState extends State<_ChatRequestDialog> {
-  final _draft = TextEditingController();
-
-  @override
-  void dispose() {
-    _draft.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Solicitar chat'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Escribe el primer mensaje. Esta persona lo verá al recibir tu solicitud.',
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _draft,
-            maxLength: 1000,
-            maxLines: 3,
-            decoration: const InputDecoration(hintText: 'Hola'),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          onPressed: () {
-            final text = _draft.text.trim();
-            if (text.isEmpty) return;
-            Navigator.pop(context, text);
-          },
-          child: const Text('Enviar'),
-        ),
-      ],
+                      TextButton(
+                        onPressed: id.isEmpty ? null : () => _unblock(id),
+                        child: const Text('Desbloquear'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
     );
   }
 }

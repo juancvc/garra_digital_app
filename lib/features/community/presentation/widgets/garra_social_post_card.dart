@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/design/garra_colors.dart';
+import '../../../../core/utils/date_utils.dart';
+export '../../../../core/utils/date_utils.dart' show formatGarraRelativeTime;
 import '../../../../core/design/garra_spacing.dart';
 import '../../../../core/widgets/garra_avatar.dart';
 import '../../data/wall_post_model.dart';
@@ -21,6 +23,7 @@ class GarraSocialPostCard extends StatelessWidget {
     this.onSave,
     this.onReact,
     this.onComment,
+    this.onDelete,
   });
 
   final WallPostModel post;
@@ -32,6 +35,7 @@ class GarraSocialPostCard extends StatelessWidget {
   final VoidCallback? onSave;
   final VoidCallback? onReact;
   final VoidCallback? onComment;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -112,6 +116,7 @@ class GarraSocialPostCard extends StatelessWidget {
                         HapticFeedback.lightImpact();
                         onSave?.call();
                       }
+                      if (v == 'delete') onDelete?.call();
                     },
                     itemBuilder: (_) {
                       if (post.isMine) {
@@ -125,6 +130,11 @@ class GarraSocialPostCard extends StatelessWidget {
                             const PopupMenuItem(
                               value: 'save',
                               child: Text('Guardar'),
+                            ),
+                          if (onDelete != null)
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Eliminar publicación'),
                             ),
                         ];
                       }
@@ -186,18 +196,31 @@ class GarraSocialPostCard extends StatelessWidget {
   }
 }
 
-String formatGarraRelativeTime(String value, {DateTime? now}) {
-  final parsed = DateTime.tryParse(value);
-  if (parsed == null) return 'ahora';
-
-  final reference = now ?? DateTime.now();
-  final local = parsed.isUtc ? parsed.toLocal() : parsed;
-  final difference = reference.difference(local);
-  if (difference.isNegative || difference.inMinutes < 1) return 'ahora';
-  if (difference.inMinutes < 60) return 'hace ${difference.inMinutes} min';
-  if (difference.inHours < 24) return 'hace ${difference.inHours} h';
-  if (difference.inDays < 7) return 'hace ${difference.inDays} d';
-  if (difference.inDays < 30) return 'hace ${difference.inDays ~/ 7} sem';
-  if (difference.inDays < 365) return 'hace ${difference.inDays ~/ 30} mes';
-  return 'hace ${difference.inDays ~/ 365} a';
+Future<void> confirmAndDeletePublication({
+  required BuildContext context,
+  required Future<void> Function() delete,
+}) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('¿Eliminar esta publicación?'),
+      content: const Text('Esta acción no se puede deshacer.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Eliminar'),
+        ),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  await delete();
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(const SnackBar(content: Text('Publicación eliminada')));
 }

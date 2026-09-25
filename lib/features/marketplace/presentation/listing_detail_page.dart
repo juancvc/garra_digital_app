@@ -308,6 +308,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
                 ConsultarPorChatButton(
                   sellerUserId: current.sellerUserId!,
                   listingTitle: current.title,
+                  listingPrice: current.priceLabel,
                 ),
               ],
               const SizedBox(height: GarraSpacing.md),

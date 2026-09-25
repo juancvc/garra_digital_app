@@ -58,7 +58,10 @@ class _ChatInboxPageState extends State<ChatInboxPage> {
     }
   }
 
-  Future<void> _respond(ChatConversation request, {required bool accept}) async {
+  Future<void> _respond(
+    ChatConversation request, {
+    required bool accept,
+  }) async {
     setState(() => _busyId = request.id);
     try {
       if (accept) {
@@ -119,7 +122,8 @@ class _ChatInboxPageState extends State<ChatInboxPage> {
 
   Widget _body() {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) return GarraErrorState(message: _error!, onRetry: _load);
+    if (_error != null)
+      return GarraErrorState(message: _error!, onRetry: _load);
     if (_requestsTab) return _requestsList();
     return _conversationList();
   }

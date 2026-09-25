@@ -64,6 +64,31 @@ class ChatConversation {
   }
 }
 
+class ChatMediaItem {
+  const ChatMediaItem({
+    required this.assetId,
+    required this.url,
+    required this.contentType,
+    required this.kind,
+  });
+
+  final String assetId;
+  final String url;
+  final String contentType;
+  final String kind;
+
+  bool get isVideo => kind == 'VIDEO';
+
+  factory ChatMediaItem.fromJson(Map<String, dynamic> json) {
+    return ChatMediaItem(
+      assetId: json['assetId']?.toString() ?? '',
+      url: json['url']?.toString() ?? '',
+      contentType: json['contentType']?.toString() ?? '',
+      kind: json['kind']?.toString() ?? 'IMAGE',
+    );
+  }
+}
+
 class ChatMessage {
   const ChatMessage({
     required this.id,
@@ -72,6 +97,7 @@ class ChatMessage {
     required this.content,
     required this.mine,
     this.createdAt,
+    this.media = const [],
   });
 
   final String id;
@@ -80,6 +106,7 @@ class ChatMessage {
   final String content;
   final bool mine;
   final DateTime? createdAt;
+  final List<ChatMediaItem> media;
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     return ChatMessage(
@@ -89,6 +116,12 @@ class ChatMessage {
       content: json['content']?.toString() ?? '',
       mine: json['mine'] == true,
       createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+      media: (json['media'] as List? ?? const [])
+          .whereType<Map>()
+          .map(
+            (item) => ChatMediaItem.fromJson(Map<String, dynamic>.from(item)),
+          )
+          .toList(),
     );
   }
 }

@@ -14,7 +14,8 @@ enum MediaUploadPurpose {
   storeLogo('MARKETPLACE_STORE_LOGO'),
   storeBanner('MARKETPLACE_STORE_BANNER'),
   communityPost('COMMUNITY_POST'),
-  solidarity('SOLIDARITY');
+  solidarity('SOLIDARITY'),
+  chatImage('CHAT_IMAGE');
 
   const MediaUploadPurpose(this.apiValue);
   final String apiValue;
