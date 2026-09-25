@@ -99,7 +99,7 @@ class _RutaAlTemploPageState extends ConsumerState<RutaAlTemploPage> {
                         return SizedBox(
                           width: double.infinity,
                           child: FilledButton.icon(
-                            onPressed: () => context.go('/mapa-crema'),
+                            onPressed: () => context.push('/mapa-crema'),
                             icon: const Icon(Icons.map_rounded),
                             label: const Text('Ver mapa'),
                           ),

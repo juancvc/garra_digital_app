@@ -307,7 +307,13 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
         leading: IconButton(
           tooltip: 'Volver',
           icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.go('/ruta-templo'),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+              return;
+            }
+            context.go('/ruta-templo');
+          },
         ),
         title: const Text(
           'Mapa Crema',
