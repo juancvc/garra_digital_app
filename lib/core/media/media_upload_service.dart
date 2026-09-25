@@ -14,6 +14,7 @@ enum MediaUploadPurpose {
   storeLogo('MARKETPLACE_STORE_LOGO'),
   storeBanner('MARKETPLACE_STORE_BANNER'),
   communityPost('COMMUNITY_POST'),
+  profileAvatar('PROFILE_AVATAR'),
   solidarity('SOLIDARITY'),
   chatImage('CHAT_IMAGE');
 
@@ -103,12 +104,29 @@ class MediaUploadService {
     return _sessionId!;
   }
 
-  Future<XFile?> pickImage() {
+  Future<XFile?> pickImage({double maxSide = 1920}) {
     return _picker.pickImage(
       source: ImageSource.gallery,
-      maxWidth: 1920,
-      maxHeight: 1920,
+      maxWidth: maxSide,
+      maxHeight: maxSide,
       imageQuality: 85,
+    );
+  }
+
+  Future<XFile?> pickCamera({double maxSide = 1920}) {
+    return _picker.pickImage(
+      source: ImageSource.camera,
+      maxWidth: maxSide,
+      maxHeight: maxSide,
+      imageQuality: 85,
+    );
+  }
+
+  Future<MediaDraft> uploadAvatar(XFile file) {
+    return uploadFile(
+      file: file,
+      purpose: MediaUploadPurpose.profileAvatar,
+      squareMax: 720,
     );
   }
 
@@ -122,19 +140,21 @@ class MediaUploadService {
     return files.take(max).toList();
   }
 
-  Future<Uint8List> compressIfNeeded(XFile file) async {
+  Future<Uint8List> compressIfNeeded(XFile file, {int? maxSide}) async {
     final original = await file.readAsBytes();
-    if (original.lengthInBytes <= 1.5 * 1024 * 1024) {
+    if (maxSide == null && original.lengthInBytes <= 1.5 * 1024 * 1024) {
       return original;
     }
     final dir = await getTemporaryDirectory();
     final target = '${dir.path}/garra_${_uuid.v4()}.jpg';
+    final side = maxSide ?? 1600;
     final compressed = await FlutterImageCompress.compressAndGetFile(
       file.path,
       target,
-      quality: 82,
-      minWidth: 1600,
-      minHeight: 1600,
+      quality: maxSide == null ? 82 : 78,
+      minWidth: side,
+      minHeight: side,
+      format: CompressFormat.jpeg,
     );
     if (compressed == null) return original;
     return compressed.readAsBytes();
@@ -190,6 +210,7 @@ class MediaUploadService {
     required XFile file,
     required MediaUploadPurpose purpose,
     void Function(MediaDraft draft)? onUpdate,
+    int? squareMax,
   }) async {
     final draft = MediaDraft(
       localId: _uuid.v4(),
@@ -198,7 +219,7 @@ class MediaUploadService {
     );
     onUpdate?.call(draft);
     try {
-      final bytes = await compressIfNeeded(file);
+      final bytes = await compressIfNeeded(file, maxSide: squareMax);
       draft.bytes = bytes;
       draft.state = MediaUploadState.uploading;
       onUpdate?.call(draft);

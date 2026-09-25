@@ -214,6 +214,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
                   children: [
                     GarraAvatar(
                       displayName: conversation.otherDisplayName,
+                      avatarUrl: conversation.otherAvatarUrl,
                       size: 32,
                     ),
                     const SizedBox(width: 10),

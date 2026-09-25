@@ -150,7 +150,7 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
                       TextField(
                         controller: _countryController,
                         decoration: const InputDecoration(
-                          labelText: 'País (código)',
+                          labelText: 'País',
                         ),
                       ),
                       const SizedBox(height: GarraSpacing.md),

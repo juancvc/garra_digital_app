@@ -40,6 +40,7 @@ class ChatConversation {
     this.context = 'SOCIAL',
     this.listingTitle,
     this.listingPriceLabel,
+    this.otherAvatarUrl,
   });
 
   final String id;
@@ -54,6 +55,7 @@ class ChatConversation {
   final String context;
   final String? listingTitle;
   final String? listingPriceLabel;
+  final String? otherAvatarUrl;
 
   String get statusLabel {
     switch (status) {
@@ -82,6 +84,7 @@ class ChatConversation {
       context: json['context']?.toString() ?? 'SOCIAL',
       listingTitle: json['listingTitle']?.toString(),
       listingPriceLabel: json['listingPriceLabel']?.toString(),
+      otherAvatarUrl: json['otherAvatarUrl']?.toString(),
     );
   }
 }

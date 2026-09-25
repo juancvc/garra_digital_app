@@ -382,9 +382,11 @@ void main() {
     await tester.pumpWidget(pumpClanDetail(service, 'garra-surco'));
     await tester.pumpAndSettle();
     expect(find.text('Garra Surco'), findsWidgets);
-    expect(find.textContaining('Comunidad crema'), findsOneWidget);
     expect(find.textContaining('miembros'), findsWidgets);
     expect(find.text('Unirme'), findsOneWidget);
+    await tester.tap(find.text('Información'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Comunidad crema'), findsOneWidget);
   });
 
   testWidgets('OPEN_CLAN_JOIN', (tester) async {

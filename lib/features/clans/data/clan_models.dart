@@ -261,6 +261,7 @@ class ClanMemberModel {
     required this.username,
     required this.displayName,
     this.avatarUrl,
+    this.fanUserId,
     required this.role,
     this.joinedAt,
   });
@@ -268,6 +269,7 @@ class ClanMemberModel {
   final String username;
   final String displayName;
   final String? avatarUrl;
+  final String? fanUserId;
   final String role;
   final DateTime? joinedAt;
 
@@ -276,6 +278,7 @@ class ClanMemberModel {
       username: json['username']?.toString() ?? '',
       displayName: json['displayName'] as String? ?? '',
       avatarUrl: json['avatarUrl'] as String?,
+      fanUserId: json['fanUserId']?.toString(),
       role: json['role']?.toString() ??
           json['clanRole']?.toString() ??
           'MEMBER',
@@ -461,16 +464,19 @@ class CreateClanPostRequest {
   const CreateClanPostRequest({
     required this.content,
     this.imageUrl,
+    this.mediaAssetId,
     this.locationTag = 'HOME',
   });
 
   final String content;
   final String? imageUrl;
+  final String? mediaAssetId;
   final String locationTag;
 
   Map<String, dynamic> toJson() => {
         'content': content,
         if (imageUrl != null) 'imageUrl': imageUrl,
+        if (mediaAssetId != null) 'mediaAssetId': mediaAssetId,
         'locationTag': locationTag,
       };
 }

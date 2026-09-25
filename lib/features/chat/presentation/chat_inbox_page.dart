@@ -153,6 +153,7 @@ class _ChatInboxPageState extends State<ChatInboxPage> {
               children: [
                 GarraAvatar(
                   displayName: conversation.otherDisplayName,
+                  avatarUrl: conversation.otherAvatarUrl,
                   size: 44,
                 ),
                 const SizedBox(width: 12),

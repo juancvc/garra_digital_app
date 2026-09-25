@@ -75,8 +75,9 @@ void main() {
     expect(find.text('Nueva publicación'), findsOneWidget);
     expect(find.byTooltip('Cancelar'), findsOneWidget);
     expect(find.text('Publicar'), findsOneWidget);
+    expect(find.text('Agregar fotos'), findsOneWidget);
     expect(find.textContaining('/220'), findsOneWidget);
-    expect(find.textContaining('/4'), findsOneWidget);
+    expect(find.textContaining('/4'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

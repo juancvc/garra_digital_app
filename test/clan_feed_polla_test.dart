@@ -287,7 +287,7 @@ void main() {
     final service = FakeClanFeedService(posts: [sampleClanPost()]);
     await tester.pumpWidget(pumpTribuna(service));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Publicar en'), findsOneWidget);
+    expect(find.text('¿Qué quieres compartir?'), findsOneWidget);
     expect(find.text('Vamos la U desde la tribuna del clan'), findsOneWidget);
     expect(find.byType(GarraReactionBar), findsOneWidget);
   });

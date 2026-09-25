@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/design/garra_colors.dart';
-import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
@@ -600,55 +599,59 @@ class _CommentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(GarraSpacing.md),
-      decoration: BoxDecoration(
-        color: const Color(GarraColors.surface),
-        borderRadius: BorderRadius.circular(GarraRadius.lg),
-        border: Border.all(color: const Color(GarraColors.borderSubtle)),
-      ),
+    final name = comment.fullName.isNotEmpty
+        ? comment.fullName
+        : comment.username;
+    final openProfile = comment.authorId == null
+        ? null
+        : () => context.push('/comunidad/u/${comment.authorId}');
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GarraAvatar(
-            displayName: comment.fullName.isNotEmpty
-                ? comment.fullName
-                : comment.username,
-            avatarUrl: comment.avatarUrl,
-            size: 30,
+          GestureDetector(
+            onTap: openProfile,
+            child: GarraAvatar(
+              displayName: name,
+              avatarUrl: comment.avatarUrl,
+              size: 28,
+            ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '${comment.fullName.isNotEmpty ? comment.fullName : '@${comment.username}'} · ${formatGarraRelativeTime(comment.createdAt)}',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
+                GestureDetector(
+                  onTap: openProfile,
+                  child: Text(
+                    name,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
                     ),
-                    if (onDelete != null)
-                      IconButton(
-                        tooltip: 'Eliminar',
-                        onPressed: onDelete,
-                        icon: const Icon(Icons.delete_outline, size: 18),
-                        color: const Color(GarraColors.gold),
-                      ),
-                  ],
+                  ),
                 ),
                 Text(
                   comment.content,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
+                Text(
+                  formatGarraRelativeTime(comment.createdAt),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: const Color(GarraColors.textSecondary),
+                  ),
+                ),
               ],
             ),
           ),
+          if (onDelete != null)
+            IconButton(
+              tooltip: 'Eliminar',
+              onPressed: onDelete,
+              icon: const Icon(Icons.delete_outline, size: 18),
+              color: const Color(GarraColors.gold),
+            ),
         ],
       ),
     );

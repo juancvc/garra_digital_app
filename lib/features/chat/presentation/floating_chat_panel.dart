@@ -330,7 +330,11 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
             padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
             child: Row(
               children: [
-                GarraAvatar(displayName: name, size: 36),
+                GarraAvatar(
+                  displayName: name,
+                  avatarUrl: _conversation?.otherAvatarUrl,
+                  size: 36,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(

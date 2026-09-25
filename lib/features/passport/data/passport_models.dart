@@ -214,6 +214,7 @@ class ProfileUpdateRequest {
     this.countryCode,
     this.supporterSinceYear,
     this.profileVisibility,
+    this.avatarMediaAssetId,
   });
 
   final String? displayName;
@@ -222,6 +223,7 @@ class ProfileUpdateRequest {
   final String? countryCode;
   final int? supporterSinceYear;
   final String? profileVisibility;
+  final String? avatarMediaAssetId;
 
   Map<String, dynamic> toJson() {
     return {
@@ -231,6 +233,7 @@ class ProfileUpdateRequest {
       if (countryCode != null) 'countryCode': countryCode,
       if (supporterSinceYear != null) 'supporterSinceYear': supporterSinceYear,
       if (profileVisibility != null) 'profileVisibility': profileVisibility,
+      if (avatarMediaAssetId != null) 'avatarMediaAssetId': avatarMediaAssetId,
     };
   }
 }

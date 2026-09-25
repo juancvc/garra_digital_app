@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/media/media_upload_service.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
-import '../../../core/widgets/garra_ui.dart';
 import '../../community/data/engagement_utils.dart';
 import '../../community/data/wall_post_model.dart';
 import '../../community/presentation/providers/community_provider.dart';
@@ -37,7 +38,10 @@ class ClanTribunaPage extends ConsumerStatefulWidget {
 
 class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
   final _contentController = TextEditingController();
+  final _media = MediaUploadService();
   bool _publishing = false;
+  String? _photoAssetId;
+  bool _uploadingPhoto = false;
 
   @override
   void dispose() {
@@ -51,6 +55,58 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
     try {
       await ref.read(clanFeedProvider(widget.slug).future);
     } catch (_) {}
+  }
+
+  Future<void> _addPhoto() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('Elegir de galería'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            ListTile(
+              title: const Text('Tomar foto'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+    setState(() => _uploadingPhoto = true);
+    try {
+      final file = source == ImageSource.camera
+          ? await _media.pickCamera()
+          : await _media.pickImage();
+      if (file == null) {
+        if (mounted) setState(() => _uploadingPhoto = false);
+        return;
+      }
+      final draft = await _media.uploadFile(
+        file: file,
+        purpose: MediaUploadPurpose.communityPost,
+      );
+      if (!mounted) return;
+      setState(() {
+        _uploadingPhoto = false;
+        _photoAssetId = draft.isReady ? draft.assetId : null;
+      });
+      if (!draft.isReady) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No pudimos cargar la foto.')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _uploadingPhoto = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No pudimos cargar la foto.')),
+      );
+    }
   }
 
   Future<void> _publish(String clanName) async {
@@ -72,9 +128,13 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
     try {
       await ref.read(clanServiceProvider).createClanPost(
             widget.slug,
-            CreateClanPostRequest(content: content),
+            CreateClanPostRequest(
+              content: content,
+              mediaAssetId: _photoAssetId,
+            ),
           );
       _contentController.clear();
+      _photoAssetId = null;
       ref.invalidate(clanFeedProvider(widget.slug));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -145,7 +205,10 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
                 clanName: name,
                 controller: _contentController,
                 publishing: _publishing,
+                uploadingPhoto: _uploadingPhoto,
+                hasPhoto: _photoAssetId != null,
                 onPublish: () => _publish(name),
+                onAddPhoto: _addPhoto,
               ),
               const SizedBox(height: GarraSpacing.lg),
               feedAsync.when(
@@ -216,13 +279,19 @@ class _ClanComposer extends StatelessWidget {
     required this.clanName,
     required this.controller,
     required this.publishing,
+    required this.uploadingPhoto,
+    required this.hasPhoto,
     required this.onPublish,
+    required this.onAddPhoto,
   });
 
   final String clanName;
   final TextEditingController controller;
   final bool publishing;
+  final bool uploadingPhoto;
+  final bool hasPhoto;
   final VoidCallback onPublish;
+  final VoidCallback onAddPhoto;
 
   @override
   Widget build(BuildContext context) {
@@ -231,7 +300,7 @@ class _ClanComposer extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Publicar en $clanName',
+            '¿Qué quieres compartir?',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: GarraSpacing.sm),
@@ -239,15 +308,32 @@ class _ClanComposer extends StatelessWidget {
             controller: controller,
             maxLength: 220,
             maxLines: 3,
-            decoration: const InputDecoration(
-              hintText: 'Escribe tu arenga…',
+            decoration: InputDecoration(
+              hintText: 'Escribe en $clanName',
             ),
           ),
           const SizedBox(height: GarraSpacing.sm),
-          GarraPrimaryButton(
-            label: publishing ? 'Publicando…' : 'Publicar',
-            loading: publishing,
-            onPressed: publishing ? null : onPublish,
+          Row(
+            children: [
+              TextButton.icon(
+                onPressed: publishing || uploadingPhoto ? null : onAddPhoto,
+                icon: const Icon(Icons.add_photo_alternate_outlined),
+                label: Text(
+                  uploadingPhoto
+                      ? 'Subiendo…'
+                      : hasPhoto
+                      ? 'Foto lista'
+                      : 'Agregar foto',
+                ),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(88, 40),
+                ),
+                onPressed: publishing ? null : onPublish,
+                child: Text(publishing ? 'Publicando…' : 'Publicar'),
+              ),
+            ],
           ),
         ],
       ),

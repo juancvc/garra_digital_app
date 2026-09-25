@@ -41,12 +41,16 @@ class _CreateCommunityPostPageState
     super.dispose();
   }
 
-  Future<void> _pickPhotos() async {
+  Future<void> _pickPhotos(ImageSource source) async {
     if (_drafts.length >= 4) return;
     setState(() => _error = null);
     try {
       final remaining = 4 - _drafts.length;
-      final files = await _media.pickMultiImage(max: remaining);
+      final files = source == ImageSource.camera
+          ? [
+              if (await _media.pickCamera() case final file?) file,
+            ]
+          : await _media.pickMultiImage(max: remaining);
       for (final file in files) {
         if (_drafts.length >= 4) break;
         late MediaDraft draft;
@@ -80,6 +84,31 @@ class _CreateCommunityPostPageState
       if (!mounted) return;
       setState(() => _error = 'No pudimos cargar las fotos.');
     }
+  }
+
+  Future<void> _choosePhotoSource() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Elegir de galería'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Tomar foto'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+    await _pickPhotos(source);
   }
 
   Future<void> _retry(MediaDraft draft) async {
@@ -197,56 +226,68 @@ class _CreateCommunityPostPageState
           ),
           if (_drafts.isNotEmpty)
             SizedBox(
-              height: 96,
-              child: ListView.separated(
+              height: 104,
+              child: ReorderableListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(
                   horizontal: GarraSpacing.lg,
                 ),
                 itemCount: _drafts.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                onReorder: (oldIndex, newIndex) {
+                  setState(() {
+                    if (newIndex > oldIndex) newIndex -= 1;
+                    final item = _drafts.removeAt(oldIndex);
+                    _drafts.insert(newIndex, item);
+                  });
+                },
                 itemBuilder: (context, i) {
                   final d = _drafts[i];
-                  return Stack(
-                    children: [
-                      Container(
-                        width: 88,
-                        height: 88,
-                        decoration: BoxDecoration(
-                          color: const Color(GarraColors.surfaceRaised),
-                          borderRadius: BorderRadius.circular(12),
-                          image: d.localPath != null
-                              ? DecorationImage(
-                                  image: FileImage(File(d.localPath!)),
-                                  fit: BoxFit.cover,
+                  return Padding(
+                    key: ValueKey(d.localId),
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: 88,
+                          height: 88,
+                          decoration: BoxDecoration(
+                            color: const Color(GarraColors.surfaceRaised),
+                            borderRadius: BorderRadius.circular(12),
+                            image: d.localPath != null
+                                ? DecorationImage(
+                                    image: FileImage(File(d.localPath!)),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
+                          ),
+                          child: d.state == MediaUploadState.failed
+                              ? Center(
+                                  child: IconButton(
+                                    onPressed: () => _retry(d),
+                                    icon: const Icon(Icons.refresh),
+                                  ),
+                                )
+                              : d.state == MediaUploadState.uploading
+                              ? Center(
+                                  child: CircularProgressIndicator(
+                                    value: d.progress > 0 ? d.progress : null,
+                                  ),
                                 )
                               : null,
                         ),
-                        child: d.state == MediaUploadState.failed
-                            ? Center(
-                                child: IconButton(
-                                  onPressed: () => _retry(d),
-                                  icon: const Icon(Icons.refresh),
-                                ),
-                              )
-                            : d.state == MediaUploadState.uploading
-                            ? Center(
-                                child: CircularProgressIndicator(
-                                  value: d.progress > 0 ? d.progress : null,
-                                ),
-                              )
-                            : null,
-                      ),
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: IconButton(
-                          iconSize: 18,
-                          onPressed: () => setState(() => _drafts.removeAt(i)),
-                          icon: const Icon(Icons.close),
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: IconButton(
+                            tooltip: 'Quitar foto',
+                            iconSize: 18,
+                            onPressed: () =>
+                                setState(() => _drafts.removeAt(i)),
+                            icon: const Icon(Icons.close),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   );
                 },
               ),
@@ -261,17 +302,18 @@ class _CreateCommunityPostPageState
             ),
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(GarraSpacing.md),
+              padding: const EdgeInsets.fromLTRB(
+                GarraSpacing.md,
+                GarraSpacing.sm,
+                GarraSpacing.md,
+                GarraSpacing.md,
+              ),
               child: Row(
                 children: [
-                  IconButton(
-                    tooltip: 'Foto',
-                    onPressed: _drafts.length >= 4 ? null : _pickPhotos,
-                    icon: const Icon(Icons.photo_outlined),
-                  ),
-                  Text(
-                    '${_drafts.length}/4',
-                    style: Theme.of(context).textTheme.bodySmall,
+                  TextButton(
+                    key: const ValueKey('add-photos'),
+                    onPressed: _drafts.length >= 4 ? null : _choosePhotoSource,
+                    child: const Text('Agregar fotos'),
                   ),
                   const Spacer(),
                   Text(

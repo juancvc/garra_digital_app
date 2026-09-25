@@ -203,7 +203,7 @@ Future<void> confirmAndDeletePublication({
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('¿Eliminar esta publicación?'),
+      title: const Text('¿Eliminar publicación?'),
       content: const Text('Esta acción no se puede deshacer.'),
       actions: [
         TextButton(
