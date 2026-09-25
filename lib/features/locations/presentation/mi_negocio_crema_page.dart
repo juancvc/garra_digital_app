@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/widgets/garra_form.dart';
 import '../../../core/design/garra_spacing.dart';
-import '../../../core/widgets/garra_ui.dart';
 import '../data/crema_business_application_service.dart';
 
 class MiNegocioCremaPage extends StatefulWidget {
@@ -165,6 +164,7 @@ class _RegistrarNegocioCremaPageState extends State<RegistrarNegocioCremaPage> {
   final _instagram = TextEditingController();
   double _lat = -12.0553;
   double _lng = -77.0379;
+  bool _authorized = false;
   bool _submitting = false;
 
   @override
@@ -213,7 +213,15 @@ class _RegistrarNegocioCremaPageState extends State<RegistrarNegocioCremaPage> {
   Future<void> _submit() async {
     if (_name.text.trim().isEmpty || _address.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nombre y dirección son obligatorios')),
+        const SnackBar(content: Text('Nombre y ciudad son obligatorios')),
+      );
+      return;
+    }
+    if (!_authorized) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Confirma que puedes registrar este negocio'),
+        ),
       );
       return;
     }
@@ -250,77 +258,93 @@ class _RegistrarNegocioCremaPageState extends State<RegistrarNegocioCremaPage> {
         title: const Text('Registrar mi negocio'),
         backgroundColor: const Color(GarraColors.charcoal),
       ),
+      resizeToAvoidBottomInset: true,
       body: ListView(
-        padding: const EdgeInsets.all(GarraSpacing.lg),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: EdgeInsets.fromLTRB(
+          GarraSpacing.lg,
+          GarraSpacing.md,
+          GarraSpacing.lg,
+          GarraSpacing.xl + MediaQuery.viewInsetsOf(context).bottom,
+        ),
         children: [
           const GarraFormIntro(
-            title: 'Registrar negocio',
+            title: 'Registrar negocio crema',
             subtitle:
-                'Cuéntanos qué ofreces. Revisaremos la solicitud antes de publicarla en Negocios Cremas.',
+                'Un negocio registrado en el directorio. El Marketplace sigue siendo el lugar de los anuncios.',
           ),
-          TextField(
-            controller: _name,
-            decoration: const InputDecoration(labelText: 'Nombre'),
-          ),
-          TextField(
-            controller: _category,
-            decoration: const InputDecoration(labelText: 'Categoría'),
-          ),
-          TextField(
-            controller: _description,
-            maxLines: 3,
-            decoration: const InputDecoration(labelText: 'Descripción'),
-          ),
-          TextField(
-            controller: _address,
-            decoration: const InputDecoration(labelText: 'Dirección'),
-          ),
-          const SizedBox(height: GarraSpacing.md),
-          Text(
-            'Ubicación (ajusta con el mapa)',
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-          const SizedBox(height: GarraSpacing.sm),
-          Row(
+          GarraFormSection(
+            title: 'TU NEGOCIO',
             children: [
-              Expanded(
-                child: Text(
-                  'Lat: ${_lat.toStringAsFixed(4)}\nLng: ${_lng.toStringAsFixed(4)}',
-                ),
-              ),
-              TextButton(
-                onPressed: () async {
-                  final picked = await context.push<Map<String, double>>(
-                    '/negocios/mi-negocio/ubicacion',
-                    extra: {'lat': _lat, 'lng': _lng},
-                  );
-                  if (picked != null) {
-                    setState(() {
-                      _lat = picked['lat'] ?? _lat;
-                      _lng = picked['lng'] ?? _lng;
-                    });
-                  }
-                },
-                child: const Text('Elegir en mapa'),
+              GarraTextField(label: 'Nombre', controller: _name),
+              GarraTextField(label: 'Categoría', controller: _category),
+              GarraTextArea(
+                label: 'Descripción',
+                controller: _description,
+                minLines: 3,
               ),
             ],
           ),
-          TextField(
-            controller: _whatsapp,
-            decoration: const InputDecoration(labelText: 'WhatsApp'),
+          GarraFormSection(
+            title: 'UBICACIÓN',
+            children: [
+              GarraTextField(label: 'Ciudad', controller: _address),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () async {
+                    final picked = await context.push<Map<String, double>>(
+                      '/negocios/mi-negocio/ubicacion',
+                      extra: {'lat': _lat, 'lng': _lng},
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        _lat = picked['lat'] ?? _lat;
+                        _lng = picked['lng'] ?? _lng;
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.map_outlined),
+                  label: const Text('Elegir en mapa'),
+                ),
+              ),
+            ],
           ),
-          TextField(
-            controller: _phone,
-            decoration: const InputDecoration(labelText: 'Teléfono'),
+          GarraFormSection(
+            title: 'CONTACTO',
+            children: [
+              GarraTextField(
+                label: 'WhatsApp',
+                controller: _whatsapp,
+                keyboardType: TextInputType.phone,
+              ),
+              GarraTextField(
+                label: 'Teléfono',
+                controller: _phone,
+                keyboardType: TextInputType.phone,
+              ),
+              GarraTextField(label: 'Instagram', controller: _instagram),
+            ],
           ),
-          TextField(
-            controller: _instagram,
-            decoration: const InputDecoration(labelText: 'Instagram'),
+          GarraFormSection(
+            title: 'LEGAL',
+            children: [
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _authorized,
+                onChanged: (value) =>
+                    setState(() => _authorized = value ?? false),
+                title: const Text(
+                  'Confirmo que puedo publicar este negocio y que la información es real.',
+                ),
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+            ],
           ),
-          const SizedBox(height: GarraSpacing.xxl),
-          GarraPrimaryButton(
-            label: _submitting ? 'Enviando…' : 'Enviar a revisión',
-            onPressed: _submitting ? null : _submit,
+          GarraFormActionBar(
+            label: 'Enviar solicitud',
+            loading: _submitting,
+            onPressed: _submit,
           ),
         ],
       ),

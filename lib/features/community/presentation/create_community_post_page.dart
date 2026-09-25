@@ -42,17 +42,17 @@ class _CreateCommunityPostPageState
   }
 
   Future<void> _pickPhotos(ImageSource source) async {
-    if (_drafts.length >= 4) return;
+    if (_drafts.length >= MediaUploadService.communityPhotoLimit) return;
     setState(() => _error = null);
     try {
-      final remaining = 4 - _drafts.length;
+      final remaining = MediaUploadService.communityPhotoLimit - _drafts.length;
       final files = source == ImageSource.camera
           ? [
               if (await _media.pickCamera() case final file?) file,
             ]
           : await _media.pickMultiImage(max: remaining);
       for (final file in files) {
-        if (_drafts.length >= 4) break;
+        if (_drafts.length >= MediaUploadService.communityPhotoLimit) break;
         late MediaDraft draft;
         draft = await _media.uploadFile(
           file: file,
@@ -312,7 +312,9 @@ class _CreateCommunityPostPageState
                 children: [
                   TextButton(
                     key: const ValueKey('add-photos'),
-                    onPressed: _drafts.length >= 4 ? null : _choosePhotoSource,
+                    onPressed: _drafts.length >= MediaUploadService.communityPhotoLimit
+                        ? null
+                        : _choosePhotoSource,
                     child: const Text('Agregar fotos'),
                   ),
                   const Spacer(),

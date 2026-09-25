@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_card.dart';
+import '../../../core/widgets/garra_form.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/solidarity_service.dart';
@@ -314,55 +315,85 @@ class _SolidariaCreatePageState extends State<SolidariaCreatePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(GarraColors.charcoal),
-      appBar: AppBar(title: const Text('Solicitud Solidaria')),
+      resizeToAvoidBottomInset: true,
+      appBar: AppBar(title: const Text('Solicitud solidaria')),
       body: ListView(
-        padding: const EdgeInsets.all(GarraSpacing.lg),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: EdgeInsets.fromLTRB(
+          GarraSpacing.lg,
+          GarraSpacing.md,
+          GarraSpacing.lg,
+          GarraSpacing.xl + MediaQuery.viewInsetsOf(context).bottom,
+        ),
         children: [
-          DropdownButtonFormField<String>(
-            value: _type,
-            items: const [
-              DropdownMenuItem(value: 'BLOOD', child: Text('Sangre')),
-              DropdownMenuItem(value: 'FOOD', child: Text('Alimentos')),
-              DropdownMenuItem(value: 'SCHOOL_SUPPLIES', child: Text('Útiles')),
-              DropdownMenuItem(value: 'VOLUNTEER', child: Text('Voluntariado')),
-              DropdownMenuItem(value: 'EMERGENCY', child: Text('Emergencia')),
-              DropdownMenuItem(value: 'OTHER', child: Text('Otro')),
+          const GarraFormIntro(
+            title: 'Solicitud solidaria',
+            subtitle: 'Cuéntanos brevemente qué apoyo necesitas.',
+          ),
+          GarraFormSection(
+            title: 'TIPO',
+            children: [
+              GarraSelectField<String>(
+                label: 'Tipo',
+                value: _type,
+                items: const [
+                  DropdownMenuItem(value: 'BLOOD', child: Text('Sangre')),
+                  DropdownMenuItem(value: 'FOOD', child: Text('Alimentos')),
+                  DropdownMenuItem(
+                    value: 'SCHOOL_SUPPLIES',
+                    child: Text('Útiles'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'VOLUNTEER',
+                    child: Text('Voluntariado'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'EMERGENCY',
+                    child: Text('Emergencia'),
+                  ),
+                  DropdownMenuItem(value: 'OTHER', child: Text('Otro')),
+                ],
+                onChanged: (v) => setState(() => _type = v ?? 'OTHER'),
+              ),
             ],
-            onChanged: (v) => setState(() => _type = v ?? 'OTHER'),
-            decoration: const InputDecoration(labelText: 'Tipo'),
           ),
-          TextField(
-            controller: _title,
-            decoration: const InputDecoration(labelText: 'Título'),
+          GarraFormSection(
+            title: 'DETALLE',
+            children: [
+              GarraTextField(label: 'Título', controller: _title),
+              GarraTextArea(
+                label: 'Descripción',
+                controller: _description,
+                minLines: 4,
+              ),
+            ],
           ),
-          TextField(
-            controller: _description,
-            maxLines: 4,
-            decoration: const InputDecoration(labelText: 'Descripción'),
-          ),
-          TextField(
-            controller: _city,
-            decoration: const InputDecoration(labelText: 'Ciudad'),
-          ),
-          TextField(
-            controller: _contact,
-            decoration: const InputDecoration(labelText: 'Contacto'),
-          ),
-          TextField(
-            controller: _whatsapp,
-            decoration: const InputDecoration(labelText: 'WhatsApp (opcional)'),
+          GarraFormSection(
+            title: 'UBICACIÓN Y CONTACTO',
+            children: [
+              GarraTextField(label: 'Ciudad', controller: _city),
+              GarraTextField(label: 'Contacto', controller: _contact),
+              GarraTextField(
+                label: 'WhatsApp (opcional)',
+                controller: _whatsapp,
+                keyboardType: TextInputType.phone,
+              ),
+            ],
           ),
           if (_error != null)
-            Text(_error!, style: const TextStyle(color: Colors.orangeAccent)),
-          const SizedBox(height: 16),
-          GarraPrimaryButton(
-            label: _busy ? 'Enviando…' : 'Enviar a revisión',
-            onPressed: _busy ? null : _submit,
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'No procesamos dinero. Garra solo facilita el contacto entre hinchas.',
-            style: TextStyle(color: Color(GarraColors.creamMuted), fontSize: 12),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                _error!,
+                style: const TextStyle(color: Colors.orangeAccent),
+              ),
+            ),
+          GarraFormActionBar(
+            label: 'Enviar a revisión',
+            loading: _busy,
+            onPressed: _submit,
+            footnote:
+                'No procesamos dinero. Garra solo facilita el contacto entre hinchas.',
           ),
         ],
       ),

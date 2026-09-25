@@ -15,7 +15,7 @@ enum MediaUploadPurpose {
   storeBanner('MARKETPLACE_STORE_BANNER'),
   communityPost('COMMUNITY_POST'),
   profileAvatar('PROFILE_AVATAR'),
-  solidarity('SOLIDARITY'),
+  solidarity('SOLIDARITY_EVIDENCE'),
   chatImage('CHAT_IMAGE');
 
   const MediaUploadPurpose(this.apiValue);
@@ -90,11 +90,17 @@ class MediaDraft {
 
 /// Generic media upload — never holds storage credentials.
 class MediaUploadService {
-  MediaUploadService({Dio? dio, ImagePicker? picker})
+  MediaUploadService({Dio? dio, Dio? binaryClient, ImagePicker? picker})
       : _dio = dio ?? DioClient.instance,
+        _binaryClient = binaryClient,
         _picker = picker ?? ImagePicker();
 
+  static const int communityPhotoLimit = 4;
+  static const String uploadFailedMessage =
+      'No pudimos subir la foto. Intenta nuevamente.';
+
   final Dio _dio;
+  final Dio? _binaryClient;
   final ImagePicker _picker;
   final _uuid = const Uuid();
 
@@ -164,11 +170,13 @@ class MediaUploadService {
     required MediaUploadPurpose purpose,
     required String contentType,
     required int sizeBytes,
+    String fileName = 'photo.jpg',
   }) async {
     final response = await _dio.post(
-      '/media/signed-upload',
+      '/media/uploads',
       data: {
         'purpose': purpose.apiValue,
+        'fileName': fileName,
         'contentType': contentType,
         'sizeBytes': sizeBytes,
       },
@@ -182,7 +190,7 @@ class MediaUploadService {
     required Uint8List bytes,
     void Function(double progress)? onProgress,
   }) async {
-    final put = Dio();
+    final put = _binaryClient ?? Dio();
     await put.put(
       signed.uploadUrl,
       data: bytes,
@@ -256,7 +264,7 @@ class MediaUploadService {
       }
     } catch (e) {
       draft.state = MediaUploadState.failed;
-      draft.error = 'No pudimos subir la foto. Intenta nuevamente.';
+      draft.error = uploadFailedMessage;
       onUpdate?.call(draft);
       if (kDebugMode) {
         debugPrint(

@@ -8,8 +8,8 @@ import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
 import '../../../core/utils/country_labels.dart';
 import '../../../core/widgets/garra_avatar.dart';
+import '../../../core/widgets/garra_form.dart';
 import '../../../core/widgets/garra_states.dart';
-import '../../../core/widgets/garra_ui.dart';
 import '../data/passport_models.dart';
 import 'providers/passport_provider.dart';
 
@@ -161,21 +161,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
 
     return Scaffold(
       backgroundColor: const Color(GarraColors.charcoal),
-      appBar: AppBar(
-        title: const Text('Editar perfil'),
-        actions: [
-          TextButton(
-            onPressed: _loading ? null : _submit,
-            child: _loading
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Guardar'),
-          ),
-        ],
-      ),
+      resizeToAvoidBottomInset: true,
+      appBar: AppBar(title: const Text('Editar perfil')),
       body: passportAsync.when(
         loading: () => const GarraPassportSkeleton(),
         error: (error, stackTrace) => GarraErrorState(
@@ -188,11 +175,12 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
           return Form(
             key: _formKey,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.fromLTRB(
                 GarraSpacing.lg,
                 GarraSpacing.md,
                 GarraSpacing.lg,
-                GarraSpacing.xl,
+                GarraSpacing.xl + MediaQuery.viewInsetsOf(context).bottom,
               ),
               children: [
                 Center(
@@ -215,104 +203,100 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                     ],
                   ),
                 ),
-                TextFormField(
-                  controller: _displayName,
-                  decoration: const InputDecoration(
-                    labelText: 'Nombre visible',
-                    isDense: true,
-                  ),
-                  validator: (value) {
-                    final v = value?.trim() ?? '';
-                    if (v.length < 2) return 'Mínimo 2 caracteres';
-                    if (v.length > 120) return 'Máximo 120 caracteres';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: GarraSpacing.sm),
-                TextFormField(
-                  controller: _bio,
-                  maxLength: 280,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Bio',
-                    isDense: true,
-                  ),
-                ),
-                const SizedBox(height: GarraSpacing.sm),
-                TextFormField(
-                  controller: _city,
-                  decoration: const InputDecoration(
-                    labelText: 'Ciudad',
-                    isDense: true,
-                  ),
-                  validator: (value) {
-                    if ((value ?? '').length > 80) {
-                      return 'Máximo 80 caracteres';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: GarraSpacing.sm),
-                DropdownButtonFormField<String>(
-                  key: ValueKey('country-$_country'),
-                  initialValue: _country,
-                  decoration: const InputDecoration(
-                    labelText: 'País',
-                    isDense: true,
-                  ),
-                  items: [
-                    for (final country in garraCountries)
-                      DropdownMenuItem(
-                        value: country.$1,
-                        child: Text(country.$2),
-                      ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) setState(() => _country = value);
-                  },
-                ),
-                const SizedBox(height: GarraSpacing.sm),
-                TextFormField(
-                  controller: _year,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Crema desde',
-                    helperText: 'Año en que empezaste a alentar. Ejemplo: 2012',
-                    isDense: true,
-                  ),
-                  validator: (value) {
-                    final v = value?.trim() ?? '';
-                    if (v.isEmpty) return null;
-                    final year = int.tryParse(v);
-                    final now = DateTime.now().year;
-                    if (year == null || year < 1900 || year > now) {
-                      return 'Año no válido';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: GarraSpacing.sm),
-                DropdownButtonFormField<String>(
-                  key: ValueKey('visibility-$_visibility'),
-                  initialValue: _visibility,
-                  decoration: const InputDecoration(
-                    labelText: 'Visibilidad',
-                    isDense: true,
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'PUBLIC', child: Text('Público')),
-                    DropdownMenuItem(
-                      value: 'MEMBERS_ONLY',
-                      child: Text('Solo miembros'),
+                GarraFormSection(
+                  title: 'IDENTIDAD',
+                  children: [
+                    GarraTextField(
+                      label: 'Nombre visible',
+                      controller: _displayName,
+                      validator: (value) {
+                        final v = value?.trim() ?? '';
+                        if (v.length < 2) return 'Mínimo 2 caracteres';
+                        if (v.length > 120) return 'Máximo 120 caracteres';
+                        return null;
+                      },
                     ),
-                    DropdownMenuItem(value: 'PRIVATE', child: Text('Privado')),
+                    GarraTextArea(
+                      label: 'Bio',
+                      controller: _bio,
+                      maxLength: 280,
+                      minLines: 3,
+                    ),
                   ],
-                  onChanged: (value) {
-                    if (value != null) setState(() => _visibility = value);
-                  },
                 ),
-                const SizedBox(height: GarraSpacing.lg),
-                GarraPrimaryButton(
+                GarraFormSection(
+                  title: 'UBICACIÓN',
+                  children: [
+                    GarraTextField(
+                      label: 'Ciudad',
+                      controller: _city,
+                      validator: (value) {
+                        if ((value ?? '').length > 80) {
+                          return 'Máximo 80 caracteres';
+                        }
+                        return null;
+                      },
+                    ),
+                    GarraSelectField<String>(
+                      label: 'País',
+                      value: _country,
+                      items: [
+                        for (final country in garraCountries)
+                          DropdownMenuItem(
+                            value: country.$1,
+                            child: Text(country.$2),
+                          ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) setState(() => _country = value);
+                      },
+                    ),
+                  ],
+                ),
+                GarraFormSection(
+                  title: 'HINCHA',
+                  children: [
+                    GarraTextField(
+                      label: 'Crema desde',
+                      controller: _year,
+                      fieldKey: const Key('profile-supporter-year'),
+                      keyboardType: TextInputType.number,
+                      helper:
+                          'Año en que empezaste a alentar. Ejemplo: 2012',
+                      validator: (value) {
+                        final v = value?.trim() ?? '';
+                        if (v.isEmpty) return null;
+                        final year = int.tryParse(v);
+                        final now = DateTime.now().year;
+                        if (year == null || year < 1900 || year > now) {
+                          return 'Año no válido';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+                GarraFormSection(
+                  title: 'PRIVACIDAD',
+                  children: [
+                    GarraSelectField<String>(
+                      label: 'Visibilidad',
+                      value: _visibility,
+                      items: const [
+                        DropdownMenuItem(value: 'PUBLIC', child: Text('Público')),
+                        DropdownMenuItem(
+                          value: 'MEMBERS_ONLY',
+                          child: Text('Solo miembros'),
+                        ),
+                        DropdownMenuItem(value: 'PRIVATE', child: Text('Privado')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) setState(() => _visibility = value);
+                      },
+                    ),
+                  ],
+                ),
+                GarraFormActionBar(
                   label: 'Guardar cambios',
                   loading: _loading,
                   onPressed: _submit,

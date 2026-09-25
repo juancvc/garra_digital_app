@@ -70,9 +70,17 @@ void main() {
     expect(find.text('País'), findsOneWidget);
     expect(find.text('Perú'), findsOneWidget);
     expect(find.text('País (ISO-2)'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.text('Visibilidad'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Público'), findsOneWidget);
-    await tester.enterText(find.widgetWithText(TextFormField, 'Crema desde'), '1800');
-    await tester.tap(find.text('Guardar'));
+    final year = find.byKey(const Key('profile-supporter-year'));
+    await tester.ensureVisible(year);
+    await tester.enterText(year, '1800');
+    await tester.ensureVisible(find.text('Guardar cambios'));
+    await tester.tap(find.text('Guardar cambios'));
     await tester.pump();
     expect(find.text('Año no válido'), findsOneWidget);
   });

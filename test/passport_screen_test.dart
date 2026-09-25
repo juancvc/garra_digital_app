@@ -186,8 +186,20 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).first, 'A');
-    await tester.tap(find.text('Guardar'));
+    await tester.scrollUntilVisible(
+      find.text('Guardar cambios'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -160));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Guardar cambios'));
     await tester.pump();
+    await tester.scrollUntilVisible(
+      find.text('Nombre visible'),
+      -300,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Mínimo 2 caracteres'), findsOneWidget);
   });
 
@@ -212,7 +224,14 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).first, 'Nuevo Nombre');
-    await tester.tap(find.text('Guardar'));
+    await tester.scrollUntilVisible(
+      find.text('Guardar cambios'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -160));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Guardar cambios'));
     await tester.pumpAndSettle();
     expect(updated, isTrue);
   });

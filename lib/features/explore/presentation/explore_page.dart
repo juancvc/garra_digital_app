@@ -19,9 +19,6 @@ class ExplorePage extends StatefulWidget {
 class _ExplorePageState extends State<ExplorePage> {
   _ExploreFilter _filter = _ExploreFilter.all;
 
-  bool _show(_ExploreFilter section) =>
-      _filter == _ExploreFilter.all || _filter == section;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -136,49 +133,84 @@ class _ExplorePageState extends State<ExplorePage> {
               ),
             ),
             const SizedBox(height: GarraSpacing.md),
-          ],
-          if (_filter == _ExploreFilter.events)
             _DestinationSection(
-              icon: Icons.event_outlined,
-              title: 'Eventos cercanos',
-              subtitle: 'Quedadas y actividades de la hinchada',
-              onTap: () => context.push('/eventos'),
-            ),
-          if (_filter == _ExploreFilter.businesses)
-            _DestinationSection(
-              icon: Icons.map_outlined,
-              title: 'Negocios Cremas',
-              subtitle: 'Negocios registrados de la hinchada',
-              onTap: () => context.push('/negocios'),
-            ),
-          if (_show(_ExploreFilter.communities))
-            _DestinationSection(
+              key: const Key('explore-comunidades'),
               icon: Icons.groups_outlined,
               title: 'Comunidades',
               subtitle: 'Encuentra tu gente crema',
               onTap: () => context.push('/clans'),
             ),
-          if (_show(_ExploreFilter.marketplace))
             _DestinationSection(
+              key: const Key('explore-ruta-templo'),
+              icon: Icons.stadium_outlined,
+              title: 'RUTA AL TEMPLO',
+              subtitle: 'Camino al estadio, puntos de encuentro y check-in',
+              onTap: () => context.push('/ruta-templo'),
+            ),
+            _DestinationSection(
+              key: const Key('explore-negocios'),
               icon: Icons.storefront_outlined,
+              title: 'Negocios Cremas',
+              subtitle: 'Negocios registrados de la hinchada',
+              onTap: () => context.push('/negocios'),
+            ),
+            _DestinationSection(
+              key: const Key('explore-marketplace'),
+              icon: Icons.shopping_bag_outlined,
               title: 'Marketplace',
               subtitle: 'Anuncios, productos y servicios',
               onTap: () => context.push('/marketplace'),
             ),
-          if (_filter == _ExploreFilter.all) ...[
             _DestinationSection(
+              key: const Key('explore-eventos'),
+              icon: Icons.event_outlined,
+              title: 'Eventos',
+              subtitle: 'Quedadas y actividades de la hinchada',
+              onTap: () => context.push('/eventos'),
+            ),
+            _DestinationSection(
+              key: const Key('explore-solidaria'),
               icon: Icons.volunteer_activism_outlined,
               title: 'Garra Solidaria',
               subtitle: 'Campañas de ayuda entre cremas',
               onTap: () => context.push('/solidaria'),
             ),
             _DestinationSection(
+              key: const Key('explore-beneficios'),
               icon: Icons.card_giftcard_outlined,
               title: 'Beneficios',
               subtitle: 'Canjea tus Puntos Garra',
               onTap: () => context.push('/rewards'),
             ),
           ],
+          if (_filter == _ExploreFilter.events)
+            _DestinationSection(
+              icon: Icons.event_outlined,
+              title: 'Eventos',
+              subtitle: 'Quedadas y actividades de la hinchada',
+              onTap: () => context.push('/eventos'),
+            ),
+          if (_filter == _ExploreFilter.businesses)
+            _DestinationSection(
+              icon: Icons.storefront_outlined,
+              title: 'Negocios Cremas',
+              subtitle: 'Negocios registrados de la hinchada',
+              onTap: () => context.push('/negocios'),
+            ),
+          if (_filter == _ExploreFilter.communities)
+            _DestinationSection(
+              icon: Icons.groups_outlined,
+              title: 'Comunidades',
+              subtitle: 'Encuentra tu gente crema',
+              onTap: () => context.push('/clans'),
+            ),
+          if (_filter == _ExploreFilter.marketplace)
+            _DestinationSection(
+              icon: Icons.shopping_bag_outlined,
+              title: 'Marketplace',
+              subtitle: 'Anuncios, productos y servicios',
+              onTap: () => context.push('/marketplace'),
+            ),
         ],
       ),
     );
@@ -351,6 +383,7 @@ class _FilterChip extends StatelessWidget {
 
 class _DestinationSection extends StatelessWidget {
   const _DestinationSection({
+    super.key,
     required this.icon,
     required this.title,
     required this.subtitle,

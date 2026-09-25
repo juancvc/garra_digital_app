@@ -139,6 +139,55 @@ class _NegociosCremasBrowsePageState extends State<NegociosCremasBrowsePage> {
     }).toList();
   }
 
+  Widget _browseBody(BuildContext context, List<CremaPointModel> visible) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_error!),
+            TextButton(onPressed: _load, child: const Text('Reintentar')),
+          ],
+        ),
+      );
+    }
+    if (_points.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(GarraSpacing.lg),
+          child: Text(
+            'No hay negocios registrados todavía',
+            key: Key('negocios-empty'),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+    if (visible.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(GarraSpacing.lg),
+          child: Text(
+            'Ningún negocio coincide con la búsqueda',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(
+        GarraSpacing.lg,
+        GarraSpacing.sm,
+        GarraSpacing.lg,
+        GarraSpacing.lg,
+      ),
+      itemCount: visible.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
+      itemBuilder: (context, index) => _BusinessCard(point: visible[index]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final visible = _visible;
@@ -165,14 +214,14 @@ class _NegociosCremasBrowsePageState extends State<NegociosCremasBrowsePage> {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: GarraSpacing.sm),
-            child: Row(
+            child: Wrap(
+              spacing: 8,
               children: [
                 FilterChip(
                   label: const Text('Todos'),
                   selected: !_verifiedOnly,
                   onSelected: (_) => setState(() => _verifiedOnly = false),
                 ),
-                const SizedBox(width: 8),
                 FilterChip(
                   label: const Text('Verificados'),
                   selected: _verifiedOnly,
@@ -181,25 +230,91 @@ class _NegociosCremasBrowsePageState extends State<NegociosCremasBrowsePage> {
               ],
             ),
           ),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                ? Center(child: Text(_error!))
-                : ListView.builder(
-                    itemCount: visible.length,
-                    itemBuilder: (context, index) {
-                      final point = visible[index];
-                      return ListTile(
-                        title: Text(point.name),
-                        subtitle: Text(point.address),
-                        onTap: () => context.push('/negocios/${point.id}'),
-                      );
-                    },
-                  ),
-          ),
+          Expanded(child: _browseBody(context, visible)),
         ],
       ),
+    );
+  }
+}
+
+class _BusinessCard extends StatelessWidget {
+  const _BusinessCard({required this.point});
+
+  final CremaPointModel point;
+
+  @override
+  Widget build(BuildContext context) {
+    final copy = BusinessCopy.parse(point.description);
+    return Card(
+      color: const Color(GarraColors.surface),
+      child: InkWell(
+        onTap: () => context.push('/negocios/${point.id}'),
+        child: Padding(
+          padding: const EdgeInsets.all(GarraSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      point.name,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  if (point.verified)
+                    const Text(
+                      'Verificado',
+                      style: TextStyle(
+                        color: Color(GarraColors.gold),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                ],
+              ),
+              if (copy.category != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  copy.category!,
+                  style: const TextStyle(color: Color(GarraColors.gold)),
+                ),
+              ],
+              const SizedBox(height: 4),
+              Text(point.address),
+              if (copy.description.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(copy.description),
+              ],
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => context.push('/negocios/mapa'),
+                  icon: const Icon(Icons.map_outlined, size: 18),
+                  label: const Text('Ver en el mapa'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class BusinessCopy {
+  const BusinessCopy(this.category, this.description);
+
+  final String? category;
+  final String description;
+
+  static BusinessCopy parse(String? raw) {
+    final text = raw?.trim() ?? '';
+    const mark = ' · ';
+    final index = text.indexOf(mark);
+    if (index <= 0) return BusinessCopy(null, text);
+    return BusinessCopy(
+      text.substring(0, index),
+      text.substring(index + mark.length),
     );
   }
 }
