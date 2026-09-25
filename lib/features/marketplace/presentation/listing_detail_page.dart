@@ -69,7 +69,9 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
     if (_contacting) return;
     setState(() => _contacting = true);
     try {
-      final result = await ref.read(marketplaceServiceProvider).contactListing(
+      final result = await ref
+          .read(marketplaceServiceProvider)
+          .contactListing(
             listing.slug,
             promotionId: widget.promotionId ?? listing.promotionId,
           );
@@ -99,9 +101,9 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
       }
     } on MarketplaceServiceException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -155,11 +157,10 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
     if (reason == null || !mounted) return;
 
     try {
-      await ref.read(marketplaceServiceProvider).reportListing(
-            MarketplaceReportRequest(
-              listingSlug: listing.slug,
-              reason: reason,
-            ),
+      await ref
+          .read(marketplaceServiceProvider)
+          .reportListing(
+            MarketplaceReportRequest(listingSlug: listing.slug, reason: reason),
           );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -170,9 +171,9 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
       final message = e is MarketplaceServiceException
           ? e.message
           : 'No pudimos enviar el reporte. Inténtalo de nuevo.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -206,7 +207,8 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
           IconButton(
             tooltip: 'Reportar',
             onPressed: async.maybeWhen(
-              data: (listing) => () => _report(listing),
+              data: (listing) =>
+                  () => _report(listing),
               orElse: () => null,
             ),
             icon: const Icon(Icons.flag_outlined),
@@ -245,9 +247,9 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
               Text(
                 current.priceLabel,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: const Color(GarraColors.gold),
-                      fontWeight: FontWeight.w800,
-                    ),
+                  color: const Color(GarraColors.gold),
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               if (current.category != null && current.category!.isNotEmpty) ...[
                 const SizedBox(height: GarraSpacing.sm),
@@ -309,6 +311,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
                   sellerUserId: current.sellerUserId!,
                   listingTitle: current.title,
                   listingPrice: current.priceLabel,
+                  storeName: current.store?.name ?? '',
                 ),
               ],
               const SizedBox(height: GarraSpacing.md),
@@ -358,7 +361,11 @@ class _ListingGallery extends StatelessWidget {
           border: Border.all(color: const Color(GarraColors.borderSubtle)),
         ),
         child: const Center(
-          child: Icon(Icons.storefront_outlined, color: Color(GarraColors.gold), size: 40),
+          child: Icon(
+            Icons.storefront_outlined,
+            color: Color(GarraColors.gold),
+            size: 40,
+          ),
         ),
       );
     }
@@ -385,7 +392,9 @@ class _ListingGallery extends StatelessWidget {
                     ),
                   ),
                   errorWidget: (_, __, ___) => Container(
-                    color: const Color(GarraColors.garnet).withValues(alpha: 0.2),
+                    color: const Color(
+                      GarraColors.garnet,
+                    ).withValues(alpha: 0.2),
                     alignment: Alignment.center,
                     child: const Icon(
                       Icons.storefront_outlined,
@@ -408,4 +417,3 @@ class _ListingGallery extends StatelessWidget {
     );
   }
 }
-

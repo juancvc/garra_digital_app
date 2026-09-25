@@ -19,8 +19,10 @@ Future<void> showGarraFloatingChat({
   String otherDisplayName = '',
   String? listingTitle,
   String? listingPrice,
+  String? storeName,
   String? openingSuggestion,
   ChatRelationship? relationship,
+  bool marketplace = false,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -39,8 +41,10 @@ Future<void> showGarraFloatingChat({
             otherDisplayName: otherDisplayName,
             listingTitle: listingTitle,
             listingPrice: listingPrice,
+            storeName: storeName,
             openingSuggestion: openingSuggestion,
             relationship: relationship,
+            marketplace: marketplace,
             scroll: scroll,
           );
         },
@@ -57,8 +61,10 @@ class _FloatingChatPanel extends StatefulWidget {
     this.otherDisplayName = '',
     this.listingTitle,
     this.listingPrice,
+    this.storeName,
     this.openingSuggestion,
     this.relationship,
+    this.marketplace = false,
   });
 
   final String otherUserId;
@@ -67,8 +73,10 @@ class _FloatingChatPanel extends StatefulWidget {
   final String otherDisplayName;
   final String? listingTitle;
   final String? listingPrice;
+  final String? storeName;
   final String? openingSuggestion;
   final ChatRelationship? relationship;
+  final bool marketplace;
 
   @override
   State<_FloatingChatPanel> createState() => _FloatingChatPanelState();
@@ -91,9 +99,19 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
     super.initState();
     final relationship = widget.relationship;
     final title = widget.listingTitle?.trim() ?? '';
-    if (relationship == null ||
-        relationship.status == 'NONE' ||
-        relationship.conversationId == null) {
+    final hasThread =
+        relationship != null &&
+        relationship.conversationId != null &&
+        relationship.status != 'NONE';
+    if (widget.marketplace) {
+      _composingRequest = false;
+      if (hasThread) {
+        _load(relationship.conversationId!);
+      } else {
+        _loading = false;
+        _input.text = 'Hola, ¿sigue disponible?';
+      }
+    } else if (!hasThread) {
       _composingRequest = true;
       _loading = false;
       final suggested = widget.openingSuggestion?.trim();
@@ -134,6 +152,44 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
         _error = 'No pudimos abrir la conversación';
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _sendMarketplace() async {
+    final text = _input.text.trim();
+    if (text.isEmpty || _sending) return;
+    setState(() => _sending = true);
+    try {
+      final created = await _chat.openMarketplace(
+        recipientUserId: widget.otherUserId,
+        content: text,
+        listingTitle: widget.listingTitle,
+        listingPrice: widget.listingPrice,
+      );
+      final messages = await _chat.messages(created.id);
+      if (!mounted) return;
+      setState(() {
+        _conversation = created;
+        _messages = messages.isEmpty
+            ? [
+                ChatMessage(
+                  id: 'local-open',
+                  conversationId: created.id,
+                  senderId: 'me',
+                  content: text,
+                  mine: true,
+                ),
+              ]
+            : messages;
+        _sending = false;
+        _input.clear();
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _sending = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No pudimos enviar el mensaje')),
+      );
     }
   }
 
@@ -246,11 +302,14 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
   @override
   Widget build(BuildContext context) {
     final conversation = _conversation;
-    final name = conversation?.otherDisplayName.isNotEmpty == true
-        ? conversation!.otherDisplayName
-        : (widget.otherDisplayName.isNotEmpty
-              ? widget.otherDisplayName
-              : 'Chat');
+    final store = widget.storeName?.trim() ?? '';
+    final name = widget.marketplace && store.isNotEmpty
+        ? store
+        : (conversation?.otherDisplayName.isNotEmpty == true
+              ? conversation!.otherDisplayName
+              : (widget.otherDisplayName.isNotEmpty
+                    ? widget.otherDisplayName
+                    : 'Chat'));
     return Material(
       key: const Key('floating-chat-panel'),
       color: const Color(GarraColors.charcoal),
@@ -311,6 +370,11 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
 
   String _contextLine() {
     final title = widget.listingTitle?.trim() ?? '';
+    if (widget.marketplace) {
+      if (title.isEmpty) return '';
+      final price = widget.listingPrice?.trim() ?? '';
+      return price.isEmpty ? title : '$title · $price';
+    }
     if (title.isEmpty) {
       final status = _conversation?.status;
       if (status == 'PENDING') return 'Solicitud de chat';
@@ -436,7 +500,9 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
         ),
       );
     }
+    final marketplaceDraft = widget.marketplace && conversation == null;
     final active = conversation?.status == 'ACTIVE';
+    final composerEnabled = _composingRequest || active || marketplaceDraft;
     return SafeArea(
       top: false,
       child: Padding(
@@ -501,18 +567,20 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
                 Expanded(
                   child: TextField(
                     key: Key(
-                      _composingRequest
+                      marketplaceDraft
                           ? 'marketplace-chat-draft'
-                          : 'chat-composer',
+                          : (_composingRequest
+                                ? 'marketplace-chat-draft'
+                                : 'chat-composer'),
                     ),
                     controller: _input,
-                    enabled: _composingRequest || active,
+                    enabled: composerEnabled,
                     minLines: 1,
                     maxLines: 4,
                     maxLength: 1000,
                     decoration: InputDecoration(
                       counterText: '',
-                      hintText: _composingRequest || active
+                      hintText: composerEnabled
                           ? 'Escribe un mensaje...'
                           : 'Esperando que acepte tu solicitud',
                       filled: true,
@@ -525,13 +593,24 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
                   tooltip: 'Enviar',
                   onPressed: _sending
                       ? null
-                      : (_composingRequest
-                            ? _sendRequest
-                            : (active ? _send : null)),
+                      : (marketplaceDraft
+                            ? _sendMarketplace
+                            : (_composingRequest
+                                  ? _sendRequest
+                                  : (active ? _send : null))),
                   icon: const Icon(Icons.send_rounded),
                 ),
               ],
             ),
+            if (marketplaceDraft)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  key: const Key('marketplace-chat-send'),
+                  onPressed: _sending ? null : _sendMarketplace,
+                  child: const Text('Enviar'),
+                ),
+              ),
             if (_composingRequest)
               Align(
                 alignment: Alignment.centerRight,

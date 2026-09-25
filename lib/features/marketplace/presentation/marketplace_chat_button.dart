@@ -11,12 +11,14 @@ class ConsultarPorChatButton extends StatefulWidget {
     required this.sellerUserId,
     this.listingTitle = '',
     this.listingPrice = '',
+    this.storeName = '',
     this.chatService,
   });
 
   final String sellerUserId;
   final String listingTitle;
   final String listingPrice;
+  final String storeName;
   final ChatService? chatService;
 
   @override
@@ -31,7 +33,10 @@ class _ConsultarPorChatButtonState extends State<ConsultarPorChatButton> {
     if (_busy || widget.sellerUserId.isEmpty) return;
     setState(() => _busy = true);
     try {
-      final relationship = await _chat.relationship(widget.sellerUserId);
+      final relationship = await _chat.relationship(
+        widget.sellerUserId,
+        context: 'MARKETPLACE',
+      );
       if (!mounted) return;
       if (relationship.blocked) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -45,7 +50,9 @@ class _ConsultarPorChatButtonState extends State<ConsultarPorChatButton> {
         otherUserId: widget.sellerUserId,
         listingTitle: widget.listingTitle,
         listingPrice: widget.listingPrice,
+        storeName: widget.storeName,
         relationship: relationship,
+        marketplace: true,
       );
     } catch (_) {
       if (!mounted) return;

@@ -31,6 +31,13 @@ class CommunityService {
     return fallback;
   }
 
+  String _commentConfirmation(String? message) {
+    if (message == null || message.isEmpty || message == 'Comment created') {
+      return 'Comentario publicado';
+    }
+    return message;
+  }
+
   final Dio _dio;
 
   Future<WallStatusModel?> getCurrentWallStatus() async {
@@ -51,9 +58,7 @@ class CommunityService {
     final response = await _dio.get(
       '/community/wall/$matchId/posts',
       queryParameters: locationTag != null && locationTag != 'ALL'
-          ? {
-              'locationTag': locationTag,
-            }
+          ? {'locationTag': locationTag}
           : null,
     );
 
@@ -87,9 +92,7 @@ class CommunityService {
       );
     } on DioException catch (e) {
       return WallActionResult.failure(
-        _normalizeWallError(
-          _dioMessage(e, 'No se pudo publicar en el muro'),
-        ),
+        _normalizeWallError(_dioMessage(e, 'No se pudo publicar en el muro')),
       );
     } catch (_) {
       return WallActionResult.failure('Ocurrió un error inesperado');
@@ -113,7 +116,10 @@ class CommunityService {
     try {
       final response = await _dio.post(
         '/community/wall/posts/$postId/report',
-        data: ReportWallPostRequest(category: category, reason: reason).toJson(),
+        data: ReportWallPostRequest(
+          category: category,
+          reason: reason,
+        ).toJson(),
       );
 
       final data = response.data['data'];
@@ -214,12 +220,12 @@ class CommunityService {
       final data = response.data['data'];
       return WallActionResult.success(
         message: response.data['message']?.toString() ?? 'Publicado',
-        post: data is Map<String, dynamic> ? WallPostModel.fromJson(data) : null,
+        post: data is Map<String, dynamic>
+            ? WallPostModel.fromJson(data)
+            : null,
       );
     } on DioException catch (e) {
-      return WallActionResult.failure(
-        _dioMessage(e, 'No se pudo publicar'),
-      );
+      return WallActionResult.failure(_dioMessage(e, 'No se pudo publicar'));
     } catch (_) {
       return WallActionResult.failure('Ocurrió un error inesperado');
     }
@@ -281,8 +287,7 @@ class CommunityService {
       if (payload is Map<String, dynamic>) {
         return ReactionResult.fromPayload(
           payload,
-          message:
-              response.data['message']?.toString() ?? 'Reacción eliminada',
+          message: response.data['message']?.toString() ?? 'Reacción eliminada',
         );
       }
 
@@ -332,7 +337,7 @@ class CommunityService {
 
       final data = response.data['data'];
       return CommentActionResult.success(
-        message: response.data['message']?.toString() ?? 'Comentario publicado',
+        message: _commentConfirmation(response.data['message']?.toString()),
         comment: data is Map
             ? WallCommentModel.fromJson(Map<String, dynamic>.from(data))
             : null,
@@ -348,11 +353,9 @@ class CommunityService {
 
   Future<CommentActionResult> deleteComment(String commentId) async {
     try {
-      final response =
-          await _dio.delete('/community/comments/$commentId');
+      final response = await _dio.delete('/community/comments/$commentId');
       return CommentActionResult.success(
-        message:
-            response.data['message']?.toString() ?? 'Comentario eliminado',
+        message: response.data['message']?.toString() ?? 'Comentario eliminado',
       );
     } on DioException catch (e) {
       return CommentActionResult.failure(
@@ -400,18 +403,11 @@ class WallActionResult {
     required String message,
     WallPostModel? post,
   }) {
-    return WallActionResult(
-      success: true,
-      message: message,
-      post: post,
-    );
+    return WallActionResult(success: true, message: message, post: post);
   }
 
   factory WallActionResult.failure(String message) {
-    return WallActionResult(
-      success: false,
-      message: message,
-    );
+    return WallActionResult(success: false, message: message);
   }
 }
 
@@ -438,9 +434,6 @@ class CommentActionResult {
   }
 
   factory CommentActionResult.failure(String message) {
-    return CommentActionResult(
-      success: false,
-      message: message,
-    );
+    return CommentActionResult(success: false, message: message);
   }
 }

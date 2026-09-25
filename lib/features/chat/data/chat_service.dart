@@ -16,9 +16,32 @@ class ChatService {
 
   final Dio _dio;
 
-  Future<ChatRelationship> relationship(String userId) async {
-    final data = await _data('/chat/with/$userId');
+  Future<ChatRelationship> relationship(
+    String userId, {
+    String context = 'SOCIAL',
+  }) async {
+    final data = await _data('/chat/with/$userId', query: {'context': context});
     return ChatRelationship.fromJson(data);
+  }
+
+  Future<ChatConversation> openMarketplace({
+    required String recipientUserId,
+    required String content,
+    String? listingTitle,
+    String? listingPrice,
+  }) async {
+    final data = await _data(
+      '/chat/marketplace',
+      body: {
+        'recipientUserId': recipientUserId,
+        'content': content,
+        if (listingTitle != null && listingTitle.trim().isNotEmpty)
+          'listingTitle': listingTitle.trim(),
+        if (listingPrice != null && listingPrice.trim().isNotEmpty)
+          'listingPriceLabel': listingPrice.trim(),
+      },
+    );
+    return ChatConversation.fromJson(data);
   }
 
   Future<ChatConversation> request(
@@ -94,11 +117,15 @@ class ChatService {
     return (data['unreadCount'] as num?)?.toInt() ?? 0;
   }
 
-  Future<Map<String, dynamic>> _data(String path, {Object? body}) async {
+  Future<Map<String, dynamic>> _data(
+    String path, {
+    Object? body,
+    Map<String, dynamic>? query,
+  }) async {
     try {
       final response = body == null
-          ? await _dio.get(path)
-          : await _dio.post(path, data: body);
+          ? await _dio.get(path, queryParameters: query)
+          : await _dio.post(path, data: body, queryParameters: query);
       final payload = response.data;
       if (payload is Map && payload['data'] is Map) {
         return Map<String, dynamic>.from(payload['data'] as Map);

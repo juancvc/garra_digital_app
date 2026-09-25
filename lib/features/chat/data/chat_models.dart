@@ -37,6 +37,9 @@ class ChatConversation {
     this.lastMessagePreview,
     this.lastMessageAt,
     this.unreadCount = 0,
+    this.context = 'SOCIAL',
+    this.listingTitle,
+    this.listingPriceLabel,
   });
 
   final String id;
@@ -48,6 +51,22 @@ class ChatConversation {
   final String? lastMessagePreview;
   final DateTime? lastMessageAt;
   final int unreadCount;
+  final String context;
+  final String? listingTitle;
+  final String? listingPriceLabel;
+
+  String get statusLabel {
+    switch (status) {
+      case 'PENDING':
+        return 'Pendiente';
+      case 'ACTIVE':
+        return 'Activo';
+      case 'REJECTED':
+        return 'Rechazado';
+      default:
+        return '';
+    }
+  }
 
   factory ChatConversation.fromJson(Map<String, dynamic> json) {
     return ChatConversation(
@@ -60,6 +79,9 @@ class ChatConversation {
       lastMessagePreview: json['lastMessagePreview']?.toString(),
       lastMessageAt: DateTime.tryParse(json['lastMessageAt']?.toString() ?? ''),
       unreadCount: (json['unreadCount'] as num?)?.toInt() ?? 0,
+      context: json['context']?.toString() ?? 'SOCIAL',
+      listingTitle: json['listingTitle']?.toString(),
+      listingPriceLabel: json['listingPriceLabel']?.toString(),
     );
   }
 }
