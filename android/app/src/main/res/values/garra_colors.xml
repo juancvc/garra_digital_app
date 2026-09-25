@@ -2,4 +2,6 @@
 <resources>
     <color name="garra_burgundy_deep">#47101C</color>
     <color name="garra_cream">#F3E9D2</color>
+    <color name="garra_ink">#0E0C0B</color>
+    <color name="garra_gold">#C7A45B</color>
 </resources>

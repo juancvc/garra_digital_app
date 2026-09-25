@@ -20,6 +20,7 @@ import '../../../core/telemetry/telemetry.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../../auth/data/auth_service.dart';
+import '../../splash/presentation/intro_replay_action.dart';
 
 class SettingsHubPage extends StatelessWidget {
   const SettingsHubPage({super.key});
@@ -175,7 +176,9 @@ class LegalSettingsPage extends StatelessWidget {
 
   Uri _resolve(String? pathOrUrl) {
     if (pathOrUrl == null || pathOrUrl.isEmpty) {
-      return Uri.parse(ApiConfig.baseUrl.replaceAll('/api/v1', '/legal/privacy'));
+      return Uri.parse(
+        ApiConfig.baseUrl.replaceAll('/api/v1', '/legal/privacy'),
+      );
     }
     if (pathOrUrl.startsWith('http')) return Uri.parse(pathOrUrl);
     final root = ApiConfig.baseUrl.replaceAll(RegExp(r'/api/v1/?$'), '');
@@ -275,9 +278,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
             const SizedBox(height: GarraSpacing.lg),
             TextField(
               controller: _controller,
-              decoration: const InputDecoration(
-                labelText: 'Escribe ELIMINAR',
-              ),
+              decoration: const InputDecoration(labelText: 'Escribe ELIMINAR'),
               textCapitalization: TextCapitalization.characters,
             ),
             if (_error != null) ...[
@@ -384,7 +385,9 @@ class _HelpDiagnosticsPageState extends State<HelpDiagnosticsPage> {
       ..writeln('environment=${appConfigService.current.environment}')
       ..writeln('apiHost=${Uri.tryParse(ApiConfig.baseUrl)?.host}')
       ..writeln('lastCorrelationId=${DioClient.lastCorrelationId ?? 'n/a'}')
-      ..writeln('os=${Platform.operatingSystem} ${Platform.operatingSystemVersion}')
+      ..writeln(
+        'os=${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+      )
       ..writeln('pushPermission=unknown')
       ..writeln('maps=configured');
     try {
@@ -432,6 +435,8 @@ class _HelpDiagnosticsPageState extends State<HelpDiagnosticsPage> {
               label: 'Enviar feedback beta',
               onPressed: () => context.push('/settings/feedback'),
             ),
+            const SizedBox(height: GarraSpacing.sm),
+            IntroReplayAction(visible: ApiConfig.showStagingBadge),
           ],
         ),
       ),
@@ -463,13 +468,16 @@ class _BetaFeedbackPageState extends State<BetaFeedbackPage> {
     });
     try {
       final info = await PackageInfo.fromPlatform();
-      await DioClient.instance.post('/me/beta-feedback', data: {
-        'type': _type,
-        'message': _message.text.trim(),
-        'screen': 'settings/feedback',
-        'appVersion': '${info.version}+${info.buildNumber}',
-        'correlationId': DioClient.lastCorrelationId,
-      });
+      await DioClient.instance.post(
+        '/me/beta-feedback',
+        data: {
+          'type': _type,
+          'message': _message.text.trim(),
+          'screen': 'settings/feedback',
+          'appVersion': '${info.version}+${info.buildNumber}',
+          'correlationId': DioClient.lastCorrelationId,
+        },
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Gracias. Feedback enviado.')),

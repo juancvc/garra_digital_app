@@ -58,6 +58,7 @@ import 'package:garra_digital_app/features/retention/presentation/season_progres
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/login_page.dart';
+import '../../features/splash/presentation/garra_primordial_intro_page.dart';
 import '../../features/auth/presentation/register_page.dart';
 import '../../features/home/presentation/home_page.dart';
 import '../../features/locations/presentation/ruta_al_templo_page.dart';
@@ -79,9 +80,10 @@ final GoRouter appRouter = GoRouter(
     final currentPath = state.uri.path;
     final isLogin = currentPath == '/login';
     final isSplash = currentPath == '/splash';
+    final isIntro = currentPath == '/intro';
     final isRegister = currentPath == '/register';
 
-    if (isSplash) {
+    if (isSplash || isIntro) {
       return null;
     }
 
@@ -100,6 +102,11 @@ final GoRouter appRouter = GoRouter(
       path: '/splash',
       name: 'splash',
       builder: (context, state) => const SplashPage(),
+    ),
+    GoRoute(
+      path: '/intro',
+      name: 'garra-intro',
+      builder: (context, state) => const GarraPrimordialIntroPage(),
     ),
     GoRoute(
       path: '/login',

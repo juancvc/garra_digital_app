@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/garra_brand_visual.dart';
+import '../../../core/widgets/garra_claw_mark.dart';
 import '../../notifications/data/push_session_coordinator.dart';
 import 'providers/auth_provider.dart';
 
@@ -88,7 +88,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             fit: BoxFit.cover,
             alignment: Alignment.topCenter,
             colorFilter: ColorFilter.mode(
-              const Color(GarraColors.background).withValues(alpha: 0.72),
+              const Color(GarraColors.background).withValues(alpha: 0.88),
               BlendMode.srcATop,
             ),
           ),
@@ -96,8 +96,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0x55170D10),
-              Color(0xD91B070A),
+              Color(0xCC47101C),
+              Color(0xF00E0C0B),
               Color(GarraColors.background),
             ],
           ),
@@ -112,30 +112,41 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   children: [
                     const Align(
                       alignment: Alignment.centerLeft,
-                      child: GarraCrest(size: 72, showGlow: true),
+                      child: GarraClawMark(size: 84),
                     ),
                     const SizedBox(height: 28),
                     const Text(
                       'GARRA DIGITAL',
                       style: TextStyle(
                         color: AppTheme.cream,
-                        fontSize: 28,
+                        fontSize: 30,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: 0.8,
+                        letterSpacing: 1.6,
                       ),
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Comunidad no oficial de hinchas cremas.\n'
-                      'Hecho por hinchas, para hinchas.',
+                      'De hinchas para hinchas',
+                      style: TextStyle(
+                        color: Color(GarraColors.cream),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Comunidad no oficial de hinchas cremas',
                       style: TextStyle(
                         color: Color(GarraColors.creamMuted),
-                        height: 1.4,
+                        fontSize: 13,
+                        height: 1.35,
                       ),
                     ),
                     const SizedBox(height: 36),
 
                     Card(
+                      color: Color(GarraColors.surface),
                       child: Padding(
                         padding: const EdgeInsets.all(22),
                         child: Column(
