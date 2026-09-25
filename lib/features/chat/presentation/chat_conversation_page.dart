@@ -16,11 +16,13 @@ class ChatConversationPage extends StatefulWidget {
     required this.conversationId,
     this.chatService,
     this.pollInterval = const Duration(seconds: 5),
+    this.requestJustSent = false,
   });
 
   final String conversationId;
   final ChatService? chatService;
   final Duration pollInterval;
+  final bool requestJustSent;
 
   @override
   State<ChatConversationPage> createState() => _ChatConversationPageState();
@@ -108,20 +110,60 @@ class _ChatConversationPageState extends State<ChatConversationPage>
   Future<void> _refresh() async {
     if (!mounted || _sending) return;
     try {
+      final conversation = await _chat.conversation(widget.conversationId);
       final messages = await _chat.messages(widget.conversationId);
       if (!mounted) return;
       final changed = messages.length != _messages.length ||
           (messages.isNotEmpty &&
               _messages.isNotEmpty &&
               messages.last.id != _messages.last.id);
-      if (!changed && _conversation != null) return;
-      setState(() => _messages = messages);
+      final statusChanged = conversation.status != _conversation?.status;
+      if (!changed && !statusChanged && _conversation != null) return;
+      setState(() {
+        _conversation = conversation;
+        _messages = messages;
+      });
       if (changed) {
         await _chat.markRead(widget.conversationId);
         _scrollToEnd();
       }
     } catch (_) {
       // Keep the open transcript if a refresh fails.
+    }
+  }
+
+  Future<void> _accept() async {
+    if (_sending) return;
+    setState(() => _sending = true);
+    try {
+      final accepted = await _chat.accept(widget.conversationId);
+      if (!mounted) return;
+      setState(() {
+        _conversation = accepted;
+        _sending = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _sending = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No pudimos aceptar la solicitud')),
+      );
+    }
+  }
+
+  Future<void> _reject() async {
+    if (_sending) return;
+    setState(() => _sending = true);
+    try {
+      await _chat.reject(widget.conversationId);
+      if (!mounted) return;
+      context.pop();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _sending = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No pudimos rechazar la solicitud')),
+      );
     }
   }
 
@@ -184,45 +226,112 @@ class _ChatConversationPageState extends State<ChatConversationPage>
       ),
       body: Column(
         children: [
+          if (conversation != null) _statusBanner(conversation),
           Expanded(child: _transcript()),
           const Divider(height: 1, color: Color(GarraColors.borderSubtle)),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _input,
-                      minLines: 1,
-                      maxLines: 4,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _send(),
-                      decoration: const InputDecoration(
-                        hintText: 'Escribe un mensaje...',
-                        filled: true,
-                        fillColor: Color(GarraColors.surface),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(22)),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: GarraSpacing.lg,
-                          vertical: 12,
-                        ),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Enviar',
-                    onPressed: _sending ? null : _send,
-                    icon: const Icon(Icons.send_rounded),
-                    color: const Color(GarraColors.burgundy),
-                  ),
-                ],
+          SafeArea(top: false, child: _footer(conversation)),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusBanner(ChatConversation conversation) {
+    if (conversation.status != 'PENDING') return const SizedBox.shrink();
+    final waiting = conversation.outgoing
+        ? 'Esperando que acepte tu solicitud'
+        : 'Solicitud de chat';
+    return Material(
+      key: const Key('chat-pending-banner'),
+      color: const Color(GarraColors.surfaceRaised),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: GarraSpacing.lg,
+          vertical: 12,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (widget.requestJustSent && conversation.outgoing) ...[
+              Text(
+                'Solicitud enviada',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'El vendedor podrá responder cuando acepte tu solicitud.',
+              ),
+              const SizedBox(height: 8),
+            ],
+            Text(waiting),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _footer(ChatConversation? conversation) {
+    final pendingIncoming =
+        conversation?.status == 'PENDING' && conversation?.outgoing == false;
+    if (pendingIncoming) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                key: const Key('chat-reject-request'),
+                onPressed: _sending ? null : _reject,
+                child: const Text('Rechazar'),
               ),
             ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton(
+                key: const Key('chat-accept-request'),
+                onPressed: _sending ? null : _accept,
+                child: const Text('Aceptar'),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    final canWrite = conversation?.status == 'ACTIVE';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              key: const Key('chat-composer'),
+              controller: _input,
+              enabled: canWrite && !_sending,
+              minLines: 1,
+              maxLines: 4,
+              textInputAction: TextInputAction.send,
+              onSubmitted: canWrite ? (_) => _send() : null,
+              decoration: InputDecoration(
+                hintText: canWrite
+                    ? 'Escribe un mensaje...'
+                    : 'Esperando que acepte tu solicitud',
+                filled: true,
+                fillColor: const Color(GarraColors.surface),
+                border: const OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(22)),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: GarraSpacing.lg,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Enviar',
+            onPressed: canWrite && !_sending ? _send : null,
+            icon: const Icon(Icons.send_rounded),
+            color: const Color(GarraColors.burgundy),
           ),
         ],
       ),

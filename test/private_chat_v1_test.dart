@@ -8,9 +8,9 @@ import 'package:garra_digital_app/features/chat/presentation/chat_conversation_p
 import 'package:garra_digital_app/features/chat/presentation/chat_inbox_page.dart';
 import 'package:garra_digital_app/features/community/data/community_service.dart';
 import 'package:garra_digital_app/features/community/presentation/public_fan_profile_page.dart';
-import 'package:garra_digital_app/features/marketplace/data/marketplace_models.dart';
 import 'package:garra_digital_app/features/marketplace/presentation/marketplace_chat_button.dart';
 import 'package:garra_digital_app/features/notifications/data/push_router.dart';
+import 'package:go_router/go_router.dart';
 
 void main() {
   testWidgets('public profile shows Mensaje for another fan', (tester) async {
@@ -212,30 +212,157 @@ void main() {
     );
   });
 
-  testWidgets('marketplace chat CTA uses sellerUserId', (tester) async {
-    final listing = MarketplaceListing.fromJson({
-      'id': 'listing-1',
-      'slug': 'camiseta-crema',
-      'title': 'Camiseta crema',
-      'sellerUserId': 'seller-lucia',
-    });
+  testWidgets('marketplace composer opens with an editable listing message', (
+    tester,
+  ) async {
     final chat = _FakeChat();
+    await tester.pumpWidget(_marketplaceApp(chat, listingTitle: 'Camiseta crema'));
+    await tester.tap(find.byKey(const Key('marketplace-chat-cta')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Consultar al vendedor'), findsOneWidget);
+    expect(find.text('Camiseta crema'), findsOneWidget);
+    final draft = tester.widget<TextField>(
+      find.byKey(const Key('marketplace-chat-draft')),
+    );
+    expect(
+      draft.controller?.text,
+      'Hola, me interesa Camiseta crema. ¿Sigue disponible?',
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('marketplace-chat-draft')),
+      '¿La camiseta sigue disponible en talla M?',
+    );
+    await tester.tap(find.byKey(const Key('marketplace-chat-send')));
+    await tester.pumpAndSettle();
+
+    expect(chat.requestedUser, 'seller-lucia');
+    expect(
+      chat.requestedMessage,
+      '¿La camiseta sigue disponible en talla M?',
+    );
+    expect(find.text('Solicitud enviada'), findsOneWidget);
+    expect(
+      find.text('El vendedor podrá responder cuando acepte tu solicitud.'),
+      findsOneWidget,
+    );
+    expect(find.text('¿La camiseta sigue disponible en talla M?'), findsOneWidget);
+    expect(find.text('Esperando que acepte tu solicitud'), findsWidgets);
+    final composer = tester.widget<TextField>(find.byKey(const Key('chat-composer')));
+    expect(composer.enabled, isFalse);
+  });
+
+  testWidgets('existing pending marketplace chat opens the thread', (tester) async {
+    final chat = _FakeChat()
+      ..relationshipResult = const ChatRelationship(
+        conversationId: 'pending-1',
+        status: 'PENDING',
+        outgoing: true,
+      )
+      ..conversationResult = const ChatConversation(
+        id: 'pending-1',
+        otherUserId: 'seller-lucia',
+        otherDisplayName: 'Lucía Vargas',
+        status: 'PENDING',
+        outgoing: true,
+      )
+      ..messagesResult = const [
+        ChatMessage(
+          id: 'm-open',
+          conversationId: 'pending-1',
+          senderId: 'me',
+          content: 'Hola, me interesa la camiseta.',
+          mine: true,
+        ),
+      ];
+
+    await tester.pumpWidget(_marketplaceApp(chat));
+    await tester.tap(find.byKey(const Key('marketplace-chat-cta')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Consultar al vendedor'), findsNothing);
+    expect(find.text('Hola, me interesa la camiseta.'), findsOneWidget);
+    expect(find.text('Esperando que acepte tu solicitud'), findsWidgets);
+    expect(chat.requestedUser, isNull);
+  });
+
+  testWidgets('active marketplace relationship opens the chat directly', (
+    tester,
+  ) async {
+    final chat = _FakeChat()
+      ..relationshipResult = const ChatRelationship(
+        conversationId: 'active-1',
+        status: 'ACTIVE',
+      )
+      ..conversationResult = const ChatConversation(
+        id: 'active-1',
+        otherUserId: 'seller-lucia',
+        otherDisplayName: 'Lucía Vargas',
+        status: 'ACTIVE',
+      )
+      ..messagesResult = const [
+        ChatMessage(
+          id: 'm1',
+          conversationId: 'active-1',
+          senderId: 'seller-lucia',
+          content: 'Sigue disponible',
+          mine: false,
+        ),
+      ];
+
+    await tester.pumpWidget(_marketplaceApp(chat));
+    await tester.tap(find.byKey(const Key('marketplace-chat-cta')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Consultar al vendedor'), findsNothing);
+    expect(find.text('Sigue disponible'), findsOneWidget);
+    final composer = tester.widget<TextField>(find.byKey(const Key('chat-composer')));
+    expect(composer.enabled, isTrue);
+  });
+
+  testWidgets('pending recipient sees the opening message and can accept', (
+    tester,
+  ) async {
+    final chat = _FakeChat()
+      ..conversationResult = const ChatConversation(
+        id: 'pending-in',
+        otherUserId: 'buyer-1',
+        otherDisplayName: 'Ana',
+        status: 'PENDING',
+        outgoing: false,
+      )
+      ..messagesResult = const [
+        ChatMessage(
+          id: 'm-open',
+          conversationId: 'pending-in',
+          senderId: 'buyer-1',
+          content: 'Hola, me interesa la camiseta.',
+          mine: false,
+        ),
+      ];
 
     await tester.pumpWidget(
       _app(
-        Scaffold(
-          body: ConsultarPorChatButton(
-            sellerUserId: listing.sellerUserId!,
-            chatService: chat,
-          ),
+        ChatConversationPage(
+          conversationId: 'pending-in',
+          chatService: chat,
+          pollInterval: const Duration(minutes: 5),
         ),
       ),
     );
-    await tester.tap(find.byKey(const Key('marketplace-chat-cta')));
     await tester.pump();
 
-    expect(chat.requestedUser, 'seller-lucia');
-    expect(find.text('Solicitud enviada'), findsOneWidget);
+    expect(find.text('Hola, me interesa la camiseta.'), findsOneWidget);
+    expect(find.byKey(const Key('chat-composer')), findsNothing);
+    expect(find.byKey(const Key('chat-accept-request')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('chat-accept-request')));
+    await tester.pump();
+
+    expect(chat.acceptedId, 'pending-in');
+    final composer = tester.widget<TextField>(find.byKey(const Key('chat-composer')));
+    expect(composer.enabled, isTrue);
   });
 
   testWidgets('polling stops when the conversation page is disposed', (
@@ -267,6 +394,34 @@ void main() {
 
 Widget _app(Widget home) {
   return MaterialApp(theme: AppTheme.darkTheme, home: home);
+}
+
+Widget _marketplaceApp(_FakeChat chat, {String listingTitle = 'Camiseta crema'}) {
+  final router = GoRouter(
+    initialLocation: '/',
+    routes: [
+      GoRoute(
+        path: '/',
+        builder: (context, state) => Scaffold(
+          body: ConsultarPorChatButton(
+            sellerUserId: 'seller-lucia',
+            listingTitle: listingTitle,
+            chatService: chat,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/chat/:conversationId',
+        builder: (context, state) => ChatConversationPage(
+          conversationId: state.pathParameters['conversationId']!,
+          chatService: chat,
+          requestJustSent: state.uri.queryParameters['sent'] == '1',
+          pollInterval: const Duration(minutes: 5),
+        ),
+      ),
+    ],
+  );
+  return MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router);
 }
 
 Map<String, dynamic> _profile({required bool me}) {
@@ -327,6 +482,7 @@ class _FakeChat extends ChatService {
   ChatConversation? conversationResult;
   ChatRelationship relationshipResult = ChatRelationship.none();
   String? requestedUser;
+  String? requestedMessage;
   String? acceptedId;
   String? rejectedId;
   final List<String> sent = [];
@@ -336,15 +492,30 @@ class _FakeChat extends ChatService {
   Future<ChatRelationship> relationship(String userId) async => relationshipResult;
 
   @override
-  Future<ChatConversation> request(String recipientUserId) async {
+  Future<ChatConversation> request(
+    String recipientUserId, {
+    String? initialMessage,
+  }) async {
     requestedUser = recipientUserId;
-    return ChatConversation(
+    requestedMessage = initialMessage;
+    final created = ChatConversation(
       id: 'requested',
       otherUserId: recipientUserId,
       otherDisplayName: 'Lucía Vargas',
       status: 'PENDING',
       outgoing: true,
     );
+    conversationResult = created;
+    messagesResult = [
+      ChatMessage(
+        id: 'm-open',
+        conversationId: 'requested',
+        senderId: 'me',
+        content: initialMessage ?? '',
+        mine: true,
+      ),
+    ];
+    return created;
   }
 
   @override

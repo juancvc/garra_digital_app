@@ -305,7 +305,10 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
               if (current.sellerUserId != null &&
                   current.sellerUserId!.isNotEmpty) ...[
                 const SizedBox(height: GarraSpacing.md),
-                ConsultarPorChatButton(sellerUserId: current.sellerUserId!),
+                ConsultarPorChatButton(
+                  sellerUserId: current.sellerUserId!,
+                  listingTitle: current.title,
+                ),
               ],
               const SizedBox(height: GarraSpacing.md),
               Text(

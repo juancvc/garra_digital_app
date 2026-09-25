@@ -213,6 +213,7 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => ChatConversationPage(
         conversationId: state.pathParameters['conversationId']!,
         chatService: ChatService(),
+        requestJustSent: state.uri.queryParameters['sent'] == '1',
       ),
     ),
     GoRoute(

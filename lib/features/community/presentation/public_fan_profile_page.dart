@@ -115,40 +115,32 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
       }
       return;
     }
-    if (relationship.isPending && relationship.outgoing) return;
-    final ok = await showDialog<bool>(
+    if (relationship.isPending && relationship.outgoing) {
+      if (relationship.conversationId != null) {
+        context.push('/chat/${relationship.conversationId}');
+      }
+      return;
+    }
+    final message = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Solicitar chat'),
-        content: const Text(
-          'Esta persona recibirá tu solicitud antes de que puedan escribirse.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Enviar'),
-          ),
-        ],
-      ),
+      builder: (ctx) => const _ChatRequestDialog(),
     );
-    if (ok != true || !mounted) return;
+    if (message == null || message.isEmpty || !mounted) return;
     setState(() => _busy = true);
     try {
-      await _chat.request(widget.userId);
+      final created = await _chat.request(
+        widget.userId,
+        initialMessage: message,
+      );
       if (!mounted) return;
       setState(() {
         _chatRelationship = ChatRelationship(
+          conversationId: created.id,
           status: 'PENDING',
           outgoing: true,
         );
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Solicitud enviada')),
-      );
+      context.push('/chat/${created.id}?sent=1');
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -491,6 +483,60 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
                     );
                   },
                 ),
+    );
+  }
+}
+
+class _ChatRequestDialog extends StatefulWidget {
+  const _ChatRequestDialog();
+
+  @override
+  State<_ChatRequestDialog> createState() => _ChatRequestDialogState();
+}
+
+class _ChatRequestDialogState extends State<_ChatRequestDialog> {
+  final _draft = TextEditingController();
+
+  @override
+  void dispose() {
+    _draft.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Solicitar chat'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Escribe el primer mensaje. Esta persona lo verá al recibir tu solicitud.',
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _draft,
+            maxLength: 1000,
+            maxLines: 3,
+            decoration: const InputDecoration(hintText: 'Hola'),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final text = _draft.text.trim();
+            if (text.isEmpty) return;
+            Navigator.pop(context, text);
+          },
+          child: const Text('Enviar'),
+        ),
+      ],
     );
   }
 }

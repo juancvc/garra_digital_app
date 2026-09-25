@@ -21,11 +21,16 @@ class ChatService {
     return ChatRelationship.fromJson(data);
   }
 
-  Future<ChatConversation> request(String recipientUserId) async {
-    final data = await _data(
-      '/chat/requests',
-      body: {'recipientUserId': recipientUserId},
-    );
+  Future<ChatConversation> request(
+    String recipientUserId, {
+    String? initialMessage,
+  }) async {
+    final body = <String, dynamic>{'recipientUserId': recipientUserId};
+    final text = initialMessage?.trim();
+    if (text != null && text.isNotEmpty) {
+      body['initialMessage'] = text;
+    }
+    final data = await _data('/chat/requests', body: body);
     return ChatConversation.fromJson(data);
   }
 

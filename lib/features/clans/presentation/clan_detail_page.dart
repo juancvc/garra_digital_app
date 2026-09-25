@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/design/garra_colors.dart';
+import '../../../core/network/garra_error.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_card.dart';
@@ -13,6 +14,15 @@ import '../data/clan_models.dart';
 import '../data/clan_service.dart';
 import 'clan_tribuna_page.dart';
 import 'providers/clans_provider.dart';
+
+String clanMembersFailureTitle(Object error) => 'No pudimos cargar los miembros.';
+
+String clanMembersFailureMessage(Object error) {
+  if (classifyDioError(error).kind == GarraErrorKind.offline) {
+    return 'Revisa tu conexión e inténtalo de nuevo.';
+  }
+  return 'Inténtalo de nuevo.';
+}
 
 class ClanDetailPage extends ConsumerStatefulWidget {
   const ClanDetailPage({super.key, required this.slug});
@@ -233,7 +243,11 @@ class _ClanDetailPageState extends ConsumerState<ClanDetailPage>
                         color: Color(GarraColors.gold),
                       ),
                     ),
-                    error: (_, __) => GarraErrorState(onRetry: _refresh),
+                    error: (error, _) => GarraErrorState(
+                      title: clanMembersFailureTitle(error),
+                      message: clanMembersFailureMessage(error),
+                      onRetry: _refresh,
+                    ),
                     data: (members) => RefreshIndicator(
                       color: const Color(GarraColors.gold),
                       onRefresh: _refresh,
