@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garra_digital_app/core/theme/app_theme.dart';
+import 'package:garra_digital_app/core/widgets/garra_claw_mark.dart';
 import 'package:garra_digital_app/features/auth/presentation/login_page.dart';
 import 'package:garra_digital_app/features/splash/data/first_launch_experience_service.dart';
 import 'package:garra_digital_app/features/splash/data/intro_audio.dart';
@@ -41,7 +44,7 @@ void main() {
       ),
     );
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 2200));
+    await tester.pump(const Duration(milliseconds: 2600));
 
     expect(find.byKey(const Key('intro-garra')), findsOneWidget);
     expect(find.byKey(const Key('intro-digital')), findsNothing);
@@ -57,7 +60,7 @@ void main() {
       ),
     );
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 4500));
+    await tester.pump(const Duration(milliseconds: 6400));
 
     expect(find.byKey(const Key('intro-puma')), findsOneWidget);
     expect(find.byKey(const Key('intro-garra')), findsOneWidget);
@@ -66,7 +69,7 @@ void main() {
     expect(find.text('Comunidad no oficial de hinchas cremas'), findsOneWidget);
     expect(find.text('LOGIN'), findsNothing);
 
-    await tester.pump(const Duration(milliseconds: 2000));
+    await tester.pump(const Duration(milliseconds: 2800));
     await tester.pump();
     expect(find.text('LOGIN'), findsOneWidget);
   });
@@ -78,7 +81,7 @@ void main() {
       _flow(intro: service, session: false, audio: _FakeAudio()),
     );
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 6300));
+    await tester.pump(const Duration(milliseconds: 9200));
     await tester.pump();
     await tester.pump();
 
@@ -160,7 +163,7 @@ void main() {
       _flow(intro: service, session: true, audio: _FakeAudio()),
     );
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 6300));
+    await tester.pump(const Duration(milliseconds: 9200));
     await tester.pump();
     await tester.pump();
     expect(find.text('HOME'), findsOneWidget);
@@ -177,7 +180,7 @@ void main() {
       ),
     );
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 6300));
+    await tester.pump(const Duration(milliseconds: 9200));
     await tester.pump();
     await tester.pump();
     expect(await service.hasSeenIntro(), isTrue);
@@ -223,6 +226,8 @@ void main() {
     expect(find.text('Continuar con Google'), findsOneWidget);
     expect(find.text('Crear cuenta'), findsOneWidget);
     expect(find.text('De hinchas para hinchas'), findsOneWidget);
+    expect(find.byType(GarraClawMark), findsNothing);
+    expect(find.byKey(const Key('garra-puma-crest')), findsOneWidget);
   });
 
   testWidgets('staging replay action is hidden when not offered', (
@@ -263,6 +268,62 @@ void main() {
     );
     await tester.pump();
     expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  test('intro audio covers the full lockup', () {
+    expect(GarraIntroAudio.introAudioDurationMs, greaterThanOrEqualTo(8000));
+  });
+
+  testWidgets('intro final lockup uses compact spacing', (tester) async {
+    await tester.pumpWidget(
+      _flow(
+        intro: FirstLaunchExperienceService(store: MemoryIntroFlagStore()),
+        session: false,
+        audio: _FakeAudio(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 6400));
+
+    final puma = tester.getRect(find.byKey(const Key('intro-puma')));
+    final garra = tester.getRect(find.byKey(const Key('intro-garra')));
+    final digital = tester.getRect(find.byKey(const Key('intro-digital')));
+    expect(garra.top - puma.bottom, inInclusiveRange(-16, 10));
+    expect(digital.top - garra.bottom, inInclusiveRange(-8, 8));
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  test('launcher resources no longer reference the old claw foreground', () {
+    final xml = Directory('android/app/src/main/res')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((file) => file.path.endsWith('.xml'));
+    expect(xml, isNotEmpty);
+    for (final file in xml) {
+      expect(
+        file.readAsStringSync().contains('garra_mark_fg'),
+        isFalse,
+        reason: file.path,
+      );
+    }
+  });
+
+  testWidgets('narrow login has no overflow', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(theme: AppTheme.darkTheme, home: const LoginPage()),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(GarraClawMark), findsNothing);
+    expect(find.text('Iniciar sesión'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 }

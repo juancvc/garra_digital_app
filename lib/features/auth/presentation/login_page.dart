@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/garra_claw_mark.dart';
+import '../../../core/widgets/garra_puma_crest.dart';
 import '../../notifications/data/push_session_coordinator.dart';
 import 'providers/auth_provider.dart';
 
@@ -79,16 +79,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(24),
+      backgroundColor: const Color(GarraColors.background),
+      body: DecoratedBox(
         decoration: BoxDecoration(
           image: DecorationImage(
             image: const AssetImage('assets/visual/garra_stadium_splash.png'),
             fit: BoxFit.cover,
             alignment: Alignment.topCenter,
             colorFilter: ColorFilter.mode(
-              const Color(GarraColors.background).withValues(alpha: 0.88),
+              const Color(GarraColors.background).withValues(alpha: 0.94),
               BlendMode.srcATop,
             ),
           ),
@@ -96,123 +95,172 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xCC47101C),
-              Color(0xF00E0C0B),
+              Color(0xE647101C),
+              Color(0xF20E0C0B),
               Color(GarraColors.background),
             ],
           ),
         ),
         child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: GarraClawMark(size: 84),
-                    ),
-                    const SizedBox(height: 28),
-                    const Text(
-                      'GARRA DIGITAL',
-                      style: TextStyle(
-                        color: AppTheme.cream,
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.6,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'De hinchas para hinchas',
-                      style: TextStyle(
-                        color: Color(GarraColors.cream),
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Comunidad no oficial de hinchas cremas',
-                      style: TextStyle(
-                        color: Color(GarraColors.creamMuted),
-                        fontSize: 13,
-                        height: 1.35,
-                      ),
-                    ),
-                    const SizedBox(height: 36),
-
-                    Card(
-                      color: Color(GarraColors.surface),
-                      child: Padding(
-                        padding: const EdgeInsets.all(22),
-                        child: Column(
-                          children: [
-                            TextField(
-                              controller: _emailController,
-                              keyboardType: TextInputType.emailAddress,
-                              decoration: const InputDecoration(
-                                labelText: 'Email',
-                                prefixIcon: Icon(Icons.alternate_email),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final hero = constraints.maxHeight * 0.31;
+              return SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - 36,
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: Column(
+                        children: [
+                          ConstrainedBox(
+                            constraints: BoxConstraints(minHeight: hero),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const GarraPumaCrest(size: 76),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  'GARRA DIGITAL',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: AppTheme.cream,
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.8,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'De hinchas para hinchas',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Color(GarraColors.cream),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Comunidad no oficial de hinchas cremas',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Color(GarraColors.creamMuted),
+                                    fontSize: 12,
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: const Color(GarraColors.surface),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(
+                                  GarraColors.gold,
+                                ).withValues(alpha: 0.18),
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: _passwordController,
-                              obscureText: true,
-                              decoration: const InputDecoration(
-                                labelText: 'Contraseña',
-                                prefixIcon: Icon(Icons.lock),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                20,
+                                22,
+                                20,
+                                12,
                               ),
-                            ),
-                            const SizedBox(height: 24),
-                            SizedBox(
-                              width: double.infinity,
-                              child: FilledButton(
-                                onPressed: _loading ? null : _login,
-                                child: _loading
-                                    ? const SizedBox(
-                                        height: 18,
-                                        width: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
+                              child: Column(
+                                children: [
+                                  TextField(
+                                    controller: _emailController,
+                                    keyboardType: TextInputType.emailAddress,
+                                    textInputAction: TextInputAction.next,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Email',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  TextField(
+                                    controller: _passwordController,
+                                    obscureText: true,
+                                    textInputAction: TextInputAction.done,
+                                    onSubmitted: (_) =>
+                                        _loading ? null : _login(),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Contraseña',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 18),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: FilledButton(
+                                      onPressed: _loading ? null : _login,
+                                      child: _loading
+                                          ? const SizedBox(
+                                              height: 18,
+                                              width: 18,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.white,
+                                              ),
+                                            )
+                                          : const Text('Iniciar sesión'),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const Row(
+                                    children: [
+                                      Expanded(child: Divider()),
+                                      Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 12,
                                         ),
-                                      )
-                                    : const Text('Iniciar sesión'),
+                                        child: Text(
+                                          'o',
+                                          style: TextStyle(
+                                            color: Color(
+                                              GarraColors.creamMuted,
+                                            ),
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(child: Divider()),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: OutlinedButton(
+                                      onPressed: _loading
+                                          ? null
+                                          : _loginWithGoogle,
+                                      child: const Text('Continuar con Google'),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => context.go('/register'),
+                                    child: const Text(
+                                      'Crear cuenta',
+                                      style: TextStyle(color: AppTheme.gold),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-
-                            const SizedBox(height: 12),
-
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                onPressed: _loading ? null : _loginWithGoogle,
-                                icon: const Icon(Icons.login),
-                                label: const Text('Continuar con Google'),
-                              ),
-                            ),
-
-                            const SizedBox(height: 16),
-                            TextButton(
-                              onPressed: () => context.go('/register'),
-                              child: const Text(
-                                'Crear cuenta',
-                                style: TextStyle(color: AppTheme.gold),
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),

@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/storage/secure_storage_service.dart';
-import '../../../core/widgets/garra_claw_mark.dart';
+import '../../../core/widgets/garra_puma_crest.dart';
 import '../data/first_launch_experience_service.dart';
 
 class SplashPage extends StatefulWidget {
@@ -58,7 +58,7 @@ class _SplashPageState extends State<SplashPage> {
   Widget build(BuildContext context) {
     return const Scaffold(
       backgroundColor: Color(GarraColors.background),
-      body: Center(child: GarraClawMark(size: 96)),
+      body: Center(child: GarraPumaCrest(size: 96)),
     );
   }
 }

@@ -7,18 +7,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/storage/secure_storage_service.dart';
+import '../../../core/widgets/garra_puma_crest.dart';
 import '../data/first_launch_experience_service.dart';
 import '../data/intro_audio.dart';
-
-/// Designed intro plates. Wordmarks are cropped from the supplied posters
-/// and keyed to luminance so the painted background drops out.
-abstract final class GarraIntroAssets {
-  static const puma = 'assets/brand/intro/garra_puma.png';
-  static const garra = 'assets/brand/intro/garra_wordmark.png';
-  static const digital = 'assets/brand/intro/digital_wordmark.png';
-
-  static const all = [puma, garra, digital];
-}
 
 class GarraPrimordialIntroPage extends StatefulWidget {
   const GarraPrimordialIntroPage({
@@ -39,7 +30,7 @@ class GarraPrimordialIntroPage extends StatefulWidget {
 
 class _GarraPrimordialIntroPageState extends State<GarraPrimordialIntroPage>
     with SingleTickerProviderStateMixin {
-  static const _fullDuration = Duration(milliseconds: 6000);
+  static const _fullDuration = Duration(milliseconds: 8800);
   static const _reducedDuration = Duration(milliseconds: 800);
 
   late final FirstLaunchExperienceService _intro =
@@ -144,8 +135,8 @@ class _GarraPrimordialIntroPageState extends State<GarraPrimordialIntroPage>
           animation: _controller,
           builder: (context, _) {
             final t = _controller.value;
-            final showSkip = _reduced || t >= (800 / 6000);
-            final exit = _reduced ? 0.0 : _unit(t, 5400, 6000, Curves.easeIn);
+            final showSkip = _reduced || t >= (800 / 8800);
+            final exit = _reduced ? 0.0 : _unit(t, 8300, 8800, Curves.easeIn);
             return Stack(
               fit: StackFit.expand,
               children: [
@@ -213,7 +204,7 @@ class _GarraPrimordialIntroPageState extends State<GarraPrimordialIntroPage>
                         Opacity(
                           opacity: _reduced
                               ? t.clamp(0, 1)
-                              : (_unit(t, 4400, 5100, Curves.easeOut) *
+                              : (_unit(t, 6000, 7200, Curves.easeOut) *
                                         (1 - exit))
                                     .clamp(0, 1),
                           child: const Text(
@@ -258,143 +249,133 @@ class _PumaLockup extends StatelessWidget {
   Widget build(BuildContext context) {
     final puma = reduced
         ? _fade(t, 0.02, 0.28)
-        : unit(t, 500, 1500, Curves.easeOutCubic);
+        : unit(t, 700, 2000, Curves.easeOutCubic);
     final garra = reduced
         ? _fade(t, 0.22, 0.5)
-        : unit(t, 1700, 2500, Curves.easeOutCubic);
+        : unit(t, 2200, 3400, Curves.easeOutCubic);
     final digital = reduced
         ? _fade(t, 0.42, 0.7)
-        : unit(t, 2800, 3600, Curves.easeOutCubic);
+        : unit(t, 3500, 4500, Curves.easeOutCubic);
     final claim = reduced
         ? _fade(t, 0.55, 0.85)
-        : unit(t, 3900, 4600, Curves.easeOut);
-    final halo = reduced ? claim : unit(t, 3700, 4800, Curves.easeOut);
-    final shift = reduced ? 0.0 : unit(t, 1700, 2400, Curves.easeOutCubic);
+        : unit(t, 5200, 6400, Curves.easeOut);
+    final halo = reduced ? claim : unit(t, 4500, 6400, Curves.easeOut);
     final impact = reduced ? 0.0 : _impact(t);
     final pumaScale =
         (ui.lerpDouble(0.86, 1, puma) ?? 1) * (1 + 0.025 * impact);
-    final garraSweep = reduced ? 0.0 : unit(t, 2400, 2800, Curves.easeInOut);
-    final exitSweep = reduced ? 0.0 : unit(t, 5200, 5750, Curves.easeInOut);
-    final pumaSweep = reduced ? 0.0 : unit(t, 700, 1500, Curves.easeInOut);
+    final garraSweep = reduced ? 0.0 : unit(t, 3100, 3500, Curves.easeInOut);
+    final exitSweep = reduced ? 0.0 : unit(t, 7200, 8300, Curves.easeInOut);
+    final pumaSweep = reduced ? 0.0 : unit(t, 900, 2000, Curves.easeInOut);
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
+    return Stack(
+      alignment: Alignment.topCenter,
+      clipBehavior: Clip.none,
       children: [
-        SizedBox(
-          width: width,
-          height: width * 0.62,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              if (halo > 0)
-                ExcludeSemantics(
+        if (halo > 0)
+          ExcludeSemantics(
+            child: Opacity(
+              opacity: (0.5 * halo).clamp(0, 1),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(GarraColors.burgundy).withValues(alpha: 0.5),
+                      const Color(GarraColors.gold).withValues(alpha: 0.14),
+                      const Color(GarraColors.background).withValues(alpha: 0),
+                    ],
+                  ),
+                ),
+                child: SizedBox(width: width * 0.52, height: width * 0.52),
+              ),
+            ),
+          ),
+        if (!reduced && exitSweep > 0 && exitSweep < 1)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(painter: _SweepPainter(exitSweep)),
+            ),
+          ),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (puma > 0)
+              Transform.translate(
+                offset: Offset(0, (1 - puma) * 10),
+                child: Transform.scale(
+                  scale: pumaScale,
                   child: Opacity(
-                    opacity: (0.55 * halo).clamp(0, 1),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            const Color(
-                              GarraColors.burgundy,
-                            ).withValues(alpha: 0.55),
-                            const Color(
-                              GarraColors.gold,
-                            ).withValues(alpha: 0.16),
-                            const Color(
-                              GarraColors.background,
-                            ).withValues(alpha: 0),
-                          ],
+                    opacity: puma.clamp(0, 1),
+                    child: _Plate(
+                      key: const Key('intro-puma'),
+                      asset: GarraIntroAssets.puma,
+                      width: width * 0.46,
+                      alignment: const Alignment(0, -0.08),
+                      heightFactor: 0.46,
+                      sweep: pumaSweep,
+                    ),
+                  ),
+                ),
+              ),
+            if (garra > 0)
+              Transform.translate(
+                offset: Offset(0, (1 - garra) * 36 - 8),
+                child: Transform.scale(
+                  scale: ui.lerpDouble(0.96, 1, garra) ?? 1,
+                  child: Opacity(
+                    opacity: garra.clamp(0, 1),
+                    child: _Plate(
+                      key: const Key('intro-garra'),
+                      asset: GarraIntroAssets.garra,
+                      width: width * 0.56,
+                      alignment: const Alignment(0, 0.62),
+                      heightFactor: 0.15,
+                      sweep: garraSweep,
+                    ),
+                  ),
+                ),
+              ),
+            if (digital > 0)
+              Transform.translate(
+                offset: Offset(0, (1 - digital) * 16 - 2),
+                child: SizedBox(
+                  width: width * 0.32,
+                  child: ClipRect(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: reduced ? 1 : digital.clamp(0.001, 1),
+                      child: Opacity(
+                        opacity: digital.clamp(0, 1),
+                        child: _Plate(
+                          key: const Key('intro-digital'),
+                          asset: GarraIntroAssets.digital,
+                          width: width * 0.32,
+                          alignment: const Alignment(0, 0.64),
+                          heightFactor: 0.075,
+                          sweep: 0,
                         ),
                       ),
-                      child: SizedBox(width: width * 0.7, height: width * 0.7),
                     ),
                   ),
                 ),
-              if (puma > 0)
-                Transform.translate(
-                  offset: Offset(0, -18 * shift),
-                  child: Transform.scale(
-                    scale: pumaScale,
-                    child: Opacity(
-                      opacity: puma.clamp(0, 1),
-                      child: _Plate(
-                        key: const Key('intro-puma'),
-                        asset: GarraIntroAssets.puma,
-                        width: width * 0.52,
-                        alignment: const Alignment(0, -0.08),
-                        heightFactor: 0.5,
-                        sweep: pumaSweep,
-                      ),
-                    ),
-                  ),
-                ),
-              if (!reduced && exitSweep > 0 && exitSweep < 1)
-                ExcludeSemantics(
-                  child: CustomPaint(
-                    size: Size(width, width * 0.62),
-                    painter: _SweepPainter(exitSweep),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        if (garra > 0)
-          Transform.translate(
-            offset: Offset(0, (1 - garra) * 28),
-            child: Transform.scale(
-              scale: ui.lerpDouble(0.96, 1, garra) ?? 1,
-              child: Opacity(
-                opacity: garra.clamp(0, 1),
-                child: _Plate(
-                  key: const Key('intro-garra'),
-                  asset: GarraIntroAssets.garra,
-                  width: width * 0.66,
-                  alignment: const Alignment(0, 0.58),
-                  heightFactor: 0.17,
-                  sweep: garraSweep,
-                ),
               ),
-            ),
-          ),
-        if (digital > 0) ...[
-          const SizedBox(height: 6),
-          SizedBox(
-            width: width * 0.42,
-            child: ClipRect(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                widthFactor: reduced ? 1 : digital.clamp(0.001, 1),
-                child: Opacity(
-                  opacity: digital.clamp(0, 1),
-                  child: _Plate(
-                    key: const Key('intro-digital'),
-                    asset: GarraIntroAssets.digital,
-                    width: width * 0.42,
-                    alignment: const Alignment(0, 0.63),
-                    heightFactor: 0.08,
-                    sweep: 0,
+            const SizedBox(height: 14),
+            Opacity(
+              opacity: claim.clamp(0, 1),
+              child: Transform.translate(
+                offset: Offset(0, (1 - claim) * 8),
+                child: Text(
+                  'De hinchas para hinchas',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: const Color(GarraColors.cream),
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.2,
                   ),
                 ),
               ),
             ),
-          ),
-        ],
-        const SizedBox(height: 22),
-        Opacity(
-          opacity: claim.clamp(0, 1),
-          child: Transform.translate(
-            offset: Offset(0, (1 - claim) * 8),
-            child: Text(
-              'De hinchas para hinchas',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: const Color(GarraColors.cream),
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.2,
-              ),
-            ),
-          ),
+          ],
         ),
       ],
     );
@@ -407,8 +388,8 @@ class _PumaLockup extends StatelessWidget {
   }
 
   double _impact(double t) {
-    final start = 1520 / 6000;
-    final end = 1700 / 6000;
+    final start = 2000 / 8800;
+    final end = 2200 / 8800;
     if (t <= start || t >= end) return 0;
     return math.sin(((t - start) / (end - start)) * math.pi);
   }

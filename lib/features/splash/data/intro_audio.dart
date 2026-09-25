@@ -6,7 +6,7 @@ import 'package:audioplayers/audioplayers.dart';
 /// The full file stays intact; playback is limited in the player.
 abstract final class GarraIntroAudio {
   static const int introAudioStartMs = 0;
-  static const int introAudioDurationMs = 5600;
+  static const int introAudioDurationMs = 8200;
   static const String assetPath = 'audio/garra_intro_source.mp3';
 }
 
