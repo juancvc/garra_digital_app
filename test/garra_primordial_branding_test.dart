@@ -16,6 +16,61 @@ void main() {
     expect(await service.hasSeenIntro(), isFalse);
   });
 
+  testWidgets('puma renders before GARRA', (tester) async {
+    await tester.pumpWidget(
+      _flow(
+        intro: FirstLaunchExperienceService(store: MemoryIntroFlagStore()),
+        session: false,
+        audio: _FakeAudio(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1000));
+
+    expect(find.byKey(const Key('intro-puma')), findsOneWidget);
+    expect(find.byKey(const Key('intro-garra')), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('GARRA renders before DIGITAL', (tester) async {
+    await tester.pumpWidget(
+      _flow(
+        intro: FirstLaunchExperienceService(store: MemoryIntroFlagStore()),
+        session: false,
+        audio: _FakeAudio(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 2200));
+
+    expect(find.byKey(const Key('intro-garra')), findsOneWidget);
+    expect(find.byKey(const Key('intro-digital')), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('full lockup appears before exit', (tester) async {
+    await tester.pumpWidget(
+      _flow(
+        intro: FirstLaunchExperienceService(store: MemoryIntroFlagStore()),
+        session: false,
+        audio: _FakeAudio(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 4500));
+
+    expect(find.byKey(const Key('intro-puma')), findsOneWidget);
+    expect(find.byKey(const Key('intro-garra')), findsOneWidget);
+    expect(find.byKey(const Key('intro-digital')), findsOneWidget);
+    expect(find.text('De hinchas para hinchas'), findsOneWidget);
+    expect(find.text('Comunidad no oficial de hinchas cremas'), findsOneWidget);
+    expect(find.text('LOGIN'), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 2000));
+    await tester.pump();
+    expect(find.text('LOGIN'), findsOneWidget);
+  });
+
   testWidgets('completing the intro stores introSeen', (tester) async {
     final store = MemoryIntroFlagStore();
     final service = FirstLaunchExperienceService(store: store);

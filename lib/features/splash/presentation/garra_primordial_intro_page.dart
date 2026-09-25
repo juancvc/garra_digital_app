@@ -1,14 +1,24 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/storage/secure_storage_service.dart';
-import '../../../core/widgets/garra_claw_mark.dart';
 import '../data/first_launch_experience_service.dart';
 import '../data/intro_audio.dart';
+
+/// Designed intro plates. Wordmarks are cropped from the supplied posters
+/// and keyed to luminance so the painted background drops out.
+abstract final class GarraIntroAssets {
+  static const puma = 'assets/brand/intro/garra_puma.png';
+  static const garra = 'assets/brand/intro/garra_wordmark.png';
+  static const digital = 'assets/brand/intro/digital_wordmark.png';
+
+  static const all = [puma, garra, digital];
+}
 
 class GarraPrimordialIntroPage extends StatefulWidget {
   const GarraPrimordialIntroPage({
@@ -29,7 +39,7 @@ class GarraPrimordialIntroPage extends StatefulWidget {
 
 class _GarraPrimordialIntroPageState extends State<GarraPrimordialIntroPage>
     with SingleTickerProviderStateMixin {
-  static const _fullDuration = Duration(milliseconds: 6200);
+  static const _fullDuration = Duration(milliseconds: 6000);
   static const _reducedDuration = Duration(milliseconds: 800);
 
   late final FirstLaunchExperienceService _intro =
@@ -56,8 +66,21 @@ class _GarraPrimordialIntroPageState extends State<GarraPrimordialIntroPage>
             unawaited(_leave());
           }
         });
+    _precache();
     _controller.forward();
     unawaited(_startAudio());
+  }
+
+  void _precache() {
+    for (final asset in GarraIntroAssets.all) {
+      unawaited(_precacheOne(asset));
+    }
+  }
+
+  Future<void> _precacheOne(String asset) async {
+    try {
+      await precacheImage(ResizeImage(AssetImage(asset), width: 720), context);
+    } catch (_) {}
   }
 
   Future<void> _startAudio() async {
@@ -102,11 +125,12 @@ class _GarraPrimordialIntroPageState extends State<GarraPrimordialIntroPage>
     super.dispose();
   }
 
-  double _span(double t, double start, double end) {
+  double _unit(double t, double startMs, double endMs, Curve curve) {
+    final start = startMs / _fullDuration.inMilliseconds;
+    final end = endMs / _fullDuration.inMilliseconds;
     if (t <= start) return 0;
     if (t >= end) return 1;
-    final raw = (t - start) / (end - start);
-    return Curves.easeInOut.transform(raw);
+    return curve.transform((t - start) / (end - start));
   }
 
   @override
@@ -120,14 +144,15 @@ class _GarraPrimordialIntroPageState extends State<GarraPrimordialIntroPage>
           animation: _controller,
           builder: (context, _) {
             final t = _controller.value;
-            final showSkip = _reduced || t >= (800 / 6200);
+            final showSkip = _reduced || t >= (800 / 6000);
+            final exit = _reduced ? 0.0 : _unit(t, 5400, 6000, Curves.easeIn);
             return Stack(
               fit: StackFit.expand,
               children: [
                 const DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: RadialGradient(
-                      center: Alignment(0, -0.15),
+                      center: Alignment(0, -0.2),
                       radius: 1.05,
                       colors: [
                         Color(GarraColors.burgundyDeep),
@@ -165,13 +190,32 @@ class _GarraPrimordialIntroPageState extends State<GarraPrimordialIntroPage>
                           ),
                         ),
                         Expanded(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: _Stage(t: t, reduced: _reduced, span: _span),
+                          child: Opacity(
+                            opacity: (1 - exit).clamp(0, 1),
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                return FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: SizedBox(
+                                    width: constraints.maxWidth,
+                                    child: _PumaLockup(
+                                      t: t,
+                                      reduced: _reduced,
+                                      width: constraints.maxWidth,
+                                      unit: _unit,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         ),
                         Opacity(
-                          opacity: _reduced ? t : _span(t, 0.84, 0.96),
+                          opacity: _reduced
+                              ? t.clamp(0, 1)
+                              : (_unit(t, 4400, 5100, Curves.easeOut) *
+                                        (1 - exit))
+                                    .clamp(0, 1),
                           child: const Text(
                             'Comunidad no oficial de hinchas cremas',
                             textAlign: TextAlign.center,
@@ -196,50 +240,154 @@ class _GarraPrimordialIntroPageState extends State<GarraPrimordialIntroPage>
   }
 }
 
-class _Stage extends StatelessWidget {
-  const _Stage({required this.t, required this.reduced, required this.span});
+class _PumaLockup extends StatelessWidget {
+  const _PumaLockup({
+    required this.t,
+    required this.reduced,
+    required this.width,
+    required this.unit,
+  });
 
   final double t;
   final bool reduced;
-  final double Function(double t, double start, double end) span;
+  final double width;
+  final double Function(double t, double startMs, double endMs, Curve curve)
+  unit;
 
   @override
   Widget build(BuildContext context) {
-    final title = reduced ? t : span(t, 0.56, 0.72);
-    final claim = reduced ? t : span(t, 0.66, 0.82);
+    final puma = reduced
+        ? _fade(t, 0.02, 0.28)
+        : unit(t, 500, 1500, Curves.easeOutCubic);
+    final garra = reduced
+        ? _fade(t, 0.22, 0.5)
+        : unit(t, 1700, 2500, Curves.easeOutCubic);
+    final digital = reduced
+        ? _fade(t, 0.42, 0.7)
+        : unit(t, 2800, 3600, Curves.easeOutCubic);
+    final claim = reduced
+        ? _fade(t, 0.55, 0.85)
+        : unit(t, 3900, 4600, Curves.easeOut);
+    final halo = reduced ? claim : unit(t, 3700, 4800, Curves.easeOut);
+    final shift = reduced ? 0.0 : unit(t, 1700, 2400, Curves.easeOutCubic);
+    final impact = reduced ? 0.0 : _impact(t);
+    final pumaScale =
+        (ui.lerpDouble(0.86, 1, puma) ?? 1) * (1 + 0.025 * impact);
+    final garraSweep = reduced ? 0.0 : unit(t, 2400, 2800, Curves.easeInOut);
+    final exitSweep = reduced ? 0.0 : unit(t, 5200, 5750, Curves.easeInOut);
+    final pumaSweep = reduced ? 0.0 : unit(t, 700, 1500, Curves.easeInOut);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          width: 168,
-          height: 168,
-          child: CustomPaint(
-            painter: _IntroMarkPainter(t: t, reduced: reduced),
+          width: width,
+          height: width * 0.62,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              if (halo > 0)
+                ExcludeSemantics(
+                  child: Opacity(
+                    opacity: (0.55 * halo).clamp(0, 1),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            const Color(
+                              GarraColors.burgundy,
+                            ).withValues(alpha: 0.55),
+                            const Color(
+                              GarraColors.gold,
+                            ).withValues(alpha: 0.16),
+                            const Color(
+                              GarraColors.background,
+                            ).withValues(alpha: 0),
+                          ],
+                        ),
+                      ),
+                      child: SizedBox(width: width * 0.7, height: width * 0.7),
+                    ),
+                  ),
+                ),
+              if (puma > 0)
+                Transform.translate(
+                  offset: Offset(0, -18 * shift),
+                  child: Transform.scale(
+                    scale: pumaScale,
+                    child: Opacity(
+                      opacity: puma.clamp(0, 1),
+                      child: _Plate(
+                        key: const Key('intro-puma'),
+                        asset: GarraIntroAssets.puma,
+                        width: width * 0.52,
+                        alignment: const Alignment(0, -0.08),
+                        heightFactor: 0.5,
+                        sweep: pumaSweep,
+                      ),
+                    ),
+                  ),
+                ),
+              if (!reduced && exitSweep > 0 && exitSweep < 1)
+                ExcludeSemantics(
+                  child: CustomPaint(
+                    size: Size(width, width * 0.62),
+                    painter: _SweepPainter(exitSweep),
+                  ),
+                ),
+            ],
           ),
         ),
-        const SizedBox(height: 28),
-        Opacity(
-          opacity: title,
-          child: Transform.translate(
-            offset: Offset(0, (1 - title) * 10),
-            child: Text(
-              'GARRA DIGITAL',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: const Color(GarraColors.cream),
-                fontWeight: FontWeight.w800,
-                letterSpacing: 2.4,
-                height: 1,
+        if (garra > 0)
+          Transform.translate(
+            offset: Offset(0, (1 - garra) * 28),
+            child: Transform.scale(
+              scale: ui.lerpDouble(0.96, 1, garra) ?? 1,
+              child: Opacity(
+                opacity: garra.clamp(0, 1),
+                child: _Plate(
+                  key: const Key('intro-garra'),
+                  asset: GarraIntroAssets.garra,
+                  width: width * 0.66,
+                  alignment: const Alignment(0, 0.58),
+                  heightFactor: 0.17,
+                  sweep: garraSweep,
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 12),
+        if (digital > 0) ...[
+          const SizedBox(height: 6),
+          SizedBox(
+            width: width * 0.42,
+            child: ClipRect(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                widthFactor: reduced ? 1 : digital.clamp(0.001, 1),
+                child: Opacity(
+                  opacity: digital.clamp(0, 1),
+                  child: _Plate(
+                    key: const Key('intro-digital'),
+                    asset: GarraIntroAssets.digital,
+                    width: width * 0.42,
+                    alignment: const Alignment(0, 0.63),
+                    heightFactor: 0.08,
+                    sweep: 0,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 22),
         Opacity(
-          opacity: claim,
+          opacity: claim.clamp(0, 1),
           child: Transform.translate(
             offset: Offset(0, (1 - claim) * 8),
             child: Text(
               'De hinchas para hinchas',
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: const Color(GarraColors.cream),
                 fontWeight: FontWeight.w500,
@@ -251,123 +399,133 @@ class _Stage extends StatelessWidget {
       ],
     );
   }
-}
 
-class _IntroMarkPainter extends CustomPainter {
-  _IntroMarkPainter({required this.t, required this.reduced});
-
-  final double t;
-  final bool reduced;
-
-  double _span(double start, double end) {
+  double _fade(double t, double start, double end) {
     if (t <= start) return 0;
     if (t >= end) return 1;
-    return (t - start) / (end - start);
+    return Curves.easeOut.transform((t - start) / (end - start));
   }
+
+  double _impact(double t) {
+    final start = 1520 / 6000;
+    final end = 1700 / 6000;
+    if (t <= start || t >= end) return 0;
+    return math.sin(((t - start) / (end - start)) * math.pi);
+  }
+}
+
+class _Plate extends StatelessWidget {
+  const _Plate({
+    super.key,
+    required this.asset,
+    required this.width,
+    required this.alignment,
+    required this.heightFactor,
+    required this.sweep,
+  });
+
+  final String asset;
+  final double width;
+  final Alignment alignment;
+  final double heightFactor;
+  final double sweep;
+
+  static const _lumaToAlpha = ColorFilter.matrix(<double>[
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0.25,
+    0.65,
+    0.10,
+    0,
+    0,
+  ]);
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: SizedBox(
+        width: width,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            ClipRect(
+              child: Align(
+                alignment: alignment,
+                heightFactor: heightFactor,
+                child: ColorFiltered(
+                  colorFilter: _lumaToAlpha,
+                  child: Image(
+                    image: ResizeImage(AssetImage(asset), width: 720),
+                    fit: BoxFit.fitWidth,
+                    filterQuality: FilterQuality.medium,
+                    gaplessPlayback: true,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  ),
+                ),
+              ),
+            ),
+            if (sweep > 0 && sweep < 1)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(painter: _SweepPainter(sweep)),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SweepPainter extends CustomPainter {
+  const _SweepPainter(this.t);
+
+  final double t;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final scale = size.width / GarraClawGeometry.viewBox;
-    final cream = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 7
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..color = const Color(GarraColors.cream);
-    final gold = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4.5
-      ..strokeCap = StrokeCap.round
-      ..color = const Color(GarraColors.gold);
-
-    if (reduced) {
-      canvas.save();
-      canvas.scale(scale);
-      canvas.drawPath(GarraClawGeometry.spine(), cream);
-      canvas.drawPath(GarraClawGeometry.middleClaw(), cream);
-      canvas.drawPath(GarraClawGeometry.lowerClaw(), cream);
-      canvas.drawPath(GarraClawGeometry.goldTip(), gold);
-      canvas.restore();
-      return;
-    }
-
-    final revealEnds = [0.22, 0.26, 0.30];
-    final claws = GarraClawGeometry.claws();
-    final settle = _span(0.28, 0.44);
-    final glow = _span(0.44, 0.56);
-    final pulse = glow <= 0
-        ? 0.0
-        : 0.45 + 0.25 * math.sin((t - 0.44) * math.pi * 4);
-    if (glow > 0) {
-      canvas.drawCircle(
-        Offset(size.width / 2, size.height / 2),
-        size.width * 0.42,
-        Paint()
-          ..color = const Color(
-            GarraColors.burgundy,
-          ).withValues(alpha: 0.35 * pulse.clamp(0, 1)),
+    final x = size.width * (-0.35 + 1.5 * t);
+    final rect = Rect.fromLTWH(x, 0, size.width * 0.22, size.height);
+    final paint = Paint()
+      ..shader = ui.Gradient.linear(
+        rect.centerLeft,
+        rect.centerRight,
+        const [Color(0x00C7A45B), Color(0x99C7A45B), Color(0x00C7A45B)],
+        const [0, 0.5, 1],
       );
-    }
-
-    final eye = _span(0.34, 0.40) * (1 - _span(0.42, 0.50));
-    if (eye > 0) {
-      final eyePaint = Paint()
-        ..color = const Color(GarraColors.gold).withValues(alpha: 0.28 * eye);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset(size.width * 0.42, size.height * 0.46),
-            width: 16,
-            height: 3,
-          ),
-          const Radius.circular(2),
-        ),
-        eyePaint,
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset(size.width * 0.58, size.height * 0.46),
-            width: 16,
-            height: 3,
-          ),
-          const Radius.circular(2),
-        ),
-        eyePaint,
-      );
-    }
-
     canvas.save();
-    canvas.scale(scale);
-    for (var i = 0; i < claws.length; i++) {
-      final reveal = _span(0.11 + i * 0.03, revealEnds[i]);
-      final scatter = 1 - settle;
-      canvas.save();
-      canvas.translate((i - 1) * 16 * scatter, (i == 1 ? -10 : 8) * scatter);
-      for (final metric in claws[i].computeMetrics()) {
-        final portion = metric.extractPath(0, metric.length * reveal);
-        canvas.drawPath(portion, cream);
-      }
-      canvas.restore();
-    }
-    if (settle > 0.85) {
-      canvas.drawPath(GarraClawGeometry.goldTip(), gold);
-    }
+    canvas.translate(size.width / 2, size.height / 2);
+    canvas.rotate(-0.45);
+    canvas.translate(-size.width / 2, -size.height / 2);
+    canvas.drawRect(rect, paint);
     canvas.restore();
   }
 
   @override
-  bool shouldRepaint(_IntroMarkPainter oldDelegate) => oldDelegate.t != t;
+  bool shouldRepaint(_SweepPainter oldDelegate) => oldDelegate.t != t;
 }
 
 class _HazePainter extends CustomPainter {
-  _HazePainter(this.t);
+  const _HazePainter(this.t);
 
   final double t;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = const Color(GarraColors.cream);
+    final paint = Paint();
     for (var i = 0; i < 14; i++) {
       final x = size.width * (0.08 + ((i * 37) % 84) / 100);
       final y = size.height * (0.12 + ((i * 19) % 70) / 100);
