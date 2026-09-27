@@ -230,17 +230,11 @@ class _ReactorTile extends StatelessWidget {
           ? null
           : Semantics(
               label: type.labelEs,
-              child: isCommentReactionType(type.apiValue)
-                  ? CommentReactionIcon(
-                      key: ValueKey('reactor_type_${item.fanId}_${type.apiValue}'),
-                      type: type,
-                      size: 22,
-                    )
-                  : Text(
-                      type.emoji,
-                      key: ValueKey('reactor_type_${item.fanId}_${type.apiValue}'),
-                      style: const TextStyle(fontSize: 20),
-                    ),
+              child: CommentReactionIcon(
+                key: ValueKey('reactor_type_${item.fanId}_${type.apiValue}'),
+                type: type,
+                size: 22,
+              ),
             ),
     );
   }

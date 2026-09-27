@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_brand_visual.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
@@ -140,7 +141,7 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
           : isLoading && !listingsAsync.hasValue && !categoriesAsync.hasValue
           ? const _MarketplaceSkeleton()
           : RefreshIndicator(
-              color: const Color(GarraColors.gold),
+              color: context.garraColors.brandPrestige,
               onRefresh: _refresh,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -165,7 +166,7 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
                         ),
                         const SizedBox(height: GarraSpacing.sm),
                         Text(
-                          'Compra crema. Impulsa a los nuestros.',
+                          'Compra crema, apoya crema.',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleLarge
@@ -177,6 +178,16 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
                               ),
                         ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: GarraSpacing.sm),
+                  Text(
+                    'Descubre emprendimientos de la comunidad de hinchas. '
+                    'El contacto y la compra se coordinan directamente con '
+                    'cada negocio por WhatsApp; Garra no procesa pagos.',
+                    key: const ValueKey('marketplace_claim_explainer'),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.garraColors.textSecondary,
                     ),
                   ),
                   const SizedBox(height: GarraSpacing.lg),
@@ -331,8 +342,8 @@ class _CategoryChips extends StatelessWidget {
             checkmarkColor: const Color(GarraColors.gold),
             labelStyle: TextStyle(
               color: selected
-                  ? const Color(GarraColors.cream)
-                  : const Color(GarraColors.textSecondary),
+                  ? context.garraColors.textPrimary
+                  : context.garraColors.textSecondary,
               fontWeight: FontWeight.w600,
             ),
             side: BorderSide(
@@ -343,7 +354,7 @@ class _CategoryChips extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(GarraRadius.pill),
             ),
-            backgroundColor: const Color(GarraColors.surface),
+            backgroundColor: context.garraColors.surface,
           );
         },
       ),

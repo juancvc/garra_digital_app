@@ -1,8 +1,12 @@
-/// Reaction types for community posts (WallPostResponse.myReaction).
+/// Garra reaction catalog (posts, comments and replies), in display order.
+/// HAHA and CARE are real backend types (UX_08A). LOVE, FIRE, CARE and GARRA
+/// render as vector glyphs; the rest use their emoji.
 enum ReactionType {
   like('LIKE', '👍', 'Me gusta'),
   love('LOVE', '❤️', 'Me encanta'),
   fire('FIRE', '🔥', 'Está que arde'),
+  haha('HAHA', '\u{1F602}', 'Me divierte'),
+  care('CARE', '\u{1F917}', 'Me importa'),
   anger('ANGER', '😡', 'Me enoja'),
   sad('SAD', '😢', 'Me entristece'),
   garra('GARRA', '🛡', 'Garra');
@@ -37,6 +41,8 @@ const reactionSummaryKeys = [
   'LIKE',
   'LOVE',
   'FIRE',
+  'HAHA',
+  'CARE',
   'ANGER',
   'SAD',
   'GARRA',

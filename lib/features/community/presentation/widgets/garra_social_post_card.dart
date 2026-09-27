@@ -23,6 +23,7 @@ class GarraSocialPostCard extends StatelessWidget {
     this.onShare,
     this.onSave,
     this.onReact,
+    this.onChangeReaction,
     this.onComment,
     this.onDelete,
   });
@@ -35,6 +36,9 @@ class GarraSocialPostCard extends StatelessWidget {
   final VoidCallback? onShare;
   final VoidCallback? onSave;
   final VoidCallback? onReact;
+
+  /// Long-press on the reaction strip: change the current reaction.
+  final VoidCallback? onChangeReaction;
   final VoidCallback? onComment;
   final VoidCallback? onDelete;
 
@@ -182,6 +186,7 @@ class GarraSocialPostCard extends StatelessWidget {
                 commentCount: post.commentCount,
                 myReaction: post.myReaction,
                 onTapReactions: onReact,
+            onLongPressReactions: onChangeReaction,
                 onTapComments: onComment ?? onOpen,
               ),
               if (post.reactionCount > 0 || post.commentCount > 0)

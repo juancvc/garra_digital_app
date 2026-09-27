@@ -255,6 +255,19 @@ class MarketplaceService {
         });
       }
 
+      final logoId = request.logoMediaAssetId;
+      if (logoId != null && logoId.isNotEmpty) {
+        // Existing store media endpoint (single logo image).
+        await _dio.put(
+          '/marketplace/seller/me/store/media',
+          data: {
+            'logoMediaAssetId': logoId,
+            'clearLogo': false,
+            'clearBanner': false,
+          },
+        );
+      }
+
       final response = await _dio.post('/marketplace/seller/me/submit');
       return _parseSellerProfile(response.data);
     } on MarketplaceServiceException {

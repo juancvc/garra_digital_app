@@ -13,7 +13,7 @@ import '../../community/data/engagement_utils.dart';
 import '../../community/data/wall_post_model.dart';
 import '../../community/presentation/providers/community_provider.dart';
 import '../../community/presentation/widgets/garra_reaction_bar.dart';
-import '../../community/presentation/widgets/garra_reaction_picker.dart';
+import '../../community/presentation/widgets/garra_reaction_actions.dart';
 
 import '../data/clan_models.dart';
 import '../data/clan_service.dart';
@@ -374,21 +374,17 @@ class _ClanFeedPostCardState extends ConsumerState<_ClanFeedPostCard> {
     }
   }
 
-  Future<void> _react() async {
+  Future<void> _react({bool change = false}) async {
     if (_reacting) return;
-    final selected = await showGarraReactionPicker(
+    final intent = await resolveReactionTap(
       context,
-      currentReaction: _post.myReaction,
+      current: _post.myReaction,
+      forcePicker: change,
     );
-    if (selected == null || !mounted) return;
+    if (intent == null || !mounted) return;
 
     final previous = _post;
-    final same = _post.myReaction != null &&
-        _post.myReaction!.toUpperCase() == selected.apiValue;
-    final optimistic = applyOptimisticReaction(
-      _post,
-      same ? null : selected.apiValue,
-    );
+    final optimistic = applyOptimisticReaction(_post, intent.apiValue);
 
     setState(() {
       _post = optimistic;
@@ -396,11 +392,11 @@ class _ClanFeedPostCardState extends ConsumerState<_ClanFeedPostCard> {
     });
 
     final service = ref.read(communityServiceProvider);
-    final result = same
+    final result = intent.isRemove
         ? await service.removeReaction(_post.id)
         : await service.upsertReaction(
             postId: _post.id,
-            type: selected.apiValue,
+            type: intent.apiValue!,
           );
 
     if (!mounted) return;
@@ -413,7 +409,7 @@ class _ClanFeedPostCardState extends ConsumerState<_ClanFeedPostCard> {
       final msg = result.message.toLowerCase().contains('miembro') ||
               result.message.toLowerCase().contains('pertenec')
           ? result.message
-          : 'No se pudo actualizar la reacción. Inténtalo de nuevo.';
+          : reactionErrorMessage(intent);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       return;
     }
@@ -475,6 +471,9 @@ class _ClanFeedPostCardState extends ConsumerState<_ClanFeedPostCard> {
             commentCount: post.commentCount,
             myReaction: post.myReaction,
             onTapReactions: _reacting ? null : _react,
+            onLongPressReactions: _reacting
+                ? null
+                : () => _react(change: true),
             onTapComments: widget.onOpenDetail,
           ),
         ],

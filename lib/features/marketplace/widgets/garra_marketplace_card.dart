@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_card.dart';
@@ -105,7 +106,7 @@ class GarraMarketplaceCard extends StatelessWidget {
                     Text(
                       listing.priceLabel,
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: const Color(GarraColors.gold),
+                        color: context.garraColors.brandPrestige,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -135,7 +136,7 @@ class GarraMarketplaceCard extends StatelessWidget {
               ),
             ),
           ] else if (onTap != null)
-            const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+            Icon(Icons.chevron_right, color: context.garraColors.brandPrestige),
         ],
       ),
     );
@@ -242,7 +243,7 @@ class _CompactMarketplaceCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: const Color(GarraColors.gold),
+                      color: context.garraColors.brandPrestige,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -264,9 +265,9 @@ class _FallbackThumb extends StatelessWidget {
     return Container(
       color: const Color(GarraColors.garnet).withValues(alpha: 0.22),
       alignment: Alignment.center,
-      child: const Icon(
+      child: Icon(
         Icons.storefront_outlined,
-        color: Color(GarraColors.gold),
+        color: context.garraColors.brandPrestige,
       ),
     );
   }
@@ -280,16 +281,16 @@ class _DestacadoBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: const Color(GarraColors.gold).withValues(alpha: 0.16),
+        color: context.garraColors.brandPrestige.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(GarraRadius.pill),
         border: Border.all(
-          color: const Color(GarraColors.gold).withValues(alpha: 0.45),
+          color: context.garraColors.brandPrestige.withValues(alpha: 0.45),
         ),
       ),
       child: Text(
         'Destacado',
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: const Color(GarraColors.gold),
+          color: context.garraColors.brandPrestige,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -310,14 +311,14 @@ class _Pill extends StatelessWidget {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: const Color(GarraColors.surfaceRaised),
+        color: context.garraColors.surfaceRaised,
         borderRadius: BorderRadius.circular(GarraRadius.pill),
         border: Border.all(color: const Color(GarraColors.borderSubtle)),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: const Color(GarraColors.textSecondary),
+          color: context.garraColors.textSecondary,
         ),
       ),
     );

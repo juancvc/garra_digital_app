@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
@@ -34,7 +34,7 @@ class SellerDashboardPage extends ConsumerWidget {
     final planAsync = ref.watch(sellerPlanProvider);
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(
         title: const Text('Mi tienda'),
         actions: [
@@ -51,8 +51,8 @@ class SellerDashboardPage extends ConsumerWidget {
         ],
       ),
       body: summaryAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: Color(GarraColors.gold)),
+        loading: () => Center(
+          child: CircularProgressIndicator(color: context.garraColors.brandPrestige),
         ),
         error: (_, _) => GarraErrorState(
           onRetry: () {
@@ -63,7 +63,7 @@ class SellerDashboardPage extends ConsumerWidget {
         ),
         data: (summary) {
           return RefreshIndicator(
-            color: const Color(GarraColors.gold),
+            color: context.garraColors.brandPrestige,
             onRefresh: () async {
               ref.invalidate(sellerSummaryProvider);
               ref.invalidate(sellerListingsProvider);

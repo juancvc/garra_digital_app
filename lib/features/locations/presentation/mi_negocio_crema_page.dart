@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_form.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../data/crema_business_application_service.dart';
@@ -63,8 +64,8 @@ class _MiNegocioCremaPageState extends State<MiNegocioCremaPage> {
         icon: const Icon(Icons.add_business_outlined),
       ),
       body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(GarraColors.gold)),
+          ? Center(
+              child: CircularProgressIndicator(color: context.garraColors.brandPrestige),
             )
           : _error != null
           ? Center(child: Text(_error!))
@@ -84,7 +85,7 @@ class _MiNegocioCremaPageState extends State<MiNegocioCremaPage> {
               itemBuilder: (context, i) {
                 final item = _items[i];
                 return Material(
-                  color: const Color(GarraColors.surface),
+                  color: context.garraColors.surface,
                   borderRadius: BorderRadius.circular(12),
                   child: Padding(
                     padding: const EdgeInsets.all(GarraSpacing.md),
@@ -99,12 +100,12 @@ class _MiNegocioCremaPageState extends State<MiNegocioCremaPage> {
                         Text(item.status.label),
                         if (item.status ==
                             CremaBusinessApplicationStatus.verified)
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.only(top: 6),
                             child: Text(
                               '✓ Verificado por Garra',
                               style: TextStyle(
-                                color: Color(GarraColors.gold),
+                                color: context.garraColors.brandPrestige,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),

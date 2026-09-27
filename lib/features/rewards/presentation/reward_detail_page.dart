@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/design/garra_typography.dart';
@@ -33,7 +33,7 @@ class _RewardDetailPageState extends ConsumerState<RewardDetailPage> {
     final after = balance - offer.pointsCost;
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      backgroundColor: const Color(GarraColors.surface),
+      backgroundColor: context.garraColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(GarraRadius.xl)),
       ),
@@ -128,7 +128,7 @@ class _RewardDetailPageState extends ConsumerState<RewardDetailPage> {
     final balance = home.maybeWhen(data: (h) => h.fan.points, orElse: () => 0);
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(title: const Text('Beneficio')),
       body: detail.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -159,7 +159,7 @@ class _RewardDetailPageState extends ConsumerState<RewardDetailPage> {
                     ? 'Patrocinado por ${offer.providerName ?? offer.providerLabel}'
                     : offer.providerLabel,
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: const Color(GarraColors.gold),
+                      color: context.garraColors.brandPrestige,
                       fontWeight: FontWeight.w700,
                     ),
               ),
@@ -222,7 +222,7 @@ class _RewardDetailPageState extends ConsumerState<RewardDetailPage> {
                   child: Text(
                     'Te faltan $missing Puntos Garra',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: const Color(GarraColors.gold),
+                          color: context.garraColors.brandPrestige,
                         ),
                   ),
                 )

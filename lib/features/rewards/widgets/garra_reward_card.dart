@@ -1,7 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/design/garra_typography.dart';
@@ -34,9 +34,9 @@ class GarraRewardCard extends StatelessWidget {
                   ? CachedNetworkImage(
                       imageUrl: offer.imageUrl!,
                       fit: BoxFit.cover,
-                      errorWidget: (_, _, _) => _fallback(),
+                      errorWidget: (_, _, _) => _fallback(context),
                     )
-                  : _fallback(),
+                  : _fallback(context),
             ),
           ),
           const SizedBox(width: GarraSpacing.md),
@@ -49,7 +49,7 @@ class GarraRewardCard extends StatelessWidget {
                       ? 'Patrocinado por ${offer.providerName ?? offer.providerLabel}'
                       : offer.providerLabel,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: const Color(GarraColors.gold),
+                        color: context.garraColors.brandPrestige,
                         fontWeight: FontWeight.w700,
                       ),
                 ),
@@ -70,25 +70,25 @@ class GarraRewardCard extends StatelessWidget {
                   Text(
                     offer.ineligibilityReason ?? 'No disponible',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: const Color(GarraColors.textSecondary),
+                          color: context.garraColors.textSecondary,
                         ),
                   ),
                 ],
               ],
             ),
           ),
-          const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+          Icon(Icons.chevron_right, color: context.garraColors.brandPrestige),
         ],
       ),
     );
   }
 
-  Widget _fallback() {
+  Widget _fallback(BuildContext context) {
     return Container(
-      color: const Color(GarraColors.surfaceRaised),
-      child: const Icon(
+      color: context.garraColors.surfaceRaised,
+      child: Icon(
         Icons.card_giftcard_outlined,
-        color: Color(GarraColors.gold),
+        color: context.garraColors.brandPrestige,
       ),
     );
   }

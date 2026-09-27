@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../../core/design/garra_colors.dart';
 import '../../../../core/design/garra_radius.dart';
 import '../../../../core/design/garra_spacing.dart';
+import '../../../../core/theme/garra_semantic_colors.dart';
 import '../../data/reaction_type.dart';
+import 'garra_comment_reactions.dart';
+import 'garra_reaction_burst.dart';
 
 /// Compact engagement strip: top non-zero reactions + comment count.
 /// Layout-safe on narrow screens (no horizontal RenderFlex overflow).
@@ -15,6 +18,7 @@ class GarraReactionBar extends StatelessWidget {
     required this.commentCount,
     this.myReaction,
     this.onTapReactions,
+    this.onLongPressReactions,
     this.onTapComments,
     this.compact = true,
   });
@@ -24,6 +28,9 @@ class GarraReactionBar extends StatelessWidget {
   final int commentCount;
   final String? myReaction;
   final VoidCallback? onTapReactions;
+
+  /// Long-press: change the current reaction (opens the picker).
+  final VoidCallback? onLongPressReactions;
   final VoidCallback? onTapComments;
   final bool compact;
 
@@ -31,7 +38,7 @@ class GarraReactionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final top = topNonZeroReactions(reactionSummary, limit: 3);
     final textStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: const Color(GarraColors.textSecondary),
+          color: context.garraColors.textSecondary,
           fontWeight: FontWeight.w700,
         );
 
@@ -49,7 +56,19 @@ class GarraReactionBar extends StatelessWidget {
         children: [
           Expanded(
             child: InkWell(
-              onTap: onTapReactions,
+              key: const ValueKey('post_reaction_summary'),
+              onTap: onTapReactions == null
+                  ? null
+                  : () {
+                      GarraReactionAnchor.remember(context);
+                      onTapReactions!();
+                    },
+              onLongPress: onLongPressReactions == null
+                  ? null
+                  : () {
+                      GarraReactionAnchor.remember(context);
+                      onLongPressReactions!();
+                    },
               borderRadius: BorderRadius.circular(GarraRadius.sm),
               child: Row(
                 children: [
@@ -73,9 +92,9 @@ class GarraReactionBar extends StatelessWidget {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Text(
-                                        ReactionType.emojiFor(entry.key),
-                                        style: const TextStyle(fontSize: 14),
+                                      GarraReactionGlyph(
+                                        apiValue: entry.key,
+                                        size: 15,
                                       ),
                                       const SizedBox(width: 3),
                                       Text('${entry.value}', style: textStyle),
@@ -107,9 +126,10 @@ class GarraReactionBar extends StatelessWidget {
                             .withValues(alpha: 0.35),
                         borderRadius: BorderRadius.circular(GarraRadius.pill),
                       ),
-                      child: Text(
-                        ReactionType.emojiFor(myReaction!),
-                        style: const TextStyle(fontSize: 12),
+                      child: GarraReactionGlyph(
+                        key: const ValueKey('post_my_reaction'),
+                        apiValue: myReaction!,
+                        size: 13,
                       ),
                     ),
                   ],

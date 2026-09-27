@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../data/crema_point_model.dart';
 import '../data/location_service.dart';
@@ -63,9 +63,9 @@ class _Action extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: const Color(GarraColors.surface),
+      color: context.garraColors.surface,
       child: ListTile(
-        leading: Icon(icon, color: const Color(GarraColors.gold)),
+        leading: Icon(icon, color: context.garraColors.brandPrestige),
         title: Text(title),
         subtitle: Text(subtitle),
         onTap: onTap,
@@ -244,7 +244,7 @@ class _BusinessCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final copy = BusinessCopy.parse(point.description);
     return Card(
-      color: const Color(GarraColors.surface),
+      color: context.garraColors.surface,
       child: InkWell(
         onTap: () => context.push('/negocios/${point.id}'),
         child: Padding(
@@ -261,10 +261,10 @@ class _BusinessCard extends StatelessWidget {
                     ),
                   ),
                   if (point.verified)
-                    const Text(
+                    Text(
                       'Verificado',
                       style: TextStyle(
-                        color: Color(GarraColors.gold),
+                        color: context.garraColors.brandPrestige,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -274,7 +274,7 @@ class _BusinessCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   copy.category!,
-                  style: const TextStyle(color: Color(GarraColors.gold)),
+                  style: TextStyle(color: context.garraColors.brandPrestige),
                 ),
               ],
               const SizedBox(height: 4),

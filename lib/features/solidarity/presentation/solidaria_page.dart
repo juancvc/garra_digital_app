@@ -5,21 +5,28 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/media/media_upload_service.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
+import '../../../core/widgets/garra_cached_network_image.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_form.dart';
+import '../../../core/widgets/garra_single_photo_field.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/solidarity_service.dart';
 
 class SolidariaPage extends StatefulWidget {
-  const SolidariaPage({super.key});
+  const SolidariaPage({super.key, this.service});
+
+  final SolidarityService? service;
 
   @override
   State<SolidariaPage> createState() => _SolidariaPageState();
 }
 
 class _SolidariaPageState extends State<SolidariaPage> {
-  final _service = SolidarityService();
+  late final SolidarityService _service =
+      widget.service ?? SolidarityService();
   String? _type;
   List<SolidarityCampaign> _items = [];
   bool _loading = true;
@@ -119,6 +126,24 @@ class _SolidariaPageState extends State<SolidariaPage> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
+                                      if (c.evidenceImageUrl != null &&
+                                          c.evidenceImageUrl!.isNotEmpty) ...[
+                                        ClipRRect(
+                                          key: ValueKey(
+                                            'solidarity_photo_${c.id}',
+                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          child: AspectRatio(
+                                            aspectRatio: 16 / 9,
+                                            child: GarraCachedNetworkImage(
+                                              imageUrl: c.evidenceImageUrl!,
+                                              fit: BoxFit.cover,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                      ],
                                       Text(
                                         c.type,
                                         style: const TextStyle(
@@ -145,10 +170,10 @@ class _SolidariaPageState extends State<SolidariaPage> {
                                       ),
                                       if (c.isVerified) ...[
                                         const SizedBox(height: 8),
-                                        const Text(
+                                        Text(
                                           '✓ Verificado por Garra',
                                           style: TextStyle(
-                                            color: Colors.greenAccent,
+                                            color: context.garraColors.success,
                                             fontWeight: FontWeight.w700,
                                           ),
                                         ),
@@ -168,16 +193,22 @@ class _SolidariaPageState extends State<SolidariaPage> {
 }
 
 class SolidariaDetailPage extends StatefulWidget {
-  const SolidariaDetailPage({super.key, required this.campaignId});
+  const SolidariaDetailPage({
+    super.key,
+    required this.campaignId,
+    this.service,
+  });
 
   final String campaignId;
+  final SolidarityService? service;
 
   @override
   State<SolidariaDetailPage> createState() => _SolidariaDetailPageState();
 }
 
 class _SolidariaDetailPageState extends State<SolidariaDetailPage> {
-  final _service = SolidarityService();
+  late final SolidarityService _service =
+      widget.service ?? SolidarityService();
   SolidarityCampaign? _campaign;
   String? _error;
 
@@ -232,10 +263,10 @@ class _SolidariaDetailPageState extends State<SolidariaDetailPage> {
               padding: const EdgeInsets.all(GarraSpacing.lg),
               children: [
                 if (c.isVerified)
-                  const Text(
+                  Text(
                     '✓ Verificado por Garra',
                     style: TextStyle(
-                      color: Colors.greenAccent,
+                      color: context.garraColors.success,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -245,11 +276,19 @@ class _SolidariaDetailPageState extends State<SolidariaDetailPage> {
                 Text(c.description),
                 const SizedBox(height: 12),
                 Text('${c.city}${c.district == null ? '' : ' · ${c.district}'}'),
-                if (c.evidenceImageUrl != null) ...[
+                if (c.evidenceImageUrl != null &&
+                    c.evidenceImageUrl!.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   ClipRRect(
+                    key: const ValueKey('solidarity_detail_photo'),
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.network(c.evidenceImageUrl!, fit: BoxFit.cover),
+                    child: AspectRatio(
+                      aspectRatio: 4 / 3,
+                      child: GarraCachedNetworkImage(
+                        imageUrl: c.evidenceImageUrl!,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
                   ),
                 ],
                 const SizedBox(height: 20),
@@ -265,14 +304,20 @@ class _SolidariaDetailPageState extends State<SolidariaDetailPage> {
 }
 
 class SolidariaCreatePage extends StatefulWidget {
-  const SolidariaCreatePage({super.key});
+  const SolidariaCreatePage({super.key, this.service, this.media});
+
+  final SolidarityService? service;
+  final MediaUploadService? media;
 
   @override
   State<SolidariaCreatePage> createState() => _SolidariaCreatePageState();
 }
 
 class _SolidariaCreatePageState extends State<SolidariaCreatePage> {
-  final _service = SolidarityService();
+  late final SolidarityService _service =
+      widget.service ?? SolidarityService();
+  late final MediaUploadService _media = widget.media ?? MediaUploadService();
+  XFile? _photo;
   final _title = TextEditingController();
   final _description = TextEditingController();
   final _city = TextEditingController();
@@ -282,12 +327,27 @@ class _SolidariaCreatePageState extends State<SolidariaCreatePage> {
   bool _busy = false;
   String? _error;
 
+  Future<void> _pickPhoto() async {
+    final file = await _media.pickImage();
+    if (file == null || !mounted) return;
+    setState(() => _photo = file);
+  }
+
   Future<void> _submit() async {
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
+      String? evidenceAssetId;
+      final photo = _photo;
+      if (photo != null) {
+        evidenceAssetId = await uploadSinglePhoto(
+          _media,
+          photo,
+          MediaUploadPurpose.solidarity,
+        );
+      }
       final created = await _service.create({
         'title': _title.text.trim(),
         'description': _description.text.trim(),
@@ -297,10 +357,14 @@ class _SolidariaCreatePageState extends State<SolidariaCreatePage> {
         'contactWhatsapp': _whatsapp.text.trim().isEmpty
             ? null
             : _whatsapp.text.trim(),
+        'evidenceMediaAssetId': ?evidenceAssetId,
       });
       await _service.submit(created.id);
       if (!mounted) return;
       context.pop(true);
+    } on SinglePhotoUploadException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.message);
     } catch (_) {
       if (!mounted) return;
       setState(() => _error = 'No se pudo enviar la solicitud');
@@ -363,6 +427,13 @@ class _SolidariaCreatePageState extends State<SolidariaCreatePage> {
                 controller: _description,
                 minLines: 4,
               ),
+              GarraSinglePhotoField(
+                key: const ValueKey('solidarity_photo_field'),
+                file: _photo,
+                enabled: !_busy,
+                onPick: _pickPhoto,
+                onRemove: () => setState(() => _photo = null),
+              ),
             ],
           ),
           GarraFormSection(
@@ -382,7 +453,7 @@ class _SolidariaCreatePageState extends State<SolidariaCreatePage> {
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
                 _error!,
-                style: const TextStyle(color: Colors.orangeAccent),
+                style: TextStyle(color: context.garraColors.danger),
               ),
             ),
           GarraFormActionBar(

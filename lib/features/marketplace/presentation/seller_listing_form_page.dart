@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_form.dart';
@@ -274,21 +275,21 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
                         child: Container(
                           width: 96,
                           decoration: BoxDecoration(
-                            color: const Color(GarraColors.surface),
+                            color: context.garraColors.surface,
                             borderRadius: BorderRadius.circular(GarraRadius.md),
                             border: Border.all(
                               color: const Color(GarraColors.borderSubtle),
                             ),
                           ),
-                          child: const Column(
+                          child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(Icons.add_a_photo_outlined,
-                                  color: Color(GarraColors.gold)),
+                                  color: context.garraColors.brandPrestige),
                               SizedBox(height: 4),
                               Text('Agregar',
                                   style: TextStyle(
-                                      color: Color(GarraColors.textSecondary),
+                                      color: context.garraColors.textSecondary,
                                       fontSize: 12)),
                             ],
                           ),
@@ -305,7 +306,7 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
                         Container(
                           width: 96,
                           decoration: BoxDecoration(
-                            color: const Color(GarraColors.surface),
+                            color: context.garraColors.surface,
                             borderRadius: BorderRadius.circular(GarraRadius.md),
                             border: Border.all(
                               color: const Color(GarraColors.borderSubtle),
@@ -317,8 +318,8 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
                               : draft.mediaUrl != null
                                   ? Image.network(draft.mediaUrl!,
                                       fit: BoxFit.cover)
-                                  : const Icon(Icons.image_outlined,
-                                      color: Color(GarraColors.gold)),
+                                  : Icon(Icons.image_outlined,
+                                      color: context.garraColors.brandPrestige),
                         ),
                         if (draft.state == ListingImageUploadState.uploading ||
                             draft.state == ListingImageUploadState.pending)
@@ -328,7 +329,7 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
                               alignment: Alignment.center,
                               child: CircularProgressIndicator(
                                 value: draft.progress > 0 ? draft.progress : null,
-                                color: const Color(GarraColors.gold),
+                                color: context.garraColors.brandPrestige,
                               ),
                             ),
                           ),
@@ -338,9 +339,9 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
                               color: Colors.black54,
                               child: InkWell(
                                 onTap: () => _uploadDraft(draft),
-                                child: const Center(
+                                child: Center(
                                   child: Icon(Icons.refresh,
-                                      color: Color(GarraColors.gold)),
+                                      color: context.garraColors.brandPrestige),
                                 ),
                               ),
                             ),

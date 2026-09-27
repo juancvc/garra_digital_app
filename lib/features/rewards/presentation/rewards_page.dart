@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/design/garra_typography.dart';
 import '../../../core/widgets/garra_card.dart';
@@ -26,7 +26,7 @@ class RewardsPage extends ConsumerWidget {
     );
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(
         title: const Text('Beneficios'),
         actions: [
@@ -52,7 +52,7 @@ class RewardsPage extends ConsumerWidget {
                   Text(
                     'Puntos Garra',
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: const Color(GarraColors.gold),
+                          color: context.garraColors.brandPrestige,
                         ),
                   ),
                   const SizedBox(height: GarraSpacing.sm),

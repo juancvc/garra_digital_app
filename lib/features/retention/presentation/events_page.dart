@@ -1,24 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/location/location_service.dart';
+import '../../../core/media/media_upload_service.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
+import '../../../core/widgets/garra_cached_network_image.dart';
 import '../../../core/widgets/garra_card.dart';
+import '../../../core/widgets/garra_single_photo_field.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../data/retention_models.dart';
 import '../data/retention_service.dart';
 
+/// Accent readable on both themes (garnet on Crema, gold on Noche).
+Color _eventAccent(BuildContext context) {
+  final colors = context.garraColors;
+  return Theme.of(context).brightness == Brightness.dark
+      ? colors.brandPrestige
+      : colors.brandPrimary;
+}
+
 class EventsPage extends StatefulWidget {
-  const EventsPage({super.key});
+  const EventsPage({super.key, this.service});
+
+  final RetentionService? service;
 
   @override
   State<EventsPage> createState() => _EventsPageState();
 }
 
 class _EventsPageState extends State<EventsPage> {
-  final _service = RetentionService();
+  late final RetentionService _service = widget.service ?? RetentionService();
   List<GarraEventModel> _events = [];
   bool _loading = true;
   String? _error;
@@ -82,7 +96,7 @@ class _EventsPageState extends State<EventsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(
         title: const Text('Eventos'),
         actions: [
@@ -160,11 +174,26 @@ class _EventCard extends StatelessWidget {
         : DateFormat('EEE d MMM · HH:mm', 'es')
             .format(DateTime.tryParse(event.startsAt!)?.toLocal() ??
                 DateTime.now());
+    final accent = _eventAccent(context);
     return GarraCard(
       onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (event.imageUrl != null) ...[
+            ClipRRect(
+              key: ValueKey('event_photo_${event.id}'),
+              borderRadius: BorderRadius.circular(12),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: GarraCachedNetworkImage(
+                  imageUrl: event.imageUrl!,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           Row(
             children: [
               Expanded(
@@ -176,13 +205,13 @@ class _EventCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    border: Border.all(color: const Color(GarraColors.gold)),
+                    border: Border.all(color: accent),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     'Verificado por Garra',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: const Color(GarraColors.gold),
+                          color: accent,
                         ),
                   ),
                 ),
@@ -196,7 +225,7 @@ class _EventCard extends StatelessWidget {
             Text(
               event.myParticipation == 'GOING' ? 'Voy' : 'Me interesa',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: const Color(GarraColors.gold),
+                    color: accent,
                   ),
             ),
           ],
@@ -283,18 +312,32 @@ class _EventDetailPageState extends State<EventDetailPage> {
   Widget build(BuildContext context) {
     final e = _event;
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(title: Text(e?.title ?? 'Evento')),
       body: e == null
           ? const Center(child: Text('Evento no disponible'))
           : ListView(
               padding: const EdgeInsets.all(GarraSpacing.lg),
               children: [
+                if (e.imageUrl != null) ...[
+                  ClipRRect(
+                    key: const ValueKey('event_detail_photo'),
+                    borderRadius: BorderRadius.circular(12),
+                    child: AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: GarraCachedNetworkImage(
+                        imageUrl: e.imageUrl!,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: GarraSpacing.md),
+                ],
                 if (e.verifiedByGarra)
                   Text(
                     'Verificado por Garra',
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: const Color(GarraColors.gold),
+                          color: _eventAccent(context),
                         ),
                   ),
                 const SizedBox(height: 8),
@@ -328,7 +371,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                 Text(
                   'Marcar «Voy» no confirma asistencia física. El check-in solo registra participación en la app.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: const Color(GarraColors.creamMuted),
+                        color: context.garraColors.textSecondary,
                       ),
                 ),
               ],
@@ -338,14 +381,19 @@ class _EventDetailPageState extends State<EventDetailPage> {
 }
 
 class CreateEventPage extends StatefulWidget {
-  const CreateEventPage({super.key});
+  const CreateEventPage({super.key, this.service, this.media});
+
+  final RetentionService? service;
+  final MediaUploadService? media;
 
   @override
   State<CreateEventPage> createState() => _CreateEventPageState();
 }
 
 class _CreateEventPageState extends State<CreateEventPage> {
-  final _service = RetentionService();
+  late final RetentionService _service = widget.service ?? RetentionService();
+  late final MediaUploadService _media = widget.media ?? MediaUploadService();
+  XFile? _photo;
   final _title = TextEditingController();
   final _desc = TextEditingController();
   final _city = TextEditingController(text: 'Lima');
@@ -360,22 +408,45 @@ class _CreateEventPageState extends State<CreateEventPage> {
     super.dispose();
   }
 
+  Future<void> _pickPhoto() async {
+    final file = await _media.pickImage();
+    if (file == null || !mounted) return;
+    setState(() => _photo = file);
+  }
+
   Future<void> _submit() async {
     if (_title.text.trim().isEmpty) return;
     setState(() => _busy = true);
     try {
+      String? mediaAssetId;
+      final photo = _photo;
+      if (photo != null) {
+        // Events reuse the COMMUNITY_POST purpose (no new media purpose).
+        mediaAssetId = await uploadSinglePhoto(
+          _media,
+          photo,
+          MediaUploadPurpose.communityPost,
+        );
+      }
       await _service.createEvent({
         'title': _title.text.trim(),
         'description': _desc.text.trim(),
         'type': _type,
         'city': _city.text.trim(),
         'startsAt': DateTime.now().toUtc().add(const Duration(days: 3)).toIso8601String(),
+        'mediaAssetId': ?mediaAssetId,
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Evento enviado a revisión')),
       );
       context.pop();
+    } on SinglePhotoUploadException catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() => _busy = false);
@@ -388,7 +459,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(title: const Text('Proponer evento')),
       body: ListView(
         padding: const EdgeInsets.all(GarraSpacing.lg),
@@ -423,7 +494,15 @@ class _CreateEventPageState extends State<CreateEventPage> {
             onChanged: (v) => setState(() => _type = v ?? _type),
             decoration: const InputDecoration(labelText: 'Tipo'),
           ),
-          const SizedBox(height: GarraSpacing.xl),
+          const SizedBox(height: GarraSpacing.lg),
+          GarraSinglePhotoField(
+            key: const ValueKey('event_photo_field'),
+            file: _photo,
+            enabled: !_busy,
+            onPick: _pickPhoto,
+            onRemove: () => setState(() => _photo = null),
+          ),
+          const SizedBox(height: GarraSpacing.md),
           FilledButton(
             onPressed: _busy ? null : _submit,
             child: const Text('Enviar a revisión'),

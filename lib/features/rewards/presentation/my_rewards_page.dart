@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/design/garra_typography.dart';
 import '../../../core/widgets/garra_card.dart';
@@ -17,7 +17,7 @@ class MyRewardsPage extends ConsumerWidget {
     final mine = ref.watch(myRewardsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(title: const Text('Mis canjes')),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(myRewardsProvider),
@@ -56,7 +56,7 @@ class MyRewardsPage extends ConsumerWidget {
                       Text(
                         r.statusLabelEs,
                         style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                              color: const Color(GarraColors.gold),
+                              color: context.garraColors.brandPrestige,
                               fontWeight: FontWeight.w700,
                             ),
                       ),

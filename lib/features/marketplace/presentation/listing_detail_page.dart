@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_card.dart';
@@ -119,7 +120,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
   Future<void> _report(MarketplaceListing listing) async {
     final reason = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: const Color(GarraColors.surface),
+      backgroundColor: context.garraColors.surface,
       builder: (context) {
         return SafeArea(
           child: Column(
@@ -182,7 +183,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
     final async = ref.watch(marketplaceListingDetailProvider(widget.slug));
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(
         title: const Text('Publicación'),
         actions: [
@@ -216,8 +217,8 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
         ],
       ),
       body: async.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: Color(GarraColors.gold)),
+        loading: () => Center(
+          child: CircularProgressIndicator(color: context.garraColors.brandPrestige),
         ),
         error: (_, _) => GarraErrorState(
           onRetry: () =>
@@ -247,7 +248,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
               Text(
                 current.priceLabel,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: const Color(GarraColors.gold),
+                  color: context.garraColors.brandPrestige,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -266,9 +267,9 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.store_mall_directory_outlined,
-                        color: Color(GarraColors.gold),
+                        color: context.garraColors.brandPrestige,
                       ),
                       const SizedBox(width: GarraSpacing.md),
                       Expanded(
@@ -277,9 +278,9 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                       ),
-                      const Icon(
+                      Icon(
                         Icons.chevron_right,
-                        color: Color(GarraColors.gold),
+                        color: context.garraColors.brandPrestige,
                       ),
                     ],
                   ),
@@ -360,10 +361,10 @@ class _ListingGallery extends StatelessWidget {
           borderRadius: BorderRadius.circular(GarraRadius.xl),
           border: Border.all(color: const Color(GarraColors.borderSubtle)),
         ),
-        child: const Center(
+        child: Center(
           child: Icon(
             Icons.storefront_outlined,
-            color: Color(GarraColors.gold),
+            color: context.garraColors.brandPrestige,
             size: 40,
           ),
         ),
@@ -385,10 +386,10 @@ class _ListingGallery extends StatelessWidget {
                   fit: BoxFit.cover,
                   width: double.infinity,
                   placeholder: (_, __) => Container(
-                    color: const Color(GarraColors.surface),
+                    color: context.garraColors.surface,
                     alignment: Alignment.center,
-                    child: const CircularProgressIndicator(
-                      color: Color(GarraColors.gold),
+                    child: CircularProgressIndicator(
+                      color: context.garraColors.brandPrestige,
                     ),
                   ),
                   errorWidget: (_, __, ___) => Container(
@@ -396,9 +397,9 @@ class _ListingGallery extends StatelessWidget {
                       GarraColors.garnet,
                     ).withValues(alpha: 0.2),
                     alignment: Alignment.center,
-                    child: const Icon(
+                    child: Icon(
                       Icons.storefront_outlined,
-                      color: Color(GarraColors.gold),
+                      color: context.garraColors.brandPrestige,
                     ),
                   ),
                 ),

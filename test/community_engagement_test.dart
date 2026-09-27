@@ -12,6 +12,7 @@ import 'package:garra_digital_app/features/community/data/wall_comment_model.dar
 import 'package:garra_digital_app/features/community/data/wall_post_model.dart';
 import 'package:garra_digital_app/features/community/presentation/post_detail_screen.dart';
 import 'package:garra_digital_app/features/community/presentation/providers/community_provider.dart';
+import 'package:garra_digital_app/features/community/presentation/widgets/garra_comment_reactions.dart';
 import 'package:garra_digital_app/features/community/presentation/widgets/garra_reaction_bar.dart';
 import 'package:garra_digital_app/features/community/presentation/widgets/garra_reaction_picker.dart';
 import 'package:garra_digital_app/features/home/data/home_models.dart';
@@ -271,7 +272,9 @@ void main() {
     expect(find.text('2'), findsOneWidget);
     expect(find.text('1'), findsOneWidget);
     expect(find.text('4'), findsOneWidget);
-    expect(find.textContaining('🔥'), findsWidgets);
+    // UX_08: LOVE/FIRE/GARRA render as branded vector glyphs (no emoji).
+    expect(find.byKey(const ValueKey('post_my_reaction')), findsOneWidget);
+    expect(find.byType(GarraReactionGlyph), findsWidgets);
   });
 
   testWidgets('REACTION_PICKER_OPTIONS', (tester) async {

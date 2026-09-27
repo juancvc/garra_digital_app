@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../widgets/garra_marketplace_card.dart';
@@ -16,11 +16,11 @@ class FavoritesPage extends ConsumerWidget {
     final async = ref.watch(marketplaceFavoritesProvider);
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(title: const Text('Favoritos')),
       body: async.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: Color(GarraColors.gold)),
+        loading: () => Center(
+          child: CircularProgressIndicator(color: context.garraColors.brandPrestige),
         ),
         error: (_, _) => GarraErrorState(
           onRetry: () => ref.invalidate(marketplaceFavoritesProvider),
@@ -33,7 +33,7 @@ class FavoritesPage extends ConsumerWidget {
             );
           }
           return RefreshIndicator(
-            color: const Color(GarraColors.gold),
+            color: context.garraColors.brandPrestige,
             onRefresh: () async {
               ref.invalidate(marketplaceFavoritesProvider);
               await ref.read(marketplaceFavoritesProvider.future);

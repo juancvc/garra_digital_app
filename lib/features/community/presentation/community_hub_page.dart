@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../core/auth/current_fan_provider.dart';
 import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_card.dart';
@@ -152,7 +153,7 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(
         title: const Row(
           children: [

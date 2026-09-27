@@ -23,7 +23,8 @@ import 'widgets/garra_comment_reactions.dart';
 import 'widgets/garra_comment_tile.dart';
 import 'widgets/garra_post_media_grid.dart';
 import 'widgets/garra_reaction_bar.dart';
-import 'widgets/garra_reaction_picker.dart';
+import 'widgets/garra_reaction_actions.dart';
+import 'widgets/garra_reaction_burst.dart';
 import 'widgets/garra_reactors_sheet.dart';
 import 'widgets/garra_social_post_card.dart' show reactorsLabel;
 import 'widgets/garra_share_card.dart';
@@ -151,24 +152,19 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     }
   }
 
-  Future<void> _onReact() async {
+  Future<void> _onReact({bool change = false}) async {
     final post = _post;
     if (post == null || _reacting) return;
 
-    final selected = await showGarraReactionPicker(
+    final intent = await resolveReactionTap(
       context,
-      currentReaction: post.myReaction,
+      current: post.myReaction,
+      forcePicker: change,
     );
-    if (selected == null || !mounted) return;
+    if (intent == null || !mounted) return;
 
     final previous = post;
-    final same =
-        post.myReaction != null &&
-        post.myReaction!.toUpperCase() == selected.apiValue;
-    final optimistic = applyOptimisticReaction(
-      post,
-      same ? null : selected.apiValue,
-    );
+    final optimistic = applyOptimisticReaction(post, intent.apiValue);
 
     setState(() {
       _post = optimistic;
@@ -176,11 +172,11 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     });
 
     final service = ref.read(communityServiceProvider);
-    final result = same
+    final result = intent.isRemove
         ? await service.removeReaction(post.id)
         : await service.upsertReaction(
             postId: post.id,
-            type: selected.apiValue,
+            type: intent.apiValue!,
           );
 
     if (!mounted) return;
@@ -191,7 +187,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         _reacting = false;
       });
       _showSnack(
-        'No se pudo actualizar la reacción. Inténtalo de nuevo.',
+        reactionErrorMessage(intent),
         isError: true,
       );
       return;
@@ -524,28 +520,33 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     _showSnack(result.message);
   }
 
-  Future<void> _openCommentReactions(WallCommentModel comment) async {
+  Future<void> _openCommentReactions(
+    WallCommentModel comment, {
+    bool change = false,
+  }) async {
     if (_reactingComments.contains(comment.id)) return;
-    final selected = await showCommentReactionPicker(
+    final intent = await resolveReactionTap(
       context,
-      currentReaction: comment.myReaction,
+      current: comment.myReaction,
+      forcePicker: change,
+      comment: true,
     );
-    if (selected == null || !mounted) return;
+    if (intent == null || !mounted) return;
     final current = _findComment(comment.id);
     if (current == null) return;
-    await _reactToComment(current, selected);
+    await _reactToComment(current, intent);
   }
 
   Future<void> _reactToComment(
     WallCommentModel comment,
-    ReactionType type,
+    ReactionIntent intent,
   ) async {
     if (_reactingComments.contains(comment.id)) return;
     final previous = comment;
-    final remove = comment.myReaction?.toUpperCase() == type.apiValue;
+    final remove = intent.isRemove;
     final optimistic = applyOptimisticCommentReaction(
       comment,
-      remove ? null : type.apiValue,
+      intent.apiValue,
     );
     if (_findComment(comment.id) == null) return;
 
@@ -559,7 +560,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         ? await service.removeCommentReaction(comment.id)
         : await service.upsertCommentReaction(
             commentId: comment.id,
-            type: type.apiValue,
+            type: intent.apiValue!,
           );
     if (!mounted) return;
 
@@ -782,6 +783,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   commentCount: post.commentCount,
                   myReaction: post.myReaction,
                   onTapReactions: _onReact,
+                  onLongPressReactions: () => _onReact(change: true),
                   onTapComments: _focusComposer,
                 ),
                 if (post.reactionCount > 0)
@@ -799,6 +801,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   myReaction: post.myReaction,
                   reacting: _reacting,
                   onReact: _onReact,
+                  onChangeReaction: () => _onReact(change: true),
                   onComment: _focusComposer,
                   onShare: () => _openShareSheet(post),
                 ),
@@ -882,6 +885,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       onEdit: () => _editComment(comment),
       onDelete: () => _deleteComment(comment),
       onReact: () => _openCommentReactions(comment),
+      onChangeReaction: () => _openCommentReactions(comment, change: true),
       onReply: () => _startReply(comment),
       reacting: _reactingComments.contains(comment.id),
     );
@@ -1056,11 +1060,13 @@ class _PostActionRow extends StatelessWidget {
     required this.onReact,
     required this.onComment,
     required this.onShare,
+    this.onChangeReaction,
   });
 
   final String? myReaction;
   final bool reacting;
   final VoidCallback onReact;
+  final VoidCallback? onChangeReaction;
   final VoidCallback onComment;
   final VoidCallback onShare;
 
@@ -1081,16 +1087,14 @@ class _PostActionRow extends StatelessWidget {
             child: _PostActionButton(
               key: const ValueKey('reaction_cta'),
               icon: reacted
-                  ? Text(
-                      ReactionType.emojiFor(myReaction!),
-                      style: const TextStyle(fontSize: 16),
-                    )
+                  ? GarraReactionGlyph(apiValue: myReaction!, size: 18)
                   : Icon(Icons.add_reaction_outlined, size: 20, color: accent),
               label: reacted
                   ? ReactionType.labelFor(myReaction!)
                   : 'Reaccionar',
               color: reacted ? accent : colors.textSecondary,
               onPressed: reacting ? null : onReact,
+              onLongPress: reacting ? null : onChangeReaction,
             ),
           ),
           Expanded(
@@ -1128,12 +1132,14 @@ class _PostActionButton extends StatelessWidget {
     required this.label,
     required this.color,
     required this.onPressed,
+    this.onLongPress,
   });
 
   final Widget icon;
   final String label;
   final Color color;
   final VoidCallback? onPressed;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -1142,7 +1148,18 @@ class _PostActionButton extends StatelessWidget {
       label: label,
       excludeSemantics: true,
       child: InkWell(
-        onTap: onPressed,
+        onTap: onPressed == null
+            ? null
+            : () {
+                GarraReactionAnchor.remember(context);
+                onPressed!();
+              },
+        onLongPress: onLongPress == null
+            ? null
+            : () {
+                GarraReactionAnchor.remember(context);
+                onLongPress!();
+              },
         borderRadius: BorderRadius.circular(12),
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 44),

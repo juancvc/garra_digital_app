@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_states.dart';
@@ -57,11 +58,11 @@ class StorePage extends ConsumerWidget {
     final async = ref.watch(marketplaceStoreProvider(slug));
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(title: const Text('Tienda crema')),
       body: async.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: Color(GarraColors.gold)),
+        loading: () => Center(
+          child: CircularProgressIndicator(color: context.garraColors.brandPrestige),
         ),
         error: (_, _) => GarraErrorState(
           onRetry: () => ref.invalidate(marketplaceStoreProvider(slug)),
@@ -265,9 +266,9 @@ class _StoreLogoFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ColoredBox(
-      color: Color(GarraColors.surface),
-      child: Icon(Icons.storefront_outlined, color: Color(GarraColors.gold)),
+    return ColoredBox(
+      color: context.garraColors.surface,
+      child: Icon(Icons.storefront_outlined, color: context.garraColors.brandPrestige),
     );
   }
 }

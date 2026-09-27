@@ -15,7 +15,7 @@ import '../../community/data/community_service.dart';
 import '../../community/data/engagement_utils.dart';
 import '../../community/data/wall_post_model.dart';
 import '../../community/presentation/providers/community_provider.dart';
-import '../../community/presentation/widgets/garra_reaction_picker.dart';
+import '../../community/presentation/widgets/garra_reaction_actions.dart';
 import '../../community/presentation/widgets/garra_social_post_card.dart';
 
 /// Home social feed for Para ti / Siguiendo modes.
@@ -121,30 +121,27 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
     );
   }
 
-  Future<void> _react(WallPostModel post) async {
+  Future<void> _react(WallPostModel post, {bool change = false}) async {
     if (_reactingPostIds.contains(post.id)) return;
 
-    final selected = await showGarraReactionPicker(
+    final intent = await resolveReactionTap(
       context,
-      currentReaction: post.myReaction,
+      current: post.myReaction,
+      forcePicker: change,
     );
-    if (selected == null || !mounted) return;
+    if (intent == null || !mounted) return;
 
-    final same = post.myReaction?.toUpperCase() == selected.apiValue;
-    final optimistic = applyOptimisticReaction(
-      post,
-      same ? null : selected.apiValue,
-    );
+    final optimistic = applyOptimisticReaction(post, intent.apiValue);
     setState(() {
       _reactingPostIds.add(post.id);
       _replacePost(optimistic);
     });
 
-    final result = same
+    final result = intent.isRemove
         ? await _service.removeReaction(post.id)
         : await _service.upsertReaction(
             postId: post.id,
-            type: selected.apiValue,
+            type: intent.apiValue!,
           );
     if (!mounted) return;
 
@@ -166,10 +163,9 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
     });
 
     if (!result.success) {
-      _showError('No se pudo actualizar la reacción. Inténtalo de nuevo.');
+      _showError(reactionErrorMessage(intent));
     }
   }
-
   void _replacePost(WallPostModel replacement) {
     _posts = _posts
         .map((post) => post.id == replacement.id ? replacement : post)
@@ -320,6 +316,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
           onSave: () => _toggleSave(post),
           onDelete: mine ? () => _deletePost(post.id) : null,
           onReact: () => _react(post),
+          onChangeReaction: () => _react(post, change: true),
           onComment: () =>
               context.push('/muro-crema/posts/${post.id}').then((_) => _load()),
         ),

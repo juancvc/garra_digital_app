@@ -281,7 +281,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(service.reactionCalls, ['upsert:FIRE']);
-    expect(find.text('🔥'), findsWidgets);
+    expect(find.byKey(const ValueKey('post_my_reaction')), findsOneWidget);
   });
 
   testWidgets('DEMO_50: feed reloads after publishing from the composer', (

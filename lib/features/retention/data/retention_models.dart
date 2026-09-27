@@ -251,12 +251,16 @@ class GarraEventModel {
     this.myParticipation,
     required this.checkedIn,
     this.checkInLabel,
+    this.imageUrl,
   });
 
   final String id;
   final String title;
   final String? description;
   final String type;
+
+  /// UX_08: optional single event photo (null when none).
+  final String? imageUrl;
   final String? city;
   final String? district;
   final String? address;
@@ -291,7 +295,13 @@ class GarraEventModel {
         myParticipation: json['myParticipation']?.toString(),
         checkedIn: json['checkedIn'] == true,
         checkInLabel: json['checkInLabel']?.toString(),
+        imageUrl: _nonEmpty(json['imageUrl']),
       );
+
+  static String? _nonEmpty(Object? value) {
+    final text = value?.toString().trim();
+    return text == null || text.isEmpty ? null : text;
+  }
 
   String get zoneLabel {
     final parts = [district, city].where((e) => e != null && e.trim().isNotEmpty);

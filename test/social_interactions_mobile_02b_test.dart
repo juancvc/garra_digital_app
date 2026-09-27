@@ -249,6 +249,22 @@ Future<void> _react(WidgetTester tester, String id, ReactionType type) async {
   await tester.pumpAndSettle();
 }
 
+/// UX_08: long-press opens the picker to change an existing reaction.
+Future<void> _changeReaction(
+  WidgetTester tester,
+  String id,
+  ReactionType type,
+) async {
+  final button = find.byKey(ValueKey('comment_react_$id'));
+  await tester.ensureVisible(button);
+  await tester.longPress(button);
+  await tester.pumpAndSettle();
+  await tester.tap(
+    find.byKey(ValueKey('comment_reaction_option_${type.apiValue}')),
+  );
+  await tester.pumpAndSettle();
+}
+
 Finder _summaryText(String id, String text) {
   return find.descendant(
     of: find.byKey(ValueKey('comment_reaction_summary_$id')),
@@ -690,24 +706,27 @@ void main() {
         find.byKey(const ValueKey('comment_reaction_picker')),
         findsOneWidget,
       );
-      for (final key in ['LOVE', 'FIRE', 'GARRA']) {
+      // UX_08A: comments offer the full 8-reaction catalog.
+      for (final key in [
+        'LIKE',
+        'LOVE',
+        'FIRE',
+        'HAHA',
+        'CARE',
+        'ANGER',
+        'SAD',
+        'GARRA',
+      ]) {
         expect(
           find.byKey(ValueKey('comment_reaction_option_$key')),
           findsOneWidget,
         );
       }
-      for (final key in ['LIKE', 'ANGER', 'SAD']) {
-        expect(
-          find.byKey(ValueKey('comment_reaction_option_$key')),
-          findsNothing,
-        );
-      }
       expect(find.bySemanticsLabel('Me encanta'), findsOneWidget);
-      expect(find.bySemanticsLabel('Fuego'), findsOneWidget);
+      expect(find.bySemanticsLabel('Est\u00e1 que arde'), findsOneWidget);
+      expect(find.bySemanticsLabel('Me divierte'), findsOneWidget);
+      expect(find.bySemanticsLabel('Me importa'), findsOneWidget);
       expect(find.bySemanticsLabel('Garra'), findsOneWidget);
-      expect(find.text('Me gusta'), findsNothing);
-      expect(find.text('Me enoja'), findsNothing);
-      expect(find.text('Me entristece'), findsNothing);
       semantics.dispose();
     });
 
@@ -738,10 +757,10 @@ void main() {
       );
       await _pumpDetail(tester, fake);
       expect(_reactText('c1', 'Me encanta'), findsOneWidget);
-      await _react(tester, 'c1', ReactionType.fire);
+      await _changeReaction(tester, 'c1', ReactionType.fire);
 
       expect(fake.calls, ['upsert:c1:FIRE']);
-      expect(_reactText('c1', 'Fuego'), findsOneWidget);
+      expect(_reactText('c1', 'Est\u00e1 que arde'), findsOneWidget);
       expect(_summaryText('c1', '3'), findsOneWidget);
       expect(fake.comments.single.reactionSummary['FIRE'], 2);
       expect(fake.comments.single.reactionSummary['LOVE'], 1);
@@ -760,7 +779,15 @@ void main() {
       );
       await _pumpDetail(tester, fake);
       expect(_reactText('c1', 'Garra'), findsOneWidget);
-      await _react(tester, 'c1', ReactionType.garra);
+      // UX_08: tapping the active reaction removes it directly (no picker).
+      final button = find.byKey(const ValueKey('comment_react_c1'));
+      await tester.ensureVisible(button);
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('comment_reaction_picker')),
+        findsNothing,
+      );
 
       expect(fake.calls, ['remove:c1']);
       expect(_reactText('c1', 'Reaccionar'), findsOneWidget);
@@ -812,7 +839,7 @@ void main() {
       await _pumpDetail(tester, fake);
       await _react(tester, 'c1', ReactionType.fire);
       // Optimistic state is visible while the request is in flight.
-      expect(_reactText('c1', 'Fuego'), findsOneWidget);
+      expect(_reactText('c1', 'Est\u00e1 que arde'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('comment_react_c1')));
       await tester.pumpAndSettle();
       expect(
@@ -822,7 +849,7 @@ void main() {
       fake.holdReaction!.complete();
       await tester.pumpAndSettle();
       expect(fake.calls, ['upsert:c1:FIRE']);
-      expect(_reactText('c1', 'Fuego'), findsOneWidget);
+      expect(_reactText('c1', 'Est\u00e1 que arde'), findsOneWidget);
     });
   });
 
@@ -929,14 +956,19 @@ void main() {
         find.descendant(of: claw, matching: find.byType(CustomPaint)),
       );
       expect(paint.painter, isA<GarraClawReactionPainter>());
-      for (final emoji in ['🐾', '🛡', '✋', '🤚', '👋', '🐯', '🦁']) {
-        expect(find.textContaining(emoji), findsNothing);
-      }
-      // No emoji glyphs anywhere in the comment picker.
-      final texts = tester.widgetList<Text>(find.byType(Text));
-      for (final text in texts) {
-        final value = text.data ?? '';
-        expect(value.runes.every((r) => r < 0x2190), isTrue, reason: value);
+      // UX_08A: LOVE, FIRE, CARE and GARRA are vectors (no emoji text);
+      // only LIKE, HAHA, ANGER and SAD use their catalog emoji.
+      for (final key in ['LOVE', 'FIRE', 'CARE', 'GARRA']) {
+        final texts = tester.widgetList<Text>(
+          find.descendant(
+            of: find.byKey(ValueKey('comment_reaction_option_$key')),
+            matching: find.byType(Text),
+          ),
+        );
+        for (final text in texts) {
+          final value = text.data ?? '';
+          expect(value.runes.every((r) => r < 0x2190), isTrue, reason: value);
+        }
       }
       // Heart and flame are vector icons too.
       expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
@@ -955,7 +987,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       expect(_summaryText('c1', '2'), findsOneWidget);
-      expect(find.text('👍'), findsNothing);
+      // LIKE keeps its catalog emoji.
+      expect(find.text(ReactionType.like.emoji), findsOneWidget);
     });
   });
 }

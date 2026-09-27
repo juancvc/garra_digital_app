@@ -13,7 +13,9 @@ import '../data/wall_status_model.dart';
 import 'providers/community_provider.dart';
 import 'widgets/garra_post_media_grid.dart';
 import 'widgets/garra_reaction_bar.dart';
-import 'widgets/garra_reaction_picker.dart';
+import 'widgets/garra_comment_reactions.dart';
+import 'widgets/garra_reaction_actions.dart';
+import 'widgets/garra_reaction_burst.dart';
 
 class MuroCremaPage extends ConsumerStatefulWidget {
   const MuroCremaPage({super.key});
@@ -761,23 +763,18 @@ class _WallPostCardState extends ConsumerState<_WallPostCard> {
     }
   }
 
-  Future<void> _react() async {
+  Future<void> _react({bool change = false}) async {
     if (_reacting) return;
 
-    final selected = await showGarraReactionPicker(
+    final intent = await resolveReactionTap(
       context,
-      currentReaction: _post.myReaction,
+      current: _post.myReaction,
+      forcePicker: change,
     );
-    if (selected == null || !mounted) return;
+    if (intent == null || !mounted) return;
 
     final previous = _post;
-    final same =
-        _post.myReaction != null &&
-        _post.myReaction!.toUpperCase() == selected.apiValue;
-    final optimistic = applyOptimisticReaction(
-      _post,
-      same ? null : selected.apiValue,
-    );
+    final optimistic = applyOptimisticReaction(_post, intent.apiValue);
 
     setState(() {
       _post = optimistic;
@@ -785,11 +782,11 @@ class _WallPostCardState extends ConsumerState<_WallPostCard> {
     });
 
     final service = ref.read(communityServiceProvider);
-    final result = same
+    final result = intent.isRemove
         ? await service.removeReaction(_post.id)
         : await service.upsertReaction(
             postId: _post.id,
-            type: selected.apiValue,
+            type: intent.apiValue!,
           );
 
     if (!mounted) return;
@@ -800,10 +797,8 @@ class _WallPostCardState extends ConsumerState<_WallPostCard> {
         _reacting = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No se pudo actualizar la reacción. Inténtalo de nuevo.',
-          ),
+        SnackBar(
+          content: Text(reactionErrorMessage(intent)),
           backgroundColor: Colors.orange,
           behavior: SnackBarBehavior.floating,
         ),
@@ -979,19 +974,34 @@ class _WallPostCardState extends ConsumerState<_WallPostCard> {
               commentCount: post.commentCount,
               myReaction: post.myReaction,
               onTapReactions: _reacting ? null : _react,
+              onLongPressReactions: _reacting
+                  ? null
+                  : () => _react(change: true),
               onTapComments: widget.onOpenDetail,
             ),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerLeft,
-              child: TextButton.icon(
+              child: Builder(
+                builder: (ctaContext) => TextButton.icon(
                 key: ValueKey('react_cta_${post.id}'),
-                onPressed: _reacting ? null : _react,
-                icon: Text(
-                  post.myReaction != null
-                      ? ReactionType.emojiFor(post.myReaction!)
-                      : '👍',
-                  style: const TextStyle(fontSize: 16),
+                onPressed: _reacting
+                    ? null
+                    : () {
+                        GarraReactionAnchor.remember(ctaContext);
+                        _react();
+                      },
+                onLongPress: _reacting
+                    ? null
+                    : () {
+                        GarraReactionAnchor.remember(ctaContext);
+                        _react(change: true);
+                      },
+                icon: post.myReaction != null
+                    ? GarraReactionGlyph(apiValue: post.myReaction!, size: 18)
+                    : const Text(
+                  '👍',
+                  style: TextStyle(fontSize: 16),
                 ),
                 label: Text(
                   post.myReaction != null
@@ -1002,6 +1012,7 @@ class _WallPostCardState extends ConsumerState<_WallPostCard> {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
+              ),
               ),
             ),
           ],

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
 import '../../../core/widgets/garra_avatar.dart';
@@ -312,7 +313,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
                     : 'Chat'));
     return Material(
       key: const Key('floating-chat-panel'),
-      color: const Color(GarraColors.charcoal),
+      color: context.garraColors.background,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -322,7 +323,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
             width: 42,
             height: 4,
             decoration: BoxDecoration(
-              color: const Color(GarraColors.borderSubtle),
+              color: context.garraColors.border,
               borderRadius: BorderRadius.circular(99),
             ),
           ),
@@ -396,7 +397,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
     return Container(
       key: const Key('chat-pending-banner'),
       width: double.infinity,
-      color: const Color(GarraColors.surfaceRaised),
+      color: context.garraColors.surfaceRaised,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -452,7 +453,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
             decoration: BoxDecoration(
               color: message.mine
                   ? const Color(GarraColors.burgundy)
-                  : const Color(GarraColors.surfaceRaised),
+                  : context.garraColors.surfaceRaised,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -463,7 +464,11 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
                 if (message.content.trim().isNotEmpty)
                   Text(
                     message.content,
-                    style: const TextStyle(color: Color(GarraColors.cream)),
+                    style: TextStyle(
+                      color: message.mine
+                          ? const Color(GarraColors.cream)
+                          : context.garraColors.textPrimary,
+                    ),
                   ),
               ],
             ),
@@ -534,7 +539,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
                           key: Key('chat-image-preview-$index'),
                           width: 64,
                           height: 64,
-                          color: const Color(GarraColors.surface),
+                          color: context.garraColors.surface,
                           child: draft.localPath == null
                               ? const Icon(Icons.image_outlined)
                               : Image.file(
@@ -588,7 +593,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
                           ? 'Escribe un mensaje...'
                           : 'Esperando que acepte tu solicitud',
                       filled: true,
-                      fillColor: const Color(GarraColors.surface),
+                      fillColor: context.garraColors.surface,
                     ),
                   ),
                 ),

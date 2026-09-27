@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_card.dart';
@@ -59,10 +59,10 @@ class _SavedPostsPageState extends State<SavedPostsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(title: const Text('Guardados')),
       body: RefreshIndicator(
-        color: const Color(GarraColors.gold),
+        color: context.garraColors.brandPrestige,
         onRefresh: _load,
         child: _loading
             ? const Center(child: CircularProgressIndicator())

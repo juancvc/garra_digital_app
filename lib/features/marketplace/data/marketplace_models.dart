@@ -475,6 +475,7 @@ class SellerOnboardingRequest {
     required this.ipAcknowledged,
     this.storeDescription,
     this.city,
+    this.logoMediaAssetId,
   });
 
   final String whatsapp;
@@ -482,6 +483,10 @@ class SellerOnboardingRequest {
   final bool ipAcknowledged;
   final String? storeDescription;
   final String? city;
+
+  /// UX_08: optional single representative photo (logo / local / product),
+  /// uploaded with the MARKETPLACE_STORE_LOGO purpose.
+  final String? logoMediaAssetId;
 
   Map<String, dynamic> toJson() {
     return {

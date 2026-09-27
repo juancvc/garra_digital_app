@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/media/media_upload_service.dart';
 import '../../../core/network/garra_error.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_form.dart';
+import '../../../core/widgets/garra_single_photo_field.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/marketplace_models.dart';
@@ -13,7 +17,9 @@ import '../data/marketplace_service.dart';
 import 'providers/marketplace_provider.dart';
 
 class SellerOnboardingPage extends ConsumerStatefulWidget {
-  const SellerOnboardingPage({super.key});
+  const SellerOnboardingPage({super.key, this.media});
+
+  final MediaUploadService? media;
 
   @override
   ConsumerState<SellerOnboardingPage> createState() =>
@@ -28,6 +34,14 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
   final _descriptionController = TextEditingController();
   bool _ipAck = false;
   bool _submitting = false;
+  late final MediaUploadService _media = widget.media ?? MediaUploadService();
+  XFile? _photo;
+
+  Future<void> _pickPhoto() async {
+    final file = await _media.pickImage();
+    if (file == null || !mounted) return;
+    setState(() => _photo = file);
+  }
 
   @override
   void dispose() {
@@ -53,6 +67,15 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
 
     setState(() => _submitting = true);
     try {
+      String? logoAssetId;
+      final photo = _photo;
+      if (photo != null) {
+        logoAssetId = await uploadSinglePhoto(
+          _media,
+          photo,
+          MediaUploadPurpose.storeLogo,
+        );
+      }
       await ref
           .read(marketplaceServiceProvider)
           .submitSeller(
@@ -62,6 +85,7 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
               city: _cityController.text,
               storeDescription: _descriptionController.text,
               ipAcknowledged: _ipAck,
+              logoMediaAssetId: logoAssetId,
             ),
           );
       ref.invalidate(sellerMeProvider);
@@ -79,6 +103,7 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
   }
 
   String _sellerErrorMessage(Object error) {
+    if (error is SinglePhotoUploadException) return error.message;
     if (error is MarketplaceServiceException) {
       final msg = error.message.trim();
       if (msg.isNotEmpty) return msg;
@@ -134,8 +159,23 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
                   ),
                   const SizedBox(height: GarraSpacing.sm),
                   Text(
-                    'Los hinchas te contactarán por WhatsApp. No hay carrito ni pagos en la app.',
-                    style: Theme.of(context).textTheme.bodySmall,
+                    'Compra crema, apoya crema.',
+                    key: const ValueKey('seller_onboarding_claim'),
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: context.garraColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: GarraSpacing.xs),
+                  Text(
+                    'Garra ayuda a que la comunidad de hinchas descubra tu '
+                    'negocio. Los hinchas te contactan por WhatsApp y la compra '
+                    'se coordina directamente contigo: Garra no procesa pagos '
+                    'y no hay carrito en la app. Es un espacio de emprendimientos '
+                    'de hinchas, no de tiendas oficiales del club.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.garraColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: GarraSpacing.lg),
                   GarraFormSection(
@@ -173,6 +213,16 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
                         controller: _descriptionController,
                         helper: 'Opcional',
                         minLines: 3,
+                      ),
+                      GarraSinglePhotoField(
+                        key: const ValueKey('business_photo_field'),
+                        file: _photo,
+                        enabled: !_submitting,
+                        label: 'Foto del negocio (opcional)',
+                        helper:
+                            'Una sola imagen: tu logo, tu local o tu producto principal.',
+                        onPick: _pickPhoto,
+                        onRemove: () => setState(() => _photo = null),
                       ),
                     ],
                   ),

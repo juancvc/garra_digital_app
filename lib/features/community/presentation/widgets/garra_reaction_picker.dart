@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/design/garra_colors.dart';
 import '../../../../core/design/garra_radius.dart';
 import '../../../../core/design/garra_spacing.dart';
+import '../../../../core/theme/garra_semantic_colors.dart';
 import '../../data/reaction_type.dart';
+import 'garra_comment_reactions.dart';
 
 Future<ReactionType?> showGarraReactionPicker(
   BuildContext context, {
@@ -12,7 +13,8 @@ Future<ReactionType?> showGarraReactionPicker(
 }) {
   return showModalBottomSheet<ReactionType>(
     context: context,
-    backgroundColor: const Color(GarraColors.surface),
+    isScrollControlled: true,
+    backgroundColor: context.garraColors.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(GarraRadius.xl)),
     ),
@@ -22,7 +24,9 @@ Future<ReactionType?> showGarraReactionPicker(
   );
 }
 
-/// Modal bottom sheet with the 6 Garra reaction options (Spanish labels).
+/// Modal bottom sheet with the full Garra reaction catalog (Spanish labels)
+/// in a compact 4x2 grid. LOVE / FIRE / CARE / GARRA use vector glyphs; GARRA
+/// is the Garra Digital mark. Theme tokens only (Crema and Noche).
 class GarraReactionPicker extends StatelessWidget {
   const GarraReactionPicker({super.key, this.currentReaction, this.onSelected});
 
@@ -31,6 +35,7 @@ class GarraReactionPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.garraColors;
     final selected = ReactionType.tryParse(currentReaction);
 
     return SafeArea(
@@ -43,6 +48,7 @@ class GarraReactionPicker extends StatelessWidget {
             GarraSpacing.lg,
           ),
           child: Column(
+            key: const ValueKey('post_reaction_picker'),
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -51,9 +57,7 @@ class GarraReactionPicker extends StatelessWidget {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(
-                      GarraColors.cream,
-                    ).withValues(alpha: 0.2),
+                    color: colors.textSecondary.withValues(alpha: 0.45),
                     borderRadius: BorderRadius.circular(GarraRadius.pill),
                   ),
                 ),
@@ -62,75 +66,31 @@ class GarraReactionPicker extends StatelessWidget {
               Text(
                 'Reaccionar',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: const Color(GarraColors.cream),
+                  color: colors.textPrimary,
                   fontWeight: FontWeight.w900,
                 ),
               ),
               const SizedBox(height: GarraSpacing.sm),
               Text(
-                'Elige cómo sientes esta arenga',
+                selected == null
+                    ? 'Elige c\u00f3mo sientes esta arenga'
+                    : 'Toca tu reacci\u00f3n otra vez para quitarla',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: const Color(GarraColors.textSecondary),
+                  color: colors.textSecondary,
                 ),
               ),
-              const SizedBox(height: GarraSpacing.lg),
-              ...ReactionType.all.map((type) {
-                final isSelected = selected == type;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
-                  child: Material(
-                    color: isSelected
-                        ? const Color(
-                            GarraColors.garnet,
-                          ).withValues(alpha: 0.35)
-                        : const Color(GarraColors.surfaceRaised),
-                    borderRadius: BorderRadius.circular(GarraRadius.md),
-                    child: InkWell(
-                      key: ValueKey('reaction_option_${type.apiValue}'),
-                      borderRadius: BorderRadius.circular(GarraRadius.md),
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        if (onSelected != null) {
-                          onSelected!(type);
-                        } else {
-                          Navigator.of(context).pop(type);
-                        }
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: GarraSpacing.lg,
-                          vertical: GarraSpacing.md,
-                        ),
-                        child: Row(
-                          children: [
-                            Text(
-                              type.emoji,
-                              style: const TextStyle(fontSize: 22),
-                            ),
-                            const SizedBox(width: GarraSpacing.md),
-                            Expanded(
-                              child: Text(
-                                type.labelEs,
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(
-                                      color: const Color(GarraColors.cream),
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                              ),
-                            ),
-                            if (isSelected)
-                              const Icon(
-                                Icons.check_circle_rounded,
-                                color: Color(GarraColors.gold),
-                                size: 20,
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }),
+              const SizedBox(height: GarraSpacing.md),
+              GarraReactionGrid(
+                selected: selected,
+                onSelected: (type) {
+                  HapticFeedback.lightImpact();
+                  if (onSelected != null) {
+                    onSelected!(type);
+                  } else {
+                    Navigator.of(context).pop(type);
+                  }
+                },
+              ),
             ],
           ),
         ),

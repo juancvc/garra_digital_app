@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
@@ -18,11 +18,11 @@ class SellerPlanPage extends ConsumerWidget {
     final analyticsAsync = ref.watch(sellerAdvancedAnalyticsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(title: const Text('Plan de vendedor')),
       body: planAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: Color(GarraColors.gold)),
+        loading: () => Center(
+          child: CircularProgressIndicator(color: context.garraColors.brandPrestige),
         ),
         error: (_, _) => GarraErrorState(
           onRetry: () => ref.invalidate(sellerPlanProvider),
@@ -34,7 +34,7 @@ class SellerPlanPage extends ConsumerWidget {
               Text(
                 'PLAN ${plan.code.toUpperCase()}',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: const Color(GarraColors.gold),
+                      color: context.garraColors.brandPrestige,
                     ),
               ),
               const SizedBox(height: GarraSpacing.sm),

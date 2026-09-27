@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_states.dart';
@@ -245,7 +246,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
         : 'Solicitud de chat';
     return Material(
       key: const Key('chat-pending-banner'),
-      color: const Color(GarraColors.surfaceRaised),
+      color: context.garraColors.surfaceRaised,
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: GarraSpacing.lg,
@@ -318,7 +319,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
                     ? 'Escribe un mensaje...'
                     : 'Esperando que acepte tu solicitud',
                 filled: true,
-                fillColor: const Color(GarraColors.surface),
+                fillColor: context.garraColors.surface,
                 border: const OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(22)),
                   borderSide: BorderSide.none,
@@ -374,7 +375,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
             decoration: BoxDecoration(
               color: message.mine
                   ? const Color(GarraColors.burgundy)
-                  : const Color(GarraColors.surfaceRaised),
+                  : context.garraColors.surfaceRaised,
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(16),
                 topRight: const Radius.circular(16),
@@ -390,8 +391,10 @@ class _ChatConversationPageState extends State<ChatConversationPage>
                 if (message.content.trim().isNotEmpty)
                   Text(
                     message.content,
-                    style: const TextStyle(
-                      color: Color(GarraColors.cream),
+                    style: TextStyle(
+                      color: message.mine
+                          ? const Color(GarraColors.cream)
+                          : context.garraColors.textPrimary,
                       height: 1.3,
                     ),
                   ),

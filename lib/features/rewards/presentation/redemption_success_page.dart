@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/design/garra_typography.dart';
 import '../../../core/widgets/garra_card.dart';
@@ -17,7 +17,7 @@ class RedemptionSuccessPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(title: const Text('Canje realizado')),
       body: ListView(
         padding: const EdgeInsets.all(GarraSpacing.lg),
@@ -31,7 +31,7 @@ class RedemptionSuccessPage extends StatelessWidget {
           Text(
             redemption.providerLabel,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: const Color(GarraColors.gold),
+                  color: context.garraColors.brandPrestige,
                 ),
             textAlign: TextAlign.center,
           ),

@@ -10,6 +10,7 @@ import '../../../../core/widgets/garra_sheet.dart';
 import '../../data/reaction_type.dart';
 import '../../data/wall_comment_model.dart';
 import 'garra_comment_reactions.dart';
+import 'garra_reaction_burst.dart';
 import 'garra_reactors_sheet.dart';
 
 /// Max length accepted by the backend when editing a comment.
@@ -27,6 +28,7 @@ class GarraCommentTile extends StatelessWidget {
     this.onEdit,
     this.onDelete,
     this.onReact,
+    this.onChangeReaction,
     this.onReply,
     this.reacting = false,
   });
@@ -36,6 +38,9 @@ class GarraCommentTile extends StatelessWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final VoidCallback? onReact;
+
+  /// Long-press on the reaction pill: change the current reaction.
+  final VoidCallback? onChangeReaction;
 
   /// "Responder" action (roots and replies). Hidden when null.
   final VoidCallback? onReply;
@@ -150,6 +155,7 @@ class GarraCommentTile extends StatelessWidget {
                               commentId: comment.id,
                               myReaction: comment.myReaction,
                               onPressed: reacting ? null : onReact,
+                              onLongPress: reacting ? null : onChangeReaction,
                             ),
                           ),
                           if (onReply != null)
@@ -254,11 +260,13 @@ class _CommentReactButton extends StatelessWidget {
     required this.commentId,
     required this.myReaction,
     required this.onPressed,
+    this.onLongPress,
   });
 
   final String commentId;
   final String? myReaction;
   final VoidCallback? onPressed;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -277,12 +285,26 @@ class _CommentReactButton extends StatelessWidget {
       button: true,
       selected: selected != null,
       label: selected == null ? 'Reaccionar' : 'Tu reacción: $label',
+      hint: selected == null
+          ? null
+          : 'Toca para quitarla. Mant\u00e9n presionado para cambiarla.',
       excludeSemantics: true,
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
           key: ValueKey('comment_react_$commentId'),
-          onTap: onPressed,
+          onTap: onPressed == null
+              ? null
+              : () {
+                  GarraReactionAnchor.remember(context);
+                  onPressed!();
+                },
+          onLongPress: onLongPress == null
+              ? null
+              : () {
+                  GarraReactionAnchor.remember(context);
+                  onLongPress!();
+                },
           borderRadius: BorderRadius.circular(GarraRadius.pill),
           child: Container(
             constraints: const BoxConstraints(minHeight: 32),
