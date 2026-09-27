@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../../core/network/dio_client.dart';
+import '../../../core/network/garra_error.dart';
 import 'create_wall_post_request.dart';
 import 'reaction_result.dart';
 import 'report_wall_post_request.dart';
@@ -351,19 +352,82 @@ class CommunityService {
     }
   }
 
+  Future<CommentActionResult> editComment({
+    required String commentId,
+    required String content,
+  }) async {
+    try {
+      final response = await _dio.patch(
+        '/community/comments/$commentId',
+        data: {'content': content.trim()},
+      );
+      final data = response.data is Map ? response.data['data'] : null;
+      return CommentActionResult.success(
+        message: 'Comentario actualizado',
+        comment: data is Map
+            ? WallCommentModel.fromJson(Map<String, dynamic>.from(data))
+            : null,
+      );
+    } catch (e) {
+      return CommentActionResult.failure(
+        garraActionErrorMessage(e, notFoundMessage: _commentGoneMessage),
+      );
+    }
+  }
+
   Future<CommentActionResult> deleteComment(String commentId) async {
     try {
-      final response = await _dio.delete('/community/comments/$commentId');
-      return CommentActionResult.success(
-        message: response.data['message']?.toString() ?? 'Comentario eliminado',
-      );
-    } on DioException catch (e) {
+      await _dio.delete('/community/comments/$commentId');
+      return CommentActionResult.success(message: 'Comentario eliminado');
+    } catch (e) {
       return CommentActionResult.failure(
-        _dioMessage(e, 'No se pudo eliminar el comentario'),
+        garraActionErrorMessage(e, notFoundMessage: _commentGoneMessage),
       );
-    } catch (_) {
-      return CommentActionResult.failure('Ocurrió un error inesperado');
     }
+  }
+
+  Future<ReactionResult> upsertCommentReaction({
+    required String commentId,
+    required String type,
+  }) async {
+    try {
+      final response = await _dio.put(
+        '/community/comments/$commentId/reaction',
+        data: {'type': type.toUpperCase()},
+      );
+      return _commentReactionResult(response.data);
+    } catch (e) {
+      return ReactionResult.failure(
+        garraActionErrorMessage(e, notFoundMessage: _commentGoneMessage),
+      );
+    }
+  }
+
+  Future<ReactionResult> removeCommentReaction(String commentId) async {
+    try {
+      final response = await _dio.delete(
+        '/community/comments/$commentId/reaction',
+      );
+      return _commentReactionResult(response.data);
+    } catch (e) {
+      return ReactionResult.failure(
+        garraActionErrorMessage(e, notFoundMessage: _commentGoneMessage),
+      );
+    }
+  }
+
+  static const _commentGoneMessage = 'Este comentario ya no está disponible.';
+
+  ReactionResult _commentReactionResult(Object? body) {
+    final payload = body is Map ? (body['data'] ?? body) : null;
+    if (payload is Map) {
+      return ReactionResult.fromPayload(
+        Map<String, dynamic>.from(payload),
+        message: 'Reacción actualizada',
+      );
+    }
+    // No payload: keep the local (optimistic) state as-is.
+    return ReactionResult.success(message: 'Reacción actualizada');
   }
 
   Future<CommentActionResult> reportComment({

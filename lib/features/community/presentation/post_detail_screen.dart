@@ -12,7 +12,6 @@ import '../../../core/design/garra_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/auth/current_fan_provider.dart';
-import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/engagement_utils.dart';
@@ -20,6 +19,8 @@ import '../data/reaction_type.dart';
 import '../data/wall_comment_model.dart';
 import '../data/wall_post_model.dart';
 import 'providers/community_provider.dart';
+import 'widgets/garra_comment_reactions.dart';
+import 'widgets/garra_comment_tile.dart';
 import 'widgets/garra_post_media_grid.dart';
 import 'widgets/garra_reaction_bar.dart';
 import 'widgets/garra_reaction_picker.dart';
@@ -49,6 +50,10 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   final _commentController = TextEditingController();
   bool _sendingComment = false;
   bool _reacting = false;
+
+  /// In-flight guards per comment id (no duplicate requests on double tap).
+  final Set<String> _reactingComments = {};
+  final Set<String> _deletingComments = {};
 
   static const int _maxCommentLength = 280;
 
@@ -236,22 +241,139 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     _showSnack(result.message);
   }
 
+  bool _ownsComment(WallCommentModel comment) {
+    if (comment.isMine) return true;
+    final meId = currentFanIdOf(ref);
+    return meId != null && meId.isNotEmpty && comment.authorId == meId;
+  }
+
+  int _commentIndex(String commentId) {
+    return _comments.indexWhere((c) => c.id == commentId);
+  }
+
+  Future<void> _editComment(WallCommentModel comment) async {
+    final saved = await showEditCommentSheet(
+      context,
+      initialText: comment.content,
+      onSubmit: (content) async {
+        final result = await ref
+            .read(communityServiceProvider)
+            .editComment(commentId: comment.id, content: content);
+        if (!mounted) return null;
+        if (!result.success) return result.message;
+        final index = _commentIndex(comment.id);
+        if (index >= 0) {
+          final current = _comments[index];
+          final server = result.comment;
+          setState(() {
+            _comments[index] = current.copyWith(
+              content: server != null && server.content.isNotEmpty
+                  ? server.content
+                  : content,
+              editedAt:
+                  server?.editedAt ?? DateTime.now().toUtc().toIso8601String(),
+              updatedAt: server?.updatedAt,
+            );
+          });
+        }
+        return null;
+      },
+    );
+    if (saved == true && mounted) {
+      _showSnack('Comentario actualizado');
+    }
+  }
+
   Future<void> _deleteComment(WallCommentModel comment) async {
+    if (_deletingComments.contains(comment.id)) return;
+    final confirmed = await confirmDeleteComment(context);
+    if (!confirmed || !mounted) return;
+    _deletingComments.add(comment.id);
     final result = await ref
         .read(communityServiceProvider)
         .deleteComment(comment.id);
+    _deletingComments.remove(comment.id);
     if (!mounted) return;
     if (!result.success) {
       _showSnack(result.message, isError: true);
       return;
     }
     setState(() {
+      final before = _comments.length;
       _comments.removeWhere((c) => c.id == comment.id);
-      if (_post != null && _post!.commentCount > 0) {
+      final removed = _comments.length < before;
+      if (removed && _post != null && _post!.commentCount > 0) {
         _post = _post!.copyWith(commentCount: _post!.commentCount - 1);
       }
     });
     _showSnack(result.message);
+  }
+
+  Future<void> _openCommentReactions(WallCommentModel comment) async {
+    if (_reactingComments.contains(comment.id)) return;
+    final selected = await showCommentReactionPicker(
+      context,
+      currentReaction: comment.myReaction,
+    );
+    if (selected == null || !mounted) return;
+    final index = _commentIndex(comment.id);
+    if (index < 0) return;
+    await _reactToComment(_comments[index], selected);
+  }
+
+  Future<void> _reactToComment(
+    WallCommentModel comment,
+    ReactionType type,
+  ) async {
+    if (_reactingComments.contains(comment.id)) return;
+    final previous = comment;
+    final remove = comment.myReaction?.toUpperCase() == type.apiValue;
+    final optimistic = applyOptimisticCommentReaction(
+      comment,
+      remove ? null : type.apiValue,
+    );
+    final startIndex = _commentIndex(comment.id);
+    if (startIndex < 0) return;
+
+    setState(() {
+      _reactingComments.add(comment.id);
+      _comments[startIndex] = optimistic;
+    });
+
+    final service = ref.read(communityServiceProvider);
+    final result = remove
+        ? await service.removeCommentReaction(comment.id)
+        : await service.upsertCommentReaction(
+            commentId: comment.id,
+            type: type.apiValue,
+          );
+    if (!mounted) return;
+
+    final index = _commentIndex(comment.id);
+    setState(() {
+      _reactingComments.remove(comment.id);
+      if (index < 0) return;
+      if (!result.success) {
+        // Roll back only the reaction fields (keeps any concurrent edit).
+        _comments[index] = _comments[index].copyWith(
+          myReaction: previous.myReaction,
+          clearMyReaction: previous.myReaction == null,
+          reactionSummary: previous.reactionSummary,
+          reactionCount: previous.reactionCount,
+        );
+      } else if (result.reactionSummary != null &&
+          result.reactionCount != null) {
+        _comments[index] = applyCommentReactionResponse(
+          comment: _comments[index],
+          myReaction: result.myReaction,
+          reactionSummary: result.reactionSummary!,
+          reactionCount: result.reactionCount!,
+        );
+      }
+    });
+    if (!result.success) {
+      _showSnack(result.message, isError: true);
+    }
   }
 
   void _showSnack(String message, {bool isError = false}) {
@@ -521,9 +643,13 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         ..._comments.map(
           (comment) => Padding(
             padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
-            child: _CommentTile(
+            child: GarraCommentTile(
               comment: comment,
-              onDelete: comment.isMine ? () => _deleteComment(comment) : null,
+              isOwn: _ownsComment(comment),
+              onEdit: () => _editComment(comment),
+              onDelete: () => _deleteComment(comment),
+              onReact: () => _openCommentReactions(comment),
+              reacting: _reactingComments.contains(comment.id),
             ),
           ),
         ),
@@ -585,73 +711,6 @@ class _PostHeader extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _CommentTile extends StatelessWidget {
-  const _CommentTile({required this.comment, this.onDelete});
-
-  final WallCommentModel comment;
-  final VoidCallback? onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final name = comment.fullName.isNotEmpty
-        ? comment.fullName
-        : comment.username;
-    final openProfile = comment.authorId == null
-        ? null
-        : () => context.push('/comunidad/u/${comment.authorId}');
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          GestureDetector(
-            onTap: openProfile,
-            child: GarraAvatar(
-              displayName: name,
-              avatarUrl: comment.avatarUrl,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                GestureDetector(
-                  onTap: openProfile,
-                  child: Text(
-                    name,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                Text(
-                  comment.content,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                Text(
-                  formatGarraRelativeTime(comment.createdAt),
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: const Color(GarraColors.textSecondary),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (onDelete != null)
-            IconButton(
-              tooltip: 'Eliminar',
-              onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline, size: 18),
-              color: const Color(GarraColors.gold),
-            ),
-        ],
-      ),
     );
   }
 }

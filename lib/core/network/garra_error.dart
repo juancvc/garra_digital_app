@@ -101,3 +101,64 @@ GarraErrorInfo classifyDioError(Object error) {
     'No pudimos completar la acción.',
   );
 }
+
+/// Generic Spanish fallback for write actions (edit, delete, react).
+const garraActionFallbackMessage =
+    'No pudimos completar la acción. Inténtalo nuevamente.';
+
+const garraForbiddenActionMessage =
+    'No tienes permiso para realizar esta acción.';
+
+const garraRateLimitedActionMessage =
+    'Estás haciendo demasiadas acciones. Inténtalo nuevamente en unos segundos.';
+
+const _rawBackendMessages = {
+  'access denied',
+  'forbidden',
+  'bad request',
+  'not found',
+  'unauthorized',
+  'internal server error',
+  'too many requests',
+};
+
+/// Maps a failed write action to user-facing Spanish copy.
+///
+/// - 403 never surfaces the backend text (it is a generic English string).
+/// - 400/422 and 429 keep the backend message when it is human copy.
+/// - Network, timeout and unknown failures use [garraActionFallbackMessage].
+String garraActionErrorMessage(Object error, {String? notFoundMessage}) {
+  if (error is! DioException) return garraActionFallbackMessage;
+  final code = error.response?.statusCode;
+  if (code == null) return garraActionFallbackMessage;
+  final backend = _backendMessage(error.response?.data);
+  switch (code) {
+    case 401:
+      return 'Tu sesión expiró. Vuelve a iniciar sesión.';
+    case 403:
+      return garraForbiddenActionMessage;
+    case 404:
+      return notFoundMessage ?? garraActionFallbackMessage;
+    case 429:
+      return backend ?? garraRateLimitedActionMessage;
+    case 400:
+    case 409:
+    case 422:
+      return backend ?? garraActionFallbackMessage;
+  }
+  return garraActionFallbackMessage;
+}
+
+String? _backendMessage(Object? data) {
+  if (data is! Map) return null;
+  final raw = data['message'];
+  if (raw is! String) return null;
+  final message = raw.trim();
+  if (message.isEmpty || message.length > 240) return null;
+  final lower = message.toLowerCase();
+  if (_rawBackendMessages.contains(lower)) return null;
+  if (lower.contains('exception') || lower.contains('dioexception')) {
+    return null;
+  }
+  return message;
+}
