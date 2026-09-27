@@ -17,4 +17,6 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos
       - run: flutter test
+      - name: Provide Maps placeholder for debug build
+        run: echo "GOOGLE_MAPS_API_KEY=CI_BUILD_PLACEHOLDER" >> android/local.properties
       - run: flutter build apk --debug
