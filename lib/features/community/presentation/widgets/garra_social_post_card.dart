@@ -9,6 +9,7 @@ import '../../../../core/widgets/garra_avatar.dart';
 import '../../data/wall_post_model.dart';
 import 'garra_post_media_grid.dart';
 import 'garra_reaction_bar.dart';
+import 'garra_reactors_sheet.dart';
 
 /// Shared social post row for Home feed and Comunidad surfaces.
 class GarraSocialPostCard extends StatelessWidget {
@@ -183,10 +184,23 @@ class GarraSocialPostCard extends StatelessWidget {
                 onTapReactions: onReact,
                 onTapComments: onComment ?? onOpen,
               ),
-              if (post.commentCount > 0)
-                TextButton(
-                  onPressed: onOpen,
-                  child: Text('Ver ${post.commentCount} comentarios'),
+              if (post.reactionCount > 0 || post.commentCount > 0)
+                Wrap(
+                  spacing: GarraSpacing.sm,
+                  children: [
+                    if (post.reactionCount > 0)
+                      TextButton(
+                        key: ValueKey('post_reactors_${post.id}'),
+                        onPressed: () =>
+                            showGarraReactorsSheet(context, postId: post.id),
+                        child: Text(reactorsLabel(post.reactionCount)),
+                      ),
+                    if (post.commentCount > 0)
+                      TextButton(
+                        onPressed: onOpen,
+                        child: Text('Ver ${post.commentCount} comentarios'),
+                      ),
+                  ],
                 ),
             ],
           ),
@@ -195,6 +209,10 @@ class GarraSocialPostCard extends StatelessWidget {
     );
   }
 }
+
+/// Entry to "who reacted" (shared by feed card and post detail).
+String reactorsLabel(int count) =>
+    count == 1 ? 'Ver 1 reacci\u00f3n' : 'Ver $count reacciones';
 
 Future<void> confirmAndDeletePublication({
   required BuildContext context,

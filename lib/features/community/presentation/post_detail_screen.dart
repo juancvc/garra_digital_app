@@ -24,6 +24,8 @@ import 'widgets/garra_comment_tile.dart';
 import 'widgets/garra_post_media_grid.dart';
 import 'widgets/garra_reaction_bar.dart';
 import 'widgets/garra_reaction_picker.dart';
+import 'widgets/garra_reactors_sheet.dart';
+import 'widgets/garra_social_post_card.dart' show reactorsLabel;
 import 'widgets/garra_share_card.dart';
 
 class PostDetailScreen extends ConsumerStatefulWidget {
@@ -782,6 +784,16 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   onTapReactions: _onReact,
                   onTapComments: _focusComposer,
                 ),
+                if (post.reactionCount > 0)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      key: const ValueKey('post_detail_reactors'),
+                      onPressed: () =>
+                          showGarraReactorsSheet(context, postId: post.id),
+                      child: Text(reactorsLabel(post.reactionCount)),
+                    ),
+                  ),
                 const SizedBox(height: GarraSpacing.sm),
                 _PostActionRow(
                   myReaction: post.myReaction,

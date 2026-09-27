@@ -10,6 +10,7 @@ import '../../../../core/widgets/garra_sheet.dart';
 import '../../data/reaction_type.dart';
 import '../../data/wall_comment_model.dart';
 import 'garra_comment_reactions.dart';
+import 'garra_reactors_sheet.dart';
 
 /// Max length accepted by the backend when editing a comment.
 const commentEditMaxLength = 500;
@@ -180,10 +181,20 @@ class GarraCommentTile extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: GarraSpacing.sm),
-                    GarraCommentReactionSummary(
-                      key: ValueKey('comment_reaction_summary_${comment.id}'),
-                      reactionSummary: comment.reactionSummary,
-                      reactionCount: comment.reactionCount,
+                    InkWell(
+                      key: ValueKey('comment_reactors_${comment.id}'),
+                      onTap: comment.reactionCount > 0
+                          ? () => showGarraReactorsSheet(
+                              context,
+                              commentId: comment.id,
+                            )
+                          : null,
+                      borderRadius: BorderRadius.circular(GarraRadius.sm),
+                      child: GarraCommentReactionSummary(
+                        key: ValueKey('comment_reaction_summary_${comment.id}'),
+                        reactionSummary: comment.reactionSummary,
+                        reactionCount: comment.reactionCount,
+                      ),
                     ),
                   ],
                 ),

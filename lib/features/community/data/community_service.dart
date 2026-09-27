@@ -4,6 +4,7 @@ import '../../../core/network/dio_client.dart';
 import '../../../core/network/garra_error.dart';
 import 'create_wall_post_request.dart';
 import 'reaction_result.dart';
+import 'reactor_model.dart';
 import 'report_wall_post_request.dart';
 import 'wall_comment_model.dart';
 import 'wall_post_model.dart';
@@ -377,6 +378,32 @@ class CommunityService {
         notFound: e is DioException && e.response?.statusCode == 404,
       );
     }
+  }
+
+  /// Who reacted to a post, newest first (cursor pagination, max 50/page).
+  Future<ReactorsPage> getPostReactors(
+    String postId, {
+    String? cursor,
+    int size = 30,
+  }) => _reactors('/community/posts/$postId/reactions', cursor, size);
+
+  /// Who reacted to a comment or reply (same reaction system as posts).
+  Future<ReactorsPage> getCommentReactors(
+    String commentId, {
+    String? cursor,
+    int size = 30,
+  }) => _reactors('/community/comments/$commentId/reactions', cursor, size);
+
+  Future<ReactorsPage> _reactors(String path, String? cursor, int size) async {
+    final response = await _dio.get(
+      path,
+      queryParameters: {
+        'size': size,
+        if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+      },
+    );
+    final payload = response.data['data'] ?? response.data;
+    return ReactorsPage.fromJson(Map<String, dynamic>.from(payload as Map));
   }
 
   /// Replies of a root comment, oldest first (cursor pagination).
