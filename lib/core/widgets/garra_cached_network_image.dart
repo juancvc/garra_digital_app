@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../design/garra_colors.dart';
+import '../theme/garra_semantic_colors.dart';
 
 /// Shared cached image treatment for Garra network media.
 class GarraCachedNetworkImage extends StatelessWidget {
@@ -50,16 +51,17 @@ class _GarraImagePlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.garraColors;
     return Container(
       key: const ValueKey('garra_cached_image_placeholder'),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(GarraColors.surfaceRaised),
-            Color(GarraColors.garnetDeep),
-            Color(GarraColors.surface),
+            colors.surfaceRaised,
+            const Color(GarraColors.garnetDeep),
+            colors.surface,
           ],
         ),
       ),
@@ -80,11 +82,11 @@ class _GarraImageFallback extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       key: const ValueKey('garra_cached_image_error'),
-      color: const Color(GarraColors.surfaceRaised),
+      color: context.garraColors.surfaceRaised,
       alignment: Alignment.center,
-      child: const Icon(
+      child: Icon(
         Icons.image_not_supported_outlined,
-        color: Color(GarraColors.creamMuted),
+        color: context.garraColors.textSecondary,
       ),
     );
   }

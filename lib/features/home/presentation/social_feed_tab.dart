@@ -7,6 +7,7 @@ import '../../../core/auth/current_fan_provider.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_brand_visual.dart';
 import '../../../core/widgets/garra_states.dart';
@@ -276,7 +277,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
                 child: Text(
                   _error!,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: const Color(GarraColors.creamMuted),
+                    color: context.garraColors.textSecondary,
                   ),
                 ),
               ),
@@ -356,11 +357,11 @@ class _EditorialFeedMarker extends StatelessWidget {
           Expanded(
             child: Container(
               height: 1,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Color(GarraColors.gold),
-                    Color(GarraColors.borderSubtle),
+                    const Color(GarraColors.gold),
+                    context.garraColors.border,
                     Colors.transparent,
                   ],
                 ),
@@ -405,7 +406,7 @@ class _ComposerRow extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Material(
-                  color: const Color(GarraColors.surface),
+                  color: context.garraColors.surface,
                   borderRadius: BorderRadius.circular(GarraRadius.lg),
                   child: InkWell(
                     onTap: onCompose,
@@ -420,7 +421,7 @@ class _ComposerRow extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: const Color(GarraColors.creamMuted),
+                          color: context.garraColors.textSecondary,
                         ),
                       ),
                     ),

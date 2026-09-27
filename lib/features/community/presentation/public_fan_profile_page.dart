@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
@@ -16,6 +15,7 @@ import '../../chat/data/chat_service.dart';
 import '../../chat/presentation/floating_chat_panel.dart';
 import '../data/community_service.dart';
 import '../data/wall_post_model.dart';
+import 'widgets/garra_post_media_grid.dart';
 
 class PublicFanProfilePage extends StatefulWidget {
   const PublicFanProfilePage({
@@ -311,11 +311,42 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
             (post) => Padding(
               padding: const EdgeInsets.only(bottom: GarraSpacing.md),
               child: GarraCard(
+                key: Key('profile-post-${post.id}'),
                 onTap: () => context.push('/muro-crema/posts/${post.id}'),
-                child: Text(
-                  post.content,
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      post.content,
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if ((post.imageUrl != null && post.imageUrl!.isNotEmpty) ||
+                        post.media.isNotEmpty) ...[
+                      const SizedBox(height: GarraSpacing.sm),
+                      GarraPostMediaGrid(
+                        media: post.media,
+                        legacyImageUrl: post.imageUrl,
+                      ),
+                    ],
+                    const SizedBox(height: GarraSpacing.xs),
+                    TextButton.icon(
+                      key: Key('profile-post-comments-${post.id}'),
+                      onPressed: () =>
+                          context.push('/muro-crema/posts/${post.id}'),
+                      icon: const Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: 18,
+                      ),
+                      label: Text(
+                        post.commentCount == 0
+                            ? 'Comentar'
+                            : post.commentCount == 1
+                            ? 'Ver 1 comentario'
+                            : 'Ver ${post.commentCount} comentarios',
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -541,7 +572,7 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(title: const Text('Usuarios bloqueados')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

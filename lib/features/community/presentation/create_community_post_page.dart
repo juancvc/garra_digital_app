@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/media/media_upload_service.dart';
 import '../data/community_service.dart';
 import '../data/create_wall_post_request.dart';
@@ -253,7 +254,7 @@ class _CreateCommunityPostPageState
                           width: 88,
                           height: 88,
                           decoration: BoxDecoration(
-                            color: const Color(GarraColors.surfaceRaised),
+                            color: context.garraColors.surfaceRaised,
                             borderRadius: BorderRadius.circular(12),
                             image: d.localPath != null
                                 ? DecorationImage(

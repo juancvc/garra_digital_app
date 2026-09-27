@@ -9,6 +9,7 @@ import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/design/garra_typography.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_brand_visual.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
@@ -307,7 +308,7 @@ class _HomeContextualInsert extends StatelessWidget {
       label: '$eyebrow, $title',
       child: Material(
         key: const ValueKey('home-contextual-insert'),
-        color: const Color(GarraColors.surface),
+        color: context.garraColors.surface,
         borderRadius: BorderRadius.circular(GarraRadius.md),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -555,7 +556,7 @@ class _PulsoCremaCard extends StatelessWidget {
           Text(
             'Pulso Crema',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: const Color(GarraColors.cream),
+              color: context.garraColors.textPrimary,
             ),
           ),
           const SizedBox(height: GarraSpacing.xs),
@@ -919,22 +920,23 @@ class _NoMatchCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const GarraCard(
+    final colors = context.garraColors;
+    return GarraCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Sin partido cercano',
             style: TextStyle(
-              color: Color(GarraColors.cream),
+              color: colors.textPrimary,
               fontWeight: FontWeight.w700,
               fontSize: 18,
             ),
           ),
-          SizedBox(height: GarraSpacing.sm),
+          const SizedBox(height: GarraSpacing.sm),
           Text(
             'Cuando la U tenga fecha, el Matchday aparecerá aquí.',
-            style: TextStyle(color: Color(GarraColors.textSecondary)),
+            style: TextStyle(color: colors.textSecondary),
           ),
         ],
       ),

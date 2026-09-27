@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/design/garra_colors.dart';
 import '../../../../core/utils/date_utils.dart';
 export '../../../../core/utils/date_utils.dart' show formatGarraRelativeTime;
 import '../../../../core/design/garra_spacing.dart';
+import '../../../../core/theme/garra_semantic_colors.dart';
 import '../../../../core/widgets/garra_avatar.dart';
 import '../../data/wall_post_model.dart';
 import 'garra_post_media_grid.dart';
@@ -48,9 +48,9 @@ class GarraSocialPostCard extends StatelessWidget {
             horizontal: GarraSpacing.lg,
             vertical: GarraSpacing.md,
           ),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             border: Border(
-              bottom: BorderSide(color: Color(GarraColors.borderSubtle)),
+              bottom: BorderSide(color: context.garraColors.border),
             ),
           ),
           child: Column(
@@ -103,7 +103,7 @@ class GarraSocialPostCard extends StatelessWidget {
                       },
                       icon: Icon(
                         post.savedByMe ? Icons.bookmark : Icons.bookmark_border,
-                        color: const Color(GarraColors.cream),
+                        color: context.garraColors.textPrimary,
                       ),
                     ),
                   PopupMenuButton<String>(

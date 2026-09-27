@@ -11,6 +11,7 @@ import '../data/reaction_type.dart';
 import '../data/wall_post_model.dart';
 import '../data/wall_status_model.dart';
 import 'providers/community_provider.dart';
+import 'widgets/garra_post_media_grid.dart';
 import 'widgets/garra_reaction_bar.dart';
 import 'widgets/garra_reaction_picker.dart';
 
@@ -924,9 +925,14 @@ class _WallPostCardState extends ConsumerState<_WallPostCard> {
                       borderRadius: BorderRadius.circular(12),
                       child: AspectRatio(
                         aspectRatio: 16 / 9,
-                        child: GarraCachedNetworkImage(
-                          imageUrl: post.imageUrl!,
-                          fit: BoxFit.cover,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () =>
+                              openGarraMediaViewer(context, [post.imageUrl!]),
+                          child: GarraCachedNetworkImage(
+                            imageUrl: post.imageUrl!,
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       ),
                     ),

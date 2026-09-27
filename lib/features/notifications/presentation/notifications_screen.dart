@@ -5,9 +5,12 @@ import 'package:intl/intl.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/network/garra_error.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../data/notification_service.dart';
+import '../../home/presentation/providers/home_provider.dart';
 import '../data/push_router.dart';
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
@@ -24,20 +27,52 @@ class NotificationsScreen extends ConsumerWidget {
 
   static const _router = PushRouter();
 
+  /// The Home bell badge comes from GET /home (`notifications.unreadCount`):
+  /// reload it together with the list after a successful read.
+  static void _refreshUnread(ProviderContainer container) {
+    container.invalidate(myNotificationsProvider);
+    container.invalidate(homeProvider);
+  }
+
+  Future<void> _markAllRead(BuildContext context) async {
+    final container = ProviderScope.containerOf(context, listen: false);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await container.read(notificationServiceProvider).markAllRead();
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(garraActionErrorMessage(e))),
+      );
+      return;
+    }
+    _refreshUnread(container);
+  }
+
+  /// Opening an item marks it read (PATCH /notifications/{id}/read) without
+  /// delaying navigation.
+  void _open(BuildContext context, NotificationItem item, String? route) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    if (!item.read) {
+      container
+          .read(notificationServiceProvider)
+          .markRead(item.id)
+          .then((_) => _refreshUnread(container), onError: (_) {});
+    }
+    if (route != null) context.push(route);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(myNotificationsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(
         title: const Text('Actividad'),
         actions: [
           TextButton(
-            onPressed: () async {
-              await ref.read(notificationServiceProvider).markAllRead();
-              ref.invalidate(myNotificationsProvider);
-            },
+            key: const ValueKey('notifications_mark_all'),
+            onPressed: () => _markAllRead(context),
             child: const Text('Marcar leídas'),
           ),
         ],
@@ -86,10 +121,9 @@ class NotificationsScreen extends ConsumerWidget {
                 );
                 final tappable = route != '/notifications';
                 return GarraCard(
-                  onTap: tappable
-                      ? () {
-                          context.push(route);
-                        }
+                  key: ValueKey('notification_item_${item.id}'),
+                  onTap: tappable || !item.read
+                      ? () => _open(context, item, tappable ? route : null)
                       : null,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

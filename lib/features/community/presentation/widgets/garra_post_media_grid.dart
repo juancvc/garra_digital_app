@@ -5,6 +5,21 @@ import '../../../../core/theme/garra_semantic_colors.dart';
 import '../../../../core/widgets/garra_cached_network_image.dart';
 import '../../data/wall_post_model.dart';
 
+/// Opens the single fullscreen photo viewer (root navigator, above the shell
+/// and bottom navigation). Black backdrop is intentional in both themes.
+Future<void> openGarraMediaViewer(
+  BuildContext context,
+  List<String> urls, {
+  int initialIndex = 0,
+}) {
+  if (urls.isEmpty) return Future.value();
+  return Navigator.of(context, rootNavigator: true).push(
+    MaterialPageRoute<void>(
+      builder: (_) => _MediaViewer(urls: urls, initialIndex: initialIndex),
+    ),
+  );
+}
+
 /// Social media grid: 1 full / 2 split / 3 hero+2 / 4 2x2.
 class GarraPostMediaGrid extends StatelessWidget {
   const GarraPostMediaGrid({
@@ -29,12 +44,7 @@ class GarraPostMediaGrid extends StatelessWidget {
   }
 
   void _openViewer(BuildContext context, int index) {
-    final urls = _urls;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => _MediaViewer(urls: urls, initialIndex: index),
-      ),
-    );
+    openGarraMediaViewer(context, _urls, initialIndex: index);
   }
 
   @override
@@ -45,6 +55,10 @@ class GarraPostMediaGrid extends StatelessWidget {
 
     Widget image(int i) {
       return GestureDetector(
+        key: ValueKey('post_media_$i'),
+        // Opaque: the whole tile opens the viewer even while the image loads,
+        // instead of falling through to the card's "open detail" tap.
+        behavior: HitTestBehavior.opaque,
         onTap: () => _openViewer(context, i),
         child: GarraCachedNetworkImage(
           imageUrl: urls[i],
@@ -195,6 +209,7 @@ class _MediaViewerState extends State<_MediaViewer> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: const ValueKey('garra_media_viewer'),
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
