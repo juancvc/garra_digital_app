@@ -153,7 +153,7 @@ class _CreateCommunityPostPageState
     });
     try {
       if (_isMatchScoped) {
-        await _community.createPost(
+        final result = await _community.createPost(
           CreateWallPostRequest(
             matchId: widget.matchId!,
             content: text,
@@ -161,6 +161,9 @@ class _CreateCommunityPostPageState
             mediaAssetId: readyIds.isEmpty ? null : readyIds.first,
           ),
         );
+        if (!result.success) {
+          throw Exception(result.message);
+        }
       } else {
         final result = await _community.createGlobalPost(
           content: text,

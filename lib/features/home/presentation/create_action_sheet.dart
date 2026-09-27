@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/config/app_config_service.dart';
@@ -9,6 +10,7 @@ import '../../../core/design/garra_spacing.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_brand_visual.dart';
 import '../../../core/widgets/garra_sheet.dart';
+import '../../community/presentation/providers/community_provider.dart';
 
 /// V1 Crear intention selector — never jump straight into a form.
 Future<void> showCreateActionSheet(BuildContext context) {
@@ -32,9 +34,16 @@ class _CreateActionSheet extends StatelessWidget {
           subtitle: 'Comparte lo que vive la crema',
           icon: Icons.edit_outlined,
           color: const Color(GarraColors.burgundy),
-          onTap: () {
+          onTap: () async {
+            // Captured before the sheet closes: compose returns true after
+            // publishing and the feeds under the shell reload once.
+            final router = GoRouter.of(context);
+            final container = ProviderScope.containerOf(context, listen: false);
             Navigator.pop(context);
-            context.push('/comunidad/compose');
+            final created = await router.push<bool>('/comunidad/compose');
+            if (created == true) {
+              container.read(communityFeedRevisionProvider.notifier).bump();
+            }
           },
         ),
       if (cfg.feature('events'))

@@ -34,6 +34,20 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
     super.dispose();
   }
 
+  /// Compose publishes on the current match wall and returns true on success;
+  /// then the wall lists reload so the new post shows.
+  Future<void> _openCompose() async {
+    final matchId = ref.read(wallStatusProvider).asData?.value?.matchId;
+    final location = matchId == null || matchId.isEmpty
+        ? '/muro-crema/compose'
+        : '/muro-crema/compose?matchId=${Uri.encodeQueryComponent(matchId)}';
+    final created = await context.push<bool>(location);
+    if (created == true && mounted) {
+      ref.invalidate(wallPostsProvider);
+      ref.invalidate(myWallPostsProvider);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(wallStatusProvider);
@@ -54,12 +68,12 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
           IconButton(
             tooltip: 'Nueva publicación',
             icon: const Icon(Icons.edit_outlined, color: AppTheme.gold),
-            onPressed: () => context.push('/muro-crema/compose'),
+            onPressed: _openCompose,
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/muro-crema/compose'),
+        onPressed: _openCompose,
         backgroundColor: AppTheme.gold,
         foregroundColor: AppTheme.background,
         icon: const Icon(Icons.add_a_photo_outlined),

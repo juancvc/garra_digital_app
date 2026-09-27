@@ -79,6 +79,14 @@ void main() {
     expect(find.textContaining('/220'), findsOneWidget);
     expect(find.textContaining('/4'), findsNothing);
     expect(tester.takeException(), isNull);
+
+    // POLISH_05: posts stay at the backend limit (220, @Size + VARCHAR(220)).
+    await tester.enterText(find.byType(TextField), 'a' * 230);
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text.length,
+      220,
+    );
   });
 
   testWidgets('negocios cremas is separate from the stadium route', (

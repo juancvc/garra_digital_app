@@ -10,9 +10,12 @@ import 'package:garra_digital_app/features/community/data/community_service.dart
 import 'package:garra_digital_app/features/community/data/engagement_utils.dart';
 import 'package:garra_digital_app/features/community/data/reaction_result.dart';
 import 'package:garra_digital_app/features/community/data/wall_post_model.dart';
+import 'package:garra_digital_app/features/community/data/wall_status_model.dart';
+import 'package:garra_digital_app/features/community/presentation/muro_crema_page.dart';
 import 'package:garra_digital_app/features/community/presentation/providers/community_provider.dart';
 import 'package:garra_digital_app/features/community/presentation/widgets/garra_post_media_grid.dart';
 import 'package:garra_digital_app/features/community/presentation/widgets/garra_social_post_card.dart';
+import 'package:garra_digital_app/features/home/presentation/create_action_sheet.dart';
 import 'package:garra_digital_app/features/home/presentation/social_feed_tab.dart';
 import 'package:go_router/go_router.dart';
 
@@ -74,6 +77,70 @@ class _FakeCommunityService extends CommunityService {
       reactionCount: post.reactionCount,
     );
   }
+}
+
+class _FeedAfterComposeService extends CommunityService {
+  _FeedAfterComposeService(this.posts) : super(dio: Dio());
+
+  List<WallPostModel> posts;
+  int feedCalls = 0;
+
+  @override
+  Future<List<WallPostModel>> getGlobalFeed({String mode = 'RECENT'}) async {
+    feedCalls++;
+    return posts;
+  }
+}
+
+class _MuroService extends CommunityService {
+  _MuroService(this.posts) : super(dio: Dio());
+
+  List<WallPostModel> posts;
+  final List<String> calls = [];
+
+  @override
+  Future<WallStatusModel?> getCurrentWallStatus() async =>
+      WallStatusModel.fromJson({
+        'matchId': 'match-1',
+        'matchName': 'Universitario vs Alianza',
+        'wallStatus': 'OPEN',
+        'secondsToOpen': 0,
+        'secondsToClose': 3600,
+      });
+
+  @override
+  Future<List<WallPostModel>> getPosts({
+    required String matchId,
+    String? locationTag,
+  }) async {
+    calls.add('posts:$matchId');
+    return posts;
+  }
+
+  @override
+  Future<List<WallPostModel>> getMyPosts() async => const [];
+}
+
+WallPostModel _newPost(String content) => WallPostModel(
+  id: 'post-new',
+  username: 'yo',
+  fullName: 'Hincha Yo',
+  content: content,
+  imageUrl: null,
+  locationTag: 'HOME',
+  status: 'ACTIVE',
+  reportCount: 0,
+  createdAt: DateTime.now().toUtc().toIso8601String(),
+);
+
+Widget _publishRoute(BuildContext context, {void Function()? onOpen}) {
+  onOpen?.call();
+  return Scaffold(
+    body: TextButton(
+      onPressed: () => context.pop(true),
+      child: const Text('PUBLICAR'),
+    ),
+  );
 }
 
 class _FakeCurrentFanNotifier extends CurrentFanNotifier {
@@ -215,5 +282,166 @@ void main() {
 
     expect(service.reactionCalls, ['upsert:FIRE']);
     expect(find.text('🔥'), findsWidgets);
+  });
+
+  testWidgets('DEMO_50: feed reloads after publishing from the composer', (
+    tester,
+  ) async {
+    final service = _FeedAfterComposeService([_post()]);
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (_, _) =>
+              const Scaffold(body: SocialFeedTab(mode: 'FOR_YOU')),
+        ),
+        GoRoute(
+          path: '/comunidad/compose',
+          builder: (context, _) => Scaffold(
+            body: TextButton(
+              onPressed: () => context.pop(true),
+              child: const Text('PUBLICAR'),
+            ),
+          ),
+        ),
+      ],
+    );
+    await tester.binding.setSurfaceSize(const Size(400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          communityServiceProvider.overrideWithValue(service),
+          currentFanProvider.overrideWith(_FakeCurrentFanNotifier.new),
+        ],
+        child: MaterialApp.router(
+          theme: AppTheme.darkTheme,
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(service.feedCalls, 1);
+
+    await tester.tap(find.textContaining('vive la crema hoy'));
+    await tester.pumpAndSettle();
+    service.posts = [
+      WallPostModel(
+        id: 'post-new',
+        username: 'yo',
+        fullName: 'Hincha Yo',
+        content: 'Mi primera arenga',
+        imageUrl: null,
+        locationTag: 'HOME',
+        status: 'ACTIVE',
+        reportCount: 0,
+        createdAt: DateTime.now().toUtc().toIso8601String(),
+      ),
+      _post(),
+    ];
+    await tester.tap(find.text('PUBLICAR'));
+    await tester.pumpAndSettle();
+
+    expect(service.feedCalls, 2);
+    expect(find.text('Mi primera arenga'), findsOneWidget);
+  });
+
+  testWidgets('POLISH_05: publishing from the + sheet reloads the feed', (
+    tester,
+  ) async {
+    final service = _FeedAfterComposeService([_post()]);
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, _) => Scaffold(
+            body: const SocialFeedTab(mode: 'FOR_YOU'),
+            floatingActionButton: Builder(
+              builder: (context) => FloatingActionButton(
+                onPressed: () => showCreateActionSheet(context),
+                child: const Text('MAS'),
+              ),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/comunidad/compose',
+          builder: (context, _) => _publishRoute(context),
+        ),
+      ],
+    );
+    await tester.binding.setSurfaceSize(const Size(400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          communityServiceProvider.overrideWithValue(service),
+          currentFanProvider.overrideWith(_FakeCurrentFanNotifier.new),
+        ],
+        child: MaterialApp.router(
+          theme: AppTheme.darkTheme,
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(service.feedCalls, 1);
+
+    await tester.tap(find.text('MAS'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Comparte lo que vive la crema'));
+    await tester.pumpAndSettle();
+    service.posts = [_newPost('Desde el boton mas'), _post()];
+    await tester.tap(find.text('PUBLICAR'));
+    await tester.pumpAndSettle();
+
+    expect(service.feedCalls, 2);
+    expect(find.text('Desde el boton mas'), findsOneWidget);
+  });
+
+  testWidgets('POLISH_05: Muro Crema compose posts to the match and reloads', (
+    tester,
+  ) async {
+    final service = _MuroService([_post()]);
+    String? composeMatchId;
+    final router = GoRouter(
+      routes: [
+        GoRoute(path: '/', builder: (_, _) => const MuroCremaPage()),
+        GoRoute(
+          path: '/muro-crema/compose',
+          builder: (context, state) => _publishRoute(
+            context,
+            onOpen: () => composeMatchId = state.uri.queryParameters['matchId'],
+          ),
+        ),
+      ],
+    );
+    await tester.binding.setSurfaceSize(const Size(400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [communityServiceProvider.overrideWithValue(service)],
+        child: MaterialApp.router(
+          theme: AppTheme.darkTheme,
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final loadsBefore = service.calls.length;
+    expect(loadsBefore, greaterThan(0));
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    expect(composeMatchId, 'match-1');
+    service.posts = [_newPost('Arenga del muro'), _post()];
+    await tester.tap(find.text('PUBLICAR'));
+    await tester.pumpAndSettle();
+
+    expect(service.calls.length, greaterThan(loadsBefore));
+    expect(find.text('Arenga del muro'), findsOneWidget);
   });
 }

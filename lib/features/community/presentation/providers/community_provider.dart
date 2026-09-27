@@ -8,6 +8,18 @@ final communityServiceProvider = Provider<CommunityService>((ref) {
   return CommunityService();
 });
 
+/// Bumped after a post is published from an entry point that is not a feed
+/// (the "+" create sheet) so the visible feeds reload once.
+final communityFeedRevisionProvider =
+    NotifierProvider<CommunityFeedRevision, int>(CommunityFeedRevision.new);
+
+class CommunityFeedRevision extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void bump() => state++;
+}
+
 final wallStatusProvider = FutureProvider<WallStatusModel?>((ref) async {
   final service = ref.read(communityServiceProvider);
   return service.getCurrentWallStatus();

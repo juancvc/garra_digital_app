@@ -212,10 +212,17 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
     _load();
   }
 
-  void _openCompose() => context.push('/comunidad/compose');
+  /// Compose returns `true` after publishing: reload so the new post shows.
+  Future<void> _openCompose() async {
+    final created = await context.push<bool>('/comunidad/compose');
+    if (created == true && mounted) await _load();
+  }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(communityFeedRevisionProvider, (previous, next) {
+      if (previous != next) _load();
+    });
     final me = ref.watch(currentFanProvider).asData?.value;
     final meId = me?.id;
 
@@ -257,11 +264,9 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
                 actionLabel: widget.mode == 'FOLLOWING'
                     ? 'Buscar personas'
                     : 'Nueva publicación',
-                onAction: () => context.push(
-                  widget.mode == 'FOLLOWING'
-                      ? '/comunidad/buscar'
-                      : '/comunidad/compose',
-                ),
+                onAction: widget.mode == 'FOLLOWING'
+                    ? () => context.push('/comunidad/buscar')
+                    : _openCompose,
               ),
             )
           else ...[

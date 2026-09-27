@@ -62,7 +62,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   /// Comment being answered (root or reply); null = normal comment mode.
   WallCommentModel? _replyTarget;
 
-  static const int _maxCommentLength = 280;
+  /// Backend limit for comments and replies (CreateCommentRequest @Size 500).
+  static const int _maxCommentLength = commentEditMaxLength;
   static const String _commentGoneMessage =
       'Este comentario ya no est\u00e1 disponible.';
 
@@ -216,7 +217,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     }
     if (content.length > _maxCommentLength) {
       _showSnack(
-        'El comentario no puede superar $_maxCommentLength caracteres.',
+        'El comentario no puede superar los $_maxCommentLength caracteres.',
         isError: true,
       );
       return;
@@ -1247,11 +1248,28 @@ class _CommentComposer extends StatelessWidget {
                       maxLength: maxLength,
                       minLines: 1,
                       maxLines: 4,
+                      // Counter only near the limit (same "n/max" copy as compose).
+                      buildCounter:
+                          (
+                            context, {
+                            required currentLength,
+                            required isFocused,
+                            maxLength,
+                          }) {
+                            if (maxLength == null ||
+                                currentLength < maxLength - 50) {
+                              return null;
+                            }
+                            return Text(
+                              '$currentLength/$maxLength',
+                              key: const ValueKey('comment_counter'),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            );
+                          },
                       decoration: InputDecoration(
                         hintText: replyingTo != null
                             ? 'Responder a @$replyingTo...'
                             : 'Escribe un comentario...',
-                        counterText: '',
                         isDense: true,
                       ),
                     ),

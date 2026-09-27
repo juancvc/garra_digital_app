@@ -392,6 +392,26 @@ void main() {
       expect(field.controller!.text, isEmpty);
     });
 
+    testWidgets('POLISH_05: comment/reply limit is 500 with counter near it', (
+      tester,
+    ) async {
+      final service = _Service([_commentJson(id: 'c1', authorId: _otherId)]);
+      await _pump(tester, service, me: me);
+      final composer = find.byKey(const ValueKey('comment_composer'));
+      expect(tester.widget<TextField>(composer).maxLength, 500);
+
+      await tester.enterText(composer, 'a' * 449);
+      await tester.pump();
+      expect(find.byKey(const ValueKey('comment_counter')), findsNothing);
+
+      await _tapKey(tester, 'comment_reply_c1');
+      await tester.enterText(composer, 'b' * 520);
+      await tester.pump();
+      expect(find.text('500/500'), findsOneWidget);
+      await _tapKey(tester, 'comment_send');
+      expect(service.calls, ['reply:c1:${'b' * 500}']);
+    });
+
     testWidgets('empty reply is blocked (no request)', (tester) async {
       final service = _Service([_commentJson(id: 'c1', authorId: _otherId)]);
       await _pump(tester, service, me: me);
