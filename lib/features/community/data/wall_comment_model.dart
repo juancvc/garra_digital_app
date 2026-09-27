@@ -16,6 +16,9 @@ class WallCommentModel {
     this.reactionCount = 0,
     this.reactionSummary = const {},
     this.myReaction,
+    this.parentCommentId,
+    this.replyCount = 0,
+    this.replyToUsername,
   });
 
   final String id;
@@ -35,17 +38,32 @@ class WallCommentModel {
   final Map<String, int> reactionSummary;
   final String? myReaction;
 
+  /// Root comment of the thread (null for root comments). Threads are one
+  /// level deep: the backend always stores the root here.
+  final String? parentCommentId;
+
+  /// Visible replies of a root comment (0 for replies and older payloads).
+  final int replyCount;
+
+  /// Author being answered when replying to a reply (rendered as "@usuario",
+  /// never part of [content]).
+  final String? replyToUsername;
+
   bool get isEdited => editedAt != null && editedAt!.isNotEmpty;
+
+  bool get isReply => parentCommentId != null && parentCommentId!.isNotEmpty;
 
   factory WallCommentModel.fromJson(Map<String, dynamic> json) {
     final rawReaction = json['myReaction']?.toString().trim();
     return WallCommentModel(
       id: json['id']?.toString() ?? '',
       postId: json['postId']?.toString() ?? '',
-      username: json['username']?.toString() ??
+      username:
+          json['username']?.toString() ??
           json['authorUsername']?.toString() ??
           '',
-      fullName: json['fullName']?.toString() ??
+      fullName:
+          json['fullName']?.toString() ??
           json['authorFullName']?.toString() ??
           json['displayName']?.toString() ??
           '',
@@ -63,7 +81,15 @@ class WallCommentModel {
       myReaction: rawReaction == null || rawReaction.isEmpty
           ? null
           : rawReaction.toUpperCase(),
+      parentCommentId: _nonEmpty(json['parentCommentId']),
+      replyCount: (json['replyCount'] as num?)?.toInt() ?? 0,
+      replyToUsername: _nonEmpty(json['replyToUsername']),
     );
+  }
+
+  static String? _nonEmpty(Object? raw) {
+    final value = raw?.toString().trim();
+    return value == null || value.isEmpty ? null : value;
   }
 
   WallCommentModel copyWith({
@@ -77,6 +103,7 @@ class WallCommentModel {
     Map<String, int>? reactionSummary,
     String? myReaction,
     bool clearMyReaction = false,
+    int? replyCount,
   }) {
     return WallCommentModel(
       id: id,
@@ -93,6 +120,9 @@ class WallCommentModel {
       reactionCount: reactionCount ?? this.reactionCount,
       reactionSummary: reactionSummary ?? this.reactionSummary,
       myReaction: clearMyReaction ? null : (myReaction ?? this.myReaction),
+      parentCommentId: parentCommentId,
+      replyCount: replyCount ?? this.replyCount,
+      replyToUsername: replyToUsername,
     );
   }
 }
@@ -119,9 +149,8 @@ class CommentsPageResult {
     return CommentsPageResult(
       items: rawItems
           .map(
-            (e) => WallCommentModel.fromJson(
-              Map<String, dynamic>.from(e as Map),
-            ),
+            (e) =>
+                WallCommentModel.fromJson(Map<String, dynamic>.from(e as Map)),
           )
           .toList(),
       size: (page['size'] as num?)?.toInt() ?? rawItems.length,

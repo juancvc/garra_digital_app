@@ -352,6 +352,52 @@ class CommunityService {
     }
   }
 
+  /// Reply to [parentCommentId] (a root or a reply: the backend resolves the
+  /// thread root and the "@usuario" target). Same content rules as comments.
+  Future<CommentActionResult> createReply({
+    required String postId,
+    required String parentCommentId,
+    required String content,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/community/posts/$postId/comments',
+        data: {'content': content, 'parentCommentId': parentCommentId},
+      );
+      final data = response.data['data'];
+      return CommentActionResult.success(
+        message: 'Respuesta publicada',
+        comment: data is Map
+            ? WallCommentModel.fromJson(Map<String, dynamic>.from(data))
+            : null,
+      );
+    } catch (e) {
+      return CommentActionResult.failure(
+        garraActionErrorMessage(e, notFoundMessage: _commentGoneMessage),
+        notFound: e is DioException && e.response?.statusCode == 404,
+      );
+    }
+  }
+
+  /// Replies of a root comment, oldest first (cursor pagination).
+  Future<CommentsPageResult> fetchReplies({
+    required String commentId,
+    String? cursor,
+    int size = 20,
+  }) async {
+    final response = await _dio.get(
+      '/community/comments/$commentId/replies',
+      queryParameters: {
+        'size': size,
+        if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+      },
+    );
+    final payload = response.data['data'] ?? response.data;
+    return CommentsPageResult.fromJson(
+      Map<String, dynamic>.from(payload as Map),
+    );
+  }
+
   Future<CommentActionResult> editComment({
     required String commentId,
     required String content,
@@ -382,6 +428,7 @@ class CommunityService {
     } catch (e) {
       return CommentActionResult.failure(
         garraActionErrorMessage(e, notFoundMessage: _commentGoneMessage),
+        notFound: e is DioException && e.response?.statusCode == 404,
       );
     }
   }
@@ -480,11 +527,15 @@ class CommentActionResult {
     required this.success,
     required this.message,
     this.comment,
+    this.notFound = false,
   });
 
   final bool success;
   final String message;
   final WallCommentModel? comment;
+
+  /// The target comment no longer exists (HTTP 404).
+  final bool notFound;
 
   factory CommentActionResult.success({
     required String message,
@@ -497,7 +548,11 @@ class CommentActionResult {
     );
   }
 
-  factory CommentActionResult.failure(String message) {
-    return CommentActionResult(success: false, message: message);
+  factory CommentActionResult.failure(String message, {bool notFound = false}) {
+    return CommentActionResult(
+      success: false,
+      message: message,
+      notFound: notFound,
+    );
   }
 }

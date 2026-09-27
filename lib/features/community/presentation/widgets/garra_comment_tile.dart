@@ -26,6 +26,7 @@ class GarraCommentTile extends StatelessWidget {
     this.onEdit,
     this.onDelete,
     this.onReact,
+    this.onReply,
     this.reacting = false,
   });
 
@@ -34,6 +35,9 @@ class GarraCommentTile extends StatelessWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final VoidCallback? onReact;
+
+  /// "Responder" action (roots and replies). Hidden when null.
+  final VoidCallback? onReply;
   final bool reacting;
 
   @override
@@ -62,7 +66,7 @@ class GarraCommentTile extends StatelessWidget {
             child: GarraAvatar(
               displayName: name,
               avatarUrl: comment.avatarUrl,
-              size: 28,
+              size: comment.isReply ? 22 : 28,
             ),
           ),
           const SizedBox(width: GarraSpacing.sm),
@@ -106,21 +110,73 @@ class GarraCommentTile extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  comment.content,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: colors.textPrimary,
+                if (comment.replyToUsername != null)
+                  Text.rich(
+                    key: ValueKey('comment_reply_to_${comment.id}'),
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '@${comment.replyToUsername} ',
+                          style: TextStyle(
+                            color: colors.brandPrimary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        TextSpan(text: comment.content),
+                      ],
+                    ),
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colors.textPrimary,
+                    ),
+                  )
+                else
+                  Text(
+                    comment.content,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colors.textPrimary,
+                    ),
                   ),
-                ),
                 const SizedBox(height: 2),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Flexible(
-                      child: _CommentReactButton(
-                        commentId: comment.id,
-                        myReaction: comment.myReaction,
-                        onPressed: reacting ? null : onReact,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: _CommentReactButton(
+                              commentId: comment.id,
+                              myReaction: comment.myReaction,
+                              onPressed: reacting ? null : onReact,
+                            ),
+                          ),
+                          if (onReply != null)
+                            InkWell(
+                              key: ValueKey('comment_reply_${comment.id}'),
+                              onTap: onReply,
+                              borderRadius: BorderRadius.circular(
+                                GarraRadius.pill,
+                              ),
+                              child: Container(
+                                constraints: const BoxConstraints(
+                                  minHeight: 32,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  'Responder',
+                                  style: textTheme.labelMedium?.copyWith(
+                                    color: colors.textSecondary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                     const SizedBox(width: GarraSpacing.sm),

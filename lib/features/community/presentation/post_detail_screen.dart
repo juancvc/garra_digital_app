@@ -56,7 +56,15 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   final Set<String> _reactingComments = {};
   final Set<String> _deletingComments = {};
 
+  /// Reply threads keyed by root comment id (one level deep).
+  final Map<String, _ReplyThread> _threads = {};
+
+  /// Comment being answered (root or reply); null = normal comment mode.
+  WallCommentModel? _replyTarget;
+
   static const int _maxCommentLength = 280;
+  static const String _commentGoneMessage =
+      'Este comentario ya no est\u00e1 disponible.';
 
   @override
   void initState() {
@@ -105,6 +113,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         _loadingComments = true;
         _commentsError = null;
         _comments.clear();
+        _threads.clear();
+        _replyTarget = null;
         _nextCursor = null;
         _hasNext = false;
       });
@@ -198,6 +208,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   }
 
   Future<void> _sendComment() async {
+    if (_sendingComment) return;
     final content = _commentController.text.trim();
     if (content.isEmpty) {
       _showSnack('Escribe un comentario antes de enviar.', isError: true);
@@ -208,6 +219,12 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         'El comentario no puede superar $_maxCommentLength caracteres.',
         isError: true,
       );
+      return;
+    }
+
+    final target = _replyTarget;
+    if (target != null) {
+      await _sendReply(target, content);
       return;
     }
 
@@ -243,6 +260,203 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     _showSnack(result.message);
   }
 
+  /// Sends a reply to [target]; the backend resolves the thread root and the
+  /// "@usuario" target when [target] is itself a reply.
+  Future<void> _sendReply(WallCommentModel target, String content) async {
+    setState(() => _sendingComment = true);
+    final result = await ref
+        .read(communityServiceProvider)
+        .createReply(
+          postId: widget.postId,
+          parentCommentId: target.id,
+          content: content,
+        );
+    if (!mounted) return;
+
+    if (!result.success) {
+      setState(() {
+        _sendingComment = false;
+        if (result.notFound) {
+          _replyTarget = null;
+          _removeCommentLocally(target.id);
+        }
+      });
+      _showSnack(result.message, isError: true);
+      return;
+    }
+
+    _commentController.clear();
+    final created = result.comment;
+    final rootId =
+        created?.parentCommentId ?? target.parentCommentId ?? target.id;
+    var needsLoad = false;
+    setState(() {
+      _sendingComment = false;
+      _replyTarget = null;
+      if (_post != null) {
+        _post = _post!.copyWith(commentCount: _post!.commentCount + 1);
+      }
+      final rootIndex = _commentIndex(rootId);
+      final hadReplies = rootIndex >= 0 && _comments[rootIndex].replyCount > 0;
+      if (rootIndex >= 0) {
+        final root = _comments[rootIndex];
+        _comments[rootIndex] = root.copyWith(replyCount: root.replyCount + 1);
+      }
+      final thread = _threads.putIfAbsent(rootId, _ReplyThread.new);
+      thread.expanded = true;
+      if (created != null && (thread.loaded || !hadReplies)) {
+        if (!thread.replies.any((r) => r.id == created.id)) {
+          thread.replies.add(created);
+        }
+        thread.loaded = true;
+      } else {
+        needsLoad = true;
+      }
+    });
+    if (needsLoad) await _loadReplies(rootId);
+    if (mounted) _showSnack(result.message);
+  }
+
+  void _startReply(WallCommentModel comment) {
+    setState(() => _replyTarget = comment);
+    _commentFocus.requestFocus();
+  }
+
+  void _cancelReply() {
+    setState(() => _replyTarget = null);
+  }
+
+  void _toggleReplies(String rootId) {
+    final thread = _threads[rootId];
+    if (thread != null && thread.expanded) {
+      setState(() => thread.expanded = false);
+      return;
+    }
+    if (thread != null && thread.loaded && thread.error == null) {
+      setState(() => thread.expanded = true);
+      return;
+    }
+    _loadReplies(rootId);
+  }
+
+  Future<void> _loadReplies(String rootId, {bool more = false}) async {
+    final thread = _threads.putIfAbsent(rootId, _ReplyThread.new);
+    if (thread.loading || thread.loadingMore) return;
+    if (more && !thread.hasNext) return;
+    setState(() {
+      thread.expanded = true;
+      thread.error = null;
+      if (more) {
+        thread.loadingMore = true;
+      } else {
+        thread.loading = true;
+      }
+    });
+
+    try {
+      final page = await ref
+          .read(communityServiceProvider)
+          .fetchReplies(
+            commentId: rootId,
+            cursor: more ? thread.nextCursor : null,
+          );
+      if (!mounted) return;
+      setState(() {
+        if (!more) thread.replies.clear();
+        final known = thread.replies.map((r) => r.id).toSet();
+        thread.replies.addAll(page.items.where((r) => !known.contains(r.id)));
+        thread.nextCursor = page.nextCursor;
+        thread.hasNext = page.hasNext;
+        thread.loaded = true;
+        thread.loading = false;
+        thread.loadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      final gone = e is DioException && e.response?.statusCode == 404;
+      setState(() {
+        thread.loading = false;
+        thread.loadingMore = false;
+        if (gone) {
+          _removeCommentLocally(rootId);
+        } else {
+          thread.error = e;
+        }
+      });
+      if (gone) _showSnack(_commentGoneMessage, isError: true);
+    }
+  }
+
+  /// Finds a comment in the root list or in any loaded reply thread.
+  WallCommentModel? _findComment(String id) {
+    final index = _commentIndex(id);
+    if (index >= 0) return _comments[index];
+    for (final thread in _threads.values) {
+      for (final reply in thread.replies) {
+        if (reply.id == id) return reply;
+      }
+    }
+    return null;
+  }
+
+  /// Replaces a comment wherever it lives. Call inside setState.
+  void _replaceComment(
+    String id,
+    WallCommentModel Function(WallCommentModel current) update,
+  ) {
+    final index = _commentIndex(id);
+    if (index >= 0) {
+      _comments[index] = update(_comments[index]);
+      return;
+    }
+    for (final thread in _threads.values) {
+      final replyIndex = thread.replies.indexWhere((r) => r.id == id);
+      if (replyIndex >= 0) {
+        thread.replies[replyIndex] = update(thread.replies[replyIndex]);
+        return;
+      }
+    }
+  }
+
+  /// Removes a root (with its thread, hidden by the backend too) or a reply
+  /// and fixes replyCount / commentCount. Call inside setState.
+  void _removeCommentLocally(String id) {
+    if (_replyTarget != null &&
+        (_replyTarget!.id == id || _replyTarget!.parentCommentId == id)) {
+      _replyTarget = null;
+    }
+    final index = _commentIndex(id);
+    if (index >= 0) {
+      final root = _comments.removeAt(index);
+      final thread = _threads.remove(id);
+      final loaded = thread?.replies.length ?? 0;
+      _decrementCommentCount(
+        1 + (root.replyCount > loaded ? root.replyCount : loaded),
+      );
+      return;
+    }
+    for (final entry in _threads.entries) {
+      final replyIndex = entry.value.replies.indexWhere((r) => r.id == id);
+      if (replyIndex < 0) continue;
+      entry.value.replies.removeAt(replyIndex);
+      final rootIndex = _commentIndex(entry.key);
+      if (rootIndex >= 0) {
+        final root = _comments[rootIndex];
+        _comments[rootIndex] = root.copyWith(
+          replyCount: root.replyCount > 0 ? root.replyCount - 1 : 0,
+        );
+      }
+      _decrementCommentCount(1);
+      return;
+    }
+  }
+
+  void _decrementCommentCount(int by) {
+    if (_post == null) return;
+    final next = _post!.commentCount - by;
+    _post = _post!.copyWith(commentCount: next < 0 ? 0 : next);
+  }
+
   /// PostCommentResponse has no `isMine`: ownership comes from `authorId`
   /// matched against the session fan id (GET /auth/me `id`).
   bool _ownsComment(WallCommentModel comment) {
@@ -264,21 +478,20 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
             .editComment(commentId: comment.id, content: content);
         if (!mounted) return null;
         if (!result.success) return result.message;
-        final index = _commentIndex(comment.id);
-        if (index >= 0) {
-          final current = _comments[index];
-          final server = result.comment;
-          setState(() {
-            _comments[index] = current.copyWith(
+        final server = result.comment;
+        setState(() {
+          _replaceComment(
+            comment.id,
+            (current) => current.copyWith(
               content: server != null && server.content.isNotEmpty
                   ? server.content
                   : content,
               editedAt:
                   server?.editedAt ?? DateTime.now().toUtc().toIso8601String(),
               updatedAt: server?.updatedAt,
-            );
-          });
-        }
+            ),
+          );
+        });
         return null;
       },
     );
@@ -298,17 +511,13 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     _deletingComments.remove(comment.id);
     if (!mounted) return;
     if (!result.success) {
+      if (result.notFound) {
+        setState(() => _removeCommentLocally(comment.id));
+      }
       _showSnack(result.message, isError: true);
       return;
     }
-    setState(() {
-      final before = _comments.length;
-      _comments.removeWhere((c) => c.id == comment.id);
-      final removed = _comments.length < before;
-      if (removed && _post != null && _post!.commentCount > 0) {
-        _post = _post!.copyWith(commentCount: _post!.commentCount - 1);
-      }
-    });
+    setState(() => _removeCommentLocally(comment.id));
     _showSnack(result.message);
   }
 
@@ -319,9 +528,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       currentReaction: comment.myReaction,
     );
     if (selected == null || !mounted) return;
-    final index = _commentIndex(comment.id);
-    if (index < 0) return;
-    await _reactToComment(_comments[index], selected);
+    final current = _findComment(comment.id);
+    if (current == null) return;
+    await _reactToComment(current, selected);
   }
 
   Future<void> _reactToComment(
@@ -335,12 +544,11 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       comment,
       remove ? null : type.apiValue,
     );
-    final startIndex = _commentIndex(comment.id);
-    if (startIndex < 0) return;
+    if (_findComment(comment.id) == null) return;
 
     setState(() {
       _reactingComments.add(comment.id);
-      _comments[startIndex] = optimistic;
+      _replaceComment(comment.id, (_) => optimistic);
     });
 
     final service = ref.read(communityServiceProvider);
@@ -352,25 +560,29 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
           );
     if (!mounted) return;
 
-    final index = _commentIndex(comment.id);
     setState(() {
       _reactingComments.remove(comment.id);
-      if (index < 0) return;
       if (!result.success) {
         // Roll back only the reaction fields (keeps any concurrent edit).
-        _comments[index] = _comments[index].copyWith(
-          myReaction: previous.myReaction,
-          clearMyReaction: previous.myReaction == null,
-          reactionSummary: previous.reactionSummary,
-          reactionCount: previous.reactionCount,
+        _replaceComment(
+          comment.id,
+          (current) => current.copyWith(
+            myReaction: previous.myReaction,
+            clearMyReaction: previous.myReaction == null,
+            reactionSummary: previous.reactionSummary,
+            reactionCount: previous.reactionCount,
+          ),
         );
       } else if (result.reactionSummary != null &&
           result.reactionCount != null) {
-        _comments[index] = applyCommentReactionResponse(
-          comment: _comments[index],
-          myReaction: result.myReaction,
-          reactionSummary: result.reactionSummary!,
-          reactionCount: result.reactionCount!,
+        _replaceComment(
+          comment.id,
+          (current) => applyCommentReactionResponse(
+            comment: current,
+            myReaction: result.myReaction,
+            reactionSummary: result.reactionSummary!,
+            reactionCount: result.reactionCount!,
+          ),
         );
       }
     });
@@ -594,6 +806,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
           sending: _sendingComment,
           maxLength: _maxCommentLength,
           onSend: _sendComment,
+          replyingTo: _replyTarget?.username,
+          onCancelReply: _cancelReply,
         ),
       ],
     );
@@ -630,13 +844,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         ..._comments.map(
           (comment) => Padding(
             padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
-            child: GarraCommentTile(
-              comment: comment,
-              isOwn: _ownsComment(comment),
-              onEdit: () => _editComment(comment),
-              onDelete: () => _deleteComment(comment),
-              onReact: () => _openCommentReactions(comment),
-              reacting: _reactingComments.contains(comment.id),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [_buildCommentTile(comment), _buildReplies(comment)],
             ),
           ),
         ),
@@ -651,6 +861,128 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       ],
     );
   }
+
+  Widget _buildCommentTile(WallCommentModel comment) {
+    return GarraCommentTile(
+      comment: comment,
+      isOwn: _ownsComment(comment),
+      onEdit: () => _editComment(comment),
+      onDelete: () => _deleteComment(comment),
+      onReact: () => _openCommentReactions(comment),
+      onReply: () => _startReply(comment),
+      reacting: _reactingComments.contains(comment.id),
+    );
+  }
+
+  /// "Ver N respuestas" toggle and the one-level reply thread of [root].
+  Widget _buildReplies(WallCommentModel root) {
+    final thread = _threads[root.id];
+    final count = root.replyCount;
+    if (count <= 0 && (thread == null || thread.replies.isEmpty)) {
+      return const SizedBox.shrink();
+    }
+    final colors = context.garraColors;
+    final textTheme = Theme.of(context).textTheme;
+    final linkStyle = textTheme.labelMedium?.copyWith(
+      color: colors.brandPrimary,
+      fontWeight: FontWeight.w800,
+    );
+    Widget link(String key, String label, VoidCallback onTap) {
+      return InkWell(
+        key: ValueKey(key),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Text(label, style: linkStyle),
+        ),
+      );
+    }
+
+    Widget spinner(String key) {
+      return Padding(
+        key: ValueKey(key),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: const SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
+    final children = <Widget>[];
+    if (thread == null || !thread.expanded) {
+      children.add(
+        link(
+          'replies_toggle_${root.id}',
+          count == 1 ? 'Ver 1 respuesta' : 'Ver $count respuestas',
+          () => _toggleReplies(root.id),
+        ),
+      );
+    } else if (thread.loading) {
+      children.add(spinner('replies_loading_${root.id}'));
+    } else if (thread.error != null) {
+      children.add(
+        Row(
+          children: [
+            Flexible(
+              child: Text(
+                'No pudimos cargar las respuestas.',
+                style: textTheme.labelSmall?.copyWith(
+                  color: colors.textSecondary,
+                ),
+              ),
+            ),
+            const SizedBox(width: GarraSpacing.sm),
+            link(
+              'replies_retry_${root.id}',
+              'Reintentar',
+              () => _loadReplies(root.id),
+            ),
+          ],
+        ),
+      );
+    } else {
+      children.addAll(thread.replies.map(_buildCommentTile));
+      if (thread.hasNext) {
+        children.add(
+          thread.loadingMore
+              ? spinner('replies_loading_more_${root.id}')
+              : link(
+                  'replies_more_${root.id}',
+                  'Ver m\u00e1s respuestas',
+                  () => _loadReplies(root.id, more: true),
+                ),
+        );
+      }
+      children.add(
+        link(
+          'replies_toggle_${root.id}',
+          'Ocultar respuestas',
+          () => _toggleReplies(root.id),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(left: 36),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
+    );
+  }
+}
+
+/// Local state of one reply thread (replies are one level deep).
+class _ReplyThread {
+  final List<WallCommentModel> replies = [];
+  bool expanded = false;
+  bool loaded = false;
+  bool loading = false;
+  bool loadingMore = false;
+  Object? error;
+  String? nextCursor;
+  bool hasNext = false;
 }
 
 class _PostHeader extends StatelessWidget {
@@ -832,6 +1164,8 @@ class _CommentComposer extends StatelessWidget {
     required this.sending,
     required this.maxLength,
     required this.onSend,
+    this.replyingTo,
+    this.onCancelReply,
   });
 
   final TextEditingController controller;
@@ -839,6 +1173,10 @@ class _CommentComposer extends StatelessWidget {
   final bool sending;
   final int maxLength;
   final VoidCallback onSend;
+
+  /// Username being answered; null = normal comment mode.
+  final String? replyingTo;
+  final VoidCallback? onCancelReply;
 
   @override
   Widget build(BuildContext context) {
@@ -854,40 +1192,87 @@ class _CommentComposer extends StatelessWidget {
             GarraSpacing.md,
             GarraSpacing.sm,
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: TextField(
-                  key: const ValueKey('comment_composer'),
-                  controller: controller,
-                  focusNode: focusNode,
-                  enabled: !sending,
-                  maxLength: maxLength,
-                  minLines: 1,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    hintText: 'Escribe un comentario...',
-                    counterText: '',
-                    isDense: true,
+              if (replyingTo != null)
+                Padding(
+                  key: const ValueKey('reply_mode_bar'),
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.reply_rounded,
+                        size: 16,
+                        color: colors.textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Respondiendo a @$replyingTo',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(color: colors.textSecondary),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: IconButton(
+                          key: const ValueKey('reply_cancel'),
+                          tooltip: 'Cancelar respuesta',
+                          padding: EdgeInsets.zero,
+                          iconSize: 18,
+                          onPressed: sending ? null : onCancelReply,
+                          icon: Icon(
+                            Icons.close_rounded,
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(width: GarraSpacing.sm),
-              IconButton.filled(
-                key: const ValueKey('comment_send'),
-                onPressed: sending ? null : onSend,
-                style: IconButton.styleFrom(
-                  backgroundColor: colors.brandPrimary,
-                  foregroundColor: colors.onBrand,
-                ),
-                icon: sending
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.send_rounded),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      key: const ValueKey('comment_composer'),
+                      controller: controller,
+                      focusNode: focusNode,
+                      enabled: !sending,
+                      maxLength: maxLength,
+                      minLines: 1,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        hintText: replyingTo != null
+                            ? 'Responder a @$replyingTo...'
+                            : 'Escribe un comentario...',
+                        counterText: '',
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: GarraSpacing.sm),
+                  IconButton.filled(
+                    key: const ValueKey('comment_send'),
+                    onPressed: sending ? null : onSend,
+                    style: IconButton.styleFrom(
+                      backgroundColor: colors.brandPrimary,
+                      foregroundColor: colors.onBrand,
+                    ),
+                    icon: sending
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send_rounded),
+                  ),
+                ],
               ),
             ],
           ),
