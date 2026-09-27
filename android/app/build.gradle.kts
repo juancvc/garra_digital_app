@@ -10,6 +10,27 @@ plugins {
 import java.util.Properties
 import java.io.FileInputStream
 
+// Google Maps key: never hardcoded/committed. Read only from the git-ignored
+// android/local.properties (GOOGLE_MAPS_API_KEY=...).
+val googleMapsApiKey: String = run {
+    val localProperties = Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { localProperties.load(it) }
+    }
+    localProperties.getProperty("GOOGLE_MAPS_API_KEY")?.trim().orEmpty()
+}
+
+// Fail fast only for tasks that produce/install an APK or AAB, so IDE sync and
+// other Gradle tasks keep working without the key.
+val buildsAndroidArtifact = gradle.startParameter.taskNames.any { taskName ->
+    val name = taskName.substringAfterLast(':').lowercase()
+    name.startsWith("assemble") || name.startsWith("bundle") || name.startsWith("install")
+}
+if (buildsAndroidArtifact && googleMapsApiKey.isBlank()) {
+    throw GradleException("GOOGLE_MAPS_API_KEY is required for Android build.")
+}
+
 android {
     namespace = "com.garradigital.app"
     // Google Play 2026: target Android 16 / API 36
@@ -32,6 +53,7 @@ android {
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = googleMapsApiKey
     }
 
     signingConfigs {
