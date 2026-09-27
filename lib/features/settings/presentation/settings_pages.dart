@@ -20,7 +20,6 @@ import '../../../core/telemetry/telemetry.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../../auth/data/auth_service.dart';
-import 'appearance_settings_page.dart';
 import '../../splash/presentation/intro_replay_action.dart';
 
 class SettingsHubPage extends StatelessWidget {

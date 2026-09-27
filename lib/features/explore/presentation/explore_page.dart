@@ -39,9 +39,16 @@ class _ExplorePageState extends State<ExplorePage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const GarraEditorialEyebrow(
-                  label: 'Hecho por la hinchada',
-                  icon: Icons.explore_outlined,
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: GarraEditorialEyebrow(
+                      label: 'Hecho por la hinchada',
+                      icon: Icons.explore_outlined,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: GarraSpacing.sm),
                 Text(
@@ -222,30 +229,43 @@ class _DiscoveryPreviewGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final agenda = _DiscoveryPreviewCard(
+      icon: Icons.event_outlined,
+      eyebrow: 'AGENDA',
+      title: 'Eventos cercanos',
+      imageAlignment: const Alignment(-0.65, -0.15),
+      onTap: () => context.push('/eventos'),
+    );
+    final businesses = _DiscoveryPreviewCard(
+      icon: Icons.map_outlined,
+      eyebrow: 'NEGOCIOS',
+      title: 'Negocios Cremas',
+      imageAlignment: const Alignment(0.75, -0.2),
+      onTap: () => context.push('/negocios'),
+    );
+
+    return LayoutBuilder(
       key: const Key('explore-preview-grid'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: _DiscoveryPreviewCard(
-            icon: Icons.event_outlined,
-            eyebrow: 'AGENDA',
-            title: 'Eventos cercanos',
-            imageAlignment: const Alignment(-0.65, -0.15),
-            onTap: () => context.push('/eventos'),
-          ),
-        ),
-        const SizedBox(width: GarraSpacing.md),
-        Expanded(
-          child: _DiscoveryPreviewCard(
-            icon: Icons.map_outlined,
-            eyebrow: 'NEGOCIOS',
-            title: 'Negocios Cremas',
-            imageAlignment: const Alignment(0.75, -0.2),
-            onTap: () => context.push('/negocios'),
-          ),
-        ),
-      ],
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 340) {
+          return Column(
+            children: [
+              agenda,
+              const SizedBox(height: GarraSpacing.md),
+              businesses,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: agenda),
+            const SizedBox(width: GarraSpacing.md),
+            Expanded(child: businesses),
+          ],
+        );
+      },
     );
   }
 }

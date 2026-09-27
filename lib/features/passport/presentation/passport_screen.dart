@@ -7,6 +7,7 @@ import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_motion.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/design/garra_typography.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_brand_visual.dart';
 import '../../../core/widgets/garra_card.dart';
@@ -31,11 +32,17 @@ class PassportScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Perfil'),
         actions: [
-          if (passportAsync.asData?.value.viewerIsOwner == true)
+          if (passportAsync.asData?.value.viewerIsOwner == true) ...[
             TextButton(
               onPressed: () => context.push('/passport/edit'),
               child: const Text('Editar'),
             ),
+            IconButton(
+              tooltip: 'Configuración',
+              onPressed: () => context.push('/settings'),
+              icon: const Icon(Icons.settings_outlined),
+            ),
+          ],
         ],
       ),
       body: passportAsync.when(
@@ -114,7 +121,7 @@ class _PassportBody extends StatelessWidget {
                 Text(
                   'Ranking global #${passport.globalRank}',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: const Color(GarraColors.gold),
+                    color: context.garraColors.brandPrestige,
                   ),
                 ),
               ],
@@ -182,7 +189,7 @@ class _PassportBody extends StatelessWidget {
               Text(
                 'Participación en fechas',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: const Color(GarraColors.textSecondary),
+                  color: context.garraColors.textSecondary,
                 ),
               ),
             ],
@@ -257,7 +264,7 @@ class _PassportBody extends StatelessWidget {
                 Text(
                   'Mi Año Crema ${passport.currentYearSummary!.year}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: const Color(GarraColors.gold),
+                    color: context.garraColors.brandPrestige,
                   ),
                 ),
               ],
@@ -281,8 +288,8 @@ class _PassportBody extends StatelessWidget {
         GarraSecondaryButton(
           label: 'Cerrar sesión',
           onPressed: () => _confirmLogout(context),
-          foregroundColor: const Color(GarraColors.burgundy),
-          borderColor: const Color(GarraColors.burgundy),
+          foregroundColor: context.garraColors.brandPrimary,
+          borderColor: context.garraColors.brandPrimary,
         ),
         const SizedBox(height: GarraSpacing.xxl),
         Text(
@@ -291,7 +298,7 @@ class _PassportBody extends StatelessWidget {
           'Garra Digital es una comunidad independiente y no representa una aplicación oficial del club.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: const Color(GarraColors.creamMuted),
+            color: context.garraColors.textSecondary,
             height: 1.45,
           ),
         ),
@@ -355,6 +362,7 @@ class _ProfileHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.garraColors;
     final location = _PassportBody._locationLine(identity);
 
     return Column(
@@ -392,11 +400,8 @@ class _ProfileHero extends StatelessWidget {
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(GarraColors.background),
-                  border: Border.all(
-                    color: const Color(GarraColors.background),
-                    width: 5,
-                  ),
+                  color: colors.background,
+                  border: Border.all(color: colors.background, width: 5),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x99000000),
@@ -418,7 +423,7 @@ class _ProfileHero extends StatelessWidget {
         Text(
           identity.displayName,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            color: const Color(GarraColors.cream),
+            color: colors.textPrimary,
             fontWeight: FontWeight.w900,
           ),
           textAlign: TextAlign.center,
@@ -426,9 +431,9 @@ class _ProfileHero extends StatelessWidget {
         const SizedBox(height: GarraSpacing.xs),
         Text(
           '@${identity.username}',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: const Color(GarraColors.creamMuted),
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
         ),
         const SizedBox(height: GarraSpacing.md),
         GarraLevelBadge(levelNumber: level.number, levelName: level.name),
@@ -504,7 +509,7 @@ class _IdentityDetail extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: const Color(GarraColors.gold)),
+        Icon(icon, size: 14, color: context.garraColors.brandPrestige),
         const SizedBox(width: GarraSpacing.xs),
         Text(label, style: Theme.of(context).textTheme.labelSmall),
       ],
@@ -524,7 +529,12 @@ class _HeroStat extends StatelessWidget {
       children: [
         FittedBox(
           fit: BoxFit.scaleDown,
-          child: Text(value, style: GarraTypography.numeric(size: 22)),
+          child: Text(
+            value,
+            style: GarraTypography.numeric(
+              size: 22,
+            ).copyWith(color: const Color(GarraColors.cream)),
+          ),
         ),
         const SizedBox(height: GarraSpacing.xs),
         Text(
@@ -573,17 +583,16 @@ class _ProfileMenuTile extends StatelessWidget {
       children: [
         ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: Icon(icon, color: const Color(GarraColors.gold)),
+          leading: Icon(icon, color: context.garraColors.brandPrestige),
           title: Text(title),
           subtitle: Text(subtitle),
-          trailing: const Icon(
+          trailing: Icon(
             Icons.chevron_right,
-            color: Color(GarraColors.gold),
+            color: context.garraColors.brandPrestige,
           ),
           onTap: onTap,
         ),
-        if (showDivider)
-          const Divider(height: 1, color: Color(GarraColors.surfaceRaised)),
+        if (showDivider) Divider(height: 1, color: context.garraColors.border),
       ],
     );
   }
@@ -655,14 +664,17 @@ class _PassportClanSection extends StatelessWidget {
                       Text(
                         ClanRoleLabels.label(clan!.role),
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: const Color(GarraColors.gold),
+                          color: context.garraColors.brandPrestige,
                         ),
                       ),
                     ],
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+              Icon(
+                Icons.chevron_right,
+                color: context.garraColors.brandPrestige,
+              ),
             ],
           ),
         ],
@@ -737,9 +749,9 @@ class _AdminCenterEntryState extends State<_AdminCenterEntry> {
       onTap: () => context.push('/admin'),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.admin_panel_settings_outlined,
-            color: Color(GarraColors.gold),
+            color: context.garraColors.brandPrestige,
           ),
           const SizedBox(width: GarraSpacing.md),
           Expanded(
@@ -758,7 +770,7 @@ class _AdminCenterEntryState extends State<_AdminCenterEntry> {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
+          Icon(Icons.chevron_right, color: context.garraColors.brandPrestige),
         ],
       ),
     );

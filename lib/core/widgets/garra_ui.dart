@@ -4,6 +4,7 @@ import '../design/garra_colors.dart';
 import '../design/garra_radius.dart';
 import '../design/garra_spacing.dart';
 import '../design/garra_typography.dart';
+import '../theme/garra_semantic_colors.dart';
 
 class GarraPrimaryButton extends StatelessWidget {
   const GarraPrimaryButton({
@@ -67,11 +68,7 @@ class GarraSecondaryButton extends StatelessWidget {
 }
 
 class GarraStat extends StatelessWidget {
-  const GarraStat({
-    super.key,
-    required this.label,
-    required this.value,
-  });
+  const GarraStat({super.key, required this.label, required this.value});
 
   final String label;
   final String value;
@@ -83,10 +80,7 @@ class GarraStat extends StatelessWidget {
       children: [
         Text(value, style: GarraTypography.numeric(size: 22)),
         const SizedBox(height: GarraSpacing.xs),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall,
-        ),
+        Text(label, style: Theme.of(context).textTheme.labelSmall),
       ],
     );
   }
@@ -112,24 +106,23 @@ class GarraLevelBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(GarraColors.garnetDeep),
         borderRadius: BorderRadius.circular(GarraRadius.pill),
-        border: Border.all(color: const Color(GarraColors.gold).withValues(alpha: 0.5)),
+        border: Border.all(
+          color: const Color(GarraColors.gold).withValues(alpha: 0.5),
+        ),
       ),
       child: Text(
         'Nivel $levelNumber · $levelName',
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: const Color(GarraColors.gold),
-              fontWeight: FontWeight.w800,
-            ),
+          color: const Color(GarraColors.gold),
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }
 }
 
 class GarraProgressBar extends StatelessWidget {
-  const GarraProgressBar({
-    super.key,
-    required this.progress,
-  });
+  const GarraProgressBar({super.key, required this.progress});
 
   final double progress;
 
@@ -149,11 +142,7 @@ class GarraProgressBar extends StatelessWidget {
 }
 
 class GarraSectionHeader extends StatelessWidget {
-  const GarraSectionHeader({
-    super.key,
-    required this.title,
-    this.subtitle,
-  });
+  const GarraSectionHeader({super.key, required this.title, this.subtitle});
 
   final String title;
   final String? subtitle;

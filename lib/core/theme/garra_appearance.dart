@@ -46,7 +46,8 @@ class GarraThemeStore {
 
   Future<GarraAppearance> read() async {
     final raw = (await _prefs).getString(storageKey);
-    return GarraAppearance.values.asNameMap()[raw] ?? GarraAppearance.system;
+    return GarraAppearance.values.asNameMap()[raw] ??
+        GarraAppearance.nocheMonumental;
   }
 
   Future<void> write(GarraAppearance appearance) async {
@@ -55,7 +56,7 @@ class GarraThemeStore {
 }
 
 class GarraAppearanceNotifier extends Notifier<GarraAppearance> {
-  GarraAppearanceNotifier([this.seed = GarraAppearance.system]);
+  GarraAppearanceNotifier([this.seed = GarraAppearance.nocheMonumental]);
 
   final GarraAppearance seed;
 

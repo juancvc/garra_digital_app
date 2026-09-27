@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
 import '../../../core/utils/country_labels.dart';
@@ -137,23 +136,26 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     setState(() => _loading = true);
     try {
       final yearText = _year.text.trim();
-      await ref.read(passportServiceProvider).updateMyProfile(
+      await ref
+          .read(passportServiceProvider)
+          .updateMyProfile(
             ProfileUpdateRequest(
               displayName: _displayName.text.trim(),
               bio: _bio.text.trim(),
               city: _city.text.trim(),
               countryCode: _country,
-              supporterSinceYear:
-                  yearText.isEmpty ? null : int.tryParse(yearText),
+              supporterSinceYear: yearText.isEmpty
+                  ? null
+                  : int.tryParse(yearText),
               profileVisibility: _visibility,
               avatarMediaAssetId: _avatarAssetId,
             ),
           );
       ref.invalidate(myPassportProvider);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Perfil actualizado')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Perfil actualizado')));
       context.pop();
     } catch (_) {
       if (!mounted) return;
@@ -270,8 +272,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                       controller: _year,
                       fieldKey: const Key('profile-supporter-year'),
                       keyboardType: TextInputType.number,
-                      helper:
-                          'Año en que empezaste a alentar. Ejemplo: 2012',
+                      helper: 'Año en que empezaste a alentar. Ejemplo: 2012',
                       validator: (value) {
                         final v = value?.trim() ?? '';
                         if (v.isEmpty) return null;
@@ -292,12 +293,18 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                       label: 'Visibilidad',
                       value: _visibility,
                       items: const [
-                        DropdownMenuItem(value: 'PUBLIC', child: Text('Público')),
+                        DropdownMenuItem(
+                          value: 'PUBLIC',
+                          child: Text('Público'),
+                        ),
                         DropdownMenuItem(
                           value: 'MEMBERS_ONLY',
                           child: Text('Solo miembros'),
                         ),
-                        DropdownMenuItem(value: 'PRIVATE', child: Text('Privado')),
+                        DropdownMenuItem(
+                          value: 'PRIVATE',
+                          child: Text('Privado'),
+                        ),
                       ],
                       onChanged: (value) {
                         if (value != null) setState(() => _visibility = value);

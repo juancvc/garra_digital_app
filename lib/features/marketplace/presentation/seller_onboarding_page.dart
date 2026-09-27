@@ -53,7 +53,9 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
 
     setState(() => _submitting = true);
     try {
-      await ref.read(marketplaceServiceProvider).submitSeller(
+      await ref
+          .read(marketplaceServiceProvider)
+          .submitSeller(
             SellerOnboardingRequest(
               whatsapp: _whatsappController.text,
               storeName: _storeNameController.text,
@@ -68,9 +70,9 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
       context.go('/marketplace/seller/dashboard');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_sellerErrorMessage(e))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_sellerErrorMessage(e))));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -99,9 +101,8 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
         loading: () => const Center(
           child: CircularProgressIndicator(color: Color(GarraColors.gold)),
         ),
-        error: (_, _) => GarraErrorState(
-          onRetry: () => ref.invalidate(sellerMeProvider),
-        ),
+        error: (_, _) =>
+            GarraErrorState(onRetry: () => ref.invalidate(sellerMeProvider)),
         data: (seller) {
           if (seller != null &&
               (seller.isApproved || seller.isPending) &&
@@ -116,85 +117,94 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
 
           return Form(
             key: _formKey,
-            child: ListView(
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.fromLTRB(
                 GarraSpacing.lg,
                 GarraSpacing.md,
                 GarraSpacing.lg,
                 GarraSpacing.section,
               ),
-              children: [
-                Text(
-                  'Registra tu emprendimiento crema',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: GarraSpacing.sm),
-                Text(
-                  'Los hinchas te contactarán por WhatsApp. No hay carrito ni pagos en la app.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: GarraSpacing.xxl),
-                GarraFormSection(
-                  title: 'TU EMPRENDIMIENTO',
-                  children: [
-                    GarraTextField(
-                      label: 'WhatsApp',
-                      controller: _whatsappController,
-                      keyboardType: TextInputType.phone,
-                      helper: 'Ejemplo: 51999999999',
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Ingresa tu WhatsApp';
-                        }
-                        return null;
-                      },
-                    ),
-                    GarraTextField(
-                      label: 'Nombre de la tienda',
-                      controller: _storeNameController,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Ingresa el nombre de tu tienda';
-                        }
-                        return null;
-                      },
-                    ),
-                    GarraTextField(
-                      label: 'Ciudad',
-                      controller: _cityController,
-                      helper: 'Opcional',
-                    ),
-                    GarraTextArea(
-                      label: 'Descripción',
-                      controller: _descriptionController,
-                      helper: 'Opcional',
-                      minLines: 3,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: GarraSpacing.xxl),
-                CheckboxListTile(
-                  value: _ipAck,
-                  onChanged: (value) =>
-                      setState(() => _ipAck = value ?? false),
-                  controlAffinity: ListTileControlAffinity.leading,
-                  contentPadding: EdgeInsets.zero,
-                  activeColor: const Color(GarraColors.gold),
-                  title: Text(
-                    'Declaro que soy titular o tengo autorización para usar '
-                    'las marcas, imágenes y contenidos que publique. '
-                    'Acepto que Garra Digital puede retirar publicaciones '
-                    'que infrinjan derechos de propiedad intelectual.',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Registra tu emprendimiento crema',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: GarraSpacing.sm),
+                  Text(
+                    'Los hinchas te contactarán por WhatsApp. No hay carrito ni pagos en la app.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
-                ),
-                const SizedBox(height: GarraSpacing.xxl),
-                GarraPrimaryButton(
-                  label: 'Enviar solicitud',
-                  loading: _submitting,
-                  onPressed: _submit,
-                ),
-              ],
+                  const SizedBox(height: GarraSpacing.lg),
+                  GarraFormSection(
+                    title: 'TU EMPRENDIMIENTO',
+                    children: [
+                      GarraTextField(
+                        label: 'WhatsApp',
+                        controller: _whatsappController,
+                        keyboardType: TextInputType.phone,
+                        helper: 'Ejemplo: 51999999999',
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Ingresa tu WhatsApp';
+                          }
+                          return null;
+                        },
+                      ),
+                      GarraTextField(
+                        label: 'Nombre de la tienda',
+                        controller: _storeNameController,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Ingresa el nombre de tu tienda';
+                          }
+                          return null;
+                        },
+                      ),
+                      GarraTextField(
+                        label: 'Ciudad',
+                        controller: _cityController,
+                        helper: 'Opcional',
+                      ),
+                      GarraTextArea(
+                        label: 'Descripción',
+                        controller: _descriptionController,
+                        helper: 'Opcional',
+                        minLines: 3,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: GarraSpacing.lg),
+                  GarraFormSection(
+                    title: 'DECLARACIÓN',
+                    children: [
+                      CheckboxListTile(
+                        value: _ipAck,
+                        onChanged: (value) =>
+                            setState(() => _ipAck = value ?? false),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.zero,
+                        activeColor: const Color(GarraColors.gold),
+                        title: Text(
+                          'Declaro que soy titular o tengo autorización para usar '
+                          'las marcas, imágenes y contenidos que publique. '
+                          'Acepto que Garra Digital puede retirar publicaciones '
+                          'que infrinjan derechos de propiedad intelectual.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: GarraSpacing.lg),
+                  GarraPrimaryButton(
+                    label: 'Enviar solicitud',
+                    loading: _submitting,
+                    onPressed: _submit,
+                  ),
+                ],
+              ),
             ),
           );
         },

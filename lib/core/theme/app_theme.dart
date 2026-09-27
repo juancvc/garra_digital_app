@@ -21,7 +21,8 @@ class AppTheme {
   static ThemeData get lightTheme => _build(GarraSemanticColors.crema);
 
   static ThemeData _build(GarraSemanticColors colors) {
-    final isDark = colors == GarraSemanticColors.noche ||
+    final isDark =
+        colors == GarraSemanticColors.noche ||
         colors.background.computeLuminance() < 0.2;
     final brightness = isDark ? Brightness.dark : Brightness.light;
     final textTheme = GarraTypography.textTheme(
@@ -66,19 +67,25 @@ class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: colors.surface,
-        indicatorColor: colors.brandPrimary.withValues(alpha: 0.25),
+        indicatorColor: colors.brandPrimary.withValues(
+          alpha: isDark ? 0.25 : 0.14,
+        ),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return TextStyle(
             fontSize: 11,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            color: selected ? colors.textPrimary : colors.textSecondary,
+            color: selected
+                ? (isDark ? colors.onBrand : colors.brandPrimary)
+                : colors.textSecondary,
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return IconThemeData(
-            color: selected ? colors.textPrimary : colors.textSecondary,
+            color: selected
+                ? (isDark ? colors.onBrand : colors.brandPrimary)
+                : colors.textSecondary,
           );
         }),
       ),

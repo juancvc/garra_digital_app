@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../data/checkin_model.dart';
@@ -33,14 +34,14 @@ class _RutaAlTemploPageState extends ConsumerState<RutaAlTemploPage> {
       appBar: AppBar(
         title: const Text(
           'Ruta al Templo',
-          style: TextStyle(color: AppTheme.cream, fontWeight: FontWeight.w900),
+          style: TextStyle(fontWeight: FontWeight.w900),
         ),
         actions: const [],
       ),
       body: SafeArea(
         child: RefreshIndicator(
           color: AppTheme.gold,
-          backgroundColor: const Color(0xFF1A1A1A),
+          backgroundColor: context.garraColors.surface,
           onRefresh: () async {
             ref.invalidate(cremaPointsProvider);
             ref.invalidate(myCheckInsProvider);
@@ -180,7 +181,7 @@ class _Header extends StatelessWidget {
           Text(
             'Encuentra puntos crema y registra tu check-in.',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.72),
+              color: AppTheme.cream.withValues(alpha: 0.72),
               fontSize: 14,
               height: 1.35,
               fontWeight: FontWeight.w500,
@@ -219,16 +220,18 @@ class _TypeFilters extends StatelessWidget {
             child: ChoiceChip(
               label: Text(filter.label),
               selected: selected,
-              selectedColor: AppTheme.gold,
-              backgroundColor: const Color(0xFF1A1A1A),
+              selectedColor: context.garraColors.brandPrimary,
+              backgroundColor: context.garraColors.surfaceRaised,
               labelStyle: TextStyle(
-                color: selected ? AppTheme.background : AppTheme.cream,
+                color: selected
+                    ? context.garraColors.onBrand
+                    : context.garraColors.textPrimary,
                 fontWeight: FontWeight.w800,
               ),
               side: BorderSide(
                 color: selected
-                    ? AppTheme.gold
-                    : AppTheme.cream.withOpacity(0.12),
+                    ? context.garraColors.brandPrimary
+                    : context.garraColors.border,
               ),
               onSelected: (_) => onChanged(filter.value),
             ),
@@ -375,10 +378,15 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
                   width: 46,
                   height: 46,
                   decoration: BoxDecoration(
-                    color: AppTheme.gold.withOpacity(0.14),
+                    color: context.garraColors.brandPrestige.withValues(
+                      alpha: 0.14,
+                    ),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(Icons.place_rounded, color: AppTheme.gold),
+                  child: Icon(
+                    Icons.place_rounded,
+                    color: context.garraColors.brandPrestige,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -387,8 +395,8 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
                     children: [
                       Text(
                         point.name,
-                        style: const TextStyle(
-                          color: AppTheme.cream,
+                        style: TextStyle(
+                          color: context.garraColors.textPrimary,
                           fontSize: 18,
                           fontWeight: FontWeight.w900,
                           letterSpacing: -0.3,
@@ -397,8 +405,8 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
                       const SizedBox(height: 5),
                       Text(
                         _translatePointType(point.type),
-                        style: const TextStyle(
-                          color: AppTheme.gold,
+                        style: TextStyle(
+                          color: context.garraColors.brandPrestige,
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
                         ),
@@ -413,7 +421,7 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
               Text(
                 point.description!,
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.7),
+                  color: context.garraColors.textSecondary,
                   fontSize: 13,
                   height: 1.35,
                   fontWeight: FontWeight.w500,
@@ -456,11 +464,11 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
             if (hasCheckIn)
               _CheckInDone(checkIn: checkIn)
             else if (_loadingDistance)
-              const Padding(
-                padding: EdgeInsets.only(bottom: 12),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
                   'Calculando distancia...',
-                  style: TextStyle(color: AppTheme.gold),
+                  style: TextStyle(color: context.garraColors.brandPrestige),
                 ),
               ),
 
@@ -472,13 +480,13 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: _distanceMeters! <= 100
-                        ? Colors.green.withOpacity(0.12)
-                        : Colors.orange.withOpacity(0.12),
+                        ? context.garraColors.success.withValues(alpha: 0.12)
+                        : context.garraColors.warning.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: _distanceMeters! <= 100
-                          ? Colors.green.withOpacity(0.35)
-                          : Colors.orange.withOpacity(0.35),
+                          ? context.garraColors.success.withValues(alpha: 0.35)
+                          : context.garraColors.warning.withValues(alpha: 0.35),
                     ),
                   ),
                   child: Text(
@@ -487,8 +495,8 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
                         : 'Estás a ${(_distanceMeters! / 1000).toStringAsFixed(2)} km. Estás fuera del rango permitido.',
                     style: TextStyle(
                       color: _distanceMeters! <= 100
-                          ? Colors.greenAccent
-                          : Colors.orange,
+                          ? context.garraColors.success
+                          : context.garraColors.warning,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -533,7 +541,6 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF1E1E1E),
       builder: (ctx) {
         return Padding(
           padding: EdgeInsets.only(
@@ -624,17 +631,18 @@ class _CheckInDone extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.garraColors;
     final isValid = checkIn.status == 'VALID';
     final title = isValid ? 'Check-in realizado' : 'Check-in rechazado';
-    final color = isValid ? Colors.greenAccent : Colors.orange;
+    final color = isValid ? colors.success : colors.warning;
     final icon = isValid ? Icons.check_circle_rounded : Icons.warning_rounded;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.green.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.green.withOpacity(0.35)),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -643,8 +651,8 @@ class _CheckInDone extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             '+${checkIn.pointsEarned} puntos crema',
-            style: const TextStyle(
-              color: Colors.greenAccent,
+            style: TextStyle(
+              color: colors.success,
               fontSize: 16,
               fontWeight: FontWeight.w900,
             ),
@@ -653,7 +661,7 @@ class _CheckInDone extends StatelessWidget {
           Text(
             'Estado: ${_translateCheckInStatus(checkIn.status)}',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.72),
+              color: colors.textSecondary,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -661,7 +669,7 @@ class _CheckInDone extends StatelessWidget {
           Text(
             'Fecha: ${formatDateTime(checkIn.createdAt)}',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.72),
+              color: colors.textSecondary,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -724,7 +732,11 @@ class _InfoRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: AppTheme.gold, size: small ? 16 : 18),
+        Icon(
+          icon,
+          color: context.garraColors.brandPrestige,
+          size: small ? 16 : 18,
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: RichText(
@@ -734,14 +746,14 @@ class _InfoRow extends StatelessWidget {
                 TextSpan(
                   text: '$label: ',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.54),
+                    color: context.garraColors.textSecondary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 TextSpan(
                   text: value,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.82),
+                    color: context.garraColors.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -765,15 +777,15 @@ class _EmptyState extends StatelessWidget {
         const SizedBox(height: 80),
         Icon(
           Icons.place_outlined,
-          color: AppTheme.gold.withOpacity(0.9),
+          color: context.garraColors.brandPrestige,
           size: 54,
         ),
         const SizedBox(height: 18),
-        const Text(
+        Text(
           'No hay puntos crema disponibles',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: AppTheme.cream,
+            color: context.garraColors.textPrimary,
             fontSize: 22,
             fontWeight: FontWeight.w900,
           ),
@@ -783,7 +795,7 @@ class _EmptyState extends StatelessWidget {
           'Cuando existan puntos activos, aparecerán aquí.',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.62),
+            color: context.garraColors.textSecondary,
             fontSize: 14,
             height: 1.35,
             fontWeight: FontWeight.w500,

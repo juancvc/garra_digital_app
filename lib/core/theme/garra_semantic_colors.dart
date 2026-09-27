@@ -61,14 +61,14 @@ class GarraSemanticColors extends ThemeExtension<GarraSemanticColors> {
     surfaceRaised: Color(0xFFF0DFC2),
     surfaceMuted: Color(0xFFE7D7BE),
     textPrimary: Color(0xFF261816),
-    textSecondary: Color(0xFF6F6257),
-    border: Color(0x336F6257),
+    textSecondary: Color(0xFF5B4E46),
+    border: Color(0x4A6F6257),
     brandPrimary: Color(0xFF781C30),
-    brandPrestige: Color(0xFFB9944F),
+    brandPrestige: Color(0xFF9A742F),
     onBrand: Color(0xFFF5EAD5),
     danger: Color(0xFF8E2A2A),
     success: Color(0xFF2F6B52),
-    warning: Color(0xFF8A6A1F),
+    warning: Color(0xFF9A5D00),
     mediaBackdrop: Color(0xFF171311),
   );
 
@@ -108,7 +108,10 @@ class GarraSemanticColors extends ThemeExtension<GarraSemanticColors> {
   }
 
   @override
-  GarraSemanticColors lerp(ThemeExtension<GarraSemanticColors>? other, double t) {
+  GarraSemanticColors lerp(
+    ThemeExtension<GarraSemanticColors>? other,
+    double t,
+  ) {
     if (other is! GarraSemanticColors) return this;
     return GarraSemanticColors(
       background: Color.lerp(background, other.background, t)!,
