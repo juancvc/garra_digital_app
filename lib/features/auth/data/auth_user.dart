@@ -26,7 +26,8 @@ class AuthUser {
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     return AuthUser(
-      userId: json['userId']?.toString() ?? '',
+      // Login/refresh send `userId`; GET /auth/me (AuthMeResponse) sends `id`.
+      userId: (json['userId'] ?? json['id'])?.toString() ?? '',
       email: json['email']?.toString() ?? '',
       username: json['username']?.toString() ?? '',
       fullName: json['fullName']?.toString() ?? '',

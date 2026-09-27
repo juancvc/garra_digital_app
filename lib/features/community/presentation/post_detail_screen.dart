@@ -9,7 +9,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/auth/current_fan_provider.dart';
 import '../../../core/widgets/garra_states.dart';
@@ -48,6 +48,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   Object? _commentsError;
 
   final _commentController = TextEditingController();
+  final _commentFocus = FocusNode();
   bool _sendingComment = false;
   bool _reacting = false;
 
@@ -66,6 +67,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   @override
   void dispose() {
     _commentController.dispose();
+    _commentFocus.dispose();
     super.dispose();
   }
 
@@ -241,10 +243,11 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     _showSnack(result.message);
   }
 
+  /// PostCommentResponse has no `isMine`: ownership comes from `authorId`
+  /// matched against the session fan id (GET /auth/me `id`).
   bool _ownsComment(WallCommentModel comment) {
     if (comment.isMine) return true;
-    final meId = currentFanIdOf(ref);
-    return meId != null && meId.isNotEmpty && comment.authorId == meId;
+    return isSameFanId(currentFanIdOf(ref), comment.authorId);
   }
 
   int _commentIndex(String commentId) {
@@ -422,12 +425,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 await _loadPost();
               },
             ),
-          if (_post != null)
-            IconButton(
-              tooltip: 'Compartir',
-              icon: const Icon(Icons.ios_share_rounded),
-              onPressed: () => _openShareSheet(_post!),
-            ),
           if (_post != null && _ownsPost(_post!))
             PopupMenuButton<String>(
               onSelected: (v) async {
@@ -475,6 +472,10 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     );
   }
 
+  void _focusComposer() {
+    _commentFocus.requestFocus();
+  }
+
   Future<void> _openShareSheet(WallPostModel post) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -485,8 +486,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
 
   bool _ownsPost(WallPostModel post) {
     if (post.isMine) return true;
-    final meId = ref.watch(currentFanProvider).asData?.value?.id;
-    return meId != null && meId.isNotEmpty && post.authorId == meId;
+    return isSameFanId(currentFanIdOf(ref), post.authorId);
   }
 
   Widget _buildBody() {
@@ -547,7 +547,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 Text(
                   post.content,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: const Color(GarraColors.cream),
+                    color: context.garraColors.textPrimary,
                     height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
@@ -567,29 +567,15 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   commentCount: post.commentCount,
                   myReaction: post.myReaction,
                   onTapReactions: _onReact,
-                  onTapComments: () {},
+                  onTapComments: _focusComposer,
                 ),
                 const SizedBox(height: GarraSpacing.sm),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    key: const ValueKey('reaction_cta'),
-                    onPressed: _reacting ? null : _onReact,
-                    icon: Text(
-                      post.myReaction != null
-                          ? ReactionType.emojiFor(post.myReaction!)
-                          : '🛡',
-                    ),
-                    label: Text(
-                      post.myReaction != null
-                          ? ReactionType.labelFor(post.myReaction!)
-                          : 'Reaccionar',
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(GarraColors.cream),
-                      side: const BorderSide(color: Color(GarraColors.gold)),
-                    ),
-                  ),
+                _PostActionRow(
+                  myReaction: post.myReaction,
+                  reacting: _reacting,
+                  onReact: _onReact,
+                  onComment: _focusComposer,
+                  onShare: () => _openShareSheet(post),
                 ),
                 const SizedBox(height: GarraSpacing.xl),
                 Text(
@@ -604,6 +590,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         ),
         _CommentComposer(
           controller: _commentController,
+          focusNode: _commentFocus,
           sending: _sendingComment,
           maxLength: _maxCommentLength,
           onSend: _sendComment,
@@ -700,7 +687,7 @@ class _PostHeader extends StatelessWidget {
               Text(
                 '@${post.username}',
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: const Color(GarraColors.textSecondary),
+                  color: context.garraColors.textSecondary,
                 ),
               ),
               Text(
@@ -715,23 +702,149 @@ class _PostHeader extends StatelessWidget {
   }
 }
 
+/// Reaccionar | Comentar | Compartir. No share counter: the backend does
+/// not expose shareCount yet.
+class _PostActionRow extends StatelessWidget {
+  const _PostActionRow({
+    required this.myReaction,
+    required this.reacting,
+    required this.onReact,
+    required this.onComment,
+    required this.onShare,
+  });
+
+  final String? myReaction;
+  final bool reacting;
+  final VoidCallback onReact;
+  final VoidCallback onComment;
+  final VoidCallback onShare;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.garraColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = isDark ? colors.brandPrestige : colors.brandPrimary;
+    final reacted = myReaction != null;
+    return DecoratedBox(
+      key: const ValueKey('post_action_row'),
+      decoration: BoxDecoration(
+        border: Border.symmetric(horizontal: BorderSide(color: colors.border)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _PostActionButton(
+              key: const ValueKey('reaction_cta'),
+              icon: reacted
+                  ? Text(
+                      ReactionType.emojiFor(myReaction!),
+                      style: const TextStyle(fontSize: 16),
+                    )
+                  : Icon(Icons.add_reaction_outlined, size: 20, color: accent),
+              label: reacted
+                  ? ReactionType.labelFor(myReaction!)
+                  : 'Reaccionar',
+              color: reacted ? accent : colors.textSecondary,
+              onPressed: reacting ? null : onReact,
+            ),
+          ),
+          Expanded(
+            child: _PostActionButton(
+              key: const ValueKey('post_action_comment'),
+              icon: Icon(
+                Icons.chat_bubble_outline_rounded,
+                size: 20,
+                color: accent,
+              ),
+              label: 'Comentar',
+              color: colors.textSecondary,
+              onPressed: onComment,
+            ),
+          ),
+          Expanded(
+            child: _PostActionButton(
+              key: const ValueKey('post_action_share'),
+              icon: Icon(Icons.ios_share_rounded, size: 20, color: accent),
+              label: 'Compartir',
+              color: colors.textSecondary,
+              onPressed: onShare,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PostActionButton extends StatelessWidget {
+  const _PostActionButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onPressed,
+  });
+
+  final Widget icon;
+  final String label;
+  final Color color;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              icon,
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _CommentComposer extends StatelessWidget {
   const _CommentComposer({
     required this.controller,
+    required this.focusNode,
     required this.sending,
     required this.maxLength,
     required this.onSend,
   });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
   final bool sending;
   final int maxLength;
   final VoidCallback onSend;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.garraColors;
     return Material(
-      color: const Color(GarraColors.surface),
+      color: colors.surface,
       child: SafeArea(
         top: false,
         child: Padding(
@@ -748,6 +861,7 @@ class _CommentComposer extends StatelessWidget {
                 child: TextField(
                   key: const ValueKey('comment_composer'),
                   controller: controller,
+                  focusNode: focusNode,
                   enabled: !sending,
                   maxLength: maxLength,
                   minLines: 1,
@@ -764,8 +878,8 @@ class _CommentComposer extends StatelessWidget {
                 key: const ValueKey('comment_send'),
                 onPressed: sending ? null : onSend,
                 style: IconButton.styleFrom(
-                  backgroundColor: const Color(GarraColors.gold),
-                  foregroundColor: AppTheme.background,
+                  backgroundColor: colors.brandPrimary,
+                  foregroundColor: colors.onBrand,
                 ),
                 icon: sending
                     ? const SizedBox(
@@ -865,7 +979,7 @@ class _SharePostSheetState extends State<_SharePostSheet> {
               Text(
                 'Compartir',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: const Color(GarraColors.cream),
+                  color: context.garraColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 12),
@@ -885,7 +999,7 @@ class _SharePostSheetState extends State<_SharePostSheet> {
               Text(
                 'Garra Share Card',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: const Color(GarraColors.gold),
+                  color: context.garraColors.brandPrestige,
                 ),
               ),
               const SizedBox(height: 8),

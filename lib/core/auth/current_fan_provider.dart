@@ -30,6 +30,13 @@ class CurrentFanNotifier extends AsyncNotifier<AuthUser?> {
 String? currentFanIdOf(WidgetRef ref) =>
     ref.watch(currentFanProvider).asData?.value?.id;
 
+/// Compares backend UUIDs safely (trim + case-insensitive, never empty).
+bool isSameFanId(String? a, String? b) {
+  final left = a?.trim().toLowerCase() ?? '';
+  final right = b?.trim().toLowerCase() ?? '';
+  return left.isNotEmpty && left == right;
+}
+
 bool isAdminOf(WidgetRef ref) {
   final me = ref.watch(currentFanProvider).asData?.value;
   return me?.isAdmin == true || me?.isSuperAdmin == true;

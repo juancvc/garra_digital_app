@@ -3,8 +3,11 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/design/garra_colors.dart';
+import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_avatar.dart';
+import '../../../core/widgets/garra_cached_network_image.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
@@ -140,21 +143,23 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
     final relationship = _chatRelationship;
     final pendingIn = relationship.isPending && !relationship.outgoing;
     final label = pendingIn ? 'Aceptar chat' : 'Mensaje';
-    return OutlinedButton(
+    final colors = context.garraColors;
+    return OutlinedButton.icon(
       key: const Key('profile-message-action'),
       onPressed: _busy ? null : _message,
       style: OutlinedButton.styleFrom(
-        foregroundColor: const Color(GarraColors.cream),
-        side: const BorderSide(color: Color(GarraColors.burgundy)),
+        foregroundColor: colors.textPrimary,
+        side: BorderSide(color: colors.brandPrimary),
       ),
-      child: Text(label),
+      icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+      label: Text(label),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(
         title: const Text('Perfil'),
         actions: [
@@ -212,67 +217,52 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
               .toList()
         : <WallPostModel>[];
 
+    final colors = context.garraColors;
+    final displayName = name.isEmpty ? username : name;
+    final avatarUrl = p['avatarUrl']?.toString();
+    final levelNumber = (p['levelNumber'] as num?)?.toInt();
+    final sinceYear = since == null ? null : DateTime.tryParse(since)?.year;
+
     return ListView(
       padding: const EdgeInsets.all(GarraSpacing.lg),
       children: [
+        _ProfileHero(
+          displayName: displayName,
+          username: username,
+          avatarUrl: avatarUrl,
+          levelNumber: levelNumber,
+          levelName: level,
+          sinceYear: sinceYear,
+        ),
+        const SizedBox(height: GarraSpacing.lg),
         Container(
-          height: 96,
+          key: const Key('profile-stats'),
+          padding: const EdgeInsets.symmetric(vertical: GarraSpacing.md),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: const LinearGradient(
-              colors: [
-                Color(GarraColors.burgundyDeep),
-                Color(GarraColors.surface),
-              ],
-            ),
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(GarraRadius.md),
+            border: Border.all(color: colors.border),
           ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            GarraAvatar(displayName: name.isEmpty ? username : name, size: 64),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(name, style: Theme.of(context).textTheme.titleLarge),
-                  Text(
-                    '@$username',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  if (level != null && level.isNotEmpty)
-                    Text(
-                      'Nivel $level',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: const Color(GarraColors.gold),
-                      ),
-                    ),
-                  if (since != null && since.isNotEmpty)
-                    Text(
-                      'En Garra desde ${since.length >= 10 ? since.substring(0, 10) : since}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: GarraSpacing.md),
-        Row(
-          children: [
-            _Stat(label: 'Publicaciones', value: '$postCount'),
-            _Stat(label: 'Seguidores', value: '$followers'),
-            _Stat(label: 'Siguiendo', value: '$following'),
-          ],
+          child: Row(
+            children: [
+              _Stat(label: 'Publicaciones', value: '$postCount'),
+              _Stat(label: 'Seguidores', value: '$followers'),
+              _Stat(label: 'Siguiendo', value: '$following'),
+            ],
+          ),
         ),
         const SizedBox(height: GarraSpacing.md),
         if (isMe)
           SizedBox(
             width: double.infinity,
-            child: OutlinedButton(
+            child: OutlinedButton.icon(
               onPressed: () => context.push('/passport/edit'),
-              child: const Text('Editar perfil'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: colors.textPrimary,
+                side: BorderSide(color: colors.brandPrimary),
+              ),
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Editar perfil'),
             ),
           )
         else
@@ -287,12 +277,18 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
                     children: [
                       Expanded(
                         child: FilledButton(
+                          key: const Key('profile-follow-action'),
                           onPressed: _busy ? null : _toggleFollow,
                           style: FilledButton.styleFrom(
                             backgroundColor: followed
-                                ? const Color(GarraColors.burgundyDeep)
-                                : const Color(GarraColors.burgundy),
-                            foregroundColor: const Color(GarraColors.cream),
+                                ? colors.surfaceRaised
+                                : colors.brandPrimary,
+                            foregroundColor: followed
+                                ? colors.textPrimary
+                                : colors.onBrand,
+                            side: followed
+                                ? BorderSide(color: colors.border)
+                                : null,
                           ),
                           child: Text(followed ? 'Siguiendo' : 'Seguir'),
                         ),
@@ -329,6 +325,151 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
   }
 }
 
+/// Garra identity header: brand band (no cover contract yet), large
+/// tappable photo, name, @username, level and year joined.
+class _ProfileHero extends StatelessWidget {
+  const _ProfileHero({
+    required this.displayName,
+    required this.username,
+    required this.avatarUrl,
+    required this.levelNumber,
+    required this.levelName,
+    required this.sinceYear,
+  });
+
+  final String displayName;
+  final String username;
+  final String? avatarUrl;
+  final int? levelNumber;
+  final String? levelName;
+  final int? sinceYear;
+
+  bool get _hasPhoto => avatarUrl != null && avatarUrl!.trim().isNotEmpty;
+
+  void _openPhoto(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        final colors = ctx.garraColors;
+        return Dialog(
+          key: const Key('profile-photo-viewer'),
+          backgroundColor: colors.mediaBackdrop,
+          insetPadding: const EdgeInsets.all(GarraSpacing.lg),
+          child: Stack(
+            children: [
+              InteractiveViewer(
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: GarraCachedNetworkImage(imageUrl: avatarUrl!),
+                ),
+              ),
+              Positioned(
+                top: 4,
+                right: 4,
+                child: IconButton(
+                  tooltip: 'Cerrar',
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  icon: Icon(Icons.close_rounded, color: colors.onBrand),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.garraColors;
+    final textTheme = Theme.of(context).textTheme;
+    const avatarSize = 96.0;
+    return Column(
+      children: [
+        SizedBox(
+          height: 96 + avatarSize / 2,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              Container(
+                height: 96,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(GarraRadius.md),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [colors.brandPrimary, colors.surfaceRaised],
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                child: GestureDetector(
+                  key: const Key('profile-avatar'),
+                  onTap: _hasPhoto ? () => _openPhoto(context) : null,
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: colors.background,
+                      border: Border.all(color: colors.brandPrestige, width: 2),
+                    ),
+                    child: GarraAvatar(
+                      displayName: displayName,
+                      avatarUrl: avatarUrl,
+                      size: avatarSize,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: GarraSpacing.sm),
+        Text(
+          displayName,
+          textAlign: TextAlign.center,
+          style: textTheme.titleLarge?.copyWith(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        Text(
+          '@$username',
+          style: textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
+        ),
+        const SizedBox(height: GarraSpacing.sm),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: GarraSpacing.sm,
+          runSpacing: GarraSpacing.xs,
+          children: [
+            if (levelNumber != null &&
+                levelName != null &&
+                levelName!.isNotEmpty)
+              GarraLevelBadge(levelNumber: levelNumber!, levelName: levelName!)
+            else if (levelName != null && levelName!.isNotEmpty)
+              Text(
+                'Nivel $levelName',
+                style: textTheme.labelMedium?.copyWith(
+                  color: colors.brandPrestige,
+                ),
+              ),
+            if (sinceYear != null)
+              Text(
+                'En Garra desde $sinceYear',
+                key: const Key('profile-member-since'),
+                style: textTheme.labelMedium?.copyWith(
+                  color: colors.textSecondary,
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 class _Stat extends StatelessWidget {
   const _Stat({required this.label, required this.value});
 
@@ -340,8 +481,19 @@ class _Stat extends StatelessWidget {
     return Expanded(
       child: Column(
         children: [
-          Text(value, style: Theme.of(context).textTheme.titleMedium),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: context.garraColors.textPrimary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.garraColors.textSecondary,
+            ),
+          ),
         ],
       ),
     );

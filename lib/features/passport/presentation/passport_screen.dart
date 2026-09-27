@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/auth/current_fan_provider.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_motion.dart';
 import '../../../core/design/garra_spacing.dart';
@@ -203,6 +204,19 @@ class _PassportBody extends StatelessWidget {
         GarraCard(
           child: Column(
             children: [
+              Consumer(
+                builder: (context, ref, _) {
+                  final meId = currentFanIdOf(ref)?.trim() ?? '';
+                  if (meId.isEmpty) return const SizedBox.shrink();
+                  return _ProfileMenuTile(
+                    key: const Key('passport-community-profile'),
+                    icon: Icons.groups_2_outlined,
+                    title: 'Mi perfil en la comunidad',
+                    subtitle: 'Seguidores, seguidos y publicaciones',
+                    onTap: () => context.push('/comunidad/u/$meId'),
+                  );
+                },
+              ),
               _ProfileMenuTile(
                 icon: Icons.auto_stories_outlined,
                 title: 'Mi contenido',
@@ -564,6 +578,7 @@ class _HeroStatDivider extends StatelessWidget {
 
 class _ProfileMenuTile extends StatelessWidget {
   const _ProfileMenuTile({
+    super.key,
     required this.icon,
     required this.title,
     required this.subtitle,
