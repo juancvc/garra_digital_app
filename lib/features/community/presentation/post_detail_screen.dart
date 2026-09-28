@@ -29,10 +29,21 @@ import 'widgets/garra_reactors_sheet.dart';
 import 'widgets/garra_social_post_card.dart' show reactorsLabel;
 import 'widgets/garra_share_card.dart';
 
+/// Clan moderation context passed by a clan feed when the viewer is
+/// OWNER/ADMIN/MODERATOR of that clan (the backend re-checks the role).
+class PostDetailModeration {
+  const PostDetailModeration({required this.clanSlug});
+
+  final String clanSlug;
+}
+
 class PostDetailScreen extends ConsumerStatefulWidget {
-  const PostDetailScreen({super.key, required this.postId});
+  const PostDetailScreen({super.key, required this.postId, this.moderation});
 
   final String postId;
+
+  /// Enables "Ocultar publicación" / "Ocultar comentario" for clan posts.
+  final PostDetailModeration? moderation;
 
   @override
   ConsumerState<PostDetailScreen> createState() => _PostDetailScreenState();
@@ -520,6 +531,56 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     _showSnack(result.message);
   }
 
+  /// True only for a clan post opened with a moderation context of that clan.
+  bool get _canModerateClan {
+    final moderation = widget.moderation;
+    final post = _post;
+    if (moderation == null || post == null || !post.isClanContext) {
+      return false;
+    }
+    final slug = post.clanSlug;
+    return slug == null || slug.isEmpty || slug == moderation.clanSlug;
+  }
+
+  Future<void> _hideCommentAsModerator(WallCommentModel comment) async {
+    if (_deletingComments.contains(comment.id)) return;
+    final confirmed = await confirmHideComment(context);
+    if (!confirmed || !mounted || _post == null) return;
+    _deletingComments.add(comment.id);
+    final result = await ref.read(communityServiceProvider).hideClanComment(
+          clanSlug: widget.moderation!.clanSlug,
+          postId: _post!.id,
+          commentId: comment.id,
+        );
+    _deletingComments.remove(comment.id);
+    if (!mounted) return;
+    if (!result.success) {
+      if (result.notFound) {
+        setState(() => _removeCommentLocally(comment.id));
+      }
+      _showSnack(result.message, isError: true);
+      return;
+    }
+    setState(() => _removeCommentLocally(comment.id));
+    _showSnack(result.message);
+  }
+
+  Future<void> _hidePostAsModerator() async {
+    final confirmed = await confirmHideClanPost(context);
+    if (!confirmed || !mounted || _post == null) return;
+    final result = await ref.read(communityServiceProvider).hideClanPost(
+          clanSlug: widget.moderation!.clanSlug,
+          postId: _post!.id,
+        );
+    if (!mounted) return;
+    if (!result.success) {
+      _showSnack(result.message, isError: true);
+      return;
+    }
+    _showSnack(result.message);
+    await Navigator.of(context).maybePop(true);
+  }
+
   Future<void> _openCommentReactions(
     WallCommentModel comment, {
     bool change = false,
@@ -641,9 +702,14 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 await _loadPost();
               },
             ),
-          if (_post != null && _ownsPost(_post!))
+          if (_post != null && (_ownsPost(_post!) || _canModerateClan))
             PopupMenuButton<String>(
+              key: const ValueKey('post_detail_menu'),
               onSelected: (v) async {
+                if (v == 'hide') {
+                  await _hidePostAsModerator();
+                  return;
+                }
                 if (v == 'delete') {
                   final ok = await showDialog<bool>(
                     context: context,
@@ -675,11 +741,17 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   }
                 }
               },
-              itemBuilder: (_) => const [
-                PopupMenuItem(
-                  value: 'delete',
-                  child: Text('Eliminar publicación'),
-                ),
+              itemBuilder: (_) => [
+                if (_ownsPost(_post!))
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text('Eliminar publicación'),
+                  ),
+                if (_canModerateClan)
+                  const PopupMenuItem(
+                    value: 'hide',
+                    child: Text('Ocultar publicación'),
+                  ),
               ],
             ),
         ],
@@ -887,6 +959,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       onReact: () => _openCommentReactions(comment),
       onChangeReaction: () => _openCommentReactions(comment, change: true),
       onReply: () => _startReply(comment),
+      onModerate: _canModerateClan && !_ownsComment(comment)
+          ? () => _hideCommentAsModerator(comment)
+          : null,
       reacting: _reactingComments.contains(comment.id),
     );
   }

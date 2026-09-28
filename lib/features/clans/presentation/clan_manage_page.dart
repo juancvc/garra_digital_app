@@ -11,6 +11,9 @@ import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/clan_models.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
+import '../data/clan_admin_permissions.dart';
+import 'clan_bans_page.dart';
+import 'clan_members_admin_page.dart';
 import 'create_community_page.dart'
     show CommunityOptionTile, communityJoinOptions, communityPostsPrivacyNote,
         communityVisibilityOptions;
@@ -359,6 +362,32 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
                   subtitle: 'Comunidad del clan',
                 ),
                 const SizedBox(height: GarraSpacing.md),
+                _ManageEntryTile(
+                  key: const ValueKey('manage_members_entry'),
+                  icon: Icons.groups_rounded,
+                  title: 'Gestionar miembros',
+                  subtitle: 'Roles, expulsiones y bloqueos',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => ClanMembersAdminPage(slug: widget.slug),
+                    ),
+                  ),
+                ),
+                if (ClanAdminPermissions.canViewBans(
+                  clan.myMembership?.role,
+                ))
+                  _ManageEntryTile(
+                    key: const ValueKey('manage_bans_entry'),
+                    icon: Icons.block_rounded,
+                    title: 'Personas bloqueadas',
+                    subtitle: 'Revisa y quita bloqueos',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => ClanBansPage(slug: widget.slug),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: GarraSpacing.sm),
                 membersAsync.when(
                   loading: () => const GarraSkeleton(height: 80),
                   error: (_, __) => const SizedBox.shrink(),
@@ -432,6 +461,62 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _ManageEntryTile extends StatelessWidget {
+  const _ManageEntryTile({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.garraColors;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
+      child: GarraCard(
+        child: InkWell(
+          onTap: onTap,
+          child: Row(
+            children: [
+              Icon(icon, color: colors.brandPrestige),
+              const SizedBox(width: GarraSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(color: colors.textPrimary),
+                    ),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: colors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: colors.textSecondary),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -62,6 +62,11 @@ final clanJoinRequestsProvider = FutureProvider.autoDispose
   return ref.watch(clanServiceProvider).getJoinRequests(slug);
 });
 
+final clanBansProvider = FutureProvider.autoDispose
+    .family<List<ClanBanModel>, String>((ref, slug) {
+  return ref.watch(clanServiceProvider).listBans(slug);
+});
+
 final myClanInvitationsProvider =
     FutureProvider.autoDispose<List<ClanInvitationModel>>((ref) {
   return ref.watch(clanServiceProvider).getMyInvitations();

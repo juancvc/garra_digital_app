@@ -187,7 +187,8 @@ class ClanService {
     String username,
     String role,
   ) async {
-    await _dio.patch(
+    // Backend route is POST /clans/{slug}/members/{username}/role.
+    await _dio.post(
       '/clans/$slug/members/$username/role',
       data: {'role': role},
     );
@@ -195,6 +196,31 @@ class ClanService {
 
   Future<void> removeMember(String slug, String username) async {
     await _dio.delete('/clans/$slug/members/$username');
+  }
+
+  /// "Expulsar y bloquear": removes the member and blocks re-entry.
+  Future<void> banMember(String slug, String username, {String? reason}) async {
+    final trimmed = reason?.trim();
+    await _dio.post(
+      '/clans/$slug/members/$username/ban',
+      data: {
+        if (trimmed != null && trimmed.isNotEmpty) 'reason': trimmed,
+      },
+    );
+  }
+
+  Future<List<ClanBanModel>> listBans(String slug) async {
+    final response = await _dio.get('/clans/$slug/bans');
+    final raw = response.data['data'];
+    final List items = raw is List ? raw : const [];
+    return items
+        .map((e) => ClanBanModel.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  /// Removes the block only; membership is not restored.
+  Future<void> unban(String slug, String fanUserId) async {
+    await _dio.delete('/clans/$slug/bans/$fanUserId');
   }
 
   Future<ClanPage<WallPostModel>> getClanPosts(

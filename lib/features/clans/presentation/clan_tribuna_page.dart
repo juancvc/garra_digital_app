@@ -10,10 +10,15 @@ import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../community/data/engagement_utils.dart';
 import '../../community/data/wall_post_model.dart';
+import '../../community/presentation/post_detail_screen.dart'
+    show PostDetailModeration;
 import '../../community/presentation/providers/community_provider.dart';
+import '../../community/presentation/widgets/garra_comment_tile.dart'
+    show confirmHideClanPost;
 import '../../community/presentation/widgets/garra_reaction_bar.dart';
 import '../../community/presentation/widgets/garra_reaction_actions.dart';
 
+import '../data/clan_admin_permissions.dart';
 import '../data/clan_models.dart';
 import '../data/clan_service.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
@@ -189,6 +194,9 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
           );
         }
         final name = widget.clanName ?? clan.name;
+        final canModerate = ClanAdminPermissions.canModerateContent(
+          clan.myMembership?.role,
+        );
         return RefreshIndicator(
           color: context.garraColors.brandPrestige,
           onRefresh: _refresh,
@@ -242,8 +250,18 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
                                 const EdgeInsets.only(bottom: GarraSpacing.md),
                             child: _ClanFeedPostCard(
                               post: post,
+                              clanSlug: widget.slug,
+                              canModerate: canModerate,
+                              onHidden: () => ref.invalidate(
+                                clanFeedProvider(widget.slug),
+                              ),
                               onOpenDetail: () => context.push(
                                 '/muro-crema/posts/${post.id}',
+                                extra: canModerate
+                                    ? PostDetailModeration(
+                                        clanSlug: widget.slug,
+                                      )
+                                    : null,
                               ),
                             ),
                           ),
@@ -345,10 +363,18 @@ class _ClanFeedPostCard extends ConsumerStatefulWidget {
   const _ClanFeedPostCard({
     required this.post,
     required this.onOpenDetail,
+    required this.clanSlug,
+    this.canModerate = false,
+    this.onHidden,
   });
 
   final WallPostModel post;
   final VoidCallback onOpenDetail;
+  final String clanSlug;
+
+  /// OWNER/ADMIN/MODERATOR of this clan: "Ocultar publicación".
+  final bool canModerate;
+  final VoidCallback? onHidden;
 
   @override
   ConsumerState<_ClanFeedPostCard> createState() => _ClanFeedPostCardState();
@@ -427,42 +453,61 @@ class _ClanFeedPostCardState extends ConsumerState<_ClanFeedPostCard> {
     });
   }
 
+  Future<void> _hide() async {
+    final confirmed = await confirmHideClanPost(context);
+    if (!confirmed || !mounted) return;
+    final result = await ref.read(communityServiceProvider).hideClanPost(
+          clanSlug: widget.clanSlug,
+          postId: _post.id,
+        );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result.message)),
+    );
+    if (result.success) widget.onHidden?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
     final post = _post;
+    final colors = context.garraColors;
     return GarraCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          InkWell(
-            onTap: widget.onOpenDetail,
-            borderRadius: BorderRadius.circular(GarraRadius.sm),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  post.fullName.isNotEmpty ? post.fullName : post.username,
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                if (post.username.isNotEmpty)
-                  Text(
-                    '@${post.username}',
-                    style: Theme.of(context).textTheme.bodySmall,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _header(context, post)),
+              if (widget.canModerate)
+                SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: PopupMenuButton<String>(
+                    key: ValueKey('clan_post_menu_${post.id}'),
+                    tooltip: 'Opciones de la publicaci\u00f3n',
+                    padding: EdgeInsets.zero,
+                    iconSize: 18,
+                    icon: Icon(
+                      Icons.more_vert_rounded,
+                      color: colors.textSecondary,
+                    ),
+                    color: colors.surfaceRaised,
+                    onSelected: (value) {
+                      if (value == 'hide') _hide();
+                    },
+                    itemBuilder: (_) => [
+                      PopupMenuItem(
+                        value: 'hide',
+                        child: Text(
+                          'Ocultar publicaci\u00f3n',
+                          style: TextStyle(color: colors.danger),
+                        ),
+                      ),
+                    ],
                   ),
-                const SizedBox(height: GarraSpacing.sm),
-                Text(
-                  post.content,
-                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
-                if (post.createdAt.isNotEmpty) ...[
-                  const SizedBox(height: GarraSpacing.xs),
-                  Text(
-                    _friendlyCreatedAt(post.createdAt),
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
-                ],
-              ],
-            ),
+            ],
           ),
           const SizedBox(height: GarraSpacing.sm),
           GarraReactionBar(
@@ -476,6 +521,39 @@ class _ClanFeedPostCardState extends ConsumerState<_ClanFeedPostCard> {
                 : () => _react(change: true),
             onTapComments: widget.onOpenDetail,
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _header(BuildContext context, WallPostModel post) {
+    return InkWell(
+      onTap: widget.onOpenDetail,
+      borderRadius: BorderRadius.circular(GarraRadius.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            post.fullName.isNotEmpty ? post.fullName : post.username,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          if (post.username.isNotEmpty)
+            Text(
+              '@${post.username}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          const SizedBox(height: GarraSpacing.sm),
+          Text(
+            post.content,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          if (post.createdAt.isNotEmpty) ...[
+            const SizedBox(height: GarraSpacing.xs),
+            Text(
+              _friendlyCreatedAt(post.createdAt),
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          ],
         ],
       ),
     );

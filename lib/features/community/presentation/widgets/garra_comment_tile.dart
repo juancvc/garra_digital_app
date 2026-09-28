@@ -16,7 +16,7 @@ import 'garra_reactors_sheet.dart';
 /// Max length accepted by the backend when editing a comment.
 const commentEditMaxLength = 500;
 
-enum _CommentMenuAction { edit, delete }
+enum _CommentMenuAction { edit, delete, moderate }
 
 /// Comment row for post detail: author, text, "Editado" marker, own-comment
 /// menu (Editar / Eliminar) and a light reaction strip.
@@ -30,6 +30,7 @@ class GarraCommentTile extends StatelessWidget {
     this.onReact,
     this.onChangeReaction,
     this.onReply,
+    this.onModerate,
     this.reacting = false,
   });
 
@@ -44,6 +45,10 @@ class GarraCommentTile extends StatelessWidget {
 
   /// "Responder" action (roots and replies). Hidden when null.
   final VoidCallback? onReply;
+
+  /// Clan moderation ("Ocultar comentario"). Only passed by clan-post
+  /// contexts where the viewer is OWNER/ADMIN/MODERATOR of that clan.
+  final VoidCallback? onModerate;
   final bool reacting;
 
   @override
@@ -59,7 +64,8 @@ class GarraCommentTile extends StatelessWidget {
     final openProfile = comment.authorId == null
         ? null
         : () => context.push('/comunidad/u/${comment.authorId}');
-    final showMenu = isOwn && (onEdit != null || onDelete != null);
+    final showOwnActions = isOwn && (onEdit != null || onDelete != null);
+    final showMenu = showOwnActions || onModerate != null;
 
     return Padding(
       key: ValueKey('comment_tile_${comment.id}'),
@@ -227,10 +233,12 @@ class GarraCommentTile extends StatelessWidget {
                       onEdit?.call();
                     case _CommentMenuAction.delete:
                       onDelete?.call();
+                    case _CommentMenuAction.moderate:
+                      onModerate?.call();
                   }
                 },
                 itemBuilder: (_) => [
-                  if (onEdit != null)
+                  if (showOwnActions && onEdit != null)
                     PopupMenuItem(
                       value: _CommentMenuAction.edit,
                       child: Text(
@@ -238,11 +246,19 @@ class GarraCommentTile extends StatelessWidget {
                         style: TextStyle(color: colors.textPrimary),
                       ),
                     ),
-                  if (onDelete != null)
+                  if (showOwnActions && onDelete != null)
                     PopupMenuItem(
                       value: _CommentMenuAction.delete,
                       child: Text(
                         'Eliminar',
+                        style: TextStyle(color: colors.danger),
+                      ),
+                    ),
+                  if (onModerate != null)
+                    PopupMenuItem(
+                      value: _CommentMenuAction.moderate,
+                      child: Text(
+                        'Ocultar comentario',
                         style: TextStyle(color: colors.danger),
                       ),
                     ),
@@ -521,6 +537,80 @@ class _GarraEditCommentSheetState extends State<GarraEditCommentSheet> {
       ),
     );
   }
+}
+
+/// Confirmation before a clan moderator hides someone's comment.
+Future<bool> confirmHideComment(BuildContext context) async {
+  final colors = context.garraColors;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: colors.surface,
+      title: Text(
+        '\u00bfOcultar este comentario?',
+        style: TextStyle(color: colors.textPrimary),
+      ),
+      content: Text(
+        'Dejar\u00e1 de verse en la publicaci\u00f3n. Si tiene respuestas, tambi\u00e9n se ocultar\u00e1n.',
+        style: TextStyle(color: colors.textSecondary),
+      ),
+      actions: [
+        TextButton(
+          key: const ValueKey('comment_hide_cancel'),
+          onPressed: () => Navigator.pop(ctx, false),
+          style: TextButton.styleFrom(foregroundColor: colors.textSecondary),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          key: const ValueKey('comment_hide_confirm'),
+          onPressed: () => Navigator.pop(ctx, true),
+          style: FilledButton.styleFrom(
+            backgroundColor: colors.danger,
+            foregroundColor: colors.onBrand,
+          ),
+          child: const Text('Ocultar'),
+        ),
+      ],
+    ),
+  );
+  return ok == true;
+}
+
+/// Confirmation before a clan moderator hides a clan post.
+Future<bool> confirmHideClanPost(BuildContext context) async {
+  final colors = context.garraColors;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: colors.surface,
+      title: Text(
+        '\u00bfOcultar esta publicaci\u00f3n?',
+        style: TextStyle(color: colors.textPrimary),
+      ),
+      content: Text(
+        'Dejar\u00e1 de verse en la comunidad.',
+        style: TextStyle(color: colors.textSecondary),
+      ),
+      actions: [
+        TextButton(
+          key: const ValueKey('post_hide_cancel'),
+          onPressed: () => Navigator.pop(ctx, false),
+          style: TextButton.styleFrom(foregroundColor: colors.textSecondary),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          key: const ValueKey('post_hide_confirm'),
+          onPressed: () => Navigator.pop(ctx, true),
+          style: FilledButton.styleFrom(
+            backgroundColor: colors.danger,
+            foregroundColor: colors.onBrand,
+          ),
+          child: const Text('Ocultar'),
+        ),
+      ],
+    ),
+  );
+  return ok == true;
 }
 
 /// Spanish confirmation before deleting an own comment.

@@ -497,7 +497,11 @@ List<RouteBase> _buildRoutes() => [
     name: 'muro-crema-post-detail',
     builder: (context, state) {
       final postId = state.pathParameters['id'] ?? '';
-      return PostDetailScreen(postId: postId);
+      final extra = state.extra;
+      return PostDetailScreen(
+        postId: postId,
+        moderation: extra is PostDetailModeration ? extra : null,
+      );
     },
   ),
   GoRoute(

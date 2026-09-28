@@ -460,6 +460,41 @@ class CommunityService {
     }
   }
 
+  /// Clan moderation (OWNER/ADMIN/MODERATOR of the clan): hides a clan post.
+  Future<CommentActionResult> hideClanPost({
+    required String clanSlug,
+    required String postId,
+  }) async {
+    try {
+      await _dio.patch('/clans/$clanSlug/posts/$postId/hide');
+      return CommentActionResult.success(message: 'Publicaci\u00f3n oculta');
+    } catch (e) {
+      return CommentActionResult.failure(
+        garraActionErrorMessage(e),
+        notFound: e is DioException && e.response?.statusCode == 404,
+      );
+    }
+  }
+
+  /// Clan moderation: hides a comment (and its thread) of a clan post.
+  Future<CommentActionResult> hideClanComment({
+    required String clanSlug,
+    required String postId,
+    required String commentId,
+  }) async {
+    try {
+      await _dio.patch(
+        '/clans/$clanSlug/posts/$postId/comments/$commentId/hide',
+      );
+      return CommentActionResult.success(message: 'Comentario oculto');
+    } catch (e) {
+      return CommentActionResult.failure(
+        garraActionErrorMessage(e, notFoundMessage: _commentGoneMessage),
+        notFound: e is DioException && e.response?.statusCode == 404,
+      );
+    }
+  }
+
   Future<ReactionResult> upsertCommentReaction({
     required String commentId,
     required String type,

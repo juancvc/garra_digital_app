@@ -287,6 +287,40 @@ class ClanMemberModel {
   }
 }
 
+/// Active clan ban returned by GET /clans/{slug}/bans (OWNER/ADMIN only).
+class ClanBanModel {
+  const ClanBanModel({
+    required this.fanUserId,
+    required this.username,
+    required this.displayName,
+    this.avatarUrl,
+    this.reason,
+    this.createdAt,
+    this.bannedByDisplayName,
+  });
+
+  final String fanUserId;
+  final String username;
+  final String displayName;
+  final String? avatarUrl;
+  final String? reason;
+  final DateTime? createdAt;
+  final String? bannedByDisplayName;
+
+  factory ClanBanModel.fromJson(Map<String, dynamic> json) {
+    final reason = json['reason']?.toString();
+    return ClanBanModel(
+      fanUserId: json['fanUserId']?.toString() ?? '',
+      username: json['username']?.toString() ?? '',
+      displayName: json['displayName']?.toString() ?? '',
+      avatarUrl: json['avatarUrl'] as String?,
+      reason: reason == null || reason.trim().isEmpty ? null : reason,
+      createdAt: ClanModel._parseDateTime(json['createdAt']),
+      bannedByDisplayName: json['bannedByDisplayName']?.toString(),
+    );
+  }
+}
+
 class ClanInvitationModel {
   const ClanInvitationModel({
     required this.id,
@@ -469,7 +503,7 @@ class ClanRoleLabels {
       case 'OWNER':
         return 'Propietario';
       case 'ADMIN':
-        return 'Admin';
+        return 'Administrador';
       case 'MODERATOR':
         return 'Moderador';
       case 'MEMBER':
