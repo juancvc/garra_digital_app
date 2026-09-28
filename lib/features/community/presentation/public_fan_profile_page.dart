@@ -13,9 +13,11 @@ import '../../../core/widgets/garra_ui.dart';
 import '../../chat/data/chat_models.dart';
 import '../../chat/data/chat_service.dart';
 import '../../chat/presentation/floating_chat_panel.dart';
+import '../data/community_report.dart';
 import '../data/community_service.dart';
 import '../data/wall_post_model.dart';
 import 'widgets/garra_post_media_grid.dart';
+import 'widgets/garra_report_sheet.dart';
 
 class PublicFanProfilePage extends StatefulWidget {
   const PublicFanProfilePage({
@@ -139,6 +141,16 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
     context.pop();
   }
 
+  /// MODERATION_11: platform report of someone else's profile.
+  Future<void> _report() {
+    return showGarraReportSheet(
+      context,
+      service: _service,
+      target: GarraReportTarget.profile,
+      targetId: widget.userId,
+    );
+  }
+
   Widget _messageButton() {
     final relationship = _chatRelationship;
     final pendingIn = relationship.isPending && !relationship.outgoing;
@@ -180,6 +192,25 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
               onPressed: _block,
               icon: const Icon(Icons.block),
             ),
+            if (_profile != null)
+              PopupMenuButton<String>(
+                key: const ValueKey('profile_menu'),
+                tooltip: 'M\u00e1s opciones',
+                icon: const Icon(Icons.more_vert_rounded),
+                color: context.garraColors.surfaceRaised,
+                onSelected: (value) {
+                  if (value == 'report') _report();
+                },
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: 'report',
+                    child: Text(
+                      'Denunciar perfil',
+                      style: TextStyle(color: context.garraColors.textPrimary),
+                    ),
+                  ),
+                ],
+              ),
           ] else
             IconButton(
               tooltip: 'Editar perfil',

@@ -157,7 +157,7 @@ class GarraSocialPostCard extends StatelessWidget {
                         if (onReport != null)
                           const PopupMenuItem(
                             value: 'report',
-                            child: Text('Reportar publicación'),
+                            child: Text('Denunciar publicación'),
                           ),
                         if (onBlock != null)
                           const PopupMenuItem(

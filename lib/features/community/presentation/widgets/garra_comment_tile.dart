@@ -16,7 +16,7 @@ import 'garra_reactors_sheet.dart';
 /// Max length accepted by the backend when editing a comment.
 const commentEditMaxLength = 500;
 
-enum _CommentMenuAction { edit, delete, moderate }
+enum _CommentMenuAction { edit, delete, moderate, report }
 
 /// Comment row for post detail: author, text, "Editado" marker, own-comment
 /// menu (Editar / Eliminar) and a light reaction strip.
@@ -31,6 +31,7 @@ class GarraCommentTile extends StatelessWidget {
     this.onChangeReaction,
     this.onReply,
     this.onModerate,
+    this.onReport,
     this.reacting = false,
   });
 
@@ -49,6 +50,10 @@ class GarraCommentTile extends StatelessWidget {
   /// Clan moderation ("Ocultar comentario"). Only passed by clan-post
   /// contexts where the viewer is OWNER/ADMIN/MODERATOR of that clan.
   final VoidCallback? onModerate;
+
+  /// Platform report ("Denunciar comentario"). Only passed for someone
+  /// else's comment; independent from clan moderation.
+  final VoidCallback? onReport;
   final bool reacting;
 
   @override
@@ -65,7 +70,7 @@ class GarraCommentTile extends StatelessWidget {
         ? null
         : () => context.push('/comunidad/u/${comment.authorId}');
     final showOwnActions = isOwn && (onEdit != null || onDelete != null);
-    final showMenu = showOwnActions || onModerate != null;
+    final showMenu = showOwnActions || onModerate != null || onReport != null;
 
     return Padding(
       key: ValueKey('comment_tile_${comment.id}'),
@@ -235,6 +240,8 @@ class GarraCommentTile extends StatelessWidget {
                       onDelete?.call();
                     case _CommentMenuAction.moderate:
                       onModerate?.call();
+                    case _CommentMenuAction.report:
+                      onReport?.call();
                   }
                 },
                 itemBuilder: (_) => [
@@ -260,6 +267,14 @@ class GarraCommentTile extends StatelessWidget {
                       child: Text(
                         'Ocultar comentario',
                         style: TextStyle(color: colors.danger),
+                      ),
+                    ),
+                  if (onReport != null)
+                    PopupMenuItem(
+                      value: _CommentMenuAction.report,
+                      child: Text(
+                        'Denunciar comentario',
+                        style: TextStyle(color: colors.textPrimary),
                       ),
                     ),
                 ],

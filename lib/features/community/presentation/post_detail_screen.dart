@@ -14,6 +14,7 @@ import '../../../core/utils/date_utils.dart';
 import '../../../core/auth/current_fan_provider.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
+import '../data/community_report.dart';
 import '../data/engagement_utils.dart';
 import '../data/reaction_type.dart';
 import '../data/wall_comment_model.dart';
@@ -26,6 +27,7 @@ import 'widgets/garra_reaction_bar.dart';
 import 'widgets/garra_reaction_actions.dart';
 import 'widgets/garra_reaction_burst.dart';
 import 'widgets/garra_reactors_sheet.dart';
+import 'widgets/garra_report_sheet.dart';
 import 'widgets/garra_social_post_card.dart' show reactorsLabel;
 import 'widgets/garra_share_card.dart';
 
@@ -702,12 +704,19 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 await _loadPost();
               },
             ),
-          if (_post != null && (_ownsPost(_post!) || _canModerateClan))
+          if (_post != null &&
+              (_ownsPost(_post!) ||
+                  _canModerateClan ||
+                  _canReport(isMine: _ownsPost(_post!))))
             PopupMenuButton<String>(
               key: const ValueKey('post_detail_menu'),
               onSelected: (v) async {
                 if (v == 'hide') {
                   await _hidePostAsModerator();
+                  return;
+                }
+                if (v == 'report') {
+                  await _report(GarraReportTarget.post, _post!.id);
                   return;
                 }
                 if (v == 'delete') {
@@ -752,6 +761,11 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                     value: 'hide',
                     child: Text('Ocultar publicación'),
                   ),
+                if (_canReport(isMine: _ownsPost(_post!)))
+                  const PopupMenuItem(
+                    value: 'report',
+                    child: Text('Denunciar publicación'),
+                  ),
               ],
             ),
         ],
@@ -775,6 +789,22 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   bool _ownsPost(WallPostModel post) {
     if (post.isMine) return true;
     return isSameFanId(currentFanIdOf(ref), post.authorId);
+  }
+
+  /// MODERATION_11: "Denunciar" only with a known session and for someone
+  /// else's content (the backend re-checks ownership).
+  bool _canReport({required bool isMine}) {
+    final me = currentFanIdOf(ref)?.trim() ?? '';
+    return me.isNotEmpty && !isMine;
+  }
+
+  Future<void> _report(GarraReportTarget target, String targetId) {
+    return showGarraReportSheet(
+      context,
+      service: ref.read(communityServiceProvider),
+      target: target,
+      targetId: targetId,
+    );
   }
 
   Widget _buildBody() {
@@ -961,6 +991,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       onReply: () => _startReply(comment),
       onModerate: _canModerateClan && !_ownsComment(comment)
           ? () => _hideCommentAsModerator(comment)
+          : null,
+      onReport: _canReport(isMine: _ownsComment(comment))
+          ? () => _report(GarraReportTarget.comment, comment.id)
           : null,
       reacting: _reactingComments.contains(comment.id),
     );

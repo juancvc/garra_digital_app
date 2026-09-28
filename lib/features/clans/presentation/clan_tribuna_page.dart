@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/auth/current_fan_provider.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
+import '../../community/data/community_report.dart';
 import '../../community/data/engagement_utils.dart';
 import '../../community/data/wall_post_model.dart';
 import '../../community/presentation/post_detail_screen.dart'
@@ -17,6 +19,7 @@ import '../../community/presentation/widgets/garra_comment_tile.dart'
     show confirmHideClanPost;
 import '../../community/presentation/widgets/garra_reaction_bar.dart';
 import '../../community/presentation/widgets/garra_reaction_actions.dart';
+import '../../community/presentation/widgets/garra_report_sheet.dart';
 
 import '../data/clan_admin_permissions.dart';
 import '../data/clan_models.dart';
@@ -467,10 +470,24 @@ class _ClanFeedPostCardState extends ConsumerState<_ClanFeedPostCard> {
     if (result.success) widget.onHidden?.call();
   }
 
+  Future<void> _report() {
+    return showGarraReportSheet(
+      context,
+      service: ref.read(communityServiceProvider),
+      target: GarraReportTarget.post,
+      targetId: _post.id,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final post = _post;
     final colors = context.garraColors;
+    // MODERATION_11: "Denunciar publicación" for someone else's post, only
+    // with a known session (the backend re-checks ownership).
+    final meId = currentFanIdOf(ref)?.trim() ?? '';
+    final canReport =
+        meId.isNotEmpty && !post.isMine && !isSameFanId(meId, post.authorId);
     return GarraCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -479,7 +496,7 @@ class _ClanFeedPostCardState extends ConsumerState<_ClanFeedPostCard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(child: _header(context, post)),
-              if (widget.canModerate)
+              if (widget.canModerate || canReport)
                 SizedBox(
                   width: 36,
                   height: 36,
@@ -495,15 +512,25 @@ class _ClanFeedPostCardState extends ConsumerState<_ClanFeedPostCard> {
                     color: colors.surfaceRaised,
                     onSelected: (value) {
                       if (value == 'hide') _hide();
+                      if (value == 'report') _report();
                     },
                     itemBuilder: (_) => [
-                      PopupMenuItem(
-                        value: 'hide',
-                        child: Text(
-                          'Ocultar publicaci\u00f3n',
-                          style: TextStyle(color: colors.danger),
+                      if (widget.canModerate)
+                        PopupMenuItem(
+                          value: 'hide',
+                          child: Text(
+                            'Ocultar publicaci\u00f3n',
+                            style: TextStyle(color: colors.danger),
+                          ),
                         ),
-                      ),
+                      if (canReport)
+                        PopupMenuItem(
+                          value: 'report',
+                          child: Text(
+                            'Denunciar publicaci\u00f3n',
+                            style: TextStyle(color: colors.textPrimary),
+                          ),
+                        ),
                     ],
                   ),
                 ),

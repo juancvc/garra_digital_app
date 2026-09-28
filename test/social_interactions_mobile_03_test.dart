@@ -249,7 +249,8 @@ void main() {
       ]);
       await _pump(tester, service, me: me);
       expect(find.byKey(const ValueKey('comment_menu_c1')), findsOneWidget);
-      expect(find.byKey(const ValueKey('comment_menu_c2')), findsNothing);
+      // MODERATION_11: someone else's comment now has a report-only menu.
+      expect(find.byKey(const ValueKey('comment_menu_c2')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('comment_menu_c1')));
       await tester.pumpAndSettle();
       expect(find.text('Editar'), findsOneWidget);

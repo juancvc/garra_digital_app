@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/garra_error.dart';
+import 'community_report.dart';
 import 'create_wall_post_request.dart';
 import 'reaction_result.dart';
 import 'reactor_model.dart';
@@ -537,6 +538,45 @@ class CommunityService {
     }
     // No payload: keep the local (optimistic) state as-is.
     return ReactionResult.success(message: 'Reacción actualizada');
+  }
+
+  /// MODERATION_11: platform report of a post, comment or profile. The backend
+  /// message is kept for business errors (e.g. "Ya denunciaste este
+  /// contenido.").
+  Future<ReportSubmitResult> createReport({
+    required GarraReportTarget target,
+    required String targetId,
+    required String reason,
+    String? detail,
+  }) async {
+    final trimmed = detail?.trim();
+    try {
+      await _dio.post(
+        '/community/reports',
+        data: {
+          'targetType': target.apiValue,
+          'targetId': targetId,
+          'reason': reason,
+          if (trimmed != null && trimmed.isNotEmpty) 'detail': trimmed,
+        },
+      );
+      return ReportSubmitResult.success();
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 400) {
+        final message = _dioMessage(e, garraReportFallbackError);
+        return ReportSubmitResult.failure(
+          message == 'Validation failed' ? garraReportFallbackError : message,
+        );
+      }
+      if (e.response?.statusCode == 404) {
+        return ReportSubmitResult.failure(
+          'Este contenido ya no est\u00e1 disponible.',
+        );
+      }
+      return ReportSubmitResult.failure(classifyDioError(e).message);
+    } catch (_) {
+      return ReportSubmitResult.failure(garraReportFallbackError);
+    }
   }
 
   Future<CommentActionResult> reportComment({

@@ -11,8 +11,10 @@ import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
+import '../data/community_report.dart';
 import '../data/community_service.dart';
 import '../data/wall_post_model.dart';
+import 'widgets/garra_report_sheet.dart';
 import 'widgets/garra_social_post_card.dart';
 import '../../retention/data/retention_service.dart';
 
@@ -325,8 +327,11 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
                                 : () => _confirmBlock(post.authorId!),
                             onReport: mine
                                 ? null
-                                : () => context.push(
-                                      '/muro-crema/posts/${post.id}',
+                                : () => showGarraReportSheet(
+                                      context,
+                                      service: _service,
+                                      target: GarraReportTarget.post,
+                                      targetId: post.id,
                                     ),
                             onShare: () => SharePlus.instance.share(
                               ShareParams(

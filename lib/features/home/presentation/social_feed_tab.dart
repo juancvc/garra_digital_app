@@ -11,11 +11,13 @@ import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_brand_visual.dart';
 import '../../../core/widgets/garra_states.dart';
+import '../../community/data/community_report.dart';
 import '../../community/data/community_service.dart';
 import '../../community/data/engagement_utils.dart';
 import '../../community/data/wall_post_model.dart';
 import '../../community/presentation/providers/community_provider.dart';
 import '../../community/presentation/widgets/garra_reaction_actions.dart';
+import '../../community/presentation/widgets/garra_report_sheet.dart';
 import '../../community/presentation/widgets/garra_social_post_card.dart';
 
 /// Home social feed for Para ti / Siguiendo modes.
@@ -306,7 +308,12 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
               : () => _confirmBlock(post.authorId!),
           onReport: mine
               ? null
-              : () => context.push('/muro-crema/posts/${post.id}'),
+              : () => showGarraReportSheet(
+                  context,
+                  service: _service,
+                  target: GarraReportTarget.post,
+                  targetId: post.id,
+                ),
           onShare: () => SharePlus.instance.share(
             ShareParams(
               text:
