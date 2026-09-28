@@ -14,9 +14,10 @@ import '../data/create_wall_post_request.dart';
 
 /// Social composer V3 — Cancelar / Nueva publicación / Publicar + photo toolbar.
 class CreateCommunityPostPage extends ConsumerStatefulWidget {
-  const CreateCommunityPostPage({super.key, this.matchId});
+  const CreateCommunityPostPage({super.key, this.matchId, this.media});
 
   final String? matchId;
+  final MediaUploadService? media;
 
   @override
   ConsumerState<CreateCommunityPostPage> createState() =>
@@ -26,7 +27,7 @@ class CreateCommunityPostPage extends ConsumerStatefulWidget {
 class _CreateCommunityPostPageState
     extends ConsumerState<CreateCommunityPostPage> {
   final _content = TextEditingController();
-  final _media = MediaUploadService();
+  late final MediaUploadService _media = widget.media ?? MediaUploadService();
   final _community = CommunityService();
 
   final List<MediaDraft> _drafts = [];
@@ -36,6 +37,9 @@ class _CreateCommunityPostPageState
   bool get _isMatchScoped =>
       widget.matchId != null && widget.matchId!.isNotEmpty;
 
+  int get _photoLimit =>
+      _isMatchScoped ? 1 : MediaUploadService.communityPhotoLimit;
+
   @override
   void dispose() {
     _content.dispose();
@@ -43,17 +47,17 @@ class _CreateCommunityPostPageState
   }
 
   Future<void> _pickPhotos(ImageSource source) async {
-    if (_drafts.length >= MediaUploadService.communityPhotoLimit) return;
+    if (_drafts.length >= _photoLimit) return;
     setState(() => _error = null);
     try {
-      final remaining = MediaUploadService.communityPhotoLimit - _drafts.length;
+      final remaining = _photoLimit - _drafts.length;
       final files = source == ImageSource.camera
-          ? [
-              if (await _media.pickCamera() case final file?) file,
-            ]
-          : await _media.pickMultiImage(max: remaining);
+          ? <XFile>[?await _media.pickCamera()]
+          : _isMatchScoped
+              ? <XFile>[?await _media.pickImage()]
+              : await _media.pickMultiImage(max: remaining);
       for (final file in files) {
-        if (_drafts.length >= MediaUploadService.communityPhotoLimit) break;
+        if (_drafts.length >= _photoLimit) break;
         late MediaDraft draft;
         draft = await _media.uploadFile(
           file: file,
@@ -315,10 +319,10 @@ class _CreateCommunityPostPageState
                 children: [
                   TextButton(
                     key: const ValueKey('add-photos'),
-                    onPressed: _drafts.length >= MediaUploadService.communityPhotoLimit
+                    onPressed: _drafts.length >= _photoLimit
                         ? null
                         : _choosePhotoSource,
-                    child: const Text('Agregar fotos'),
+                    child: Text(_isMatchScoped ? 'Agregar foto' : 'Agregar fotos'),
                   ),
                   const Spacer(),
                   Text(
