@@ -14,6 +14,7 @@ import '../../../core/widgets/garra_brand_visual.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
+import '../../chat/presentation/chat_unread_badge.dart';
 import '../../marketplace/widgets/garra_sponsored_card.dart';
 import '../../missions/data/mission_models.dart';
 import '../../missions/presentation/widgets/garra_streak_card.dart';
@@ -44,6 +45,8 @@ class HomePage extends ConsumerWidget {
             onPressed: () => context.push('/comunidad/buscar'),
             icon: const Icon(Icons.search),
           ),
+          // CHAT_V2_A: Mensajes entry with the shared unread badge.
+          const GarraMessagesAction(),
           homeAsync.maybeWhen(
             data: (home) => _NotificationBell(
               unreadCount: home.notifications.unreadCount,

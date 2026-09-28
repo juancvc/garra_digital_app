@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../chat/data/chat_service.dart';
 import '../../chat/presentation/floating_chat_panel.dart';
 
@@ -44,6 +45,14 @@ class _ConsultarPorChatButtonState extends State<ConsultarPorChatButton> {
         );
         return;
       }
+      // CHAT_V2_A: an ACTIVE thread opens the canonical chat screen; the
+      // floating panel stays only for the first marketplace message.
+      final conversationId = relationship.conversationId;
+      final router = GoRouter.maybeOf(context);
+      if (relationship.isActive && conversationId != null && router != null) {
+        await router.push('/chat/$conversationId');
+        return;
+      }
       await showGarraFloatingChat(
         context: context,
         chatService: _chat,
@@ -67,15 +76,20 @@ class _ConsultarPorChatButtonState extends State<ConsultarPorChatButton> {
   @override
   Widget build(BuildContext context) {
     if (widget.sellerUserId.isEmpty) return const SizedBox.shrink();
-    return OutlinedButton(
+    // CHAT_V2_A_QA_FIX: theme tokens so the label stays visible in Crema and
+    // Noche (the hardcoded cream label disappeared on the Crema background).
+    // Secondary to the filled WhatsApp CTA: outlined, brand border.
+    final colors = context.garraColors;
+    return OutlinedButton.icon(
       key: const Key('marketplace-chat-cta'),
       onPressed: _busy ? null : _open,
       style: OutlinedButton.styleFrom(
-        foregroundColor: const Color(GarraColors.cream),
-        side: const BorderSide(color: Color(GarraColors.burgundy)),
+        foregroundColor: colors.textPrimary,
+        side: BorderSide(color: colors.brandPrimary),
         minimumSize: const Size.fromHeight(48),
       ),
-      child: const Text('Consultar por chat'),
+      icon: const Icon(Icons.chat_bubble_outline, size: 18),
+      label: const Text('Consultar por chat'),
     );
   }
 }

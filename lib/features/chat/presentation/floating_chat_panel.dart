@@ -1,14 +1,17 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
 import '../../../core/design/garra_colors.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
 import '../../../core/widgets/garra_avatar.dart';
-import '../../../core/widgets/garra_cached_network_image.dart';
+import '../data/chat_image_uploads.dart';
 import '../data/chat_models.dart';
 import '../data/chat_service.dart';
+import 'chat_media_grid.dart';
 import 'chat_request_copy.dart';
 
 /// Short video stays off until physical QA. Images are the V1 attachment.
@@ -269,18 +272,25 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
     }
   }
 
+  /// Same pipeline as the canonical conversation screen (CHAT_V2_A).
   Future<void> _pickPhotos() async {
-    if (_drafts.length >= 4) return;
-    final files = await _media.pickMultiImage(max: 4 - _drafts.length);
-    for (final file in files) {
-      if (_drafts.length >= 4) break;
-      final uploaded = await _media.uploadFile(
-        file: file,
-        purpose: MediaUploadPurpose.chatImage,
-      );
-      if (!mounted) return;
-      setState(() => _drafts.add(uploaded));
-    }
+    await pickAndUploadChatImages(
+      media: _media,
+      drafts: _drafts,
+      update: (change) {
+        if (mounted) setState(change);
+      },
+    );
+  }
+
+  /// CHAT_V2_A: an ACTIVE thread belongs to the canonical `/chat/:id` screen.
+  /// The panel only hands off; it never marks the conversation read.
+  void _openFullConversation() {
+    final conversation = _conversation;
+    final router = GoRouter.maybeOf(context);
+    if (conversation == null || router == null) return;
+    Navigator.pop(context);
+    router.push('/chat/${conversation.id}');
   }
 
   Future<void> _accept() async {
@@ -362,6 +372,14 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
                     ],
                   ),
                 ),
+                if (conversation?.status == 'ACTIVE' &&
+                    GoRouter.maybeOf(context) != null)
+                  IconButton(
+                    key: const Key('floating-chat-open-full'),
+                    tooltip: 'Abrir conversaci\u00f3n',
+                    onPressed: _openFullConversation,
+                    icon: const Icon(Icons.open_in_full),
+                  ),
                 IconButton(
                   key: const Key('floating-chat-close'),
                   tooltip: 'Cerrar',
@@ -648,39 +666,12 @@ class ChatImageStrip extends StatelessWidget {
 
   final List<ChatMediaItem> media;
 
+  /// CHAT_V2_A: delegates to the shared grid + fullscreen viewer (UX_06).
   @override
   Widget build(BuildContext context) {
-    final images = media.where((item) => !item.isVideo && item.url.isNotEmpty);
-    return Column(
-      children: [
-        for (final item in images)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: GestureDetector(
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => Scaffold(
-                      backgroundColor: Colors.black,
-                      appBar: AppBar(
-                        backgroundColor: Colors.black,
-                        foregroundColor: const Color(GarraColors.cream),
-                      ),
-                      body: Center(
-                        child: GarraCachedNetworkImage(imageUrl: item.url),
-                      ),
-                    ),
-                  ),
-                );
-              },
-              child: GarraCachedNetworkImage(
-                imageUrl: item.url,
-                height: 140,
-                memCacheWidth: 480,
-              ),
-            ),
-          ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: ChatMediaGrid(media: media),
     );
   }
 }

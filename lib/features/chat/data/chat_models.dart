@@ -1,3 +1,5 @@
+import '../../../core/utils/date_utils.dart';
+
 class ChatRelationship {
   const ChatRelationship({
     this.conversationId,
@@ -79,7 +81,7 @@ class ChatConversation {
       status: json['status']?.toString() ?? '',
       outgoing: json['outgoing'] == true,
       lastMessagePreview: json['lastMessagePreview']?.toString(),
-      lastMessageAt: DateTime.tryParse(json['lastMessageAt']?.toString() ?? ''),
+      lastMessageAt: parseGarraInstant(json['lastMessageAt']?.toString() ?? ''),
       unreadCount: (json['unreadCount'] as num?)?.toInt() ?? 0,
       context: json['context']?.toString() ?? 'SOCIAL',
       listingTitle: json['listingTitle']?.toString(),
@@ -123,6 +125,7 @@ class ChatMessage {
     required this.mine,
     this.createdAt,
     this.media = const [],
+    this.read = false,
   });
 
   final String id;
@@ -133,6 +136,10 @@ class ChatMessage {
   final DateTime? createdAt;
   final List<ChatMediaItem> media;
 
+  /// Backend `MessageResponse.read` (recipient opened the thread). Shown as
+  /// the Enviado / read receipt on own messages only; there is no read time.
+  final bool read;
+
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     return ChatMessage(
       id: json['id']?.toString() ?? '',
@@ -140,7 +147,8 @@ class ChatMessage {
       senderId: json['senderId']?.toString() ?? '',
       content: json['content']?.toString() ?? '',
       mine: json['mine'] == true,
-      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+      createdAt: parseGarraInstant(json['createdAt']?.toString() ?? ''),
+      read: json['read'] == true,
       media: (json['media'] as List? ?? const [])
           .whereType<Map>()
           .map(

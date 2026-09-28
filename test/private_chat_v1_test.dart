@@ -179,6 +179,8 @@ void main() {
     );
     await tester.pump();
     await tester.enterText(find.byType(TextField), 'Listo, nos vemos');
+    // CHAT_V2_A_QA_FIX: the send button enables on the next frame.
+    await tester.pump();
     await tester.tap(find.byTooltip('Enviar'));
     await tester.pump();
 
@@ -305,7 +307,9 @@ void main() {
     await tester.tap(find.byKey(const Key('marketplace-chat-cta')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('floating-chat-panel')), findsOneWidget);
+    // CHAT_V2_A: ACTIVE threads open the canonical /chat/:id screen.
+    expect(find.byType(ChatConversationPage), findsOneWidget);
+    expect(find.byKey(const Key('floating-chat-panel')), findsNothing);
     expect(find.byKey(const Key('chat-attach-photo')), findsOneWidget);
     expect(find.text('Sigue disponible'), findsOneWidget);
     final composer = tester.widget<TextField>(

@@ -109,6 +109,12 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
     if (_busy || _chatRelationship.blocked) return;
     final relationship = _chatRelationship;
     final name = _profile?['displayName']?.toString() ?? '';
+    // CHAT_V2_A: an ACTIVE thread always opens the canonical chat screen.
+    final conversationId = relationship.conversationId;
+    if (relationship.status == 'ACTIVE' && conversationId != null) {
+      await context.push('/chat/$conversationId');
+      return;
+    }
     await showGarraFloatingChat(
       context: context,
       chatService: _chat,
@@ -296,17 +302,34 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
         ],
         const SizedBox(height: GarraSpacing.md),
         if (isMe)
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => context.push('/passport/edit'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: colors.textPrimary,
-                side: BorderSide(color: colors.brandPrimary),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => context.push('/passport/edit'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: colors.textPrimary,
+                    side: BorderSide(color: colors.brandPrimary),
+                  ),
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: const Text('Editar perfil'),
+                ),
               ),
-              icon: const Icon(Icons.edit_outlined, size: 18),
-              label: const Text('Editar perfil'),
-            ),
+              const SizedBox(width: 8),
+              // CHAT_V2_A: own inbox entry (no new bottom tab).
+              Expanded(
+                child: OutlinedButton.icon(
+                  key: const Key('profile-messages-entry'),
+                  onPressed: () => context.push('/chat'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: colors.textPrimary,
+                    side: BorderSide(color: colors.border),
+                  ),
+                  icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                  label: const Text('Mensajes'),
+                ),
+              ),
+            ],
           )
         else
           SizedBox(
