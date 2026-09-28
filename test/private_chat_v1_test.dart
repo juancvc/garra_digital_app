@@ -471,6 +471,10 @@ class _FakeCommunity extends CommunityService {
 
   @override
   Future<Map<String, dynamic>> getPublicProfile(String userId) async => profile;
+
+  // ANALYTICS_12: opening someone else's profile registers a visit.
+  @override
+  Future<bool> registerProfileView(String userId) async => false;
 }
 
 class _FakeChat extends ChatService {

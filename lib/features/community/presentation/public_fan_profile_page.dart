@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
+import '../../../core/utils/garra_count_format.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_cached_network_image.dart';
 import '../../../core/widgets/garra_card.dart';
@@ -15,6 +16,7 @@ import '../../chat/data/chat_service.dart';
 import '../../chat/presentation/floating_chat_panel.dart';
 import '../data/community_report.dart';
 import '../data/community_service.dart';
+import '../data/garra_view_tracker.dart';
 import '../data/wall_post_model.dart';
 import 'widgets/garra_post_media_grid.dart';
 import 'widgets/garra_report_sheet.dart';
@@ -72,6 +74,11 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
         _chatRelationship = relationship;
         _loading = false;
       });
+      // ANALYTICS_12: someone else's profile opened -> one visit per session
+      // (backend dedupes viewer+profile per 24h; the viewer never gets totals).
+      if (profile['isMe'] != true) {
+        GarraViewTracker.instance.trackProfileView(_service, widget.userId);
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -282,6 +289,11 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
             ],
           ),
         ),
+        // ANALYTICS_12: private to the owner (backend sends it only when isMe).
+        if (isMe && p['profileViewCount'] is num) ...[
+          const SizedBox(height: GarraSpacing.sm),
+          _ProfileViews(count: (p['profileViewCount'] as num).toInt()),
+        ],
         const SizedBox(height: GarraSpacing.md),
         if (isMe)
           SizedBox(
@@ -526,6 +538,33 @@ class _ProfileHero extends StatelessWidget {
                 ),
               ),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+/// ANALYTICS_12: discreet "N visitas" line, only on my own profile.
+class _ProfileViews extends StatelessWidget {
+  const _ProfileViews({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.garraColors;
+    final label = count == 1 ? '1 visita' : '${formatGarraCount(count)} visitas';
+    return Row(
+      key: const Key('profile_views'),
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.visibility_outlined, size: 16, color: colors.textSecondary),
+        const SizedBox(width: GarraSpacing.xs),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: colors.textSecondary,
+          ),
         ),
       ],
     );

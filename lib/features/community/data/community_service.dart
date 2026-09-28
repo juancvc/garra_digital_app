@@ -11,6 +11,14 @@ import 'wall_comment_model.dart';
 import 'wall_post_model.dart';
 import 'wall_status_model.dart';
 
+/// ANALYTICS_12: result of POST /community/posts/{id}/view.
+class PostViewResult {
+  const PostViewResult({required this.counted, required this.viewCount});
+
+  final bool counted;
+  final int viewCount;
+}
+
 class CommunityService {
   CommunityService({Dio? dio}) : _dio = dio ?? DioClient.instance;
 
@@ -251,6 +259,37 @@ class CommunityService {
   Future<Map<String, dynamic>> getPublicProfile(String userId) async {
     final response = await _dio.get('/community/users/$userId/profile');
     return Map<String, dynamic>.from(response.data['data'] as Map);
+  }
+
+  /// ANALYTICS_12: registers a real view of someone else's post. The backend
+  /// dedupes per viewer+post (rolling 24h) and ignores the author's own views.
+  /// Best-effort: never throws; returns null when the request fails.
+  Future<PostViewResult?> registerPostView(String postId) async {
+    try {
+      final response = await _dio.post('/community/posts/$postId/view');
+      final body = response.data;
+      final data = body is Map ? (body['data'] ?? body) : null;
+      if (data is! Map) return null;
+      return PostViewResult(
+        counted: data['counted'] == true,
+        viewCount: (data['viewCount'] as num?)?.toInt() ?? 0,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// ANALYTICS_12: registers a visit to someone else's public profile. The
+  /// response never carries the total (only the owner sees it). Best-effort.
+  Future<bool> registerProfileView(String userId) async {
+    try {
+      final response = await _dio.post('/community/users/$userId/view');
+      final body = response.data;
+      final data = body is Map ? (body['data'] ?? body) : null;
+      return data is Map && data['counted'] == true;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<ReactionResult> upsertReaction({

@@ -15,6 +15,7 @@ class WallPostModel {
     this.reactionSummary = const {},
     this.reactionCount = 0,
     this.commentCount = 0,
+    this.viewCount = 0,
     this.myReaction,
     this.contextType = 'MATCH',
     this.clanSlug,
@@ -38,6 +39,9 @@ class WallPostModel {
   final Map<String, int> reactionSummary;
   final int reactionCount;
   final int commentCount;
+
+  /// ANALYTICS_12: unique views (viewer+post, rolling 24h), backend-counted.
+  final int viewCount;
   final String? myReaction;
   final String contextType;
   final String? clanSlug;
@@ -80,6 +84,7 @@ class WallPostModel {
       reactionSummary: parseReactionSummary(json['reactionSummary']),
       reactionCount: (json['reactionCount'] as num?)?.toInt() ?? 0,
       commentCount: (json['commentCount'] as num?)?.toInt() ?? 0,
+      viewCount: (json['viewCount'] as num?)?.toInt() ?? 0,
       myReaction: json['myReaction']?.toString(),
       contextType: contextType,
       clanSlug: (json['clanSlug'] ?? context['clanSlug'])?.toString(),
@@ -106,6 +111,7 @@ class WallPostModel {
     Map<String, int>? reactionSummary,
     int? reactionCount,
     int? commentCount,
+    int? viewCount,
     String? myReaction,
     bool clearMyReaction = false,
     String? contextType,
@@ -130,6 +136,7 @@ class WallPostModel {
       reactionSummary: reactionSummary ?? this.reactionSummary,
       reactionCount: reactionCount ?? this.reactionCount,
       commentCount: commentCount ?? this.commentCount,
+      viewCount: viewCount ?? this.viewCount,
       myReaction: clearMyReaction ? null : (myReaction ?? this.myReaction),
       contextType: contextType ?? this.contextType,
       clanSlug: clanSlug ?? this.clanSlug,

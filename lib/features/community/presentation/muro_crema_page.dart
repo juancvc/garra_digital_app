@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/auth/current_fan_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/widgets/garra_cached_network_image.dart';
 import '../data/create_wall_post_request.dart';
 import '../data/engagement_utils.dart';
+import '../data/garra_view_tracker.dart';
 import '../data/reaction_type.dart';
 import '../data/wall_post_model.dart';
 import '../data/wall_status_model.dart';
@@ -16,6 +18,7 @@ import 'widgets/garra_reaction_bar.dart';
 import 'widgets/garra_comment_reactions.dart';
 import 'widgets/garra_reaction_actions.dart';
 import 'widgets/garra_reaction_burst.dart';
+import 'widgets/garra_viewport_tracker.dart';
 
 class MuroCremaPage extends ConsumerStatefulWidget {
   const MuroCremaPage({super.key});
@@ -819,8 +822,29 @@ class _WallPostCardState extends ConsumerState<_WallPostCard> {
     });
   }
 
+  /// ANALYTICS_12: card was >=50% visible for >=1s (someone else's post).
+  Future<void> _onSeen() async {
+    final count = await GarraViewTracker.instance.trackPostView(
+      ref.read(communityServiceProvider),
+      _post.id,
+    );
+    if (count == null || !mounted) return;
+    setState(() => _post = _post.copyWith(viewCount: count));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final post = _post;
+    final mine = post.isMine || isSameFanId(currentFanIdOf(ref), post.authorId);
+    return GarraViewportTracker(
+      id: post.id,
+      enabled: !mine,
+      onVisible: _onSeen,
+      child: _buildCard(context),
+    );
+  }
+
+  Widget _buildCard(BuildContext context) {
     final isMobile = widget.isMobile;
     final post = _post;
 
@@ -972,6 +996,7 @@ class _WallPostCardState extends ConsumerState<_WallPostCard> {
               reactionSummary: post.reactionSummary,
               reactionCount: post.reactionCount,
               commentCount: post.commentCount,
+              viewCount: post.viewCount,
               myReaction: post.myReaction,
               onTapReactions: _reacting ? null : _react,
               onLongPressReactions: _reacting

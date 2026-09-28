@@ -16,6 +16,7 @@ import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/community_report.dart';
 import '../data/engagement_utils.dart';
+import '../data/garra_view_tracker.dart';
 import '../data/reaction_type.dart';
 import '../data/wall_comment_model.dart';
 import '../data/wall_post_model.dart';
@@ -115,6 +116,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         _post = post;
         _loadingPost = false;
       });
+      _registerView(post);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -786,6 +788,19 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     );
   }
 
+  /// ANALYTICS_12: someone else's post opened successfully -> at most one
+  /// view request per session (the backend dedupes per viewer+post, 24h).
+  Future<void> _registerView(WallPostModel post) async {
+    final me = ref.read(currentFanProvider).asData?.value?.id;
+    if (post.isMine || isSameFanId(me, post.authorId)) return;
+    final count = await GarraViewTracker.instance.trackPostView(
+      ref.read(communityServiceProvider),
+      post.id,
+    );
+    if (count == null || !mounted || _post?.id != post.id) return;
+    setState(() => _post = _post!.copyWith(viewCount: count));
+  }
+
   bool _ownsPost(WallPostModel post) {
     if (post.isMine) return true;
     return isSameFanId(currentFanIdOf(ref), post.authorId);
@@ -883,6 +898,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   reactionSummary: post.reactionSummary,
                   reactionCount: post.reactionCount,
                   commentCount: post.commentCount,
+                  viewCount: post.viewCount,
+                  showViewsLabel: true,
                   myReaction: post.myReaction,
                   onTapReactions: _onReact,
                   onLongPressReactions: () => _onReact(change: true),

@@ -4,6 +4,7 @@ import '../../../../core/design/garra_colors.dart';
 import '../../../../core/design/garra_radius.dart';
 import '../../../../core/design/garra_spacing.dart';
 import '../../../../core/theme/garra_semantic_colors.dart';
+import '../../../../core/utils/garra_count_format.dart';
 import '../../data/reaction_type.dart';
 import 'garra_comment_reactions.dart';
 import 'garra_reaction_burst.dart';
@@ -21,6 +22,8 @@ class GarraReactionBar extends StatelessWidget {
     this.onLongPressReactions,
     this.onTapComments,
     this.compact = true,
+    this.viewCount = 0,
+    this.showViewsLabel = false,
   });
 
   final Map<String, int> reactionSummary;
@@ -33,6 +36,12 @@ class GarraReactionBar extends StatelessWidget {
   final VoidCallback? onLongPressReactions;
   final VoidCallback? onTapComments;
   final bool compact;
+
+  /// ANALYTICS_12: unique views; hidden when 0 (consistent everywhere).
+  final int viewCount;
+
+  /// Detail: slightly more explicit ("12 vistas") than the compact count.
+  final bool showViewsLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -165,6 +174,33 @@ class GarraReactionBar extends StatelessWidget {
               ),
             ),
           ),
+          if (viewCount > 0) ...[
+            const SizedBox(width: GarraSpacing.xs),
+            Row(
+              key: const ValueKey('post_view_count'),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.visibility_outlined,
+                  size: 15,
+                  color: context.garraColors.textSecondary,
+                ),
+                const SizedBox(width: 3),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 96),
+                  child: Text(
+                    !showViewsLabel
+                        ? formatGarraCount(viewCount)
+                        : '${formatGarraCount(viewCount)} '
+                            '${viewCount == 1 ? 'vista' : 'vistas'}',
+                    style: textStyle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

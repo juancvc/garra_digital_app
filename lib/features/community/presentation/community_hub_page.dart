@@ -13,9 +13,11 @@ import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/community_report.dart';
 import '../data/community_service.dart';
+import '../data/garra_view_tracker.dart';
 import '../data/wall_post_model.dart';
 import 'widgets/garra_report_sheet.dart';
 import 'widgets/garra_social_post_card.dart';
+import 'widgets/garra_viewport_tracker.dart';
 import '../../retention/data/retention_service.dart';
 
 /// Comunidad 365 hub: Para ti / Siguiendo / Recientes + discovery.
@@ -112,6 +114,17 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
             .toList();
       });
     }
+  }
+
+  /// ANALYTICS_12: card was >=50% visible for >=1s (someone else's post).
+  Future<void> _onPostSeen(String postId) async {
+    final count = await GarraViewTracker.instance.trackPostView(_service, postId);
+    if (count == null || !mounted) return;
+    setState(() {
+      _posts = _posts
+          .map((p) => p.id == postId ? p.copyWith(viewCount: count) : p)
+          .toList();
+    });
   }
 
   Future<void> _deletePost(String postId) async {
@@ -308,39 +321,44 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
                                   meId.isNotEmpty &&
                                   post.authorId == meId);
                           final view = post.copyWith(isMine: mine);
-                          return GarraSocialPostCard(
-                            post: view,
-                            onOpen: () => context
-                                .push('/muro-crema/posts/${post.id}')
-                                .then((_) => _load()),
-                            onOpenProfile: mine ||
-                                    post.authorId == null ||
-                                    post.authorId!.isEmpty
-                                ? null
-                                : () => context.push(
-                                      '/comunidad/u/${post.authorId}',
-                                    ),
-                            onBlock: mine ||
-                                    post.authorId == null ||
-                                    post.authorId!.isEmpty
-                                ? null
-                                : () => _confirmBlock(post.authorId!),
-                            onReport: mine
-                                ? null
-                                : () => showGarraReportSheet(
-                                      context,
-                                      service: _service,
-                                      target: GarraReportTarget.post,
-                                      targetId: post.id,
-                                    ),
-                            onShare: () => SharePlus.instance.share(
-                              ShareParams(
-                                text:
-                                    '${post.fullName}: ${post.content}\n\nÚnete a Garra Digital',
+                          return GarraViewportTracker(
+                            id: post.id,
+                            enabled: !mine,
+                            onVisible: () => _onPostSeen(post.id),
+                            child: GarraSocialPostCard(
+                              post: view,
+                              onOpen: () => context
+                                  .push('/muro-crema/posts/${post.id}')
+                                  .then((_) => _load()),
+                              onOpenProfile: mine ||
+                                      post.authorId == null ||
+                                      post.authorId!.isEmpty
+                                  ? null
+                                  : () => context.push(
+                                        '/comunidad/u/${post.authorId}',
+                                      ),
+                              onBlock: mine ||
+                                      post.authorId == null ||
+                                      post.authorId!.isEmpty
+                                  ? null
+                                  : () => _confirmBlock(post.authorId!),
+                              onReport: mine
+                                  ? null
+                                  : () => showGarraReportSheet(
+                                        context,
+                                        service: _service,
+                                        target: GarraReportTarget.post,
+                                        targetId: post.id,
+                                      ),
+                              onShare: () => SharePlus.instance.share(
+                                ShareParams(
+                                  text:
+                                      '${post.fullName}: ${post.content}\n\nÚnete a Garra Digital',
+                                ),
                               ),
+                              onSave: () => _toggleSave(post),
+                              onDelete: mine ? () => _deletePost(post.id) : null,
                             ),
-                            onSave: () => _toggleSave(post),
-                            onDelete: mine ? () => _deletePost(post.id) : null,
                           );
                         }),
                     ],

@@ -184,6 +184,7 @@ class GarraSocialPostCard extends StatelessWidget {
                 reactionSummary: post.reactionSummary,
                 reactionCount: post.reactionCount,
                 commentCount: post.commentCount,
+                viewCount: post.viewCount,
                 myReaction: post.myReaction,
                 onTapReactions: onReact,
             onLongPressReactions: onChangeReaction,

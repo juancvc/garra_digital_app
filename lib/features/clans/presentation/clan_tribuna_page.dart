@@ -11,6 +11,7 @@ import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../community/data/community_report.dart';
 import '../../community/data/engagement_utils.dart';
+import '../../community/data/garra_view_tracker.dart';
 import '../../community/data/wall_post_model.dart';
 import '../../community/presentation/post_detail_screen.dart'
     show PostDetailModeration;
@@ -20,6 +21,7 @@ import '../../community/presentation/widgets/garra_comment_tile.dart'
 import '../../community/presentation/widgets/garra_reaction_bar.dart';
 import '../../community/presentation/widgets/garra_reaction_actions.dart';
 import '../../community/presentation/widgets/garra_report_sheet.dart';
+import '../../community/presentation/widgets/garra_viewport_tracker.dart';
 
 import '../data/clan_admin_permissions.dart';
 import '../data/clan_models.dart';
@@ -479,8 +481,29 @@ class _ClanFeedPostCardState extends ConsumerState<_ClanFeedPostCard> {
     );
   }
 
+  /// ANALYTICS_12: card was >=50% visible for >=1s (someone else's post).
+  Future<void> _onSeen() async {
+    final count = await GarraViewTracker.instance.trackPostView(
+      ref.read(communityServiceProvider),
+      _post.id,
+    );
+    if (count == null || !mounted) return;
+    setState(() => _post = _post.copyWith(viewCount: count));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final post = _post;
+    final mine = post.isMine || isSameFanId(currentFanIdOf(ref), post.authorId);
+    return GarraViewportTracker(
+      id: post.id,
+      enabled: !mine,
+      onVisible: _onSeen,
+      child: _buildCard(context),
+    );
+  }
+
+  Widget _buildCard(BuildContext context) {
     final post = _post;
     final colors = context.garraColors;
     // MODERATION_11: "Denunciar publicación" for someone else's post, only
@@ -541,6 +564,7 @@ class _ClanFeedPostCardState extends ConsumerState<_ClanFeedPostCard> {
             reactionSummary: post.reactionSummary,
             reactionCount: post.reactionCount,
             commentCount: post.commentCount,
+            viewCount: post.viewCount,
             myReaction: post.myReaction,
             onTapReactions: _reacting ? null : _react,
             onLongPressReactions: _reacting

@@ -14,11 +14,13 @@ import '../../../core/widgets/garra_states.dart';
 import '../../community/data/community_report.dart';
 import '../../community/data/community_service.dart';
 import '../../community/data/engagement_utils.dart';
+import '../../community/data/garra_view_tracker.dart';
 import '../../community/data/wall_post_model.dart';
 import '../../community/presentation/providers/community_provider.dart';
 import '../../community/presentation/widgets/garra_reaction_actions.dart';
 import '../../community/presentation/widgets/garra_report_sheet.dart';
 import '../../community/presentation/widgets/garra_social_post_card.dart';
+import '../../community/presentation/widgets/garra_viewport_tracker.dart';
 
 /// Home social feed for Para ti / Siguiendo modes.
 class SocialFeedTab extends ConsumerStatefulWidget {
@@ -110,6 +112,20 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
       });
       _showError('No se pudo actualizar el guardado. Inténtalo de nuevo.');
     }
+  }
+
+  /// ANALYTICS_12: card was >=50% visible for >=1s (someone else's post).
+  Future<void> _onPostSeen(String postId) async {
+    final count = await GarraViewTracker.instance.trackPostView(
+      _service,
+      postId,
+    );
+    if (count == null || !mounted) return;
+    setState(() {
+      _posts = _posts
+          .map((p) => p.id == postId ? p.copyWith(viewCount: count) : p)
+          .toList();
+    });
   }
 
   Future<void> _deletePost(String postId) async {
@@ -296,36 +312,41 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
           (meId != null && meId.isNotEmpty && post.authorId == meId);
       final view = post.copyWith(isMine: mine);
       items.add(
-        GarraSocialPostCard(
-          post: view,
-          onOpen: () =>
-              context.push('/muro-crema/posts/${post.id}').then((_) => _load()),
-          onOpenProfile: mine || post.authorId == null || post.authorId!.isEmpty
-              ? null
-              : () => context.push('/comunidad/u/${post.authorId}'),
-          onBlock: mine || post.authorId == null || post.authorId!.isEmpty
-              ? null
-              : () => _confirmBlock(post.authorId!),
-          onReport: mine
-              ? null
-              : () => showGarraReportSheet(
-                  context,
-                  service: _service,
-                  target: GarraReportTarget.post,
-                  targetId: post.id,
-                ),
-          onShare: () => SharePlus.instance.share(
-            ShareParams(
-              text:
-                  '${post.fullName}: ${post.content}\n\nÚnete a Garra Digital',
+        GarraViewportTracker(
+          id: post.id,
+          enabled: !mine,
+          onVisible: () => _onPostSeen(post.id),
+          child: GarraSocialPostCard(
+            post: view,
+            onOpen: () =>
+                context.push('/muro-crema/posts/${post.id}').then((_) => _load()),
+            onOpenProfile: mine || post.authorId == null || post.authorId!.isEmpty
+                ? null
+                : () => context.push('/comunidad/u/${post.authorId}'),
+            onBlock: mine || post.authorId == null || post.authorId!.isEmpty
+                ? null
+                : () => _confirmBlock(post.authorId!),
+            onReport: mine
+                ? null
+                : () => showGarraReportSheet(
+                    context,
+                    service: _service,
+                    target: GarraReportTarget.post,
+                    targetId: post.id,
+                  ),
+            onShare: () => SharePlus.instance.share(
+              ShareParams(
+                text:
+                    '${post.fullName}: ${post.content}\n\nÚnete a Garra Digital',
+              ),
             ),
+            onSave: () => _toggleSave(post),
+            onDelete: mine ? () => _deletePost(post.id) : null,
+            onReact: () => _react(post),
+            onChangeReaction: () => _react(post, change: true),
+            onComment: () =>
+                context.push('/muro-crema/posts/${post.id}').then((_) => _load()),
           ),
-          onSave: () => _toggleSave(post),
-          onDelete: mine ? () => _deletePost(post.id) : null,
-          onReact: () => _react(post),
-          onChangeReaction: () => _react(post, change: true),
-          onComment: () =>
-              context.push('/muro-crema/posts/${post.id}').then((_) => _load()),
         ),
       );
 
