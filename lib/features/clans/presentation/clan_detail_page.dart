@@ -13,6 +13,8 @@ import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_cached_network_image.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../community/presentation/providers/community_provider.dart';
+import '../../community_chat/presentation/community_chat_page.dart'
+    show CommunityChatSeed;
 import '../data/clan_models.dart';
 import '../data/clan_service.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
@@ -386,6 +388,28 @@ class _GroupHeader extends StatelessWidget {
                           ),
                         ),
                     const SizedBox(width: 8),
+                    // COMMUNITY_GROUP_CHAT_14B: group chat entry, only for
+                    // ACTIVE members (the backend decides read-only states).
+                    if (clan.isMember) ...[
+                      FilledButton.tonalIcon(
+                        key: const Key('clan_chat_entry'),
+                        onPressed: () => context.push(
+                          '/clans/${Uri.encodeComponent(clan.slug)}/chat',
+                          extra: CommunityChatSeed(
+                            name: clan.name,
+                            logoUrl: clan.logoUrl,
+                          ),
+                        ),
+                        style: FilledButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          minimumSize: const Size(72, 36),
+                        ),
+                        icon: const Icon(Icons.forum_outlined, size: 18),
+                        label: const Text('Chat'),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     OutlinedButton(
                       onPressed: () {
                         SharePlus.instance.share(

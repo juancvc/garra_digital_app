@@ -25,6 +25,7 @@ import 'package:garra_digital_app/features/community/presentation/public_fan_pro
 import 'package:garra_digital_app/features/chat/data/chat_service.dart';
 import 'package:garra_digital_app/features/chat/presentation/chat_conversation_page.dart';
 import 'package:garra_digital_app/features/chat/presentation/chat_inbox_page.dart';
+import 'package:garra_digital_app/features/community_chat/presentation/community_chat_page.dart';
 import 'package:garra_digital_app/features/community/presentation/saved_posts_page.dart';
 import 'package:garra_digital_app/features/solidarity/presentation/solidaria_page.dart';
 import 'package:garra_digital_app/features/locations/presentation/business_offers_page.dart';
@@ -298,6 +299,18 @@ List<RouteBase> _buildRoutes() => [
       conversationId: state.pathParameters['conversationId']!,
       chatService: ChatService(),
       requestJustSent: state.uri.queryParameters['sent'] == '1',
+    ),
+  ),
+  // COMMUNITY_GROUP_CHAT_14B: community group chat (covers the shell like the
+  // private chat). The clan detail passes its name/logo as `extra`.
+  GoRoute(
+    path: '/clans/:slug/chat',
+    name: 'clan-chat',
+    builder: (context, state) => CommunityChatPage(
+      slug: state.pathParameters['slug']!,
+      seed: state.extra is CommunityChatSeed
+          ? state.extra as CommunityChatSeed
+          : null,
     ),
   ),
   GoRoute(
