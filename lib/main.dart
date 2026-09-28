@@ -10,6 +10,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'core/config/api_config.dart';
 import 'core/config/app_config_service.dart';
 import 'core/config/semver.dart';
+import 'core/network/connectivity_banner.dart';
+import 'core/network/connectivity_status.dart';
 import 'core/router/app_router.dart';
 import 'core/storage/secure_storage_service.dart';
 import 'core/telemetry/telemetry.dart';
@@ -136,6 +138,7 @@ class _GarraDigitalAppState extends ConsumerState<GarraDigitalApp> {
   @override
   Widget build(BuildContext context) {
     final themeMode = themeModeFor(ref.watch(garraAppearanceProvider));
+    final connectivity = ref.watch(connectivityStatusProvider);
     if (_bootstrapped && (_maintenance || _updateRequired)) {
       final gate = _maintenance
           ? MaintenanceGatePage(
@@ -152,7 +155,11 @@ class _GarraDigitalAppState extends ConsumerState<GarraDigitalApp> {
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: themeMode,
-        home: GarraSystemOverlay(child: StagingBanner(child: gate)),
+        home: GarraSystemOverlay(
+          child: StagingBanner(
+            child: ConnectivityBanner(status: connectivity, child: gate),
+          ),
+        ),
       );
     }
 
@@ -184,7 +191,11 @@ class _GarraDigitalAppState extends ConsumerState<GarraDigitalApp> {
             ],
           );
         }
-        return GarraSystemOverlay(child: StagingBanner(child: body));
+        return GarraSystemOverlay(
+          child: StagingBanner(
+            child: ConnectivityBanner(status: connectivity, child: body),
+          ),
+        );
       },
     );
   }
