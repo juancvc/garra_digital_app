@@ -9,6 +9,7 @@ import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_cached_network_image.dart';
 import '../data/chat_models.dart';
 import '../data/chat_service.dart';
+import 'chat_request_copy.dart';
 
 /// Short video stays off until physical QA. Images are the V1 attachment.
 const bool chatShortVideoEnabled = false;
@@ -94,6 +95,12 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
   var _sending = false;
   var _composingRequest = false;
   String? _error;
+
+  ChatRequestCopy get _requestCopy => ChatRequestCopy.resolve(
+    conversation: _conversation,
+    marketplaceFallback: widget.marketplace,
+    fallbackDisplayName: widget.otherDisplayName,
+  );
 
   @override
   void initState() {
@@ -408,7 +415,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 4),
-            const Text('Esperando que el vendedor acepte tu solicitud'),
+            Text(_requestCopy.waitingForAcceptance),
           ] else
             const Text('Solicitud de chat'),
         ],
@@ -427,11 +434,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
       return ListView(
         controller: widget.scroll,
         padding: const EdgeInsets.all(16),
-        children: const [
-          Text(
-            'Escribe el primer mensaje. El vendedor lo verá con tu solicitud.',
-          ),
-        ],
+        children: [Text(_requestCopy.firstMessageHint)],
       );
     }
     return ListView.builder(
@@ -591,7 +594,11 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
                       counterText: '',
                       hintText: composerEnabled
                           ? 'Escribe un mensaje...'
-                          : 'Esperando que acepte tu solicitud',
+                          : _requestCopy.blockedComposerHint(
+                              pendingOutgoing:
+                                  conversation?.status == 'PENDING' &&
+                                  conversation?.outgoing == true,
+                            ),
                       filled: true,
                       fillColor: context.garraColors.surface,
                     ),

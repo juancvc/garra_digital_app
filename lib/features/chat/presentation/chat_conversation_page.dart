@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
@@ -10,6 +11,8 @@ import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../data/chat_models.dart';
 import '../data/chat_service.dart';
+import '../../home/presentation/providers/home_provider.dart';
+import 'chat_request_copy.dart';
 import 'floating_chat_panel.dart';
 
 class ChatConversationPage extends StatefulWidget {
@@ -84,6 +87,21 @@ class _ChatConversationPageState extends State<ChatConversationPage>
     _poll = null;
   }
 
+  /// The Home bell badge comes from GET /home/me. Marking a conversation read
+  /// also clears its chat notifications server-side, so reload the badge once
+  /// per successful mark-read.
+  void _refreshHomeBadge() {
+    if (!mounted) return;
+    try {
+      ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).invalidate(homeProvider);
+    } on StateError {
+      // No ProviderScope above this page (isolated widget tests).
+    }
+  }
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -93,6 +111,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
       final conversation = await _chat.conversation(widget.conversationId);
       final messages = await _chat.messages(widget.conversationId);
       await _chat.markRead(widget.conversationId);
+      _refreshHomeBadge();
       if (!mounted) return;
       setState(() {
         _conversation = conversation;
@@ -128,6 +147,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
       });
       if (changed) {
         await _chat.markRead(widget.conversationId);
+        _refreshHomeBadge();
         _scrollToEnd();
       }
     } catch (_) {
@@ -241,8 +261,9 @@ class _ChatConversationPageState extends State<ChatConversationPage>
 
   Widget _statusBanner(ChatConversation conversation) {
     if (conversation.status != 'PENDING') return const SizedBox.shrink();
+    final copy = ChatRequestCopy.resolve(conversation: conversation);
     final waiting = conversation.outgoing
-        ? 'Esperando que acepte tu solicitud'
+        ? copy.pendingStatus
         : 'Solicitud de chat';
     return Material(
       key: const Key('chat-pending-banner'),
@@ -261,9 +282,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 4),
-              const Text(
-                'El vendedor podrá responder cuando acepte tu solicitud.',
-              ),
+              Text(copy.replyAfterAcceptance),
               const SizedBox(height: 8),
             ],
             Text(waiting),
@@ -317,7 +336,13 @@ class _ChatConversationPageState extends State<ChatConversationPage>
               decoration: InputDecoration(
                 hintText: canWrite
                     ? 'Escribe un mensaje...'
-                    : 'Esperando que acepte tu solicitud',
+                    : ChatRequestCopy.resolve(
+                        conversation: conversation,
+                      ).blockedComposerHint(
+                        pendingOutgoing:
+                            conversation?.status == 'PENDING' &&
+                            conversation?.outgoing == true,
+                      ),
                 filled: true,
                 fillColor: context.garraColors.surface,
                 border: const OutlineInputBorder(
