@@ -1,19 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
-import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/media/media_upload_service.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_card.dart';
+import '../../../core/widgets/garra_single_photo_field.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/clan_models.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
+import 'create_community_page.dart'
+    show CommunityOptionTile, communityJoinOptions, communityPostsPrivacyNote,
+        communityVisibilityOptions;
 import 'providers/clans_provider.dart';
 
 class ClanManagePage extends ConsumerStatefulWidget {
-  const ClanManagePage({super.key, required this.slug});
+  const ClanManagePage({super.key, required this.slug, this.media});
 
   final String slug;
+
+  /// Injectable for tests; defaults to the real signed-upload pipeline.
+  final MediaUploadService? media;
 
   @override
   ConsumerState<ClanManagePage> createState() => _ClanManagePageState();
@@ -28,6 +37,29 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
   String _joinPolicy = 'OPEN';
   bool _initialized = false;
   bool _saving = false;
+  late final MediaUploadService _media = widget.media ?? MediaUploadService();
+  XFile? _avatar;
+  XFile? _cover;
+  bool _removeAvatar = false;
+  bool _removeCover = false;
+
+  Future<void> _pickAvatar() async {
+    final file = await _media.pickImage(maxSide: 1024);
+    if (file == null || !mounted) return;
+    setState(() {
+      _avatar = file;
+      _removeAvatar = false;
+    });
+  }
+
+  Future<void> _pickCover() async {
+    final file = await _media.pickImage();
+    if (file == null || !mounted) return;
+    setState(() {
+      _cover = file;
+      _removeCover = false;
+    });
+  }
 
   @override
   void dispose() {
@@ -52,6 +84,22 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
+      final avatar = _avatar;
+      final cover = _cover;
+      final logoId = avatar == null
+          ? null
+          : await uploadSinglePhoto(
+              _media,
+              avatar,
+              MediaUploadPurpose.communityPost,
+            );
+      final bannerId = cover == null
+          ? null
+          : await uploadSinglePhoto(
+              _media,
+              cover,
+              MediaUploadPurpose.communityPost,
+            );
       await ref.read(clanServiceProvider).updateClan(
             widget.slug,
             UpdateClanRequest(
@@ -61,12 +109,29 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
               countryCode: _countryController.text.trim().toUpperCase(),
               visibility: _visibility,
               joinPolicy: _joinPolicy,
+              logoMediaAssetId: logoId,
+              bannerMediaAssetId: bannerId,
+              clearLogo: _removeAvatar && logoId == null,
+              clearBanner: _removeCover && bannerId == null,
             ),
           );
       ref.invalidate(clanDetailProvider(widget.slug));
+      ref.invalidate(myClansProvider);
+      if (mounted) {
+        setState(() {
+          _avatar = null;
+          _cover = null;
+          _removeAvatar = false;
+          _removeCover = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Comunidad actualizada')),
+        );
+      }
+    } on SinglePhotoUploadException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Clan actualizado')),
+          SnackBar(content: Text(e.message)),
         );
       }
     } catch (_) {
@@ -100,17 +165,17 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
     final membersAsync = ref.watch(clanMembersPreviewProvider(widget.slug));
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
-      appBar: AppBar(title: const Text('Gestionar clan')),
+      backgroundColor: context.garraColors.background,
+      appBar: AppBar(title: const Text('Administrar comunidad')),
       body: clanAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: Color(GarraColors.gold)),
+        loading: () => Center(
+          child: CircularProgressIndicator(color: context.garraColors.brandPrestige),
         ),
         error: (_, __) => GarraErrorState(onRetry: _refresh),
         data: (clan) {
           _hydrate(clan);
           return RefreshIndicator(
-            color: const Color(GarraColors.gold),
+            color: context.garraColors.brandPrestige,
             onRefresh: _refresh,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -122,13 +187,44 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
               ),
               children: [
                 const GarraSectionHeader(
-                  title: 'Perfil del clan',
-                  subtitle: 'Nombre, descripción y acceso',
+                  title: 'Perfil de la comunidad',
+                  subtitle: 'Nombre, imagen y acceso',
                 ),
                 const SizedBox(height: GarraSpacing.md),
                 GarraCard(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      GarraSinglePhotoField(
+                        key: const ValueKey('manage_avatar_field'),
+                        file: _avatar,
+                        currentUrl: _removeAvatar ? null : clan.logoUrl,
+                        enabled: !_saving,
+                        label: 'Avatar',
+                        helper: 'Una foto cuadrada: escudo, bandera o logo.',
+                        addLabel: 'Agregar avatar',
+                        aspectRatio: 1,
+                        previewMaxWidth: 140,
+                        onPick: _pickAvatar,
+                        onRemove: () => setState(() {
+                          _avatar = null;
+                          _removeAvatar = true;
+                        }),
+                      ),
+                      GarraSinglePhotoField(
+                        key: const ValueKey('manage_cover_field'),
+                        file: _cover,
+                        currentUrl: _removeCover ? null : clan.bannerUrl,
+                        enabled: !_saving,
+                        label: 'Portada',
+                        helper: 'Una foto horizontal para la cabecera.',
+                        addLabel: 'Agregar portada',
+                        onPick: _pickCover,
+                        onRemove: () => setState(() {
+                          _cover = null;
+                          _removeCover = true;
+                        }),
+                      ),
                       TextField(
                         controller: _nameController,
                         decoration: const InputDecoration(labelText: 'Nombre'),
@@ -154,53 +250,39 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
                         ),
                       ),
                       const SizedBox(height: GarraSpacing.md),
-                      DropdownButtonFormField<String>(
-                        value: _visibility,
-                        decoration: const InputDecoration(
-                          labelText: 'Visibilidad',
+                      Text(
+                        'Privacidad',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: GarraSpacing.sm),
+                      for (final option in communityVisibilityOptions)
+                        CommunityOptionTile(
+                          key: ValueKey('manage_visibility_${option.value}'),
+                          selected: _visibility == option.value,
+                          title: option.title,
+                          subtitle: option.subtitle,
+                          onTap: () =>
+                              setState(() => _visibility = option.value),
                         ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'PUBLIC',
-                            child: Text('Público'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'MEMBERS_ONLY',
-                            child: Text('Solo miembros'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'PRIVATE',
-                            child: Text('Privado'),
-                          ),
-                        ],
-                        onChanged: (v) {
-                          if (v != null) setState(() => _visibility = v);
-                        },
+                      Text(
+                        communityPostsPrivacyNote,
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                       const SizedBox(height: GarraSpacing.md),
-                      DropdownButtonFormField<String>(
-                        value: _joinPolicy,
-                        decoration: const InputDecoration(
-                          labelText: 'Política de ingreso',
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'OPEN',
-                            child: Text('Abierto'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'REQUEST',
-                            child: Text('Con solicitud'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'INVITE_ONLY',
-                            child: Text('Solo invitación'),
-                          ),
-                        ],
-                        onChanged: (v) {
-                          if (v != null) setState(() => _joinPolicy = v);
-                        },
+                      Text(
+                        'Ingreso',
+                        style: Theme.of(context).textTheme.titleSmall,
                       ),
+                      const SizedBox(height: GarraSpacing.sm),
+                      for (final option in communityJoinOptions)
+                        CommunityOptionTile(
+                          key: ValueKey('manage_join_${option.value}'),
+                          selected: _joinPolicy == option.value,
+                          title: option.title,
+                          subtitle: option.subtitle,
+                          onTap: () =>
+                              setState(() => _joinPolicy = option.value),
+                        ),
                       const SizedBox(height: GarraSpacing.lg),
                       GarraPrimaryButton(
                         label: 'Guardar',
@@ -224,11 +306,11 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
                         .where((r) => r.status.toUpperCase() == 'PENDING')
                         .toList();
                     if (pending.isEmpty) {
-                      return const GarraCard(
+                      return GarraCard(
                         child: Text(
                           'No hay solicitudes pendientes.',
                           style: TextStyle(
-                            color: Color(GarraColors.textSecondary),
+                            color: context.garraColors.textSecondary,
                           ),
                         ),
                       );
@@ -282,11 +364,11 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
                   error: (_, __) => const SizedBox.shrink(),
                   data: (members) {
                     if (members.isEmpty) {
-                      return const GarraCard(
+                      return GarraCard(
                         child: Text(
                           'Sin miembros para mostrar.',
                           style: TextStyle(
-                            color: Color(GarraColors.textSecondary),
+                            color: context.garraColors.textSecondary,
                           ),
                         ),
                       );
@@ -334,7 +416,7 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
                                           .labelSmall
                                           ?.copyWith(
                                             color:
-                                                const Color(GarraColors.gold),
+                                                context.garraColors.brandPrestige,
                                           ),
                                     ),
                                   ],

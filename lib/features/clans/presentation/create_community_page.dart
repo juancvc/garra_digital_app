@@ -1,18 +1,77 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/media/media_upload_service.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
+import '../../../core/utils/country_labels.dart';
 import '../../../core/widgets/garra_form.dart';
+import '../../../core/widgets/garra_single_photo_field.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/clan_models.dart';
 import 'providers/clans_provider.dart';
 
-/// Create a community (backend: clan) with user-facing labels.
+/// One selectable community setting (privacy or join policy).
+typedef CommunityOption = ({String value, String title, String subtitle});
+
+/// Copy matches what the backend enforces (ClanQueryService / GlobalSearch):
+/// PUBLIC and MEMBERS_ONLY are discoverable, PRIVATE is not; the member list
+/// is public only for PUBLIC. Posts are always members-only.
+const List<CommunityOption> communityVisibilityOptions = [
+  (
+    value: 'PUBLIC',
+    title: 'Pública',
+    subtitle:
+        'Aparece en Descubrir y en búsquedas. Cualquiera puede ver la comunidad y sus miembros.',
+  ),
+  (
+    value: 'MEMBERS_ONLY',
+    title: 'Solo miembros',
+    subtitle:
+        'Aparece en Descubrir, pero solo los miembros ven la lista de miembros.',
+  ),
+  (
+    value: 'PRIVATE',
+    title: 'Privada',
+    subtitle:
+        'No aparece en Descubrir ni en búsquedas. Solo miembros e invitados pueden verla.',
+  ),
+];
+
+const String communityPostsPrivacyNote =
+    'Las publicaciones de la comunidad siempre son solo para miembros.';
+
+/// Join policy copy (backend: OPEN joins directly, REQUEST is approved by the
+/// owner or admins, INVITE_ONLY rejects direct joins).
+const List<CommunityOption> communityJoinOptions = [
+  (
+    value: 'OPEN',
+    title: 'Abierto',
+    subtitle: 'Los hinchas pueden unirse directamente.',
+  ),
+  (
+    value: 'REQUEST',
+    title: 'Con aprobación',
+    subtitle: 'El líder o los administradores aprueban las solicitudes.',
+  ),
+  (
+    value: 'INVITE_ONLY',
+    title: 'Solo invitación',
+    subtitle: 'Solo se puede ingresar mediante una invitación.',
+  ),
+];
+
+/// Create a community (backend: clan). The backend generates the slug from
+/// the name, so there is no "Identificador" field.
 class CreateCommunityPage extends ConsumerStatefulWidget {
-  const CreateCommunityPage({super.key});
+  const CreateCommunityPage({super.key, this.media});
+
+  /// Injectable for tests; defaults to the real signed-upload pipeline.
+  final MediaUploadService? media;
 
   @override
   ConsumerState<CreateCommunityPage> createState() =>
@@ -22,65 +81,95 @@ class CreateCommunityPage extends ConsumerStatefulWidget {
 class _CreateCommunityPageState extends ConsumerState<CreateCommunityPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
-  final _slugCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   final _cityCtrl = TextEditingController();
+  late final MediaUploadService _media = widget.media ?? MediaUploadService();
 
+  String _country = 'PE';
   String _visibility = 'PUBLIC';
   String _joinPolicy = 'OPEN';
-  bool _slugEdited = false;
   bool _submitting = false;
+  XFile? _avatar;
+  XFile? _cover;
+  // Uploaded asset ids are reused on retry so a failed create does not
+  // upload the same photo twice.
+  String? _avatarAssetId;
+  String? _coverAssetId;
 
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _slugCtrl.dispose();
     _descCtrl.dispose();
     _cityCtrl.dispose();
     super.dispose();
   }
 
-  String _slugify(String name) {
-    final normalized = name
-        .toLowerCase()
-        .replaceAll(RegExp(r'[áàäâ]'), 'a')
-        .replaceAll(RegExp(r'[éèëê]'), 'e')
-        .replaceAll(RegExp(r'[íìïî]'), 'i')
-        .replaceAll(RegExp(r'[óòöô]'), 'o')
-        .replaceAll(RegExp(r'[úùüû]'), 'u')
-        .replaceAll('ñ', 'n')
-        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
-        .replaceAll(RegExp(r'^-+|-+$'), '');
-    if (normalized.length < 3) return normalized;
-    return normalized.length > 64 ? normalized.substring(0, 64) : normalized;
+  Future<void> _pickAvatar() async {
+    final file = await _media.pickImage(maxSide: 1024);
+    if (file == null || !mounted) return;
+    setState(() {
+      _avatar = file;
+      _avatarAssetId = null;
+    });
+  }
+
+  Future<void> _pickCover() async {
+    final file = await _media.pickImage();
+    if (file == null || !mounted) return;
+    setState(() {
+      _cover = file;
+      _coverAssetId = null;
+    });
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
     try {
-      final clan = await ref.read(clanServiceProvider).createClan(
+      final avatar = _avatar;
+      if (avatar != null) {
+        _avatarAssetId ??= await uploadSinglePhoto(
+          _media,
+          avatar,
+          MediaUploadPurpose.communityPost,
+        );
+      }
+      final cover = _cover;
+      if (cover != null) {
+        _coverAssetId ??= await uploadSinglePhoto(
+          _media,
+          cover,
+          MediaUploadPurpose.communityPost,
+        );
+      }
+      final description = _descCtrl.text.trim();
+      final city = _cityCtrl.text.trim();
+      final clan = await ref
+          .read(clanServiceProvider)
+          .createClan(
             CreateClanRequest(
               name: _nameCtrl.text.trim(),
-              slug: _slugCtrl.text.trim(),
-              description: _descCtrl.text.trim().isEmpty
-                  ? null
-                  : _descCtrl.text.trim(),
-              city: _cityCtrl.text.trim().isEmpty
-                  ? null
-                  : _cityCtrl.text.trim(),
-              countryCode: 'PE',
+              description: description.isEmpty ? null : description,
+              city: city.isEmpty ? null : city,
+              countryCode: _country,
               visibility: _visibility,
               joinPolicy: _joinPolicy,
+              logoMediaAssetId: avatar == null ? null : _avatarAssetId,
+              bannerMediaAssetId: cover == null ? null : _coverAssetId,
             ),
           );
       ref.invalidate(myClansProvider);
       ref.invalidate(clanDiscoveryProvider(const ClanDiscoveryQuery()));
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Comunidad creada')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Comunidad creada')));
       context.go('/clans/${clan.slug}');
+    } on SinglePhotoUploadException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -95,49 +184,68 @@ class _CreateCommunityPageState extends ConsumerState<CreateCommunityPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.garraColors;
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Crear comunidad'),
-      ),
+      backgroundColor: colors.background,
+      appBar: AppBar(title: const Text('Crear comunidad')),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(GarraSpacing.lg),
           children: [
             Text(
-              'Dale un nombre a tu gente',
-              style: Theme.of(context).textTheme.titleLarge,
+              'Dale identidad a tu gente',
+              style: textTheme.titleLarge?.copyWith(color: colors.textPrimary),
+            ),
+            const SizedBox(height: GarraSpacing.xs),
+            Text(
+              'Un avatar y una portada hacen que tu comunidad se reconozca en la tribuna.',
+              style: textTheme.bodySmall?.copyWith(color: colors.textSecondary),
             ),
             const SizedBox(height: GarraSpacing.lg),
+            GarraSinglePhotoField(
+              key: const ValueKey('community_avatar_field'),
+              file: _avatar,
+              enabled: !_submitting,
+              label: 'Avatar (opcional)',
+              helper: 'Una foto cuadrada: escudo, bandera o logo.',
+              addLabel: 'Agregar avatar',
+              aspectRatio: 1,
+              previewMaxWidth: 140,
+              onPick: _pickAvatar,
+              onRemove: () => setState(() {
+                _avatar = null;
+                _avatarAssetId = null;
+              }),
+            ),
+            GarraSinglePhotoField(
+              key: const ValueKey('community_cover_field'),
+              file: _cover,
+              enabled: !_submitting,
+              label: 'Portada (opcional)',
+              helper: 'Una foto horizontal para la cabecera de la comunidad.',
+              addLabel: 'Agregar portada',
+              onPick: _pickCover,
+              onRemove: () => setState(() {
+                _cover = null;
+                _coverAssetId = null;
+              }),
+            ),
+            const SizedBox(height: GarraSpacing.sm),
             GarraFormSection(
               title: 'COMUNIDAD',
               children: [
                 GarraTextField(
                   label: 'Nombre',
                   controller: _nameCtrl,
+                  fieldKey: const ValueKey('community_name_field'),
+                  maxLength: 120,
+                  helper: 'El enlace de la comunidad se crea automáticamente.',
                   textCapitalization: TextCapitalization.words,
-                  onChanged: (value) {
-                    if (!_slugEdited) {
-                      _slugCtrl.text = _slugify(value);
-                    }
-                  },
                   validator: (v) {
                     if (v == null || v.trim().length < 2) {
                       return 'El nombre es obligatorio';
-                    }
-                    return null;
-                  },
-                ),
-                GarraTextField(
-                  label: 'Identificador',
-                  controller: _slugCtrl,
-                  helper: 'Solo minúsculas, números y guiones',
-                  onChanged: (_) => _slugEdited = true,
-                  validator: (v) {
-                    final s = v?.trim() ?? '';
-                    if (s.length < 3) return 'Mínimo 3 caracteres';
-                    if (!RegExp(r'^[a-z0-9-]+$').hasMatch(s)) {
-                      return 'Solo a-z, 0-9 y guiones';
                     }
                     return null;
                   },
@@ -146,70 +254,65 @@ class _CreateCommunityPageState extends ConsumerState<CreateCommunityPage> {
                   label: 'Descripción',
                   controller: _descCtrl,
                   minLines: 3,
+                  maxLength: 1000,
                 ),
                 GarraTextField(
                   label: 'Ciudad',
                   controller: _cityCtrl,
-                  helper: 'Lima, Arequipa…',
+                  maxLength: 80,
+                  helper: 'Lima, Arequipa.',
+                ),
+                GarraSelectField<String>(
+                  label: 'País',
+                  value: _country,
+                  items: [
+                    for (final country in garraCountries)
+                      DropdownMenuItem(
+                        value: country.$1,
+                        child: Text(country.$2),
+                      ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setState(() => _country = value);
+                  },
                 ),
               ],
             ),
-            const SizedBox(height: GarraSpacing.xs),
-            Text(
-              'País: Perú',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
             const SizedBox(height: GarraSpacing.xxl),
             Text(
-              'Visibilidad',
-              style: Theme.of(context).textTheme.titleMedium,
+              'Privacidad',
+              style: textTheme.titleMedium?.copyWith(color: colors.textPrimary),
             ),
             const SizedBox(height: GarraSpacing.sm),
-            _OptionTile(
-              selected: _visibility == 'PUBLIC',
-              title: 'Pública',
-              subtitle: 'Cualquiera puede encontrar esta comunidad.',
-              onTap: () => setState(() => _visibility = 'PUBLIC'),
-            ),
-            _OptionTile(
-              selected: _visibility == 'MEMBERS_ONLY',
-              title: 'Solo miembros',
-              subtitle: 'Aparece, pero el contenido es para miembros.',
-              onTap: () => setState(() => _visibility = 'MEMBERS_ONLY'),
-            ),
-            _OptionTile(
-              selected: _visibility == 'PRIVATE',
-              title: 'Privada',
-              subtitle: 'Solo miembros e invitados pueden verla.',
-              onTap: () => setState(() => _visibility = 'PRIVATE'),
+            for (final option in communityVisibilityOptions)
+              CommunityOptionTile(
+                key: ValueKey('community_visibility_${option.value}'),
+                selected: _visibility == option.value,
+                title: option.title,
+                subtitle: option.subtitle,
+                onTap: () => setState(() => _visibility = option.value),
+              ),
+            Text(
+              communityPostsPrivacyNote,
+              style: textTheme.bodySmall?.copyWith(color: colors.textSecondary),
             ),
             const SizedBox(height: GarraSpacing.xxl),
             Text(
               'Ingreso',
-              style: Theme.of(context).textTheme.titleMedium,
+              style: textTheme.titleMedium?.copyWith(color: colors.textPrimary),
             ),
             const SizedBox(height: GarraSpacing.sm),
-            _OptionTile(
-              selected: _joinPolicy == 'OPEN',
-              title: 'Abierta',
-              subtitle: 'Cualquiera puede unirse al instante.',
-              onTap: () => setState(() => _joinPolicy = 'OPEN'),
-            ),
-            _OptionTile(
-              selected: _joinPolicy == 'REQUEST',
-              title: 'Solicitud',
-              subtitle: 'Los nuevos piden ingreso y un admin aprueba.',
-              onTap: () => setState(() => _joinPolicy = 'REQUEST'),
-            ),
-            _OptionTile(
-              selected: _joinPolicy == 'INVITE_ONLY',
-              title: 'Solo invitación',
-              subtitle: 'Los nuevos miembros necesitan una invitación.',
-              onTap: () => setState(() => _joinPolicy = 'INVITE_ONLY'),
-            ),
+            for (final option in communityJoinOptions)
+              CommunityOptionTile(
+                key: ValueKey('community_join_${option.value}'),
+                selected: _joinPolicy == option.value,
+                title: option.title,
+                subtitle: option.subtitle,
+                onTap: () => setState(() => _joinPolicy = option.value),
+              ),
             const SizedBox(height: GarraSpacing.xxl),
             GarraPrimaryButton(
-              label: _submitting ? 'Creando…' : 'Crear comunidad',
+              label: _submitting ? 'Creando.' : 'Crear comunidad',
               onPressed: _submitting ? null : _submit,
             ),
             const SizedBox(height: GarraSpacing.section),
@@ -220,8 +323,11 @@ class _CreateCommunityPageState extends ConsumerState<CreateCommunityPage> {
   }
 }
 
-class _OptionTile extends StatelessWidget {
-  const _OptionTile({
+/// Selectable privacy / join tile. Noche keeps the original garnet-selected
+/// look; Crema uses light surfaces with a garnet outline.
+class CommunityOptionTile extends StatelessWidget {
+  const CommunityOptionTile({
+    super.key,
     required this.selected,
     required this.title,
     required this.subtitle,
@@ -235,13 +341,22 @@ class _OptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.garraColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = isDark ? colors.brandPrestige : colors.brandPrimary;
+    final background = selected
+        ? (isDark ? const Color(GarraColors.garnetDeep) : colors.surfaceRaised)
+        : colors.surface;
     return Padding(
       padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
       child: Material(
-        color: selected
-            ? const Color(GarraColors.garnetDeep)
-            : const Color(GarraColors.surface),
-        borderRadius: BorderRadius.circular(GarraRadius.md),
+        color: background,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(GarraRadius.md),
+          side: isDark
+              ? BorderSide.none
+              : BorderSide(color: selected ? accent : colors.border),
+        ),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(GarraRadius.md),
@@ -253,7 +368,7 @@ class _OptionTile extends StatelessWidget {
                   selected
                       ? Icons.radio_button_checked
                       : Icons.radio_button_off,
-                  color: const Color(GarraColors.gold),
+                  color: accent,
                 ),
                 const SizedBox(width: GarraSpacing.md),
                 Expanded(
@@ -263,13 +378,15 @@ class _OptionTile extends StatelessWidget {
                       Text(
                         title,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              color: const Color(GarraColors.cream),
-                            ),
+                          color: colors.textPrimary,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         subtitle,
-                        style: Theme.of(context).textTheme.bodySmall,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.textSecondary,
+                        ),
                       ),
                     ],
                   ),

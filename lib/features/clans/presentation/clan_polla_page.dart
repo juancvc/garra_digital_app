@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_card.dart';
@@ -12,6 +11,7 @@ import '../../../core/widgets/garra_ui.dart';
 import '../../home/presentation/providers/home_provider.dart';
 import '../data/clan_models.dart';
 import '../data/clan_service.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import 'providers/clans_provider.dart';
 
 class ClanPollaPage extends ConsumerWidget {
@@ -32,7 +32,7 @@ class ClanPollaPage extends ConsumerWidget {
         : homeAsync.asData?.value.match?.id;
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(title: const Text('Polla del Clan')),
       body: resolvedMatchId == null || resolvedMatchId.isEmpty
           ? const _NoMatchBody()
@@ -77,8 +77,8 @@ class _ClanPollaBody extends ConsumerWidget {
     );
 
     return pollaAsync.when(
-      loading: () => const Center(
-        child: CircularProgressIndicator(color: Color(GarraColors.gold)),
+      loading: () => Center(
+        child: CircularProgressIndicator(color: context.garraColors.brandPrestige),
       ),
       error: (error, _) {
         if (error is ClanMembershipLostException) {
@@ -102,7 +102,7 @@ class _ClanPollaBody extends ConsumerWidget {
         }
 
         return RefreshIndicator(
-          color: const Color(GarraColors.gold),
+          color: context.garraColors.brandPrestige,
           onRefresh: () async {
             ref.invalidate(clanPollaProvider(params));
             ref.invalidate(
@@ -128,10 +128,10 @@ class _ClanPollaBody extends ConsumerWidget {
               _MyPredictionCard(polla: polla),
               const SizedBox(height: GarraSpacing.lg),
               if (polla.isPrelock) ...[
-                const GarraCard(
+                GarraCard(
                   child: Text(
                     'Las predicciones del clan se revelan cuando cierre La Polla.',
-                    style: TextStyle(color: Color(GarraColors.textSecondary)),
+                    style: TextStyle(color: context.garraColors.textSecondary),
                   ),
                 ),
                 const SizedBox(height: GarraSpacing.lg),
@@ -147,11 +147,11 @@ class _ClanPollaBody extends ConsumerWidget {
                 ),
                 const SizedBox(height: GarraSpacing.md),
                 if (polla.memberPredictions.isEmpty)
-                  const GarraCard(
+                  GarraCard(
                     child: Text(
                       'Aún no hay predicciones reveladas.',
                       style:
-                          TextStyle(color: Color(GarraColors.textSecondary)),
+                          TextStyle(color: context.garraColors.textSecondary),
                     ),
                   )
                 else
@@ -240,7 +240,7 @@ class _MatchHeader extends StatelessWidget {
           Text(
             _stateLabel(polla.state),
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: const Color(GarraColors.gold),
+                  color: context.garraColors.brandPrestige,
                 ),
           ),
         ],
@@ -332,7 +332,7 @@ class _MyPredictionCard extends StatelessWidget {
             Text(
               '${pred!.pointsEarned} pts',
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: const Color(GarraColors.gold),
+                    color: context.garraColors.brandPrestige,
                   ),
             ),
           ],
@@ -362,7 +362,7 @@ class _MemberPredictionTile extends StatelessWidget {
               child: Text(
                 '#${member.rank}',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: const Color(GarraColors.gold),
+                      color: context.garraColors.brandPrestige,
                     ),
               ),
             ),
@@ -391,7 +391,7 @@ class _MemberPredictionTile extends StatelessWidget {
             Text(
               '${member.pointsEarned} pts',
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: const Color(GarraColors.gold),
+                    color: context.garraColors.brandPrestige,
                   ),
             ),
         ],
@@ -415,7 +415,7 @@ class _MemberRankTile extends StatelessWidget {
             child: Text(
               '#${entry.rank}',
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: const Color(GarraColors.gold),
+                    color: context.garraColors.brandPrestige,
                   ),
             ),
           ),

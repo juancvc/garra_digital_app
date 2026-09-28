@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_avatar.dart';
@@ -11,6 +10,7 @@ import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/clan_models.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import 'providers/clans_provider.dart';
 
 class ClanRankingPage extends ConsumerWidget {
@@ -24,11 +24,11 @@ class ClanRankingPage extends ConsumerWidget {
     final rankingAsync = ref.watch(globalClanRankingProvider(rankingYear));
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(title: const Text('Ranking de Comunidades')),
       body: rankingAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: Color(GarraColors.gold)),
+        loading: () => Center(
+          child: CircularProgressIndicator(color: context.garraColors.brandPrestige),
         ),
         error: (_, __) => GarraErrorState(
           onRetry: () =>
@@ -49,7 +49,7 @@ class ClanRankingPage extends ConsumerWidget {
           }
 
           return RefreshIndicator(
-            color: const Color(GarraColors.gold),
+            color: context.garraColors.brandPrestige,
             onRefresh: () async {
               ref.invalidate(globalClanRankingProvider(rankingYear));
               await ref.read(globalClanRankingProvider(rankingYear).future);
@@ -102,7 +102,7 @@ class _RankingTile extends StatelessWidget {
           ? BoxDecoration(
               borderRadius: BorderRadius.circular(GarraRadius.md),
               border: Border.all(
-                color: const Color(GarraColors.gold),
+                color: context.garraColors.brandPrestige,
                 width: 1.5,
               ),
             )
@@ -118,7 +118,7 @@ class _RankingTile extends StatelessWidget {
               child: Text(
                 '#${entry.rank}',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: const Color(GarraColors.gold),
+                      color: context.garraColors.brandPrestige,
                       fontWeight: FontWeight.w800,
                     ),
               ),
@@ -149,7 +149,7 @@ class _RankingTile extends StatelessWidget {
                           'Tu comunidad',
                           style:
                               Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: const Color(GarraColors.gold),
+                                    color: context.garraColors.brandPrestige,
                                   ),
                         ),
                       ],
@@ -171,7 +171,7 @@ class _RankingTile extends StatelessWidget {
                 Text(
                   points,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: const Color(GarraColors.gold),
+                        color: context.garraColors.brandPrestige,
                       ),
                 ),
                 Text(

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/design/garra_colors.dart';
 import '../../../../core/design/garra_spacing.dart';
+import '../../../../core/theme/garra_semantic_colors.dart';
+import '../../../../core/utils/country_labels.dart';
 import '../../../../core/widgets/garra_avatar.dart';
 import '../../../../core/widgets/garra_card.dart';
 import '../../data/clan_models.dart';
@@ -38,6 +39,7 @@ class GarraClanCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           GarraAvatar(
+            key: const ValueKey('clan_card_avatar'),
             displayName: clan.name,
             avatarUrl: clan.logoUrl,
             size: 52,
@@ -65,7 +67,7 @@ class GarraClanCard extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(GarraColors.gold)
+                          color: context.garraColors.brandPrestige
                               .withValues(alpha: 0.16),
                           borderRadius: BorderRadius.circular(999),
                         ),
@@ -73,7 +75,7 @@ class GarraClanCard extends StatelessWidget {
                           'Principal',
                           style:
                               Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: const Color(GarraColors.gold),
+                                    color: context.garraColors.brandPrestige,
                                     fontWeight: FontWeight.w800,
                                   ),
                         ),
@@ -104,6 +106,8 @@ class GarraClanCard extends StatelessWidget {
                       _Pill(
                         label: ClanJoinPolicyLabels.indicator(clan.joinPolicy),
                       ),
+                    if (clan.visibility.toUpperCase() != 'PUBLIC')
+                      _Pill(label: clanVisibilityLabel(clan.visibility)),
                     if (roleLabel != null && roleLabel!.isNotEmpty)
                       _Pill(
                         label: roleLabel!,
@@ -118,9 +122,9 @@ class GarraClanCard extends StatelessWidget {
             const SizedBox(width: GarraSpacing.sm),
             trailing!,
           ] else if (onTap != null)
-            const Icon(
+            Icon(
               Icons.chevron_right,
-              color: Color(GarraColors.gold),
+              color: context.garraColors.brandPrestige,
             ),
         ],
       ),
@@ -143,17 +147,17 @@ class _Pill extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: accent
-            ? const Color(GarraColors.garnet).withValues(alpha: 0.28)
-            : const Color(GarraColors.surfaceRaised),
+            ? context.garraColors.brandPrimary.withValues(alpha: 0.28)
+            : context.garraColors.surfaceRaised,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(GarraColors.borderSubtle)),
+        border: Border.all(color: context.garraColors.border),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: accent
-                  ? const Color(GarraColors.cream)
-                  : const Color(GarraColors.textSecondary),
+                  ? context.garraColors.textPrimary
+                  : context.garraColors.textSecondary,
             ),
       ),
     );

@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/clan_models.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import 'providers/clans_provider.dart';
 import 'widgets/garra_clan_card.dart';
 
@@ -19,14 +19,14 @@ class ClanInvitationsPage extends ConsumerWidget {
     final invitationsAsync = ref.watch(myClanInvitationsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(
         title: const Text('Invitaciones'),
-        backgroundColor: const Color(GarraColors.charcoal),
+        backgroundColor: context.garraColors.background,
       ),
       body: invitationsAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: Color(GarraColors.gold)),
+        loading: () => Center(
+          child: CircularProgressIndicator(color: context.garraColors.brandPrestige),
         ),
         error: (_, __) => GarraErrorState(
           onRetry: () => ref.invalidate(myClanInvitationsProvider),
@@ -43,7 +43,7 @@ class ClanInvitationsPage extends ConsumerWidget {
           }
 
           return RefreshIndicator(
-            color: const Color(GarraColors.gold),
+            color: context.garraColors.brandPrestige,
             onRefresh: () async {
               ref.invalidate(myClanInvitationsProvider);
               await ref.read(myClanInvitationsProvider.future);
@@ -119,7 +119,7 @@ class _InvitationCard extends StatelessWidget {
     final city = invitation.clan.locationLabel;
 
     return Material(
-      color: const Color(GarraColors.surface),
+      color: context.garraColors.surface,
       borderRadius: BorderRadius.circular(GarraRadius.md),
       child: Padding(
         padding: const EdgeInsets.all(GarraSpacing.md),
@@ -143,7 +143,7 @@ class _InvitationCard extends StatelessWidget {
               Text(
                 'Invitado por $invitedBy',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: const Color(GarraColors.creamMuted),
+                      color: context.garraColors.textSecondary,
                     ),
               ),
             ],

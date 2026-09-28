@@ -623,8 +623,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Administrar'), findsOneWidget);
-    await tester.tap(find.text('Administrar'));
+    expect(find.text('Administrar comunidad'), findsOneWidget);
+    await tester.tap(find.text('Administrar comunidad'));
     await tester.pumpAndSettle();
     expect(find.text('MANAGE:garra-surco'), findsOneWidget);
   });

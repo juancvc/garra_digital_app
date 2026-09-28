@@ -10,10 +10,12 @@ import '../../../core/network/garra_error.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/utils/country_labels.dart';
 import '../../../core/widgets/garra_avatar.dart';
+import '../../../core/widgets/garra_cached_network_image.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../community/presentation/providers/community_provider.dart';
 import '../data/clan_models.dart';
 import '../data/clan_service.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import 'clan_tribuna_page.dart';
 import 'providers/clans_provider.dart';
 
@@ -166,7 +168,7 @@ class _ClanDetailPageState extends ConsumerState<ClanDetailPage>
     final clanAsync = ref.watch(clanDetailProvider(widget.slug));
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(
         title: Text(clanAsync.asData?.value.name ?? 'Comunidad'),
         actions: [
@@ -175,10 +177,6 @@ class _ClanDetailPageState extends ConsumerState<ClanDetailPage>
               tooltip: 'Invitar',
               onPressed: () => _showInviteDialog(context, widget.slug),
               icon: const Icon(Icons.person_add_alt_1_outlined),
-            ),
-            TextButton(
-              onPressed: () => context.push('/clans/${widget.slug}/manage'),
-              child: const Text('Administrar'),
             ),
           ],
         ],
@@ -204,6 +202,10 @@ class _ClanDetailPageState extends ConsumerState<ClanDetailPage>
               onJoin: _join,
               onLeave: () => _leave(clan),
             ),
+            if (clan.canManage)
+              _ManageCommunityEntry(
+                onTap: () => context.push('/clans/${widget.slug}/manage'),
+              ),
             Expanded(
               child: TabBarView(
                 controller: _tabs,
@@ -229,7 +231,7 @@ class _ClanDetailPageState extends ConsumerState<ClanDetailPage>
     final sent = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(GarraColors.surface),
+        backgroundColor: context.garraColors.surface,
         title: const Text('Invitar a una comunidad'),
         content: TextField(
           controller: usernameCtrl,
@@ -300,12 +302,14 @@ class _GroupHeader extends StatelessWidget {
             left: 0,
             right: 0,
             height: 92,
-            child: clan.bannerUrl != null && clan.bannerUrl!.isNotEmpty
-                ? Image.network(
-                    clan.bannerUrl!,
+            child: clan.bannerUrl != null && clan.bannerUrl!.trim().isNotEmpty
+                ? GarraCachedNetworkImage(
+                    key: const ValueKey('clan_detail_cover'),
+                    imageUrl: clan.bannerUrl!,
                     fit: BoxFit.cover,
-                    cacheWidth: 800,
-                    errorBuilder: (_, _, _) => const _CoverFallback(),
+                    memCacheWidth: 800,
+                    placeholder: const _CoverFallback(),
+                    errorWidget: const _CoverFallback(),
                   )
                 : const _CoverFallback(),
           ),
@@ -313,6 +317,7 @@ class _GroupHeader extends StatelessWidget {
             left: 16,
             top: 58,
             child: GarraAvatar(
+              key: const ValueKey('clan_detail_avatar'),
               displayName: clan.name,
               avatarUrl: clan.logoUrl,
               size: 64,
@@ -332,7 +337,11 @@ class _GroupHeader extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 Text(
-                  '$members miembros · ${clanVisibilityLabel(clan.visibility)}',
+                  [
+                    '$members miembros',
+                    if ((clan.city ?? '').trim().isNotEmpty) clan.city!.trim(),
+                    clanVisibilityLabel(clan.visibility),
+                  ].join(' · '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall,
@@ -402,15 +411,63 @@ class _GroupHeader extends StatelessWidget {
   }
 }
 
+/// Brand cover used when the community has no cover (or it fails to load).
+/// Garnet into the theme background: identical to the previous Noche cover,
+/// and a cream-shirt gradient in Crema. No external images.
 class _CoverFallback extends StatelessWidget {
   const _CoverFallback();
 
   @override
   Widget build(BuildContext context) {
-    return const DecoratedBox(
+    return DecoratedBox(
+      key: const ValueKey('clan_detail_cover_fallback'),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(GarraColors.garnetDeep), Color(GarraColors.charcoal)],
+          colors: [
+            const Color(GarraColors.garnetDeep),
+            context.garraColors.background,
+          ],
+        ),
+      ),
+      child: const SizedBox.expand(),
+    );
+  }
+}
+
+/// Clear entry to community settings for editors (OWNER/ADMIN per the
+/// backend ClanPermissions.canUpdateClan, exposed as [ClanModel.canManage]).
+class _ManageCommunityEntry extends StatelessWidget {
+  const _ManageCommunityEntry({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.garraColors;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        GarraSpacing.lg,
+        0,
+        GarraSpacing.lg,
+        GarraSpacing.sm,
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          key: const ValueKey('clan_manage_entry'),
+          onPressed: onTap,
+          icon: Icon(Icons.tune_rounded, color: colors.brandPrestige),
+          label: Text(
+            'Administrar comunidad',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          style: OutlinedButton.styleFrom(
+            side: BorderSide(color: colors.border),
+            backgroundColor: colors.surface,
+          ),
         ),
       ),
     );
@@ -577,8 +634,8 @@ class _CommunityMembersTabState extends ConsumerState<_CommunityMembersTab> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(color: Color(GarraColors.gold)),
+      return Center(
+        child: CircularProgressIndicator(color: context.garraColors.brandPrestige),
       );
     }
     if (_error != null && _items.isEmpty) {
@@ -601,13 +658,13 @@ class _CommunityMembersTabState extends ConsumerState<_CommunityMembersTab> {
       );
     }
     return RefreshIndicator(
-      color: const Color(GarraColors.gold),
+      color: context.garraColors.brandPrestige,
       onRefresh: () => _load(reset: true),
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount: _items.length + (_hasNext ? 1 : 0),
         separatorBuilder: (_, _) =>
-            const Divider(height: 1, color: Color(GarraColors.borderSubtle)),
+            Divider(height: 1, color: context.garraColors.border),
         itemBuilder: (context, index) {
           if (index >= _items.length) {
             return TextButton(

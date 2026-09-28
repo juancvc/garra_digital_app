@@ -26,6 +26,8 @@ String clanVisibilityLabel(String? visibility) {
   switch (visibility?.trim().toUpperCase()) {
     case 'PRIVATE':
       return 'Privada';
+    case 'MEMBERS_ONLY':
+      return 'Solo miembros';
     case 'PUBLIC':
       return 'Pública';
     default:

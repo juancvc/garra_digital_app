@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
@@ -17,6 +16,7 @@ import '../../community/presentation/widgets/garra_reaction_actions.dart';
 
 import '../data/clan_models.dart';
 import '../data/clan_service.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import 'providers/clans_provider.dart';
 
 /// Tribuna del Clan — member-only feed with composer.
@@ -172,8 +172,8 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
     final feedAsync = ref.watch(clanFeedProvider(widget.slug));
 
     final body = clanAsync.when(
-      loading: () => const Center(
-        child: CircularProgressIndicator(color: Color(GarraColors.gold)),
+      loading: () => Center(
+        child: CircularProgressIndicator(color: context.garraColors.brandPrestige),
       ),
       error: (error, _) {
         if (error is ClanMembershipLostException) {
@@ -190,7 +190,7 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
         }
         final name = widget.clanName ?? clan.name;
         return RefreshIndicator(
-          color: const Color(GarraColors.gold),
+          color: context.garraColors.brandPrestige,
           onRefresh: _refresh,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -212,11 +212,11 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
               ),
               const SizedBox(height: GarraSpacing.lg),
               feedAsync.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.only(top: 32),
+                loading: () => Padding(
+                  padding: const EdgeInsets.only(top: 32),
                   child: Center(
                     child: CircularProgressIndicator(
-                      color: Color(GarraColors.gold),
+                      color: context.garraColors.brandPrestige,
                     ),
                   ),
                 ),
@@ -261,7 +261,7 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
     if (widget.embedded) return body;
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(
         title: Text(
           clanAsync.asData != null

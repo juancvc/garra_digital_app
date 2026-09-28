@@ -352,30 +352,39 @@ class ClanPage<T> {
 class CreateClanRequest {
   const CreateClanRequest({
     required this.name,
-    required this.slug,
+    this.slug,
     this.description,
     this.city,
     this.countryCode,
     this.visibility = 'PUBLIC',
     this.joinPolicy = 'OPEN',
+    this.logoMediaAssetId,
+    this.bannerMediaAssetId,
   });
 
   final String name;
-  final String slug;
+
+  /// Optional since COMMUNITY_V2_A: the backend generates the slug from the
+  /// name. Left null by the create form; kept only for compatibility.
+  final String? slug;
   final String? description;
   final String? city;
   final String? countryCode;
   final String visibility;
   final String joinPolicy;
+  final String? logoMediaAssetId;
+  final String? bannerMediaAssetId;
 
   Map<String, dynamic> toJson() => {
         'name': name,
-        'slug': slug,
+        if (slug != null && slug!.trim().isNotEmpty) 'slug': slug,
         if (description != null) 'description': description,
         if (city != null) 'city': city,
         if (countryCode != null) 'countryCode': countryCode,
         'visibility': visibility,
         'joinPolicy': joinPolicy,
+        if (logoMediaAssetId != null) 'logoMediaAssetId': logoMediaAssetId,
+        if (bannerMediaAssetId != null) 'bannerMediaAssetId': bannerMediaAssetId,
       };
 }
 
@@ -389,6 +398,10 @@ class UpdateClanRequest {
     this.joinPolicy,
     this.logoUrl,
     this.bannerUrl,
+    this.logoMediaAssetId,
+    this.bannerMediaAssetId,
+    this.clearLogo = false,
+    this.clearBanner = false,
   });
 
   final String? name;
@@ -399,6 +412,10 @@ class UpdateClanRequest {
   final String? joinPolicy;
   final String? logoUrl;
   final String? bannerUrl;
+  final String? logoMediaAssetId;
+  final String? bannerMediaAssetId;
+  final bool clearLogo;
+  final bool clearBanner;
 
   Map<String, dynamic> toJson() => {
         if (name != null) 'name': name,
@@ -409,6 +426,10 @@ class UpdateClanRequest {
         if (joinPolicy != null) 'joinPolicy': joinPolicy,
         if (logoUrl != null) 'logoUrl': logoUrl,
         if (bannerUrl != null) 'bannerUrl': bannerUrl,
+        if (logoMediaAssetId != null) 'logoMediaAssetId': logoMediaAssetId,
+        if (bannerMediaAssetId != null) 'bannerMediaAssetId': bannerMediaAssetId,
+        if (clearLogo) 'clearLogo': true,
+        if (clearBanner) 'clearBanner': true,
       };
 }
 

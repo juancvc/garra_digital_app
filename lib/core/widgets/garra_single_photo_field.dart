@@ -7,6 +7,7 @@ import '../design/garra_radius.dart';
 import '../design/garra_spacing.dart';
 import '../media/media_upload_service.dart';
 import '../theme/garra_semantic_colors.dart';
+import 'garra_cached_network_image.dart';
 
 /// UX_08: exactly ONE optional image for a form (Garra Solidaria, Eventos,
 /// Emprendimiento). The parent owns the selected [file]; this widget only
@@ -21,6 +22,10 @@ class GarraSinglePhotoField extends StatelessWidget {
     this.label = 'Foto (opcional)',
     this.helper = 'Puedes agregar una sola foto.',
     this.enabled = true,
+    this.aspectRatio = 16 / 9,
+    this.previewMaxWidth,
+    this.currentUrl,
+    this.addLabel = 'Agregar foto',
   });
 
   final XFile? file;
@@ -30,6 +35,16 @@ class GarraSinglePhotoField extends StatelessWidget {
   final String helper;
   final bool enabled;
 
+  /// Preview shape (16:9 by default; 1 for a square avatar).
+  final double aspectRatio;
+
+  /// Optional cap for the preview width (e.g. a compact avatar preview).
+  final double? previewMaxWidth;
+
+  /// Already-saved image shown when no new [file] is selected (edit flows).
+  final String? currentUrl;
+  final String addLabel;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.garraColors;
@@ -37,6 +52,8 @@ class GarraSinglePhotoField extends StatelessWidget {
     final accent = isDark ? colors.brandPrestige : colors.brandPrimary;
     final textTheme = Theme.of(context).textTheme;
     final selected = file;
+    final saved = currentUrl?.trim() ?? '';
+    final hasImage = selected != null || saved.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: GarraSpacing.md),
@@ -56,13 +73,13 @@ class GarraSinglePhotoField extends StatelessWidget {
             style: textTheme.bodySmall?.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: GarraSpacing.sm),
-          if (selected == null)
+          if (!hasImage)
             OutlinedButton.icon(
               key: const ValueKey('single_photo_add'),
               onPressed: enabled ? onPick : null,
               icon: Icon(Icons.add_photo_alternate_outlined, color: accent),
               label: Text(
-                'Agregar foto',
+                addLabel,
                 style: TextStyle(color: colors.textPrimary),
               ),
               style: OutlinedButton.styleFrom(
@@ -75,22 +92,30 @@ class GarraSinglePhotoField extends StatelessWidget {
               ),
             )
           else ...[
-            ClipRRect(
-              key: const ValueKey('single_photo_preview'),
-              borderRadius: BorderRadius.circular(GarraRadius.md),
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: ColoredBox(
-                  color: colors.surfaceMuted,
-                  child: Image.file(
-                    File(selected.path),
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Center(
-                      child: Icon(
-                        Icons.image_outlined,
-                        size: 40,
-                        color: colors.textSecondary,
-                      ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: previewMaxWidth ?? double.infinity,
+                ),
+                child: ClipRRect(
+                  key: const ValueKey('single_photo_preview'),
+                  borderRadius: BorderRadius.circular(GarraRadius.md),
+                  child: AspectRatio(
+                    aspectRatio: aspectRatio,
+                    child: ColoredBox(
+                      color: colors.surfaceMuted,
+                      child: selected != null
+                          ? Image.file(
+                              File(selected.path),
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => _broken(colors),
+                            )
+                          : GarraCachedNetworkImage(
+                              imageUrl: saved,
+                              fit: BoxFit.cover,
+                              errorWidget: _broken(colors),
+                            ),
                     ),
                   ),
                 ),
@@ -128,6 +153,10 @@ class GarraSinglePhotoField extends StatelessWidget {
       ),
     );
   }
+
+  static Widget _broken(GarraSemanticColors colors) => Center(
+    child: Icon(Icons.image_outlined, size: 40, color: colors.textSecondary),
+  );
 }
 
 /// Uploads the single selected photo through the existing media pipeline and

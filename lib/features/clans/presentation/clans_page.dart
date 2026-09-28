@@ -11,6 +11,7 @@ import '../../../core/widgets/garra_cached_network_image.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../passport/presentation/providers/passport_provider.dart';
 import '../data/clan_models.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import 'providers/clans_provider.dart';
 
 /// Product surface: Comunidades Cremas (backend domain remains clans).
@@ -95,9 +96,9 @@ class _ClansPageState extends ConsumerState<ClansPage>
           controller: _tabController,
           isScrollable: true,
           tabAlignment: TabAlignment.start,
-          indicatorColor: const Color(GarraColors.gold),
-          labelColor: const Color(GarraColors.cream),
-          unselectedLabelColor: const Color(GarraColors.creamMuted),
+          indicatorColor: context.garraColors.brandPrestige,
+          labelColor: context.garraColors.textPrimary,
+          unselectedLabelColor: context.garraColors.textSecondary,
           tabs: const [
             Tab(text: 'Tus comunidades'),
             Tab(text: 'Descubrir'),
@@ -107,8 +108,8 @@ class _ClansPageState extends ConsumerState<ClansPage>
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/clans/create'),
-        backgroundColor: const Color(GarraColors.garnet),
-        foregroundColor: const Color(GarraColors.cream),
+        backgroundColor: context.garraColors.brandPrimary,
+        foregroundColor: context.garraColors.onBrand,
         child: const Icon(Icons.add),
       ),
       body: hasError
@@ -149,7 +150,7 @@ class _ClansPageState extends ConsumerState<ClansPage>
                     controller: _tabController,
                     children: [
                       RefreshIndicator(
-                        color: const Color(GarraColors.gold),
+                        color: context.garraColors.brandPrestige,
                         onRefresh: _refresh,
                         child: myClansAsync.when(
                           loading: () => ListView(
@@ -170,7 +171,7 @@ class _ClansPageState extends ConsumerState<ClansPage>
                         ),
                       ),
                       RefreshIndicator(
-                        color: const Color(GarraColors.gold),
+                        color: context.garraColors.brandPrestige,
                         onRefresh: _refresh,
                         child: discoveryAsync.when(
                           loading: () => ListView(
@@ -188,7 +189,7 @@ class _ClansPageState extends ConsumerState<ClansPage>
                         ),
                       ),
                       RefreshIndicator(
-                        color: const Color(GarraColors.gold),
+                        color: context.garraColors.brandPrestige,
                         onRefresh: _refresh,
                         child: nearbyAsync.when(
                           loading: () => ListView(
@@ -259,7 +260,7 @@ class _SearchField extends StatelessWidget {
         hintText: 'Buscar comunidades',
         prefixIcon: const Icon(Icons.search),
         filled: true,
-        fillColor: const Color(GarraColors.surface),
+        fillColor: context.garraColors.surface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(GarraRadius.md),
           borderSide: BorderSide.none,
@@ -300,7 +301,7 @@ class _InvitationsBanner extends StatelessWidget {
                       ? 'Tienes 1 invitación pendiente'
                       : 'Tienes $pendingCount invitaciones pendientes',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: const Color(GarraColors.cream),
+                    color: context.garraColors.onBrand,
                   ),
                 ),
               ),
@@ -390,7 +391,7 @@ class _DiscoverTab extends StatelessWidget {
           Text(
             subtitle!,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: const Color(GarraColors.creamMuted),
+              color: context.garraColors.textSecondary,
             ),
           ),
           const SizedBox(height: GarraSpacing.md),
@@ -439,7 +440,7 @@ class _ClanListTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
       child: Material(
-        color: const Color(GarraColors.surface),
+        color: context.garraColors.surface,
         borderRadius: BorderRadius.circular(GarraRadius.md),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -450,8 +451,8 @@ class _ClanListTile extends StatelessWidget {
                 width: 6,
                 height: 96,
                 color: isPrimary
-                    ? const Color(GarraColors.gold)
-                    : const Color(GarraColors.burgundy),
+                    ? context.garraColors.brandPrestige
+                    : context.garraColors.brandPrimary,
               ),
               _ClanVisual(
                 name: clan.name,
@@ -489,7 +490,7 @@ class _ClanListTile extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: const Color(GarraColors.creamMuted),
+                          color: context.garraColors.textSecondary,
                         ),
                       ),
                     ],
@@ -508,8 +509,8 @@ class _ClanListTile extends StatelessWidget {
                       icon: Icon(
                         isPrimary ? Icons.star : Icons.star_border,
                         color: isPrimary
-                            ? const Color(GarraColors.gold)
-                            : const Color(GarraColors.creamMuted),
+                            ? context.garraColors.brandPrestige
+                            : context.garraColors.textSecondary,
                       ),
                     ),
                   ],
@@ -567,7 +568,7 @@ class _ClanVisual extends StatelessWidget {
                 : const _ClanBannerFallback(),
           ),
           Container(
-            color: const Color(GarraColors.charcoal).withValues(alpha: 0.3),
+            color: context.garraColors.mediaBackdrop.withValues(alpha: 0.3),
           ),
           GarraAvatar(displayName: name, avatarUrl: logoUrl, size: 44),
         ],
@@ -581,14 +582,15 @@ class _ClanBannerFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const DecoratedBox(
+    return DecoratedBox(
+      key: const ValueKey('clan_tile_banner_fallback'),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(GarraColors.burgundyDeep),
-            Color(GarraColors.surfaceRaised),
+            const Color(GarraColors.burgundyDeep),
+            context.garraColors.surfaceRaised,
           ],
         ),
       ),
@@ -608,15 +610,15 @@ class _MembershipLabel extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.check_circle,
             size: 18,
-            color: Color(GarraColors.success),
+            color: context.garraColors.success,
           ),
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: const Color(GarraColors.creamMuted),
+              color: context.garraColors.textSecondary,
               fontSize: 9,
             ),
           ),
@@ -637,7 +639,7 @@ class _JoinLabel extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 74),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(GarraColors.gold)),
+        border: Border.all(color: context.garraColors.brandPrestige),
         borderRadius: BorderRadius.circular(GarraRadius.pill),
       ),
       child: Text(
@@ -646,7 +648,7 @@ class _JoinLabel extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: const Color(GarraColors.gold),
+          color: context.garraColors.brandPrestige,
           fontWeight: FontWeight.w800,
         ),
       ),
