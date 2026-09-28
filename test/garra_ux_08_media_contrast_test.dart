@@ -390,7 +390,8 @@ void main() {
       expect(calls, [
         'GET /marketplace/seller/me',
         'POST /marketplace/seller/me',
-        'POST /marketplace/seller/store',
+        'GET /marketplace/seller/me/store',
+        'POST /marketplace/seller/me/store',
         'PUT /marketplace/seller/me/store/media',
         'POST /marketplace/seller/me/submit',
       ]);

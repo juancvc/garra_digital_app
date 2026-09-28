@@ -14,10 +14,33 @@ import 'providers/marketplace_provider.dart';
 class SellerDashboardPage extends ConsumerWidget {
   const SellerDashboardPage({super.key});
 
+  /// MARKETPLACE_V2_A0: a DRAFT store never reaches the admin queue until it
+  /// is submitted (POST /marketplace/seller/me/store/submit).
+  Future<void> _submitStore(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(marketplaceServiceProvider).submitSellerStore();
+      ref.invalidate(sellerSummaryProvider);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Tienda enviada a revisi\u00f3n.')),
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('No pudimos enviar tu tienda. Int\u00e9ntalo de nuevo.'),
+        ),
+      );
+    }
+  }
+
   String _statusLabel(String status) {
     switch (status.toUpperCase()) {
       case 'APPROVED':
+      case 'ACTIVE':
         return 'Aprobado';
+      case 'DRAFT':
+        return 'Borrador';
+      case 'PENDING_REVIEW':
       case 'PENDING':
         return 'En revisión';
       case 'REJECTED':
@@ -127,6 +150,20 @@ class SellerDashboardPage extends ConsumerWidget {
                           ),
                         ],
                       ),
+                      if (summary.canSubmitStore) ...[
+                        const SizedBox(height: GarraSpacing.lg),
+                        Text(
+                          'Tu tienda est\u00e1 en borrador. Al enviarla confirmas '
+                          'la declaraci\u00f3n de propiedad intelectual.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: GarraSpacing.sm),
+                        FilledButton(
+                          key: const Key('seller-store-submit'),
+                          onPressed: () => _submitStore(context, ref),
+                          child: const Text('Enviar tienda a revisi\u00f3n'),
+                        ),
+                      ],
                     ],
                   ),
                 ),

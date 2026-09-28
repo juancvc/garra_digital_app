@@ -440,7 +440,9 @@ class SellerProfile {
   final String? whatsapp;
   final bool ipAcknowledged;
 
-  bool get isApproved => status.toUpperCase() == 'APPROVED';
+  /// Backend SellerStatus uses ACTIVE for an approved seller.
+  bool get isApproved =>
+      status.toUpperCase() == 'APPROVED' || status.toUpperCase() == 'ACTIVE';
   bool get isPending =>
       status.toUpperCase() == 'PENDING' ||
       status.toUpperCase() == 'PENDING_REVIEW';
@@ -460,7 +462,8 @@ class SellerProfile {
           (json['store'] is Map
               ? (json['store'] as Map)['slug']?.toString()
               : null),
-      whatsapp: json['whatsapp'] as String?,
+      whatsapp: json['whatsapp'] as String? ??
+          json['businessWhatsApp'] as String?,
       ipAcknowledged: json['ipAcknowledged'] as bool? ??
           json['intellectualPropertyAcknowledged'] as bool? ??
           false,
@@ -509,6 +512,7 @@ class SellerSummary {
     this.contactsCount = 0,
     this.storeName,
     this.storeSlug,
+    this.storeStatus,
   });
 
   final String status;
@@ -517,17 +521,31 @@ class SellerSummary {
   final int contactsCount;
   final String? storeName;
   final String? storeSlug;
+  final String? storeStatus;
 
+  /// MARKETPLACE_V2_A0: backend SellerSummaryResponse is {sellerStatus,
+  /// storeStatus, storeSlug, activeListings, pendingReviewListings,
+  /// favoritesReceived, contactLeads}; legacy keys stay as fallbacks.
   factory SellerSummary.fromJson(Map<String, dynamic> json) {
+    int? count(String key) => (json[key] as num?)?.toInt();
     return SellerSummary(
-      status: json['status']?.toString() ?? 'NONE',
-      listingsCount: (json['listingsCount'] as num?)?.toInt() ?? 0,
-      favoritesCount: (json['favoritesCount'] as num?)?.toInt() ?? 0,
-      contactsCount: (json['contactsCount'] as num?)?.toInt() ?? 0,
+      status: (json['sellerStatus'] ?? json['status'])?.toString() ?? 'NONE',
+      listingsCount: count('activeListings') ?? count('listingsCount') ?? 0,
+      favoritesCount:
+          count('favoritesReceived') ?? count('favoritesCount') ?? 0,
+      contactsCount: count('contactLeads') ?? count('contactsCount') ?? 0,
       storeName: json['storeName'] as String?,
       storeSlug: json['storeSlug']?.toString(),
+      storeStatus: json['storeStatus']?.toString(),
     );
   }
+
+  bool get sellerActive => status.toUpperCase() == 'ACTIVE';
+
+  /// The store must be submitted (IP declaration) before admins can approve
+  /// it; the backend only accepts that once the seller is ACTIVE.
+  bool get canSubmitStore =>
+      sellerActive && (storeStatus?.toUpperCase() == 'DRAFT');
 }
 
 class SellerPlan {
@@ -708,16 +726,54 @@ class SellerListingRequest {
   final bool priceOnRequest;
   final String type;
 
+  /// PATCH body (UpdateListingRequest): the backend reads `priceAmount`.
   Map<String, dynamic> toJson() {
     return {
       'title': title.trim(),
       'description': description.trim(),
       'categorySlug': categorySlug,
       'priceOnRequest': priceOnRequest,
-      if (!priceOnRequest && price != null) 'price': price,
+      if (!priceOnRequest && price != null) 'priceAmount': price,
       'type': type,
     };
   }
+
+  /// POST body (CreateListingRequest): same fields plus the required unique
+  /// `slug` (^[a-z0-9-]{3,80}$).
+  Map<String, dynamic> toCreateJson({DateTime? now}) {
+    return {
+      ...toJson(),
+      'slug': marketplaceListingSlug(title, now: now),
+    };
+  }
+}
+
+/// MARKETPLACE_V2_A0: slug for a new listing from its title plus a time
+/// suffix (listing slugs are globally unique in the backend).
+String marketplaceListingSlug(String title, {DateTime? now}) {
+  const accents = {
+    '\u00e1': 'a',
+    '\u00e9': 'e',
+    '\u00ed': 'i',
+    '\u00f3': 'o',
+    '\u00fa': 'u',
+    '\u00fc': 'u',
+    '\u00f1': 'n',
+  };
+  var base = title.trim().toLowerCase();
+  accents.forEach((from, to) => base = base.replaceAll(from, to));
+  base = base
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+      .replaceAll(RegExp(r'-{2,}'), '-')
+      .replaceAll(RegExp(r'^-+|-+$'), '');
+  final suffix = (now ?? DateTime.now()).millisecondsSinceEpoch.toRadixString(
+    36,
+  );
+  final maxBase = 80 - suffix.length - 1;
+  if (base.length > maxBase) {
+    base = base.substring(0, maxBase).replaceAll(RegExp(r'-+$'), '');
+  }
+  return base.isEmpty ? 'publicacion-$suffix' : '$base-$suffix';
 }
 
 class MarketplacePageResult<T> {

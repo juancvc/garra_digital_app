@@ -198,20 +198,21 @@ class MarketplaceService {
       };
 
       final existing = await getSellerMe();
-      SellerProfile seller;
       if (existing != null &&
           (existing.isDraft || existing.isRejected)) {
         final response = await _dio.patch(
           '/marketplace/seller/me',
           data: sellerBody,
         );
-        seller = _parseSellerProfile(response.data);
+        // Validates the envelope (throws a friendly error otherwise).
+        _parseSellerProfile(response.data);
       } else if (existing == null || existing.isNone) {
         final response = await _dio.post(
           '/marketplace/seller/me',
           data: sellerBody,
         );
-        seller = _parseSellerProfile(response.data);
+        // Validates the envelope (throws a friendly error otherwise).
+        _parseSellerProfile(response.data);
       } else if (existing.isPending || existing.isApproved) {
         throw MarketplaceServiceException(
           existing.isPending
@@ -223,15 +224,17 @@ class MarketplaceService {
           '/marketplace/seller/me',
           data: sellerBody,
         );
-        seller = _parseSellerProfile(response.data);
+        // Validates the envelope (throws a friendly error otherwise).
+        _parseSellerProfile(response.data);
       }
 
-      final hasStore =
-          seller.storeSlug != null && seller.storeSlug!.trim().isNotEmpty;
+      // MARKETPLACE_V2_A0: SellerResponse carries no store; the real source is
+      // GET /marketplace/seller/me/store (404 = no store yet).
+      final hasStore = await _hasSellerStore();
       if (!hasStore) {
         final slug = _storeSlugFromName(displayName);
         await _dio.post(
-          '/marketplace/seller/store',
+          '/marketplace/seller/me/store',
           data: {
             'slug': slug,
             'name': displayName,
@@ -274,6 +277,17 @@ class MarketplaceService {
       rethrow;
     } on DioException catch (e) {
       throw MarketplaceServiceException(_friendlySellerError(e));
+    }
+  }
+
+  Future<bool> _hasSellerStore() async {
+    try {
+      final response = await _dio.get('/marketplace/seller/me/store');
+      final data = response.data is Map ? response.data['data'] : null;
+      return data is Map;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return false;
+      rethrow;
     }
   }
 
@@ -322,7 +336,7 @@ class MarketplaceService {
   }
 
   Future<SellerSummary> getSellerSummary() async {
-    final response = await _dio.get('/marketplace/seller/summary');
+    final response = await _dio.get('/marketplace/seller/me/summary');
     final data = Map<String, dynamic>.from(response.data['data'] as Map);
     return SellerSummary.fromJson(data);
   }
@@ -346,19 +360,34 @@ class MarketplaceService {
   }
 
   Future<MarketplaceStore> getSellerStore() async {
-    final response = await _dio.get('/marketplace/seller/store');
+    final response = await _dio.get('/marketplace/seller/me/store');
     final data = Map<String, dynamic>.from(response.data['data'] as Map);
     return MarketplaceStore.fromJson(data);
   }
 
   Future<MarketplaceStore> updateSellerStore(Map<String, dynamic> body) async {
-    final response = await _dio.put('/marketplace/seller/store', data: body);
+    final response = await _dio.patch(
+      '/marketplace/seller/me/store',
+      data: body,
+    );
+    final data = Map<String, dynamic>.from(response.data['data'] as Map);
+    return MarketplaceStore.fromJson(data);
+  }
+
+  /// POST /marketplace/seller/me/store/submit (backend requires an ACTIVE
+  /// seller and `ipAcknowledged: true`, the declaration accepted during
+  /// onboarding).
+  Future<MarketplaceStore> submitSellerStore() async {
+    final response = await _dio.post(
+      '/marketplace/seller/me/store/submit',
+      data: const {'ipAcknowledged': true},
+    );
     final data = Map<String, dynamic>.from(response.data['data'] as Map);
     return MarketplaceStore.fromJson(data);
   }
 
   Future<List<MarketplaceListing>> getSellerListings() async {
-    final response = await _dio.get('/marketplace/seller/listings');
+    final response = await _dio.get('/marketplace/seller/me/listings');
     final raw = response.data['data'];
     if (raw is List) {
       return raw
@@ -386,32 +415,44 @@ class MarketplaceService {
     SellerListingRequest request,
   ) async {
     final response = await _dio.post(
-      '/marketplace/seller/listings',
-      data: request.toJson(),
+      '/marketplace/seller/me/listings',
+      data: request.toCreateJson(),
     );
     final data = Map<String, dynamic>.from(response.data['data'] as Map);
     return MarketplaceListing.fromJson(data);
   }
 
+  /// PATCH /marketplace/seller/me/listings/{listingId} (UUID, not slug).
   Future<MarketplaceListing> updateSellerListing(
-    String slug,
+    String listingId,
     SellerListingRequest request,
   ) async {
-    final response = await _dio.put(
-      '/marketplace/seller/listings/$slug',
+    final response = await _dio.patch(
+      '/marketplace/seller/me/listings/$listingId',
       data: request.toJson(),
     );
     final data = Map<String, dynamic>.from(response.data['data'] as Map);
     return MarketplaceListing.fromJson(data);
   }
 
-  Future<void> deleteSellerListing(String slug) async {
-    await _dio.delete('/marketplace/seller/listings/$slug');
+  /// POST /marketplace/seller/me/listings/{listingId}/archive (no hard
+  /// delete in the backend).
+  Future<MarketplaceListing> archiveSellerListing(String listingId) async {
+    final response = await _dio.post(
+      '/marketplace/seller/me/listings/$listingId/archive',
+    );
+    final data = Map<String, dynamic>.from(response.data['data'] as Map);
+    return MarketplaceListing.fromJson(data);
   }
 
-  Future<MarketplaceListing> submitSellerListing(String slug) async {
-    final response =
-        await _dio.post('/marketplace/seller/listings/$slug/submit');
+  /// POST /marketplace/seller/me/listings/{listingId}/submit with the
+  /// `ipAcknowledged` body the backend requires (declaration accepted during
+  /// onboarding).
+  Future<MarketplaceListing> submitSellerListing(String listingId) async {
+    final response = await _dio.post(
+      '/marketplace/seller/me/listings/$listingId/submit',
+      data: const {'ipAcknowledged': true},
+    );
     final data = Map<String, dynamic>.from(response.data['data'] as Map);
     return MarketplaceListing.fromJson(data);
   }

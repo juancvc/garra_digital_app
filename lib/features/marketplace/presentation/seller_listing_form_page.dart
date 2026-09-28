@@ -175,7 +175,12 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
 
       MarketplaceListing listing;
       if (widget.isEditing) {
-        listing = await service.updateSellerListing(widget.slug!, request);
+        // MARKETPLACE_V2_A0: the backend updates by listing id (UUID).
+        final listingId = _listingId;
+        if (listingId == null || listingId.isEmpty) {
+          throw StateError('listing id not loaded');
+        }
+        listing = await service.updateSellerListing(listingId, request);
       } else {
         listing = await service.createSellerListing(request);
       }
@@ -197,7 +202,7 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
       }
 
       if (submit) {
-        listing = await service.submitSellerListing(listing.slug);
+        listing = await service.submitSellerListing(listing.id);
       }
 
       ref.invalidate(sellerListingsProvider);
