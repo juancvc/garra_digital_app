@@ -12,6 +12,7 @@ import '../data/chat_image_uploads.dart';
 import '../data/chat_models.dart';
 import '../data/chat_service.dart';
 import 'chat_media_grid.dart';
+import 'chat_message_reactions.dart';
 import 'chat_request_copy.dart';
 
 /// Short video stays off until physical QA. Images are the V1 attachment.
@@ -461,12 +462,15 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
       itemCount: _messages.length,
       itemBuilder: (context, index) {
         final message = _messages[index];
-        return Align(
+        final hasReactions = message.reactions.any(
+          (r) => r.reactionType != null,
+        );
+        final bubble = Align(
           alignment: message.mine
               ? Alignment.centerRight
               : Alignment.centerLeft,
           child: Container(
-            margin: const EdgeInsets.only(bottom: 8),
+            margin: EdgeInsets.only(bottom: hasReactions ? 0 : 8),
             constraints: BoxConstraints(
               maxWidth: MediaQuery.sizeOf(context).width * 0.78,
             ),
@@ -494,6 +498,26 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
               ],
             ),
           ),
+        );
+        if (!hasReactions) return bubble;
+        // CHAT_REACTIONS_13: read-only chips (no picker in the floating panel).
+        return Column(
+          crossAxisAlignment: message.mine
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
+          children: [
+            bubble,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+              child: Transform.translate(
+                offset: const Offset(0, -6),
+                child: ChatMessageReactionChips(
+                  messageId: message.id,
+                  reactions: message.reactions,
+                ),
+              ),
+            ),
+          ],
         );
       },
     );

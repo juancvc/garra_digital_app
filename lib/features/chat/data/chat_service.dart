@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../../core/network/dio_client.dart';
+import '../../community/data/reaction_type.dart';
 import 'chat_models.dart';
 
 class ChatException implements Exception {
@@ -108,6 +109,27 @@ class ChatService {
     return ChatMessage.fromJson(data);
   }
 
+  /// CHAT_REACTIONS_13: set or change my reaction (PUT, idempotent).
+  Future<ChatMessageReactionsResult> reactToMessage(
+    String messageId,
+    ReactionType type,
+  ) async {
+    final data = await _write(
+      'PUT',
+      '/chat/messages/$messageId/reaction',
+      body: {'type': type.apiValue},
+    );
+    return ChatMessageReactionsResult.fromJson(data);
+  }
+
+  /// CHAT_REACTIONS_13: remove my reaction (DELETE, idempotent).
+  Future<ChatMessageReactionsResult> removeMessageReaction(
+    String messageId,
+  ) async {
+    final data = await _write('DELETE', '/chat/messages/$messageId/reaction');
+    return ChatMessageReactionsResult.fromJson(data);
+  }
+
   Future<void> markRead(String conversationId) async {
     await _data('/chat/conversations/$conversationId/read', body: const {});
   }
@@ -126,6 +148,28 @@ class ChatService {
       final response = body == null
           ? await _dio.get(path, queryParameters: query)
           : await _dio.post(path, data: body, queryParameters: query);
+      final payload = response.data;
+      if (payload is Map && payload['data'] is Map) {
+        return Map<String, dynamic>.from(payload['data'] as Map);
+      }
+      if (payload is Map<String, dynamic>) return payload;
+      return {};
+    } on DioException catch (error) {
+      throw ChatException(_message(error));
+    }
+  }
+
+  Future<Map<String, dynamic>> _write(
+    String method,
+    String path, {
+    Object? body,
+  }) async {
+    try {
+      final response = await _dio.request(
+        path,
+        data: body,
+        options: Options(method: method),
+      );
       final payload = response.data;
       if (payload is Map && payload['data'] is Map) {
         return Map<String, dynamic>.from(payload['data'] as Map);

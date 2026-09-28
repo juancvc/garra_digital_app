@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -12,12 +14,14 @@ import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/utils/garra_message_time.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_states.dart';
+import '../../community/data/reaction_type.dart';
 import '../../home/presentation/providers/home_provider.dart';
 import '../data/chat_image_uploads.dart';
 import '../data/chat_models.dart';
 import '../data/chat_service.dart';
 import 'chat_backdrop.dart';
 import 'chat_media_grid.dart';
+import 'chat_message_reactions.dart';
 import 'chat_request_copy.dart';
 import 'chat_timeline.dart';
 import 'chat_unread_badge.dart';
@@ -68,6 +72,13 @@ class _ChatConversationPageState extends State<ChatConversationPage>
   var _following = true;
   var _unseenNew = false;
   String? _error;
+
+  /// CHAT_REACTIONS_13: optimistic reactions per message while its request is
+  /// in flight. Polling updates [_messages] but never overrides these; only
+  /// the latest request per message (token) resolves or rolls back.
+  final Map<String, List<ChatMessageReactionSummary>> _pendingReactions = {};
+  final Map<String, int> _reactionTokens = {};
+  var _reactionSeq = 0;
 
   MediaUploadService get _media =>
       _mediaInstance ??= widget.mediaService ?? MediaUploadService();
@@ -167,6 +178,8 @@ class _ChatConversationPageState extends State<ChatConversationPage>
   /// Polling diff. A: new messages (may scroll when following, else show the
   /// "Nuevos mensajes" pill; the existing /read call runs once). B: only read
   /// receipts changed (false -> true): repaint, never scroll, never mark read.
+  /// C: only reactions changed: repaint the bubbles, never scroll, no pill,
+  /// never mark read (a reaction is not a new message).
   Future<void> _refresh() async {
     if (!mounted || _sending) return;
     try {
@@ -180,9 +193,12 @@ class _ChatConversationPageState extends State<ChatConversationPage>
       final structureChanged =
           added.isNotEmpty || messages.length != _messages.length;
       final readChanged = !structureChanged && _readFlagsChanged(messages);
+      final reactionsChanged =
+          !structureChanged && _reactionsChanged(messages);
       final statusChanged = conversation.status != _conversation?.status;
       if (!structureChanged &&
           !readChanged &&
+          !reactionsChanged &&
           !statusChanged &&
           _conversation != null) {
         return;
@@ -206,6 +222,16 @@ class _ChatConversationPageState extends State<ChatConversationPage>
   bool _readFlagsChanged(List<ChatMessage> next) {
     for (var i = 0; i < next.length && i < _messages.length; i++) {
       if (next[i].id == _messages[i].id && next[i].read != _messages[i].read) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _reactionsChanged(List<ChatMessage> next) {
+    for (var i = 0; i < next.length && i < _messages.length; i++) {
+      if (next[i].id == _messages[i].id &&
+          next[i].reactionSignature != _messages[i].reactionSignature) {
         return true;
       }
     }
@@ -353,6 +379,85 @@ class _ChatConversationPageState extends State<ChatConversationPage>
   void _openNewMessages() {
     setState(() => _unseenNew = false);
     _animateToEnd();
+  }
+
+  bool get _canReact => _conversation?.status == 'ACTIVE';
+
+  List<ChatMessageReactionSummary> _reactionsOf(ChatMessage message) =>
+      _pendingReactions[message.id] ?? message.reactions;
+
+  Future<void> _openReactions(
+    BuildContext bubbleContext,
+    ChatMessage message,
+  ) async {
+    if (!_canReact || message.id.isEmpty) return;
+    final box = bubbleContext.findRenderObject();
+    if (box is! RenderBox || !box.hasSize || !box.attached) return;
+    final anchor = box.localToGlobal(Offset.zero) & box.size;
+    HapticFeedback.selectionClick();
+    final selected = await showChatReactionPicker(
+      context,
+      anchor: anchor,
+      alignEnd: message.mine,
+      current: myChatReaction(_reactionsOf(message)),
+    );
+    if (selected == null || !mounted || !_canReact) return;
+    await _react(message, selected, anchor);
+  }
+
+  /// Optimistic toggle: the same reaction again removes it (DELETE), another
+  /// one replaces it (PUT). Success reconciles with the small response; a
+  /// failure rolls back to the last server state and shows a snackbar.
+  Future<void> _react(
+    ChatMessage message,
+    ReactionType type,
+    Rect anchor,
+  ) async {
+    final id = message.id;
+    final current = _reactionsOf(message);
+    final removing = myChatReaction(current) == type.apiValue;
+    final token = ++_reactionSeq;
+    setState(() {
+      _reactionTokens[id] = token;
+      _pendingReactions[id] = withMyChatReaction(
+        current,
+        removing ? null : type.apiValue,
+      );
+    });
+    if (!removing && type == ReactionType.garra) {
+      showChatGarraPulse(
+        context,
+        Offset(
+          message.mine ? anchor.right - 24 : anchor.left + 24,
+          anchor.bottom,
+        ),
+      );
+    }
+    try {
+      final result = removing
+          ? await _chat.removeMessageReaction(id)
+          : await _chat.reactToMessage(id, type);
+      if (!mounted || _reactionTokens[id] != token) return;
+      setState(() {
+        _messages = [
+          for (final m in _messages)
+            m.id == id ? m.copyWith(reactions: result.reactions) : m,
+        ];
+        _pendingReactions.remove(id);
+        _reactionTokens.remove(id);
+      });
+    } catch (_) {
+      if (!mounted || _reactionTokens[id] != token) return;
+      setState(() {
+        _pendingReactions.remove(id);
+        _reactionTokens.remove(id);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No pudimos actualizar la reacci\u00f3n'),
+        ),
+      );
+    }
   }
 
   @override
@@ -841,41 +946,86 @@ class _ChatConversationPageState extends State<ChatConversationPage>
     final hasText = message.content.trim().isNotEmpty;
     final images = message.media.where((item) => !item.isVideo).toList();
     final mediaOnly = !hasText && images.isNotEmpty;
+    final reactions = _reactionsOf(message);
+    final hasReactions = reactions.any((r) => r.reactionType != null);
+    // Room so the chip overlapping the bottom edge never covers text or meta.
+    final chipRoom = hasReactions ? 6.0 : 0.0;
+    final canReact = _canReact && message.id.isNotEmpty;
+    final bubble = Container(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      padding: mediaOnly
+          ? EdgeInsets.fromLTRB(4, 4, 4, 6 + chipRoom)
+          : EdgeInsets.fromLTRB(12, 8, 12, 6 + chipRoom),
+      decoration: BoxDecoration(color: background, borderRadius: radius),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: mine
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        children: [
+          if (images.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.only(bottom: hasText ? 6 : 0),
+              child: ChatMediaGrid(
+                media: images,
+                maxWidth: maxWidth - (mediaOnly ? 8 : 24),
+              ),
+            ),
+          if (hasText)
+            Text(
+              message.content,
+              style: TextStyle(
+                color: foreground,
+                fontSize: 15,
+                height: 1.3,
+              ),
+            ),
+          if (entry.lastInGroup) _meta(message, foreground, mediaOnly),
+        ],
+      ),
+    );
+    // CHAT_REACTIONS_13: long press on the whole bubble (text, photos, own or
+    // other) opens the picker; taps still reach the photos (media viewer).
+    final interactive = Builder(
+      builder: (bubbleContext) => Semantics(
+        onLongPressHint: canReact ? 'Reaccionar al mensaje' : null,
+        customSemanticsActions: canReact
+            ? {
+                const CustomSemanticsAction(label: 'Reaccionar al mensaje'):
+                    () => _openReactions(bubbleContext, message),
+              }
+            : null,
+        child: GestureDetector(
+          key: Key('chat-bubble-gesture-${message.id}'),
+          behavior: HitTestBehavior.opaque,
+          onLongPress: canReact
+              ? () => _openReactions(bubbleContext, message)
+              : null,
+          child: bubble,
+        ),
+      ),
+    );
     return Align(
       key: Key(mine ? 'chat-bubble-mine' : 'chat-bubble-other'),
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(maxWidth: maxWidth),
-        padding: mediaOnly
-            ? const EdgeInsets.fromLTRB(4, 4, 4, 6)
-            : const EdgeInsets.fromLTRB(12, 8, 12, 6),
-        decoration: BoxDecoration(color: background, borderRadius: radius),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: mine
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
-          children: [
-            if (images.isNotEmpty)
-              Padding(
-                padding: EdgeInsets.only(bottom: hasText ? 6 : 0),
-                child: ChatMediaGrid(
-                  media: images,
-                  maxWidth: maxWidth - (mediaOnly ? 8 : 24),
-                ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Padding(
+            padding: EdgeInsets.only(bottom: hasReactions ? 14 : 0),
+            child: interactive,
+          ),
+          if (hasReactions)
+            Positioned(
+              bottom: 0,
+              left: mine ? null : 12,
+              right: mine ? 12 : null,
+              child: ChatMessageReactionChips(
+                messageId: message.id,
+                reactions: reactions,
               ),
-            if (hasText)
-              Text(
-                message.content,
-                style: TextStyle(
-                  color: foreground,
-                  fontSize: 15,
-                  height: 1.3,
-                ),
-              ),
-            if (entry.lastInGroup) _meta(message, foreground, mediaOnly),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }

@@ -1,4 +1,5 @@
 import '../../../core/utils/date_utils.dart';
+import '../../community/data/reaction_type.dart';
 
 class ChatRelationship {
   const ChatRelationship({
@@ -126,6 +127,7 @@ class ChatMessage {
     this.createdAt,
     this.media = const [],
     this.read = false,
+    this.reactions = const [],
   });
 
   final String id;
@@ -139,6 +141,26 @@ class ChatMessage {
   /// Backend `MessageResponse.read` (recipient opened the thread). Shown as
   /// the Enviado / read receipt on own messages only; there is no read time.
   final bool read;
+
+  /// CHAT_REACTIONS_13: per-type summary (count > 0 only, no user ids).
+  final List<ChatMessageReactionSummary> reactions;
+
+  /// Deterministic per-message reaction state, used by the polling diff.
+  String get reactionSignature => chatReactionSignature(reactions);
+
+  ChatMessage copyWith({List<ChatMessageReactionSummary>? reactions}) {
+    return ChatMessage(
+      id: id,
+      conversationId: conversationId,
+      senderId: senderId,
+      content: content,
+      mine: mine,
+      createdAt: createdAt,
+      media: media,
+      read: read,
+      reactions: reactions ?? this.reactions,
+    );
+  }
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     return ChatMessage(
@@ -155,6 +177,125 @@ class ChatMessage {
             (item) => ChatMediaItem.fromJson(Map<String, dynamic>.from(item)),
           )
           .toList(),
+      reactions: parseChatReactions(json['reactions']),
+    );
+  }
+}
+
+/// CHAT_REACTIONS_13: one reaction type on a message. [type] is the backend
+/// API value of a global [ReactionType]; the chat picker only offers six, but
+/// any valid global type received from the server is shown read-only.
+class ChatMessageReactionSummary {
+  const ChatMessageReactionSummary({
+    required this.type,
+    required this.count,
+    this.reactedByMe = false,
+  });
+
+  final String type;
+  final int count;
+  final bool reactedByMe;
+
+  ReactionType? get reactionType => ReactionType.tryParse(type);
+}
+
+/// Parses `reactions` safely: unknown types, non-positive counts, malformed
+/// entries and duplicates are skipped (never throws).
+List<ChatMessageReactionSummary> parseChatReactions(dynamic raw) {
+  if (raw is! List) return const [];
+  final seen = <String>{};
+  final out = <ChatMessageReactionSummary>[];
+  for (final item in raw) {
+    if (item is! Map) continue;
+    final type = ReactionType.tryParse(item['type']?.toString());
+    final count = item['count'];
+    if (type == null || count is! num || count.toInt() <= 0) continue;
+    if (!seen.add(type.apiValue)) continue;
+    out.add(
+      ChatMessageReactionSummary(
+        type: type.apiValue,
+        count: count.toInt(),
+        reactedByMe: item['reactedByMe'] == true,
+      ),
+    );
+  }
+  return List.unmodifiable(out);
+}
+
+/// Stable signature (sorted by type) of a reaction summary.
+String chatReactionSignature(List<ChatMessageReactionSummary> reactions) {
+  if (reactions.isEmpty) return '';
+  final parts = [
+    for (final r in reactions) '${r.type}:${r.count}:${r.reactedByMe ? 1 : 0}',
+  ]..sort();
+  return parts.join('|');
+}
+
+/// The viewer's current reaction (API value), if any.
+String? myChatReaction(List<ChatMessageReactionSummary> reactions) {
+  for (final r in reactions) {
+    if (r.reactedByMe) return r.type;
+  }
+  return null;
+}
+
+/// Local (optimistic) result of setting the viewer's reaction to [next]
+/// (`null` removes it). Other people's reactions are kept as they are.
+List<ChatMessageReactionSummary> withMyChatReaction(
+  List<ChatMessageReactionSummary> current,
+  String? next,
+) {
+  final out = <ChatMessageReactionSummary>[];
+  var placed = false;
+  for (final r in current) {
+    var count = r.count;
+    var mine = r.reactedByMe;
+    if (mine) {
+      count -= 1;
+      mine = false;
+    }
+    if (next != null && r.type == next) {
+      count += 1;
+      mine = true;
+      placed = true;
+    }
+    if (count > 0) {
+      out.add(
+        ChatMessageReactionSummary(
+          type: r.type,
+          count: count,
+          reactedByMe: mine,
+        ),
+      );
+    }
+  }
+  if (next != null && !placed) {
+    out.add(
+      ChatMessageReactionSummary(type: next, count: 1, reactedByMe: true),
+    );
+  }
+  return List.unmodifiable(out);
+}
+
+/// Small PUT/DELETE reaction response.
+class ChatMessageReactionsResult {
+  const ChatMessageReactionsResult({
+    required this.messageId,
+    this.reactions = const [],
+    this.myReaction,
+  });
+
+  final String messageId;
+  final List<ChatMessageReactionSummary> reactions;
+  final String? myReaction;
+
+  factory ChatMessageReactionsResult.fromJson(Map<String, dynamic> json) {
+    return ChatMessageReactionsResult(
+      messageId: json['messageId']?.toString() ?? '',
+      reactions: parseChatReactions(json['reactions']),
+      myReaction: ReactionType.tryParse(
+        json['myReaction']?.toString(),
+      )?.apiValue,
     );
   }
 }
