@@ -14,9 +14,14 @@ import '../data/marketplace_models.dart';
 import 'providers/marketplace_provider.dart';
 
 class SellerListingFormPage extends ConsumerStatefulWidget {
-  const SellerListingFormPage({super.key, this.slug});
+  const SellerListingFormPage({super.key, this.slug, this.storeId});
 
   final String? slug;
+
+  /// MARKETPLACE_V2_A1: business the new listing belongs to. Without it (no
+  /// store context) the form auto-selects the only business or asks the
+  /// seller to choose among 2-3; a listing is never created without a store.
+  final String? storeId;
 
   bool get isEditing => slug != null && slug!.isNotEmpty;
 
@@ -35,6 +40,8 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
   bool _loading = false;
   bool _hydrated = false;
   String? _listingId;
+  String? _pickedStoreId;
+  List<MarketplaceStore> _eligibleStores = const [];
   final List<ListingImageDraft> _images = [];
 
   static const _maxImages = 5;
@@ -144,8 +151,28 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
     });
   }
 
+  String? _resolveStoreId() {
+    final fixed = widget.storeId;
+    if (fixed != null && fixed.isNotEmpty) return fixed;
+    if (_eligibleStores.length == 1) return _eligibleStores.first.id;
+    final picked = _pickedStoreId;
+    if (picked != null && _eligibleStores.any((s) => s.id == picked)) {
+      return picked;
+    }
+    return null;
+  }
+
   Future<void> _save({bool submit = false}) async {
     if (!_formKey.currentState!.validate()) return;
+    final storeId = widget.isEditing ? null : _resolveStoreId();
+    if (!widget.isEditing && storeId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Elige el negocio de esta publicaci\u00f3n.'),
+        ),
+      );
+      return;
+    }
     if (_categorySlug == null || _categorySlug!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selecciona una categoría.')),
@@ -182,7 +209,7 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
         }
         listing = await service.updateSellerListing(listingId, request);
       } else {
-        listing = await service.createSellerListing(request);
+        listing = await service.createSellerListingInStore(storeId!, request);
       }
       _listingId = listing.id;
 
@@ -206,6 +233,7 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
       }
 
       ref.invalidate(sellerListingsProvider);
+      ref.invalidate(sellerStoreListingsProvider);
       ref.invalidate(sellerSummaryProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -228,6 +256,65 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Widget _storeSection(BuildContext context) {
+    final storesAsync = ref.watch(sellerStoresProvider);
+    return storesAsync.when(
+      loading: () => const GarraSkeleton(height: 52),
+      error: (_, _) => GarraErrorState(
+        onRetry: () => ref.invalidate(sellerStoresProvider),
+      ),
+      data: (stores) {
+        _eligibleStores =
+            stores.where((s) => !s.isArchived && s.id.isNotEmpty).toList();
+        final fixed = widget.storeId;
+        String? label;
+        if (fixed != null && fixed.isNotEmpty) {
+          final match = stores.where((s) => s.id == fixed);
+          label = match.isEmpty ? null : match.first.name;
+        } else if (_eligibleStores.length == 1) {
+          label = _eligibleStores.first.name;
+        }
+        if (label != null) {
+          return Text(
+            'Negocio: $label',
+            key: const Key('listing-store-current'),
+            style: Theme.of(context).textTheme.titleSmall,
+          );
+        }
+        if (fixed != null && fixed.isNotEmpty) return const SizedBox.shrink();
+        if (_eligibleStores.isEmpty) {
+          return const Text(
+            'Primero crea un negocio desde tu panel de vendedor.',
+            key: Key('listing-store-none'),
+          );
+        }
+        final picked = _eligibleStores.any((s) => s.id == _pickedStoreId)
+            ? _pickedStoreId
+            : null;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const GarraFieldLabel('Negocio'),
+            DropdownButtonFormField<String>(
+              key: const Key('listing-store-select'),
+              // ignore: deprecated_member_use
+              value: picked,
+              hint: const Text('Elige el negocio'),
+              decoration: garraControlDecoration(context),
+              dropdownColor: Theme.of(context).colorScheme.surface,
+              items: [
+                for (final store in _eligibleStores)
+                  DropdownMenuItem(value: store.id, child: Text(store.name)),
+              ],
+              validator: (value) => value == null ? 'Elige el negocio' : null,
+              onChanged: (value) => setState(() => _pickedStoreId = value),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -258,6 +345,10 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
               title: widget.isEditing ? 'Editar anuncio' : 'Nuevo anuncio',
               subtitle: 'Esto se publica en Marketplace, aparte de tu ficha en Negocios Cremas.',
             ),
+            if (!widget.isEditing) ...[
+              _storeSection(context),
+              const SizedBox(height: GarraSpacing.lg),
+            ],
             Text(
               'Fotos (máx. $_maxImages) — la primera es la portada',
               style: Theme.of(context).textTheme.titleSmall,

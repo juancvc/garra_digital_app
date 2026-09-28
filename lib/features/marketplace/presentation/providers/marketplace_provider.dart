@@ -90,6 +90,22 @@ final sellerListingsProvider =
   return ref.watch(marketplaceServiceProvider).getSellerListings();
 });
 
+/// MARKETPLACE_V2_A1: my businesses (incl. ARCHIVED) from one request.
+final sellerStoresProvider =
+    FutureProvider.autoDispose<List<MarketplaceStore>>((ref) {
+  return ref.watch(marketplaceServiceProvider).getSellerStores();
+});
+
+final sellerStoreProvider =
+    FutureProvider.autoDispose.family<MarketplaceStore, String>((ref, storeId) {
+  return ref.watch(marketplaceServiceProvider).getSellerStoreById(storeId);
+});
+
+final sellerStoreListingsProvider = FutureProvider.autoDispose
+    .family<List<MarketplaceListing>, String>((ref, storeId) {
+  return ref.watch(marketplaceServiceProvider).getSellerStoreListings(storeId);
+});
+
 final sellerPlanProvider = FutureProvider.autoDispose<SellerPlan>((ref) {
   return ref.watch(marketplaceServiceProvider).getSellerPlan();
 });

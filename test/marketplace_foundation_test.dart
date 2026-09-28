@@ -116,6 +116,7 @@ class FakeMarketplaceService extends MarketplaceService {
     this.seller,
     this.summary,
     this.sellerListings = const [],
+    this.sellerStores = const [],
     this.failFavorite = false,
     this.contactUri = 'https://wa.me/51999999999',
   }) : super(dio: Dio(BaseOptions(baseUrl: 'http://localhost')));
@@ -128,6 +129,7 @@ class FakeMarketplaceService extends MarketplaceService {
   SellerProfile? seller;
   SellerSummary? summary;
   List<MarketplaceListing> sellerListings;
+  List<MarketplaceStore> sellerStores;
   bool failFavorite;
   String contactUri;
 
@@ -284,6 +286,9 @@ class FakeMarketplaceService extends MarketplaceService {
 
   @override
   Future<List<MarketplaceListing>> getSellerListings() async => sellerListings;
+
+  @override
+  Future<List<MarketplaceStore>> getSellerStores() async => sellerStores;
 }
 
 Widget pumpMarketplace(
@@ -602,6 +607,14 @@ void main() {
         storeName: 'Tienda Sur',
       ),
       sellerListings: [sampleListing()],
+      sellerStores: const [
+        MarketplaceStore(
+          id: 'st-1',
+          slug: 'tienda-sur',
+          name: 'Tienda Sur',
+          status: 'ACTIVE',
+        ),
+      ],
     );
     await tester.pumpWidget(
       pumpMarketplace(service, initial: '/marketplace/seller/dashboard'),
@@ -614,7 +627,9 @@ void main() {
     expect(find.text('Contactos'), findsOneWidget);
     expect(find.text('Ventas'), findsNothing);
     expect(find.text('Ingresos'), findsNothing);
-    expect(find.text('Bandera Crema'), findsOneWidget);
+    // MARKETPLACE_V2_A1: listings live inside each business ("Mis negocios").
+    expect(find.text('Mis negocios'), findsOneWidget);
+    expect(find.byKey(const Key('seller-store-card-st-1')), findsOneWidget);
   });
 
   testWidgets('82_MARKETPLACE_HOME_CTA', (tester) async {

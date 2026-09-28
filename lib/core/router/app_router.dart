@@ -42,6 +42,8 @@ import 'package:garra_digital_app/features/marketplace/presentation/seller_dashb
 import 'package:garra_digital_app/features/marketplace/presentation/seller_listing_form_page.dart';
 import 'package:garra_digital_app/features/marketplace/presentation/seller_onboarding_page.dart';
 import 'package:garra_digital_app/features/marketplace/presentation/seller_plan_page.dart';
+import 'package:garra_digital_app/features/marketplace/presentation/seller_store_form_page.dart';
+import 'package:garra_digital_app/features/marketplace/presentation/seller_store_page.dart';
 import 'package:garra_digital_app/features/marketplace/presentation/store_page.dart';
 import 'package:garra_digital_app/features/missions/presentation/missions_page.dart';
 import 'package:garra_digital_app/features/notifications/presentation/notifications_screen.dart';
@@ -199,6 +201,30 @@ List<RouteBase> _buildRoutes() => [
     path: '/marketplace/seller/listings/new',
     name: 'marketplace-seller-listing-new',
     builder: (context, state) => const SellerListingFormPage(),
+  ),
+  // MARKETPLACE_V2_A1: multi-business management by explicit storeId.
+  GoRoute(
+    path: '/marketplace/seller/stores/new',
+    name: 'marketplace-seller-store-new',
+    builder: (context, state) => const SellerStoreFormPage(),
+  ),
+  GoRoute(
+    path: '/marketplace/seller/stores/:storeId',
+    name: 'marketplace-seller-store',
+    builder: (context, state) =>
+        SellerStorePage(storeId: state.pathParameters['storeId'] ?? ''),
+  ),
+  GoRoute(
+    path: '/marketplace/seller/stores/:storeId/edit',
+    name: 'marketplace-seller-store-edit',
+    builder: (context, state) =>
+        SellerStoreFormPage(storeId: state.pathParameters['storeId'] ?? ''),
+  ),
+  GoRoute(
+    path: '/marketplace/seller/stores/:storeId/listings/new',
+    name: 'marketplace-seller-store-listing-new',
+    builder: (context, state) =>
+        SellerListingFormPage(storeId: state.pathParameters['storeId'] ?? ''),
   ),
   GoRoute(
     path: '/marketplace/seller/listings/:slug/edit',

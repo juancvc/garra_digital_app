@@ -386,6 +386,139 @@ class MarketplaceService {
     return MarketplaceStore.fromJson(data);
   }
 
+  // --- MARKETPLACE_V2_A1: multi-business, every store call carries storeId ---
+
+  /// GET /marketplace/seller/me/stores: all my stores incl. ARCHIVED, ordered
+  /// createdAt ASC (single request, no per-store calls).
+  Future<List<MarketplaceStore>> getSellerStores() async {
+    final response = await _dio.get('/marketplace/seller/me/stores');
+    final raw = response.data['data'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((e) => MarketplaceStore.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  /// POST /marketplace/seller/me/stores (canonical). The backend enforces the
+  /// platform limit and answers 409 with a user-facing message beyond it.
+  Future<MarketplaceStore> createSellerStore({
+    required String name,
+    String? description,
+    String? city,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/marketplace/seller/me/stores',
+        data: {
+          'slug': marketplaceStoreSlug(name),
+          'name': name.trim(),
+          if (description != null && description.trim().isNotEmpty)
+            'description': description.trim(),
+          if (city != null && city.trim().isNotEmpty) 'city': city.trim(),
+          'countryCode': 'PE',
+        },
+      );
+      return _parseStore(response.data);
+    } on DioException catch (e) {
+      throw MarketplaceServiceException(_friendlyStoreError(e));
+    }
+  }
+
+  Future<MarketplaceStore> getSellerStoreById(String storeId) async {
+    final response = await _dio.get('/marketplace/seller/me/stores/$storeId');
+    return _parseStore(response.data);
+  }
+
+  Future<MarketplaceStore> updateSellerStoreById(
+    String storeId,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final response = await _dio.patch(
+        '/marketplace/seller/me/stores/$storeId',
+        data: body,
+      );
+      return _parseStore(response.data);
+    } on DioException catch (e) {
+      throw MarketplaceServiceException(_friendlyStoreError(e));
+    }
+  }
+
+  /// POST /marketplace/seller/me/stores/{storeId}/submit (IP declaration
+  /// accepted during onboarding; seller must be ACTIVE).
+  Future<MarketplaceStore> submitSellerStoreById(String storeId) async {
+    try {
+      final response = await _dio.post(
+        '/marketplace/seller/me/stores/$storeId/submit',
+        data: const {'ipAcknowledged': true},
+      );
+      return _parseStore(response.data);
+    } on DioException catch (e) {
+      throw MarketplaceServiceException(_friendlyStoreError(e));
+    }
+  }
+
+  /// POST /marketplace/seller/me/stores/{storeId}/archive (no hard delete;
+  /// 409 while the store still has non-archived listings).
+  Future<MarketplaceStore> archiveSellerStore(String storeId) async {
+    try {
+      final response = await _dio.post(
+        '/marketplace/seller/me/stores/$storeId/archive',
+      );
+      return _parseStore(response.data);
+    } on DioException catch (e) {
+      throw MarketplaceServiceException(_friendlyStoreError(e));
+    }
+  }
+
+  Future<List<MarketplaceListing>> getSellerStoreListings(
+    String storeId,
+  ) async {
+    final response = await _dio.get(
+      '/marketplace/seller/me/stores/$storeId/listings',
+    );
+    final raw = response.data['data'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((e) => MarketplaceListing.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  /// POST /marketplace/seller/me/stores/{storeId}/listings: a listing is
+  /// always created in an explicit store.
+  Future<MarketplaceListing> createSellerListingInStore(
+    String storeId,
+    SellerListingRequest request,
+  ) async {
+    final response = await _dio.post(
+      '/marketplace/seller/me/stores/$storeId/listings',
+      data: request.toCreateJson(),
+    );
+    final data = Map<String, dynamic>.from(response.data['data'] as Map);
+    return MarketplaceListing.fromJson(data);
+  }
+
+  MarketplaceStore _parseStore(dynamic responseData) {
+    final data = responseData is Map ? responseData['data'] : null;
+    if (data is Map) {
+      return MarketplaceStore.fromJson(Map<String, dynamic>.from(data));
+    }
+    throw MarketplaceServiceException(
+      'No pudimos cargar el negocio. Int\u00e9ntalo de nuevo.',
+    );
+  }
+
+  String _friendlyStoreError(DioException e) {
+    final message = _extractMessage(e);
+    if (e.response?.statusCode == 409 && message.isNotEmpty) return message;
+    if (message.toLowerCase().contains('slug')) {
+      return 'Ese nombre de negocio no est\u00e1 disponible. Prueba otro.';
+    }
+    return 'No pudimos guardar el negocio. Int\u00e9ntalo de nuevo.';
+  }
+
   Future<List<MarketplaceListing>> getSellerListings() async {
     final response = await _dio.get('/marketplace/seller/me/listings');
     final raw = response.data['data'];

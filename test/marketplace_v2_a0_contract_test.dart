@@ -9,6 +9,7 @@ import 'package:garra_digital_app/features/marketplace/data/marketplace_service.
 import 'package:garra_digital_app/features/marketplace/presentation/providers/marketplace_provider.dart';
 import 'package:garra_digital_app/features/marketplace/presentation/seller_dashboard_page.dart';
 import 'package:garra_digital_app/features/marketplace/presentation/seller_listing_form_page.dart';
+import 'package:garra_digital_app/features/marketplace/presentation/seller_store_page.dart';
 
 /// MARKETPLACE_V2_A0: every seller call is observed on the wire (method +
 /// path + body) through a Dio interceptor and compared with the backend
@@ -497,7 +498,11 @@ void main() {
       expect(wire.lines.where((l) => l.startsWith('PUT ')), isEmpty);
     });
 
-    Future<_Wire> pumpDashboard(WidgetTester tester, String storeStatus) async {
+    Future<_Wire> pumpDashboard(
+      WidgetTester tester,
+      String storeStatus, {
+      Widget home = const SellerDashboardPage(),
+    }) async {
       final wire = _Wire(
         responder: (o) {
           switch (o.path) {
@@ -510,11 +515,15 @@ void main() {
                 'favoritesReceived': 2,
                 'contactLeads': 3,
               };
-            case '/marketplace/seller/me/listings':
+            case '/marketplace/seller/me/stores':
+              return [_storeJson(status: storeStatus)];
+            case '/marketplace/seller/me/stores/store-1':
+              return _storeJson(status: storeStatus);
+            case '/marketplace/seller/me/stores/store-1/listings':
               return [_sellerListingJson()];
             case '/marketplace/seller/me/plan':
               return <String, dynamic>{};
-            case '/marketplace/seller/me/store/submit':
+            case '/marketplace/seller/me/stores/store-1/submit':
               return _storeJson(status: 'PENDING_REVIEW');
           }
           return <String, dynamic>{};
@@ -529,7 +538,7 @@ void main() {
           ],
           child: MaterialApp(
             theme: AppTheme.darkTheme,
-            home: const SellerDashboardPage(),
+            home: home,
           ),
         ),
       );
@@ -537,32 +546,44 @@ void main() {
       return wire;
     }
 
-    testWidgets('dashboard loads summary + listings from /seller/me', (
+    // MARKETPLACE_V2_A1: the dashboard lists businesses (GET /me/stores) and
+    // listings live inside each business; no legacy singular store calls.
+    testWidgets('dashboard loads summary + businesses from /seller/me', (
       tester,
     ) async {
       final wire = await pumpDashboard(tester, 'ACTIVE');
 
       expect(wire.lines, contains('GET /marketplace/seller/me/summary'));
-      expect(wire.lines, contains('GET /marketplace/seller/me/listings'));
+      expect(wire.lines, contains('GET /marketplace/seller/me/stores'));
       expect(wire.lines, contains('GET /marketplace/seller/me/plan'));
+      expect(wire.lines, isNot(contains('GET /marketplace/seller/me/listings')));
+      expect(wire.lines.where((l) => l.contains('/me/store/')), isEmpty);
       expect(find.text('Estado: Aprobado'), findsOneWidget);
-      expect(find.text('Camiseta retro'), findsOneWidget);
+      expect(find.byKey(const Key('seller-store-card-store-1')), findsOneWidget);
       expect(find.byKey(const Key('seller-store-submit')), findsNothing);
     });
 
-    testWidgets('a DRAFT store of an ACTIVE seller can be submitted', (
+    testWidgets('a DRAFT store of an ACTIVE seller is submitted by id', (
       tester,
     ) async {
-      final wire = await pumpDashboard(tester, 'DRAFT');
+      final wire = await pumpDashboard(
+        tester,
+        'DRAFT',
+        home: const SellerStorePage(storeId: 'store-1'),
+      );
 
       final button = find.byKey(const Key('seller-store-submit'));
       expect(button, findsOneWidget);
       await tester.tap(button);
       await tester.pumpAndSettle();
 
-      final submit = wire.last('POST', '/marketplace/seller/me/store/submit');
+      final submit = wire.last(
+        'POST',
+        '/marketplace/seller/me/stores/store-1/submit',
+      );
       expect(submit.data, {'ipAcknowledged': true});
-      expect(find.text('Tienda enviada a revisi\u00f3n.'), findsOneWidget);
+      expect(find.text('Negocio enviado a revisi\u00f3n.'), findsOneWidget);
+      expect(wire.lines, isNot(contains('POST /marketplace/seller/me/store/submit')));
       expect(
         wire.lines.where((l) => l == 'GET /marketplace/seller/me/summary'),
         hasLength(2),

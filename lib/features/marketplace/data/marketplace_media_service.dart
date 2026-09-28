@@ -255,14 +255,19 @@ class MarketplaceMediaService {
     );
   }
 
+  /// With [storeId] (MARKETPLACE_V2_A1) the explicit store endpoint is used;
+  /// without it the legacy singular alias (oldest non-archived store).
   Future<void> updateStoreMedia({
+    String? storeId,
     String? logoMediaAssetId,
     String? bannerMediaAssetId,
     bool clearLogo = false,
     bool clearBanner = false,
   }) async {
     await _dio.put(
-      '/marketplace/seller/me/store/media',
+      storeId == null
+          ? '/marketplace/seller/me/store/media'
+          : '/marketplace/seller/me/stores/$storeId/media',
       data: {
         if (logoMediaAssetId != null) 'logoMediaAssetId': logoMediaAssetId,
         if (bannerMediaAssetId != null) 'bannerMediaAssetId': bannerMediaAssetId,

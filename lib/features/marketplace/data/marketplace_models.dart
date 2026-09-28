@@ -62,11 +62,15 @@ class MarketplaceListing {
     this.featured = false,
     this.promotionId,
     this.sellerUserId,
+    this.storeId,
   });
 
   final String id;
   final String slug;
   final String title;
+
+  /// Owning store id (seller listing responses only, MARKETPLACE_V2_A1).
+  final String? storeId;
   final String? description;
   final double? price;
   final bool priceOnRequest;
@@ -215,6 +219,7 @@ class MarketplaceListing {
       featured: json['featured'] as bool? ?? false,
       promotionId: json['promotionId']?.toString(),
       sellerUserId: json['sellerUserId']?.toString(),
+      storeId: json['storeId']?.toString(),
     );
   }
 
@@ -337,6 +342,7 @@ class FeaturedStoreCard {
 
 class MarketplaceStore {
   const MarketplaceStore({
+    this.id = '',
     required this.slug,
     required this.name,
     this.description,
@@ -360,8 +366,16 @@ class MarketplaceStore {
   final String? bannerUrl;
   final String? cremaPointId;
 
+  /// Store UUID (seller store responses); empty for public payloads without it.
+  final String id;
+
   bool get isCremaPointVerified =>
       cremaPointId != null && cremaPointId!.isNotEmpty;
+
+  /// Real backend StoreStatus: DRAFT, PENDING_REVIEW, ACTIVE, SUSPENDED,
+  /// ARCHIVED (an admin rejection sends the store back to DRAFT).
+  bool get isArchived => status.toUpperCase() == 'ARCHIVED';
+  bool get isDraft => status.toUpperCase() == 'DRAFT';
 
   factory MarketplaceStore.fromJson(Map<String, dynamic> json) {
     final rawListings = json['listings'];
@@ -377,6 +391,7 @@ class MarketplaceStore {
     }
 
     return MarketplaceStore(
+      id: json['id']?.toString() ?? '',
       slug: json['slug']?.toString() ?? '',
       name: json['name'] as String? ?? '',
       description: json['description'] as String?,
@@ -513,6 +528,8 @@ class SellerSummary {
     this.storeName,
     this.storeSlug,
     this.storeStatus,
+    this.storeCount = 0,
+    this.nonArchivedStoreCount = 0,
   });
 
   final String status;
@@ -522,6 +539,10 @@ class SellerSummary {
   final String? storeName;
   final String? storeSlug;
   final String? storeStatus;
+
+  /// MARKETPLACE_V2_A1: all stores (incl. ARCHIVED) / stores using a slot.
+  final int storeCount;
+  final int nonArchivedStoreCount;
 
   /// MARKETPLACE_V2_A0: backend SellerSummaryResponse is {sellerStatus,
   /// storeStatus, storeSlug, activeListings, pendingReviewListings,
@@ -537,6 +558,8 @@ class SellerSummary {
       storeName: json['storeName'] as String?,
       storeSlug: json['storeSlug']?.toString(),
       storeStatus: json['storeStatus']?.toString(),
+      storeCount: count('storeCount') ?? 0,
+      nonArchivedStoreCount: count('nonArchivedStoreCount') ?? 0,
     );
   }
 
@@ -750,7 +773,25 @@ class SellerListingRequest {
 
 /// MARKETPLACE_V2_A0: slug for a new listing from its title plus a time
 /// suffix (listing slugs are globally unique in the backend).
-String marketplaceListingSlug(String title, {DateTime? now}) {
+String marketplaceListingSlug(String title, {DateTime? now}) =>
+    _marketplaceSlug(title, maxLength: 80, fallback: 'publicacion', now: now);
+
+/// MARKETPLACE_V2_A1: UX mirror of the platform limit of non-ARCHIVED stores
+/// per seller. The backend (garra.marketplace.max-stores-per-seller) is the
+/// authority and answers 409 beyond it.
+const kMarketplaceMaxStores = 3;
+
+/// Slug for a new store (3-64 chars, `^[a-z0-9-]+$`, globally unique), built
+/// from the name plus a time suffix so a new business never collides.
+String marketplaceStoreSlug(String name, {DateTime? now}) =>
+    _marketplaceSlug(name, maxLength: 64, fallback: 'negocio', now: now);
+
+String _marketplaceSlug(
+  String text, {
+  required int maxLength,
+  required String fallback,
+  DateTime? now,
+}) {
   const accents = {
     '\u00e1': 'a',
     '\u00e9': 'e',
@@ -760,7 +801,7 @@ String marketplaceListingSlug(String title, {DateTime? now}) {
     '\u00fc': 'u',
     '\u00f1': 'n',
   };
-  var base = title.trim().toLowerCase();
+  var base = text.trim().toLowerCase();
   accents.forEach((from, to) => base = base.replaceAll(from, to));
   base = base
       .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
@@ -769,11 +810,11 @@ String marketplaceListingSlug(String title, {DateTime? now}) {
   final suffix = (now ?? DateTime.now()).millisecondsSinceEpoch.toRadixString(
     36,
   );
-  final maxBase = 80 - suffix.length - 1;
+  final maxBase = maxLength - suffix.length - 1;
   if (base.length > maxBase) {
     base = base.substring(0, maxBase).replaceAll(RegExp(r'-+$'), '');
   }
-  return base.isEmpty ? 'publicacion-$suffix' : '$base-$suffix';
+  return base.isEmpty ? '$fallback-$suffix' : '$base-$suffix';
 }
 
 class MarketplacePageResult<T> {
