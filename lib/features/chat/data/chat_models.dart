@@ -299,3 +299,34 @@ class ChatMessageReactionsResult {
     );
   }
 }
+
+/// COMMUNITY_GROUP_CHAT_14C: `GET /chat/unread-count`. [unreadCount] is the
+/// backend total (private + community) and the only value the global badge
+/// shows; the split is informative (inbox segment badges). Older backends
+/// without the split count everything as private.
+class ChatUnreadSummary {
+  const ChatUnreadSummary({
+    this.unreadCount = 0,
+    int? directUnreadCount,
+    this.communityUnreadCount = 0,
+  }) : directUnreadCount = directUnreadCount ?? unreadCount;
+
+  static const ChatUnreadSummary zero = ChatUnreadSummary();
+
+  final int unreadCount;
+  final int directUnreadCount;
+  final int communityUnreadCount;
+
+  factory ChatUnreadSummary.fromJson(Map<String, dynamic> json) {
+    int? read(String key) {
+      final value = json[key];
+      return value is num ? value.toInt() : null;
+    }
+
+    return ChatUnreadSummary(
+      unreadCount: read('unreadCount') ?? 0,
+      directUnreadCount: read('directUnreadCount'),
+      communityUnreadCount: read('communityUnreadCount') ?? 0,
+    );
+  }
+}

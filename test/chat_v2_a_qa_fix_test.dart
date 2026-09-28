@@ -400,6 +400,10 @@ class _Chat extends ChatService {
   }
 
   @override
+  Future<ChatUnreadSummary> unreadSummary() async =>
+      ChatUnreadSummary(unreadCount: await unreadCount());
+
+  @override
   Future<ChatMessage> send(
     String conversationId,
     String content, {

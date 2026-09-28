@@ -2,21 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../data/chat_models.dart';
 import '../data/chat_service.dart';
 
 /// CHAT_V2_A: shared chat service for badge consumers (overridable in tests).
 final chatServiceProvider = Provider<ChatService>((ref) => ChatService());
 
-/// Global unread count from `GET /chat/unread-count`. No local counter and no
-/// polling: it refreshes on mount, on app resume, when returning from the chat
-/// screens and after a conversation is marked read. Failures show no badge.
-final chatUnreadCountProvider = FutureProvider.autoDispose<int>((ref) async {
+/// Global unread from `GET /chat/unread-count`: total plus the private /
+/// community split, in ONE call (COMMUNITY_GROUP_CHAT_14C). No local counter
+/// and no polling: it refreshes on mount, on app resume, when returning from
+/// the chat screens and after a conversation or community chat is marked
+/// read. Failures show no badge.
+final chatUnreadCountProvider = FutureProvider.autoDispose<ChatUnreadSummary>((
+  ref,
+) async {
   try {
-    return await ref.watch(chatServiceProvider).unreadCount();
+    return await ref.watch(chatServiceProvider).unreadSummary();
   } catch (_) {
-    return 0;
+    return ChatUnreadSummary.zero;
   }
 });
+
+/// Backend total for consumers that only need one number (global badge).
+final chatUnreadTotalProvider = Provider.autoDispose<int>(
+  (ref) => ref.watch(chatUnreadCountProvider).value?.unreadCount ?? 0,
+);
 
 /// Re-fetches the unread badge if a [ProviderScope] is available.
 void refreshChatUnreadBadge(BuildContext context) {
@@ -85,7 +95,8 @@ class _BadgedMessagesActionState extends ConsumerState<_BadgedMessagesAction> {
 
   @override
   Widget build(BuildContext context) {
-    final count = ref.watch(chatUnreadCountProvider).value ?? 0;
+    // The backend total (private + community); never re-summed locally.
+    final count = ref.watch(chatUnreadTotalProvider);
     return IconButton(
       key: const Key('messages-entry'),
       tooltip: 'Mensajes',

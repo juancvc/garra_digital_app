@@ -1016,6 +1016,10 @@ class _Chat extends ChatService {
   }
 
   @override
+  Future<ChatUnreadSummary> unreadSummary() async =>
+      ChatUnreadSummary(unreadCount: await unreadCount());
+
+  @override
   Future<ChatConversation> accept(String conversationId) async {
     acceptedId = conversationId;
     final request = requestsResult.firstWhere((r) => r.id == conversationId);

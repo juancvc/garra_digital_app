@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -19,6 +19,9 @@ import '../../chat/presentation/chat_conversation_page.dart'
     show chatCounterFromLength, chatFollowThreshold, chatMessageMaxLength;
 import '../../chat/presentation/chat_media_grid.dart';
 import '../../chat/presentation/chat_message_reactions.dart';
+import '../../chat/presentation/chat_unread_badge.dart';
+import '../../clans/presentation/clan_moderation_dialogs.dart';
+import '../../clans/presentation/providers/clans_provider.dart';
 import '../../community/data/reaction_type.dart';
 import '../data/community_chat_models.dart';
 import '../data/community_chat_service.dart';
@@ -29,6 +32,10 @@ const double communityChatOlderThreshold = 200;
 
 /// Max /changes pages applied in one polling cycle when `hasMore` is true.
 const int communityChatMaxChangePages = 5;
+
+/// Max older pages loaded automatically when the latest page is too short to
+/// fill the viewport.
+const int communityChatMaxFillPages = 3;
 
 const String communityChatReadOnlyCopy =
     'El chat est\u00e1 disponible en modo lectura.';
@@ -98,6 +105,8 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
 
   /// Bumped by every full (re)load so stale responses are discarded.
   var _loadToken = 0;
+  var _fillRounds = 0;
+  final _anchorRowKey = GlobalKey(debugLabel: 'community-chat-anchor');
   var _loading = true;
   var _loadingOlder = false;
   var _pollInFlight = false;
@@ -188,6 +197,7 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
       setState(() => _loading = false);
       _following = true;
       _jumpToEnd();
+      _scheduleFill();
       _markRead(_maxSeq);
     } on CommunityChatException catch (error) {
       if (!mounted || token != _loadToken) return;
@@ -227,7 +237,61 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
       _pendingReadSeq = null;
       _unseenNew = false;
       _loadingOlder = false;
+      _fillRounds = 0;
     });
+  }
+
+  /// Short first page (14B debt #5): when the latest page does not fill the
+  /// viewport but older history exists, load it (nothing to preserve yet:
+  /// the anchor moves to the new first message and the view stays at the
+  /// bottom). Bounded to a few pages.
+  void _scheduleFill() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Wait for the bottom jump (a few frames) before measuring.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted ||
+            !_scroll.hasClients ||
+            !_hasMoreBefore ||
+            _loadingOlder ||
+            _fillRounds >= communityChatMaxFillPages) {
+          return;
+        }
+        if (_scroll.position.maxScrollExtent > 0) return;
+        _fillRounds += 1;
+        _loadOlder(fill: true);
+      });
+      WidgetsBinding.instance.ensureVisualUpdate();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  /// Scroll offset that reveals the anchor row's bottom edge (independent of
+  /// the current pixels), to keep the rows from the anchor down still when
+  /// older history changes what sits right above them (day label, gap).
+  double? _anchorScrollOffset() {
+    final box = _anchorRowKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.attached || !box.hasSize) return null;
+    final viewport = RenderAbstractViewport.maybeOf(box);
+    if (viewport == null) return null;
+    return viewport.getOffsetToReveal(box, 1).offset;
+  }
+
+  void _restoreAnchor(double before) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      final after = _anchorScrollOffset();
+      if (after == null) return;
+      final delta = after - before;
+      if (delta.abs() < 0.5) return;
+      final position = _scroll.position;
+      _scroll.jumpTo(
+        (position.pixels + delta).clamp(
+          position.minScrollExtent,
+          position.maxScrollExtent,
+        ),
+      );
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   /// One polling cycle: /changes from the stored cursor, repeated while the
@@ -273,6 +337,7 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
     _applyFullPage(info, page);
     _following = true;
     _jumpToEnd();
+    _scheduleFill();
     final freshFromOthers = _messages.any(
       (message) =>
           message.seq > previousMax && message.isVisible && !message.mine,
@@ -332,6 +397,11 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
       _pendingReactions.clear();
       _reactionTokens.clear();
     });
+    // The membership changed: the clan list/detail and the global unread
+    // (which no longer counts this chat) must refetch.
+    ref.invalidate(myClansProvider);
+    ref.invalidate(clanDetailProvider(_slug));
+    ref.invalidate(chatUnreadCountProvider);
   }
 
   /// POST /read with a monotonic seq: never at or below what the backend
@@ -342,6 +412,8 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
     _readSeq = seq;
     try {
       await _service.markRead(_slug, seq);
+      // Home and inbox badges come from GET /chat/unread-count.
+      if (mounted) ref.invalidate(chatUnreadCountProvider);
     } catch (_) {
       // Allow a later retry with the same seq; never go backwards.
       if (_readSeq == seq) _readSeq = previous;
@@ -357,7 +429,7 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
 
   /// Previous page (`beforeSeq` = oldest loaded seq). Single flight; stops
   /// when the backend reports `hasMoreBefore=false`.
-  Future<void> _loadOlder() async {
+  Future<void> _loadOlder({bool fill = false}) async {
     if (_loadingOlder || !_hasMoreBefore || _loading || _messages.isEmpty) {
       return;
     }
@@ -367,10 +439,19 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
     try {
       final page = await _service.older(_slug, beforeSeq: beforeSeq);
       if (!mounted || token != _loadToken) return;
+      final before = fill ? null : _anchorScrollOffset();
       setState(() {
         _messages = mergeCommunityMessages(_messages, page.items);
         _hasMoreBefore = page.hasMoreBefore;
+        if (fill && _messages.isNotEmpty) _anchorId = _messages.first.id;
       });
+      if (fill) {
+        _following = true;
+        _jumpToEnd();
+        _scheduleFill();
+      } else if (before != null) {
+        _restoreAnchor(before);
+      }
     } on CommunityChatException catch (error) {
       if (error.isForbidden) _onAccessLost();
     } catch (_) {
@@ -545,9 +626,118 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
       anchor: anchor,
       alignEnd: message.mine,
       current: myChatReaction(_reactionsOf(message)),
+      actions: _messageActions(message),
     );
     if (selected == null || !mounted || !_canReact) return;
     await _react(message, selected, anchor);
+  }
+
+  /// COMMUNITY_GROUP_CHAT_14C: contextual actions next to the reactions.
+  /// Own visible message: "Eliminar". Others' visible message and
+  /// `canModerate` (display-only, the backend re-checks the hierarchy):
+  /// "Retirar mensaje". Never on tombstones or in read-only chats (the
+  /// picker itself is not offered there).
+  List<ChatMessageAction> _messageActions(CommunityChatMessage message) {
+    if (!_canWrite || !message.isVisible) return const [];
+    if (message.mine) {
+      return [
+        ChatMessageAction(
+          key: const Key('community-chat-action-delete'),
+          label: 'Eliminar',
+          icon: Icons.delete_outline,
+          destructive: true,
+          onSelected: () => _confirmDelete(message),
+        ),
+      ];
+    }
+    if (_info?.canModerate == true) {
+      return [
+        ChatMessageAction(
+          key: const Key('community-chat-action-hide'),
+          label: 'Retirar mensaje',
+          icon: Icons.visibility_off_outlined,
+          destructive: true,
+          onSelected: () => _confirmHide(message),
+        ),
+      ];
+    }
+    return const [];
+  }
+
+  /// Server-confirmed self-delete: the local message only changes when the
+  /// backend returns the DELETED_BY_AUTHOR tombstone.
+  Future<void> _confirmDelete(CommunityChatMessage message) async {
+    final ok = await showClanConfirmDialog(
+      context,
+      title: '\u00bfEliminar este mensaje?',
+      message: 'El mensaje dejar\u00e1 de mostrarse en el chat.',
+      confirmLabel: 'Eliminar',
+    );
+    if (!ok || !mounted || !_canWrite) return;
+    try {
+      final tombstone = await _service.deleteMessage(_slug, message.id);
+      if (mounted) _applyServerMessage(tombstone);
+    } on CommunityChatException catch (error) {
+      if (!mounted) return;
+      if (error.isConflict || error.isNotFound) {
+        _snack('Este mensaje ya no est\u00e1 disponible.');
+        _reconcile();
+      } else if (error.isForbidden) {
+        _snack('No pudimos eliminar el mensaje.');
+        // Access state only changes if the chat itself is no longer ours.
+        _recheckAccess();
+      } else {
+        _snack('No pudimos eliminar el mensaje.');
+      }
+    } catch (_) {
+      _snack('No pudimos eliminar el mensaje.');
+    }
+  }
+
+  /// Moderator hide: server-confirmed, no reason, never shows who hid it.
+  /// A 403 here is an action permission (hierarchy), not chat access.
+  Future<void> _confirmHide(CommunityChatMessage message) async {
+    final ok = await showClanConfirmDialog(
+      context,
+      title: '\u00bfRetirar este mensaje del chat?',
+      message: 'El contenido dejar\u00e1 de mostrarse para los miembros.',
+      confirmLabel: 'Retirar',
+    );
+    if (!ok || !mounted || !_canWrite) return;
+    try {
+      final tombstone = await _service.hideMessage(_slug, message.id);
+      if (mounted) _applyServerMessage(tombstone);
+    } on CommunityChatException catch (error) {
+      if (!mounted) return;
+      if (error.isForbidden) {
+        _snack('No tienes permisos para retirar este mensaje.');
+        // Refresh canModerate/writable silently; only a 403/404 on the chat
+        // info itself means the chat access was lost.
+        _recheckAccess();
+      } else if (error.isConflict || error.isNotFound) {
+        _snack('Este mensaje ya no est\u00e1 disponible.');
+        _reconcile();
+      } else {
+        _snack('No pudimos retirar el mensaje.');
+      }
+    } catch (_) {
+      _snack('No pudimos retirar el mensaje.');
+    }
+  }
+
+  /// Applies a message returned by a write (tombstone) in place: no scroll,
+  /// no pill, no mark-read. /changes later brings the same version: no-op.
+  void _applyServerMessage(CommunityChatMessage message) {
+    setState(() {
+      _messages = mergeCommunityMessages(_messages, [message]);
+      _pendingReactions.remove(message.id);
+      _reactionTokens.remove(message.id);
+    });
+  }
+
+  /// 409 / 404 on a message write: pull the current state right away.
+  void _reconcile() {
+    _pollChanges();
   }
 
   /// Optimistic toggle (private chat UX): the same reaction removes it
@@ -730,12 +920,12 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
       (entry) =>
           entry is CommunityMessageEntry && entry.message.id == _anchorId,
     );
-    // Whole history loaded from the anchor on: everything lives in the center
-    // sliver (short chats render top-down with their first day label).
-    // Otherwise the rows above the anchor (its day label included) belong to
-    // the older sliver, which grows upwards, so the anchor row never moves.
-    final complete = !_hasMoreBefore && _messages.first.id == _anchorId;
-    if (split < 0 || complete) split = 0;
+    // While the anchor is the first loaded message everything lives in the
+    // center sliver (short chats render top-down with their first day
+    // label). Once older pages exist, the rows above the anchor belong to the
+    // older sliver, which grows upwards; _restoreAnchor absorbs the small
+    // change right above the anchor (its day label moving up).
+    if (split < 0 || _messages.first.id == _anchorId) split = 0;
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxBubble = math.min(constraints.maxWidth * 0.75, 480.0);
@@ -813,11 +1003,13 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
         : previous == null || previous is CommunityDaySeparatorEntry
         ? 0.0
         : (item.firstInGroup ? 8.0 : 2.0);
-    return Padding(
+    final row = Padding(
       key: ValueKey<String>('community-chat-row-${item.message.id}'),
       padding: EdgeInsets.only(top: topGap),
       child: _messageRow(item, maxBubble),
     );
+    if (item.message.id != _anchorId) return row;
+    return KeyedSubtree(key: _anchorRowKey, child: row);
   }
 
   Widget _newMessagesPill() {

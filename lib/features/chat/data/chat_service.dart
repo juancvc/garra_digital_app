@@ -134,9 +134,13 @@ class ChatService {
     await _data('/chat/conversations/$conversationId/read', body: const {});
   }
 
-  Future<int> unreadCount() async {
+  /// Total unread (private + community); see [unreadSummary].
+  Future<int> unreadCount() async => (await unreadSummary()).unreadCount;
+
+  /// COMMUNITY_GROUP_CHAT_14C: one call with the total and its split.
+  Future<ChatUnreadSummary> unreadSummary() async {
     final data = await _data('/chat/unread-count');
-    return (data['unreadCount'] as num?)?.toInt() ?? 0;
+    return ChatUnreadSummary.fromJson(data);
   }
 
   Future<Map<String, dynamic>> _data(

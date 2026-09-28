@@ -289,11 +289,17 @@ class _ChatReactionOption extends StatelessWidget {
 /// coordinates). Shown above the bubble, or below it when there is no room
 /// near the top; aligned to the bubble side ([alignEnd] for own messages) and
 /// kept on screen. Tapping outside or system back closes it (returns null).
+///
+/// [actions] (COMMUNITY_GROUP_CHAT_14C) adds contextual message actions in a
+/// separate row next to the reactions (never inside the emoji row). Picking
+/// one closes the picker (returns null) and then runs its callback. Empty by
+/// default: the private chat picker is unchanged.
 Future<ReactionType?> showChatReactionPicker(
   BuildContext context, {
   required Rect anchor,
   required bool alignEnd,
   String? current,
+  List<ChatMessageAction> actions = const [],
 }) {
   final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
   return Navigator.of(context, rootNavigator: true).push<ReactionType>(
@@ -302,8 +308,99 @@ Future<ReactionType?> showChatReactionPicker(
       alignEnd: alignEnd,
       current: current,
       reduceMotion: reduceMotion,
+      actions: actions,
     ),
   );
+}
+
+/// COMMUNITY_GROUP_CHAT_14C: a contextual action shown under/over the
+/// reaction picker (e.g. "Eliminar", "Retirar mensaje").
+class ChatMessageAction {
+  const ChatMessageAction({
+    required this.key,
+    required this.label,
+    required this.icon,
+    required this.onSelected,
+    this.destructive = false,
+  });
+
+  final Key key;
+  final String label;
+  final IconData icon;
+  final VoidCallback onSelected;
+  final bool destructive;
+}
+
+/// Height of the contextual actions row.
+const double chatMessageActionsHeight = 48;
+
+class _ChatMessageActionsBar extends StatelessWidget {
+  const _ChatMessageActionsBar({required this.actions, required this.onTap});
+
+  final List<ChatMessageAction> actions;
+  final ValueChanged<ChatMessageAction> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.garraColors;
+    return Material(
+      key: const Key('chat-message-actions'),
+      color: colors.surfaceRaised,
+      elevation: 6,
+      shadowColor: Colors.black.withValues(alpha: 0.35),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final action in actions)
+            Semantics(
+              button: true,
+              label: action.label,
+              excludeSemantics: true,
+              child: InkWell(
+                key: action.key,
+                onTap: () => onTap(action),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minHeight: chatMessageActionsHeight,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          action.icon,
+                          size: 20,
+                          color: action.destructive
+                              ? colors.danger
+                              : colors.textPrimary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          action.label,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: action.destructive
+                                ? colors.danger
+                                : colors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Picker position for [anchor] inside a screen of [size] with [padding].
@@ -336,12 +433,14 @@ class _ChatReactionPickerRoute extends PopupRoute<ReactionType> {
     required this.alignEnd,
     required this.current,
     required this.reduceMotion,
+    this.actions = const [],
   });
 
   final Rect anchor;
   final bool alignEnd;
   final String? current;
   final bool reduceMotion;
+  final List<ChatMessageAction> actions;
 
   @override
   Color? get barrierColor => null;
@@ -374,6 +473,9 @@ class _ChatReactionPickerRoute extends PopupRoute<ReactionType> {
       padding: media.padding,
     );
     final curved = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+    if (actions.isNotEmpty) {
+      return _buildWithActions(context, media, origin, curved);
+    }
     return Stack(
       children: [
         Positioned(
@@ -392,6 +494,72 @@ class _ChatReactionPickerRoute extends PopupRoute<ReactionType> {
                   HapticFeedback.selectionClick();
                   Navigator.of(context).pop(type);
                 },
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Reactions plus the contextual actions row: the actions sit on the far
+  /// side of the bubble (above the picker when it opens above, below when it
+  /// opens below) and the whole block stays on screen.
+  Widget _buildWithActions(
+    BuildContext context,
+    MediaQueryData media,
+    Offset origin,
+    Animation<double> curved,
+  ) {
+    const gap = 6.0;
+    const margin = 8.0;
+    const extra = chatMessageActionsHeight + gap;
+    final above = origin.dy < anchor.top;
+    final minTop = media.padding.top + margin;
+    final maxTop =
+        media.size.height -
+        media.padding.bottom -
+        chatReactionPickerHeight -
+        extra -
+        margin;
+    var top = above ? origin.dy - extra : origin.dy;
+    if (maxTop >= minTop) top = top.clamp(minTop, maxTop);
+    final picker = ChatReactionPicker(
+      selected: current,
+      onSelected: (type) {
+        HapticFeedback.selectionClick();
+        Navigator.of(context).pop(type);
+      },
+    );
+    final bar = _ChatMessageActionsBar(
+      actions: actions,
+      onTap: (action) {
+        HapticFeedback.selectionClick();
+        Navigator.of(context).pop();
+        action.onSelected();
+      },
+    );
+    return Stack(
+      children: [
+        Positioned(
+          left: origin.dx,
+          top: top,
+          width: chatReactionPickerWidth,
+          child: FadeTransition(
+            opacity: curved,
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.9, end: 1).animate(curved),
+              alignment: alignEnd
+                  ? Alignment.bottomRight
+                  : Alignment.bottomLeft,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: alignEnd
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
+                children: above
+                    ? [bar, const SizedBox(height: gap), picker]
+                    : [picker, const SizedBox(height: gap), bar],
               ),
             ),
           ),

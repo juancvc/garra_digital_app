@@ -16,6 +16,7 @@ class CommunityChatException implements Exception {
 
   bool get isForbidden => statusCode == 403;
   bool get isNotFound => statusCode == 404;
+  bool get isConflict => statusCode == 409;
 
   @override
   String toString() => 'CommunityChatException($statusCode)';
@@ -113,6 +114,32 @@ class CommunityChatService {
       '${_base(slug)}/messages/${Uri.encodeComponent(messageId)}/reaction',
     );
     return CommunityChatReactionsResult.fromJson(data);
+  }
+
+  /// DELETE /clans/{slug}/chat/messages/{id}: author self-delete. Returns the
+  /// DELETED_BY_AUTHOR tombstone (idempotent; 409 if hidden by moderation).
+  Future<CommunityChatMessage> deleteMessage(
+    String slug,
+    String messageId,
+  ) async {
+    final data = await _request(
+      'DELETE',
+      '${_base(slug)}/messages/${Uri.encodeComponent(messageId)}',
+    );
+    return CommunityChatMessage.fromJson(data);
+  }
+
+  /// POST /clans/{slug}/chat/messages/{id}/hide: moderator hide. Returns the
+  /// HIDDEN_BY_MODERATOR tombstone (403 without rank, 409 if author-deleted).
+  Future<CommunityChatMessage> hideMessage(
+    String slug,
+    String messageId,
+  ) async {
+    final data = await _request(
+      'POST',
+      '${_base(slug)}/messages/${Uri.encodeComponent(messageId)}/hide',
+    );
+    return CommunityChatMessage.fromJson(data);
   }
 
   /// POST /clans/{slug}/chat/read {seq} (monotonic on the backend).

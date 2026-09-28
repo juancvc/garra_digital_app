@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_spacing.dart';
@@ -8,6 +9,7 @@ import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../data/chat_models.dart';
 import '../data/chat_service.dart';
+import '../../community_chat/presentation/community_chat_inbox.dart';
 import 'chat_unread_badge.dart';
 
 /// CHAT_V2_A: professional inbox. Conversaciones (ACTIVE) and Solicitudes
@@ -25,6 +27,10 @@ class ChatInboxPage extends StatefulWidget {
 class _ChatInboxPageState extends State<ChatInboxPage> {
   late final ChatService _chat = widget.chatService ?? ChatService();
   var _requestsTab = false;
+
+  /// COMMUNITY_GROUP_CHAT_14C: "Privados" (this screen as it was) or
+  /// "Comunidades" (group chats of the viewer's communities).
+  var _communitiesSection = false;
   var _loading = true;
   String? _error;
   List<ChatConversation> _conversations = const [];
@@ -104,14 +110,83 @@ class _ChatInboxPageState extends State<ChatInboxPage> {
     }
   }
 
+  /// The sections need Riverpod (clan list + unread split). Without a
+  /// ProviderScope (isolated widget tests) the private inbox renders alone.
+  bool _hasProviderScope(BuildContext context) {
+    try {
+      ProviderScope.containerOf(context, listen: false);
+      return true;
+    } on StateError {
+      return false;
+    }
+  }
+
+  Widget _sectionBar() {
+    final colors = context.garraColors;
+    return Consumer(
+      builder: (context, ref, _) {
+        final unread = ref.watch(chatUnreadCountProvider).value;
+        return Container(
+          color: colors.surface,
+          padding: const EdgeInsets.fromLTRB(
+            GarraSpacing.lg,
+            GarraSpacing.sm,
+            GarraSpacing.lg,
+            GarraSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _Segment(
+                  key: const Key('chat-section-private'),
+                  label: 'Privados',
+                  count: unread?.directUnreadCount ?? 0,
+                  countKey: const Key('chat-section-private-count'),
+                  selected: !_communitiesSection,
+                  onTap: () => setState(() => _communitiesSection = false),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _Segment(
+                  key: const Key('chat-section-communities'),
+                  label: 'Comunidades',
+                  count: unread?.communityUnreadCount ?? 0,
+                  countKey: const Key('chat-section-communities-count'),
+                  selected: _communitiesSection,
+                  onTap: () => setState(() => _communitiesSection = true),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.garraColors;
+    final sections = _hasProviderScope(context);
+    if (sections && _communitiesSection) {
+      return Scaffold(
+        backgroundColor: colors.background,
+        appBar: AppBar(title: const Text('Mensajes')),
+        body: Column(
+          children: [
+            _sectionBar(),
+            Divider(height: 1, color: colors.border),
+            const Expanded(child: CommunityChatInboxList()),
+          ],
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(title: const Text('Mensajes')),
       body: Column(
         children: [
+          if (sections) _sectionBar(),
           Padding(
             padding: const EdgeInsets.fromLTRB(
               GarraSpacing.lg,
@@ -495,16 +570,19 @@ class _RequestRow extends StatelessWidget {
 
 class _Segment extends StatelessWidget {
   const _Segment({
+    super.key,
     required this.label,
     required this.selected,
     required this.onTap,
     this.count = 0,
+    this.countKey = const Key('chat-requests-count'),
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
   final int count;
+  final Key countKey;
 
   @override
   Widget build(BuildContext context) {
@@ -526,7 +604,7 @@ class _Segment extends StatelessWidget {
           if (count > 0) ...[
             const SizedBox(width: 6),
             Container(
-              key: const Key('chat-requests-count'),
+              key: countKey,
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
               decoration: BoxDecoration(
                 color: selected ? colors.onBrand : colors.brandPrimary,
