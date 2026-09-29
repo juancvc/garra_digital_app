@@ -14,11 +14,28 @@ Future<void> pickAndUploadChatImages({
   required MediaUploadService media,
   required List<MediaDraft> drafts,
   required void Function(void Function() change) update,
+  bool Function()? canUpload,
 }) async {
   if (drafts.length >= chatMaxImages) return;
   final files = await media.pickMultiImage(max: chatMaxImages - drafts.length);
-  for (final file in files) {
+  for (var index = 0; index < files.length; index++) {
     if (drafts.length >= chatMaxImages) break;
+    if (canUpload != null && !canUpload()) {
+      update(() {
+        for (final file in files.skip(index)) {
+          if (drafts.length >= chatMaxImages) break;
+          drafts.add(
+            MediaDraft(
+              localId: file.path,
+              localPath: file.path,
+              state: MediaUploadState.failed,
+            ),
+          );
+        }
+      });
+      return;
+    }
+    final file = files[index];
     var added = false;
     void track(MediaDraft draft) {
       update(() {

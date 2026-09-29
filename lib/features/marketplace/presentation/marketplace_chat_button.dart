@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../chat/data/chat_service.dart';
 import '../../chat/presentation/floating_chat_panel.dart';
@@ -32,6 +33,7 @@ class _ConsultarPorChatButtonState extends State<ConsultarPorChatButton> {
 
   Future<void> _open() async {
     if (_busy || widget.sellerUserId.isEmpty) return;
+    if (!allowNetworkAction(context)) return;
     setState(() => _busy = true);
     try {
       final relationship = await _chat.relationship(

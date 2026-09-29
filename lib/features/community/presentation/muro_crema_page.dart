@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/current_fan_provider.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/widgets/garra_cached_network_image.dart';
@@ -214,6 +215,7 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
   }
 
   Future<void> _publish({required String matchId}) async {
+    if (!allowNetworkAction(context)) return;
     final content = _contentController.text.trim();
 
     if (content.isEmpty) {
@@ -775,6 +777,7 @@ class _WallPostCardState extends ConsumerState<_WallPostCard> {
       forcePicker: change,
     );
     if (intent == null || !mounted) return;
+    if (!allowNetworkAction(context)) return;
 
     final previous = _post;
     final optimistic = applyOptimisticReaction(_post, intent.apiValue);
@@ -1009,35 +1012,32 @@ class _WallPostCardState extends ConsumerState<_WallPostCard> {
               alignment: Alignment.centerLeft,
               child: Builder(
                 builder: (ctaContext) => TextButton.icon(
-                key: ValueKey('react_cta_${post.id}'),
-                onPressed: _reacting
-                    ? null
-                    : () {
-                        GarraReactionAnchor.remember(ctaContext);
-                        _react();
-                      },
-                onLongPress: _reacting
-                    ? null
-                    : () {
-                        GarraReactionAnchor.remember(ctaContext);
-                        _react(change: true);
-                      },
-                icon: post.myReaction != null
-                    ? GarraReactionGlyph(apiValue: post.myReaction!, size: 18)
-                    : const Text(
-                  '👍',
-                  style: TextStyle(fontSize: 16),
-                ),
-                label: Text(
-                  post.myReaction != null
-                      ? ReactionType.labelFor(post.myReaction!)
-                      : 'Reaccionar',
-                  style: const TextStyle(
-                    color: AppTheme.gold,
-                    fontWeight: FontWeight.w800,
+                  key: ValueKey('react_cta_${post.id}'),
+                  onPressed: _reacting
+                      ? null
+                      : () {
+                          GarraReactionAnchor.remember(ctaContext);
+                          _react();
+                        },
+                  onLongPress: _reacting
+                      ? null
+                      : () {
+                          GarraReactionAnchor.remember(ctaContext);
+                          _react(change: true);
+                        },
+                  icon: post.myReaction != null
+                      ? GarraReactionGlyph(apiValue: post.myReaction!, size: 18)
+                      : const Text('👍', style: TextStyle(fontSize: 16)),
+                  label: Text(
+                    post.myReaction != null
+                        ? ReactionType.labelFor(post.myReaction!)
+                        : 'Reaccionar',
+                    style: const TextStyle(
+                      color: AppTheme.gold,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-              ),
               ),
             ),
           ],

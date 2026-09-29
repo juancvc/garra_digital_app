@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_single_photo_field.dart';
@@ -15,7 +16,10 @@ import '../data/clan_admin_permissions.dart';
 import 'clan_bans_page.dart';
 import 'clan_members_admin_page.dart';
 import 'create_community_page.dart'
-    show CommunityOptionTile, communityJoinOptions, communityPostsPrivacyNote,
+    show
+        CommunityOptionTile,
+        communityJoinOptions,
+        communityPostsPrivacyNote,
         communityVisibilityOptions;
 import 'providers/clans_provider.dart';
 
@@ -85,6 +89,7 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
   }
 
   Future<void> _save() async {
+    if (!allowNetworkAction(context)) return;
     setState(() => _saving = true);
     try {
       final avatar = _avatar;
@@ -96,6 +101,7 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
               avatar,
               MediaUploadPurpose.communityPost,
             );
+      if (!mounted || !allowNetworkAction(context)) return;
       final bannerId = cover == null
           ? null
           : await uploadSinglePhoto(
@@ -103,7 +109,10 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
               cover,
               MediaUploadPurpose.communityPost,
             );
-      await ref.read(clanServiceProvider).updateClan(
+      if (!mounted || !allowNetworkAction(context)) return;
+      await ref
+          .read(clanServiceProvider)
+          .updateClan(
             widget.slug,
             UpdateClanRequest(
               name: _nameController.text.trim(),
@@ -127,21 +136,23 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
           _removeAvatar = false;
           _removeCover = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Comunidad actualizada')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Comunidad actualizada')));
       }
     } on SinglePhotoUploadException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('No pudimos guardar los cambios. Inténtalo de nuevo.'),
+            content: Text(
+              'No pudimos guardar los cambios. Inténtalo de nuevo.',
+            ),
           ),
         );
       }
@@ -172,7 +183,9 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
       appBar: AppBar(title: const Text('Administrar comunidad')),
       body: clanAsync.when(
         loading: () => Center(
-          child: CircularProgressIndicator(color: context.garraColors.brandPrestige),
+          child: CircularProgressIndicator(
+            color: context.garraColors.brandPrestige,
+          ),
         ),
         error: (_, __) => GarraErrorState(onRetry: _refresh),
         data: (clan) {
@@ -248,9 +261,7 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
                       const SizedBox(height: GarraSpacing.md),
                       TextField(
                         controller: _countryController,
-                        decoration: const InputDecoration(
-                          labelText: 'País',
-                        ),
+                        decoration: const InputDecoration(labelText: 'País'),
                       ),
                       const SizedBox(height: GarraSpacing.md),
                       Text(
@@ -373,9 +384,7 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
                     ),
                   ),
                 ),
-                if (ClanAdminPermissions.canViewBans(
-                  clan.myMembership?.role,
-                ))
+                if (ClanAdminPermissions.canViewBans(clan.myMembership?.role))
                   _ManageEntryTile(
                     key: const ValueKey('manage_bans_entry'),
                     icon: Icons.block_rounded,
@@ -425,15 +434,15 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
                                         children: [
                                           Text(
                                             m.displayName,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .titleSmall,
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.titleSmall,
                                           ),
                                           Text(
                                             '@${m.username}',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall,
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.bodySmall,
                                           ),
                                         ],
                                       ),
@@ -444,8 +453,9 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
                                           .textTheme
                                           .labelSmall
                                           ?.copyWith(
-                                            color:
-                                                context.garraColors.brandPrestige,
+                                            color: context
+                                                .garraColors
+                                                .brandPrestige,
                                           ),
                                     ),
                                   ],
@@ -498,17 +508,15 @@ class _ManageEntryTile extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleSmall
-                          ?.copyWith(color: colors.textPrimary),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: colors.textPrimary,
+                      ),
                     ),
                     Text(
                       subtitle,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: colors.textSecondary),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.textSecondary,
+                      ),
                     ),
                   ],
                 ),

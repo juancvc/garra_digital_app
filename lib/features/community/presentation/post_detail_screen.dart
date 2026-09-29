@@ -12,6 +12,7 @@ import '../../../core/design/garra_spacing.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/auth/current_fan_provider.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/community_report.dart';
@@ -177,6 +178,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       forcePicker: change,
     );
     if (intent == null || !mounted) return;
+    if (!allowNetworkAction(context)) return;
 
     final previous = post;
     final optimistic = applyOptimisticReaction(post, intent.apiValue);
@@ -189,10 +191,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     final service = ref.read(communityServiceProvider);
     final result = intent.isRemove
         ? await service.removeReaction(post.id)
-        : await service.upsertReaction(
-            postId: post.id,
-            type: intent.apiValue!,
-          );
+        : await service.upsertReaction(postId: post.id, type: intent.apiValue!);
 
     if (!mounted) return;
 
@@ -201,10 +200,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         _post = previous;
         _reacting = false;
       });
-      _showSnack(
-        reactionErrorMessage(intent),
-        isError: true,
-      );
+      _showSnack(reactionErrorMessage(intent), isError: true);
       return;
     }
 
@@ -223,6 +219,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
 
   Future<void> _sendComment() async {
     if (_sendingComment) return;
+    if (!allowNetworkAction(context)) return;
     final content = _commentController.text.trim();
     if (content.isEmpty) {
       _showSnack('Escribe un comentario antes de enviar.', isError: true);
@@ -551,7 +548,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     final confirmed = await confirmHideComment(context);
     if (!confirmed || !mounted || _post == null) return;
     _deletingComments.add(comment.id);
-    final result = await ref.read(communityServiceProvider).hideClanComment(
+    final result = await ref
+        .read(communityServiceProvider)
+        .hideClanComment(
           clanSlug: widget.moderation!.clanSlug,
           postId: _post!.id,
           commentId: comment.id,
@@ -572,10 +571,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   Future<void> _hidePostAsModerator() async {
     final confirmed = await confirmHideClanPost(context);
     if (!confirmed || !mounted || _post == null) return;
-    final result = await ref.read(communityServiceProvider).hideClanPost(
-          clanSlug: widget.moderation!.clanSlug,
-          postId: _post!.id,
-        );
+    final result = await ref
+        .read(communityServiceProvider)
+        .hideClanPost(clanSlug: widget.moderation!.clanSlug, postId: _post!.id);
     if (!mounted) return;
     if (!result.success) {
       _showSnack(result.message, isError: true);
@@ -607,12 +605,10 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     ReactionIntent intent,
   ) async {
     if (_reactingComments.contains(comment.id)) return;
+    if (!allowNetworkAction(context)) return;
     final previous = comment;
     final remove = intent.isRemove;
-    final optimistic = applyOptimisticCommentReaction(
-      comment,
-      intent.apiValue,
-    );
+    final optimistic = applyOptimisticCommentReaction(comment, intent.apiValue);
     if (_findComment(comment.id) == null) return;
 
     setState(() {

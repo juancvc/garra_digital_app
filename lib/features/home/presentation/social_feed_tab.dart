@@ -7,6 +7,7 @@ import '../../../core/auth/current_fan_provider.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_brand_visual.dart';
@@ -88,6 +89,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
   }
 
   Future<void> _toggleSave(WallPostModel post) async {
+    if (!allowNetworkAction(context)) return;
     final next = !post.savedByMe;
     setState(() {
       _posts = _posts
@@ -148,6 +150,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
       forcePicker: change,
     );
     if (intent == null || !mounted) return;
+    if (!allowNetworkAction(context)) return;
 
     final optimistic = applyOptimisticReaction(post, intent.apiValue);
     setState(() {
@@ -184,6 +187,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
       _showError(reactionErrorMessage(intent));
     }
   }
+
   void _replacePost(WallPostModel replacement) {
     _posts = _posts
         .map((post) => post.id == replacement.id ? replacement : post)
@@ -318,9 +322,11 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
           onVisible: () => _onPostSeen(post.id),
           child: GarraSocialPostCard(
             post: view,
-            onOpen: () =>
-                context.push('/muro-crema/posts/${post.id}').then((_) => _load()),
-            onOpenProfile: mine || post.authorId == null || post.authorId!.isEmpty
+            onOpen: () => context
+                .push('/muro-crema/posts/${post.id}')
+                .then((_) => _load()),
+            onOpenProfile:
+                mine || post.authorId == null || post.authorId!.isEmpty
                 ? null
                 : () => context.push('/comunidad/u/${post.authorId}'),
             onBlock: mine || post.authorId == null || post.authorId!.isEmpty
@@ -344,8 +350,9 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
             onDelete: mine ? () => _deletePost(post.id) : null,
             onReact: () => _react(post),
             onChangeReaction: () => _react(post, change: true),
-            onComment: () =>
-                context.push('/muro-crema/posts/${post.id}').then((_) => _load()),
+            onComment: () => context
+                .push('/muro-crema/posts/${post.id}')
+                .then((_) => _load()),
           ),
         ),
       );

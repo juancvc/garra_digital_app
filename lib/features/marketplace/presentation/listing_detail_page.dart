@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
@@ -34,6 +35,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
 
   Future<void> _toggleFavorite(MarketplaceListing listing) async {
     if (_favoriting) return;
+    if (!allowNetworkAction(context)) return;
     final previous = _localListing ?? listing;
     final nextFavorite = !previous.isFavorite;
 
@@ -68,6 +70,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
 
   Future<void> _contact(MarketplaceListing listing) async {
     if (_contacting) return;
+    if (!allowNetworkAction(context)) return;
     setState(() => _contacting = true);
     try {
       final result = await ref
@@ -218,7 +221,9 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
       ),
       body: async.when(
         loading: () => Center(
-          child: CircularProgressIndicator(color: context.garraColors.brandPrestige),
+          child: CircularProgressIndicator(
+            color: context.garraColors.brandPrestige,
+          ),
         ),
         error: (_, _) => GarraErrorState(
           onRetry: () =>

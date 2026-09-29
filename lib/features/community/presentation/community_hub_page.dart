@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../core/auth/current_fan_provider.dart';
 import '../../../core/design/garra_colors.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_avatar.dart';
@@ -93,6 +94,7 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
   }
 
   Future<void> _toggleSave(WallPostModel post) async {
+    if (!allowNetworkAction(context)) return;
     final next = !post.savedByMe;
     setState(() {
       _posts = _posts

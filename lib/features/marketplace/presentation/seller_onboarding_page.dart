@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/network/garra_error.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_form.dart';
@@ -65,6 +66,8 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
       return;
     }
 
+    if (!allowNetworkAction(context)) return;
+
     setState(() => _submitting = true);
     try {
       String? logoAssetId;
@@ -76,6 +79,7 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
           MediaUploadPurpose.storeLogo,
         );
       }
+      if (!mounted || !allowNetworkAction(context)) return;
       await ref
           .read(marketplaceServiceProvider)
           .submitSeller(

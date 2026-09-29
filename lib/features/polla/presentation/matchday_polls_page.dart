@@ -1,10 +1,11 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
@@ -71,10 +72,7 @@ class _MatchdayPollsPageState extends ConsumerState<MatchdayPollsPage>
   }
 
   Future<void> _connectRealtime() async {
-    await _realtime.connect(
-      matchId: widget.matchId,
-      onEnvelope: _onRealtime,
-    );
+    await _realtime.connect(matchId: widget.matchId, onEnvelope: _onRealtime);
   }
 
   void _syncRestFallback() {
@@ -122,8 +120,9 @@ class _MatchdayPollsPageState extends ConsumerState<MatchdayPollsPage>
       }
       _loadingResults.add(poll.id);
       try {
-        final results =
-            await ref.read(pollaServiceProvider).getPollResults(poll.id);
+        final results = await ref
+            .read(pollaServiceProvider)
+            .getPollResults(poll.id);
         if (!mounted) return;
         setState(() => _resultsCache[poll.id] = results);
       } catch (_) {
@@ -136,12 +135,12 @@ class _MatchdayPollsPageState extends ConsumerState<MatchdayPollsPage>
 
   Future<void> _vote(MatchPoll poll, String optionId) async {
     if (_submitting.contains(poll.id)) return;
+    if (!allowNetworkAction(context)) return;
     setState(() => _submitting.add(poll.id));
     try {
-      final results = await ref.read(pollaServiceProvider).vote(
-            pollId: poll.id,
-            optionId: optionId,
-          );
+      final results = await ref
+          .read(pollaServiceProvider)
+          .vote(pollId: poll.id, optionId: optionId);
       if (!mounted) return;
       setState(() {
         _resultsCache[poll.id] = results;
@@ -165,12 +164,11 @@ class _MatchdayPollsPageState extends ConsumerState<MatchdayPollsPage>
   }
 
   String get _connectionLabel => switch (_rtStatus) {
-        MatchdayRealtimeStatus.connected => 'EN VIVO',
-        MatchdayRealtimeStatus.connecting ||
-        MatchdayRealtimeStatus.reconnecting =>
-          'Reconectando',
-        MatchdayRealtimeStatus.disconnected => 'Actualizando',
-      };
+    MatchdayRealtimeStatus.connected => 'EN VIVO',
+    MatchdayRealtimeStatus.connecting ||
+    MatchdayRealtimeStatus.reconnecting => 'Reconectando',
+    MatchdayRealtimeStatus.disconnected => 'Actualizando',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -203,9 +201,9 @@ class _MatchdayPollsPageState extends ConsumerState<MatchdayPollsPage>
               child: Text(
                 _connectionLabel,
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: const Color(GarraColors.gold),
-                      fontWeight: FontWeight.w700,
-                    ),
+                  color: const Color(GarraColors.gold),
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),

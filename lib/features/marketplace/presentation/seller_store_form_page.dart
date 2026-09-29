@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/widgets/garra_form.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
@@ -50,6 +51,7 @@ class _SellerStoreFormPageState extends ConsumerState<SellerStoreFormPage> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!allowNetworkAction(context)) return;
     setState(() => _loading = true);
     final service = ref.read(marketplaceServiceProvider);
     final messenger = ScaffoldMessenger.of(context);

@@ -9,15 +9,22 @@ import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/media/media_upload_service.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../data/community_service.dart';
 import '../data/create_wall_post_request.dart';
 
 /// Social composer V3 — Cancelar / Nueva publicación / Publicar + photo toolbar.
 class CreateCommunityPostPage extends ConsumerStatefulWidget {
-  const CreateCommunityPostPage({super.key, this.matchId, this.media});
+  const CreateCommunityPostPage({
+    super.key,
+    this.matchId,
+    this.media,
+    this.communityService,
+  });
 
   final String? matchId;
   final MediaUploadService? media;
+  final CommunityService? communityService;
 
   @override
   ConsumerState<CreateCommunityPostPage> createState() =>
@@ -28,7 +35,8 @@ class _CreateCommunityPostPageState
     extends ConsumerState<CreateCommunityPostPage> {
   final _content = TextEditingController();
   late final MediaUploadService _media = widget.media ?? MediaUploadService();
-  final _community = CommunityService();
+  late final CommunityService _community =
+      widget.communityService ?? CommunityService();
 
   final List<MediaDraft> _drafts = [];
   bool _publishing = false;
@@ -54,10 +62,27 @@ class _CreateCommunityPostPageState
       final files = source == ImageSource.camera
           ? <XFile>[?await _media.pickCamera()]
           : _isMatchScoped
-              ? <XFile>[?await _media.pickImage()]
-              : await _media.pickMultiImage(max: remaining);
-      for (final file in files) {
+          ? <XFile>[?await _media.pickImage()]
+          : await _media.pickMultiImage(max: remaining);
+      for (var index = 0; index < files.length; index++) {
         if (_drafts.length >= _photoLimit) break;
+        if (!mounted) return;
+        if (!allowNetworkAction(context)) {
+          setState(() {
+            for (final selected in files.skip(index)) {
+              if (_drafts.length >= _photoLimit) break;
+              _drafts.add(
+                MediaDraft(
+                  localId: selected.path,
+                  localPath: selected.path,
+                  state: MediaUploadState.failed,
+                ),
+              );
+            }
+          });
+          return;
+        }
+        final file = files[index];
         late MediaDraft draft;
         draft = await _media.uploadFile(
           file: file,
@@ -117,6 +142,7 @@ class _CreateCommunityPostPageState
   }
 
   Future<void> _retry(MediaDraft draft) async {
+    if (!allowNetworkAction(context)) return;
     if (draft.localPath == null) return;
     final uploaded = await _media.uploadFile(
       file: XFile(draft.localPath!),
@@ -134,6 +160,7 @@ class _CreateCommunityPostPageState
   }
 
   Future<void> _publish() async {
+    if (!allowNetworkAction(context)) return;
     final text = _content.text.trim();
     if (text.isEmpty) {
       setState(() => _error = 'Escribe algo para compartir');
@@ -322,7 +349,9 @@ class _CreateCommunityPostPageState
                     onPressed: _drafts.length >= _photoLimit
                         ? null
                         : _choosePhotoSource,
-                    child: Text(_isMatchScoped ? 'Agregar foto' : 'Agregar fotos'),
+                    child: Text(
+                      _isMatchScoped ? 'Agregar foto' : 'Agregar fotos',
+                    ),
                   ),
                   const Spacer(),
                   Text(

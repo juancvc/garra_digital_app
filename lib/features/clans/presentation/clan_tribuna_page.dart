@@ -7,6 +7,7 @@ import '../../../core/auth/current_fan_provider.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../community/data/community_report.dart';
@@ -51,6 +52,7 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
   final _media = MediaUploadService();
   bool _publishing = false;
   String? _photoAssetId;
+  XFile? _selectedPhoto;
   bool _uploadingPhoto = false;
 
   @override
@@ -68,32 +70,45 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
   }
 
   Future<void> _addPhoto() async {
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('Elegir de galería'),
-              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+    final source = _selectedPhoto == null
+        ? await showModalBottomSheet<ImageSource>(
+            context: context,
+            builder: (ctx) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    title: const Text('Elegir de galería'),
+                    onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+                  ),
+                  ListTile(
+                    title: const Text('Tomar foto'),
+                    onTap: () => Navigator.pop(ctx, ImageSource.camera),
+                  ),
+                ],
+              ),
             ),
-            ListTile(
-              title: const Text('Tomar foto'),
-              onTap: () => Navigator.pop(ctx, ImageSource.camera),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (source == null) return;
+          )
+        : null;
+    if (_selectedPhoto == null && source == null) return;
+    if (!mounted) return;
     setState(() => _uploadingPhoto = true);
     try {
-      final file = source == ImageSource.camera
-          ? await _media.pickCamera()
-          : await _media.pickImage();
+      final file =
+          _selectedPhoto ??
+          (source == ImageSource.camera
+              ? await _media.pickCamera()
+              : await _media.pickImage());
       if (file == null) {
         if (mounted) setState(() => _uploadingPhoto = false);
+        return;
+      }
+      if (!mounted) return;
+      if (!allowNetworkAction(context)) {
+        setState(() {
+          _selectedPhoto = file;
+          _uploadingPhoto = false;
+        });
         return;
       }
       final draft = await _media.uploadFile(
@@ -104,6 +119,7 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
       setState(() {
         _uploadingPhoto = false;
         _photoAssetId = draft.isReady ? draft.assetId : null;
+        if (draft.isReady) _selectedPhoto = null;
       });
       if (!draft.isReady) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -120,6 +136,7 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
   }
 
   Future<void> _publish(String clanName) async {
+    if (!allowNetworkAction(context)) return;
     final content = _contentController.text.trim();
     if (content.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -128,15 +145,17 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
       return;
     }
     if (content.length > 220) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Máximo 220 caracteres.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Máximo 220 caracteres.')));
       return;
     }
 
     setState(() => _publishing = true);
     try {
-      await ref.read(clanServiceProvider).createClanPost(
+      await ref
+          .read(clanServiceProvider)
+          .createClanPost(
             widget.slug,
             CreateClanPostRequest(
               content: content,
@@ -147,21 +166,21 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
       _photoAssetId = null;
       ref.invalidate(clanFeedProvider(widget.slug));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Publicado en $clanName')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Publicado en $clanName')));
       }
     } on ClanMembershipLostException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } on ClanServiceException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (_) {
       if (mounted) {
@@ -183,7 +202,9 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
 
     final body = clanAsync.when(
       loading: () => Center(
-        child: CircularProgressIndicator(color: context.garraColors.brandPrestige),
+        child: CircularProgressIndicator(
+          color: context.garraColors.brandPrestige,
+        ),
       ),
       error: (error, _) {
         if (error is ClanMembershipLostException) {
@@ -220,6 +241,7 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
                 publishing: _publishing,
                 uploadingPhoto: _uploadingPhoto,
                 hasPhoto: _photoAssetId != null,
+                hasPendingPhoto: _selectedPhoto != null,
                 onPublish: () => _publish(name),
                 onAddPhoto: _addPhoto,
               ),
@@ -251,15 +273,15 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
                     children: posts
                         .map(
                           (post) => Padding(
-                            padding:
-                                const EdgeInsets.only(bottom: GarraSpacing.md),
+                            padding: const EdgeInsets.only(
+                              bottom: GarraSpacing.md,
+                            ),
                             child: _ClanFeedPostCard(
                               post: post,
                               clanSlug: widget.slug,
                               canModerate: canModerate,
-                              onHidden: () => ref.invalidate(
-                                clanFeedProvider(widget.slug),
-                              ),
+                              onHidden: () =>
+                                  ref.invalidate(clanFeedProvider(widget.slug)),
                               onOpenDetail: () => context.push(
                                 '/muro-crema/posts/${post.id}',
                                 extra: canModerate
@@ -304,6 +326,7 @@ class _ClanComposer extends StatelessWidget {
     required this.publishing,
     required this.uploadingPhoto,
     required this.hasPhoto,
+    required this.hasPendingPhoto,
     required this.onPublish,
     required this.onAddPhoto,
   });
@@ -313,6 +336,7 @@ class _ClanComposer extends StatelessWidget {
   final bool publishing;
   final bool uploadingPhoto;
   final bool hasPhoto;
+  final bool hasPendingPhoto;
   final VoidCallback onPublish;
   final VoidCallback onAddPhoto;
 
@@ -331,9 +355,7 @@ class _ClanComposer extends StatelessWidget {
             controller: controller,
             maxLength: 220,
             maxLines: 3,
-            decoration: InputDecoration(
-              hintText: 'Escribe en $clanName',
-            ),
+            decoration: InputDecoration(hintText: 'Escribe en $clanName'),
           ),
           const SizedBox(height: GarraSpacing.sm),
           Row(
@@ -344,16 +366,16 @@ class _ClanComposer extends StatelessWidget {
                 label: Text(
                   uploadingPhoto
                       ? 'Subiendo…'
+                      : hasPendingPhoto
+                      ? 'Subir foto seleccionada'
                       : hasPhoto
                       ? 'Foto lista'
                       : 'Agregar foto',
                 ),
               ),
               FilledButton(
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(88, 40),
-                ),
-                onPressed: publishing ? null : onPublish,
+                style: FilledButton.styleFrom(minimumSize: const Size(88, 40)),
+                onPressed: publishing || hasPendingPhoto ? null : onPublish,
                 child: Text(publishing ? 'Publicando…' : 'Publicar'),
               ),
             ],
@@ -413,6 +435,7 @@ class _ClanFeedPostCardState extends ConsumerState<_ClanFeedPostCard> {
       forcePicker: change,
     );
     if (intent == null || !mounted) return;
+    if (!allowNetworkAction(context)) return;
 
     final previous = _post;
     final optimistic = applyOptimisticReaction(_post, intent.apiValue);
@@ -437,7 +460,8 @@ class _ClanFeedPostCardState extends ConsumerState<_ClanFeedPostCard> {
         _post = previous;
         _reacting = false;
       });
-      final msg = result.message.toLowerCase().contains('miembro') ||
+      final msg =
+          result.message.toLowerCase().contains('miembro') ||
               result.message.toLowerCase().contains('pertenec')
           ? result.message
           : reactionErrorMessage(intent);
@@ -461,14 +485,13 @@ class _ClanFeedPostCardState extends ConsumerState<_ClanFeedPostCard> {
   Future<void> _hide() async {
     final confirmed = await confirmHideClanPost(context);
     if (!confirmed || !mounted) return;
-    final result = await ref.read(communityServiceProvider).hideClanPost(
-          clanSlug: widget.clanSlug,
-          postId: _post.id,
-        );
+    final result = await ref
+        .read(communityServiceProvider)
+        .hideClanPost(clanSlug: widget.clanSlug, postId: _post.id);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(result.message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(result.message)));
     if (result.success) widget.onHidden?.call();
   }
 
@@ -567,9 +590,7 @@ class _ClanFeedPostCardState extends ConsumerState<_ClanFeedPostCard> {
             viewCount: post.viewCount,
             myReaction: post.myReaction,
             onTapReactions: _reacting ? null : _react,
-            onLongPressReactions: _reacting
-                ? null
-                : () => _react(change: true),
+            onLongPressReactions: _reacting ? null : () => _react(change: true),
             onTapComments: widget.onOpenDetail,
           ),
         ],
@@ -594,10 +615,7 @@ class _ClanFeedPostCardState extends ConsumerState<_ClanFeedPostCard> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           const SizedBox(height: GarraSpacing.sm),
-          Text(
-            post.content,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+          Text(post.content, style: Theme.of(context).textTheme.bodyMedium),
           if (post.createdAt.isNotEmpty) ...[
             const SizedBox(height: GarraSpacing.xs),
             Text(
@@ -621,10 +639,7 @@ class _MembershipLostBody extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(GarraSpacing.xl),
-        child: GarraEmptyState(
-          title: 'Acceso restringido',
-          message: message,
-        ),
+        child: GarraEmptyState(title: 'Acceso restringido', message: message),
       ),
     );
   }

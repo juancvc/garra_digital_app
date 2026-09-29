@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/utils/country_labels.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_form.dart';
@@ -33,6 +34,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   String _country = 'PE';
   String? _avatarUrl;
   String? _avatarAssetId;
+  XFile? _selectedAvatar;
   bool _uploadingPhoto = false;
   bool _loading = false;
   bool _seeded = false;
@@ -72,42 +74,55 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   }
 
   Future<void> _changePhoto() async {
-    final source = await showGarraSheet<ImageSource>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-              child: Text(
-                'Cambiar foto',
-                style: Theme.of(ctx).textTheme.titleLarge,
+    final source = _selectedAvatar == null
+        ? await showGarraSheet<ImageSource>(
+            context: context,
+            builder: (ctx) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                    child: Text(
+                      'Cambiar foto',
+                      style: Theme.of(ctx).textTheme.titleLarge,
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.photo_library_outlined),
+                    title: const Text('Galería'),
+                    onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.photo_camera_outlined),
+                    title: const Text('Cámara'),
+                    onTap: () => Navigator.pop(ctx, ImageSource.camera),
+                  ),
+                  const SizedBox(height: 8),
+                ],
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Galería'),
-              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_camera_outlined),
-              title: const Text('Cámara'),
-              onTap: () => Navigator.pop(ctx, ImageSource.camera),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-    if (source == null) return;
+          )
+        : null;
+    if (_selectedAvatar == null && source == null) return;
+    if (!mounted) return;
     setState(() => _uploadingPhoto = true);
     try {
-      final file = source == ImageSource.camera
-          ? await _media.pickCamera(maxSide: 1024)
-          : await _media.pickImage(maxSide: 1024);
+      final file =
+          _selectedAvatar ??
+          (source == ImageSource.camera
+              ? await _media.pickCamera(maxSide: 1024)
+              : await _media.pickImage(maxSide: 1024));
+      if (!mounted) return;
       if (file == null) return;
+      if (!allowNetworkAction(context)) {
+        setState(() {
+          _selectedAvatar = file;
+          _uploadingPhoto = false;
+        });
+        return;
+      }
       final draft = await _media.uploadAvatar(file);
       if (!mounted) return;
       if (!draft.isReady) {
@@ -120,6 +135,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       setState(() {
         _avatarAssetId = draft.assetId;
         _avatarUrl = draft.mediaUrl ?? _avatarUrl;
+        _selectedAvatar = null;
         _uploadingPhoto = false;
       });
     } catch (_) {
@@ -133,6 +149,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!allowNetworkAction(context)) return;
     setState(() => _loading = true);
     try {
       final yearText = _year.text.trim();
@@ -208,7 +225,11 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                         key: const ValueKey('change-avatar'),
                         onPressed: _uploadingPhoto ? null : _changePhoto,
                         child: Text(
-                          _uploadingPhoto ? 'Subiendo foto…' : 'Cambiar foto',
+                          _uploadingPhoto
+                              ? 'Subiendo foto…'
+                              : _selectedAvatar != null
+                              ? 'Subir foto seleccionada'
+                              : 'Cambiar foto',
                         ),
                       ),
                     ],

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
@@ -95,9 +96,9 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
     } on MarketplaceMediaException catch (e) {
       if (e.message.contains('cancel')) return;
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -107,6 +108,11 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
   }
 
   Future<void> _uploadDraft(ListingImageDraft draft) async {
+    if (!allowNetworkAction(context)) {
+      draft.state = ListingImageUploadState.failed;
+      setState(() {});
+      return;
+    }
     final media = ref.read(marketplaceMediaServiceProvider);
     setState(() {});
     try {
@@ -186,6 +192,8 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
       return;
     }
 
+    if (!allowNetworkAction(context)) return;
+
     setState(() => _loading = true);
     try {
       final service = ref.read(marketplaceServiceProvider);
@@ -250,7 +258,9 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No pudimos guardar la publicación. Inténtalo de nuevo.'),
+          content: Text(
+            'No pudimos guardar la publicación. Inténtalo de nuevo.',
+          ),
         ),
       );
     } finally {
@@ -262,12 +272,12 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
     final storesAsync = ref.watch(sellerStoresProvider);
     return storesAsync.when(
       loading: () => const GarraSkeleton(height: 52),
-      error: (_, _) => GarraErrorState(
-        onRetry: () => ref.invalidate(sellerStoresProvider),
-      ),
+      error: (_, _) =>
+          GarraErrorState(onRetry: () => ref.invalidate(sellerStoresProvider)),
       data: (stores) {
-        _eligibleStores =
-            stores.where((s) => !s.isArchived && s.id.isNotEmpty).toList();
+        _eligibleStores = stores
+            .where((s) => !s.isArchived && s.id.isNotEmpty)
+            .toList();
         final fixed = widget.storeId;
         String? label;
         if (fixed != null && fixed.isNotEmpty) {
@@ -322,14 +332,17 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
     final categoriesAsync = ref.watch(marketplaceCategoriesProvider);
 
     if (widget.isEditing) {
-      final listingAsync =
-          ref.watch(marketplaceListingDetailProvider(widget.slug!));
+      final listingAsync = ref.watch(
+        marketplaceListingDetailProvider(widget.slug!),
+      );
       listingAsync.whenData(_hydrateFrom);
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? 'Editar publicación' : 'Nueva publicación'),
+        title: Text(
+          widget.isEditing ? 'Editar publicación' : 'Nueva publicación',
+        ),
       ),
       body: Form(
         key: _formKey,
@@ -343,7 +356,8 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
           children: [
             GarraFormIntro(
               title: widget.isEditing ? 'Editar anuncio' : 'Nuevo anuncio',
-              subtitle: 'Esto se publica en Marketplace, aparte de tu ficha en Negocios Cremas.',
+              subtitle:
+                  'Esto se publica en Marketplace, aparte de tu ficha en Negocios Cremas.',
             ),
             if (!widget.isEditing) ...[
               _storeSection(context),
@@ -359,7 +373,8 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
               child: ReorderableListView.builder(
                 scrollDirection: Axis.horizontal,
                 onReorder: _reorder,
-                itemCount: _images.length + (_images.length < _maxImages ? 1 : 0),
+                itemCount:
+                    _images.length + (_images.length < _maxImages ? 1 : 0),
                 itemBuilder: (context, index) {
                   if (index == _images.length) {
                     return Padding(
@@ -380,13 +395,18 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.add_a_photo_outlined,
-                                  color: context.garraColors.brandPrestige),
+                              Icon(
+                                Icons.add_a_photo_outlined,
+                                color: context.garraColors.brandPrestige,
+                              ),
                               SizedBox(height: 4),
-                              Text('Agregar',
-                                  style: TextStyle(
-                                      color: context.garraColors.textSecondary,
-                                      fontSize: 12)),
+                              Text(
+                                'Agregar',
+                                style: TextStyle(
+                                  color: context.garraColors.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -412,10 +432,14 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
                           child: draft.bytes != null
                               ? Image.memory(draft.bytes!, fit: BoxFit.cover)
                               : draft.mediaUrl != null
-                                  ? Image.network(draft.mediaUrl!,
-                                      fit: BoxFit.cover)
-                                  : Icon(Icons.image_outlined,
-                                      color: context.garraColors.brandPrestige),
+                              ? Image.network(
+                                  draft.mediaUrl!,
+                                  fit: BoxFit.cover,
+                                )
+                              : Icon(
+                                  Icons.image_outlined,
+                                  color: context.garraColors.brandPrestige,
+                                ),
                         ),
                         if (draft.state == ListingImageUploadState.uploading ||
                             draft.state == ListingImageUploadState.pending)
@@ -424,7 +448,9 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
                               color: Colors.black45,
                               alignment: Alignment.center,
                               child: CircularProgressIndicator(
-                                value: draft.progress > 0 ? draft.progress : null,
+                                value: draft.progress > 0
+                                    ? draft.progress
+                                    : null,
                                 color: context.garraColors.brandPrestige,
                               ),
                             ),
@@ -436,8 +462,10 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
                               child: InkWell(
                                 onTap: () => _uploadDraft(draft),
                                 child: Center(
-                                  child: Icon(Icons.refresh,
-                                      color: context.garraColors.brandPrestige),
+                                  child: Icon(
+                                    Icons.refresh,
+                                    color: context.garraColors.brandPrestige,
+                                  ),
                                 ),
                               ),
                             ),
@@ -511,7 +539,8 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
                     const GarraFieldLabel('Categoría'),
                     DropdownButtonFormField<String>(
                       // ignore: deprecated_member_use
-                      value: _categorySlug != null &&
+                      value:
+                          _categorySlug != null &&
                               categories.any((c) => c.slug == _categorySlug)
                           ? _categorySlug
                           : null,

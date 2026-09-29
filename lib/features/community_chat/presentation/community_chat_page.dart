@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/media/media_upload_service.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/utils/garra_message_time.dart';
 import '../../../core/widgets/garra_avatar.dart';
@@ -548,6 +549,7 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
       _snack('El mensaje supera los $chatMessageMaxLength caracteres.');
       return;
     }
+    if (!allowNetworkAction(context)) return;
     setState(() => _sending = true);
     try {
       final message = await _service.send(
@@ -596,6 +598,7 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
       await pickAndUploadChatImages(
         media: _media,
         drafts: _drafts,
+        canUpload: () => mounted && allowNetworkAction(context),
         update: (change) {
           if (mounted) setState(change);
         },
@@ -748,6 +751,7 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
     ReactionType type,
     Rect anchor,
   ) async {
+    if (!allowNetworkAction(context)) return;
     final id = message.id;
     final current = _reactionsOf(message);
     final removing = myChatReaction(current) == type.apiValue;

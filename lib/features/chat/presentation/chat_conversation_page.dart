@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/utils/garra_message_time.dart';
 import '../../../core/widgets/garra_avatar.dart';
@@ -193,8 +194,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
       final structureChanged =
           added.isNotEmpty || messages.length != _messages.length;
       final readChanged = !structureChanged && _readFlagsChanged(messages);
-      final reactionsChanged =
-          !structureChanged && _reactionsChanged(messages);
+      final reactionsChanged = !structureChanged && _reactionsChanged(messages);
       final statusChanged = conversation.status != _conversation?.status;
       if (!structureChanged &&
           !readChanged &&
@@ -279,15 +279,15 @@ class _ChatConversationPageState extends State<ChatConversationPage>
         draft.state != MediaUploadState.failed,
   );
 
-  List<MediaDraft> get _readyDrafts => _drafts
-      .where((draft) => draft.isReady && draft.assetId != null)
-      .toList();
+  List<MediaDraft> get _readyDrafts =>
+      _drafts.where((draft) => draft.isReady && draft.assetId != null).toList();
 
   Future<void> _send() async {
     if (_sending || _uploading || _conversation?.status != 'ACTIVE') return;
     final text = _input.text.trim();
     final ready = _readyDrafts;
     if (text.isEmpty && ready.isEmpty) return;
+    if (!allowNetworkAction(context)) return;
     setState(() => _sending = true);
     try {
       final message = await _chat.send(
@@ -321,6 +321,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
       await pickAndUploadChatImages(
         media: _media,
         drafts: _drafts,
+        canUpload: () => mounted && allowNetworkAction(context),
         update: (change) {
           if (mounted) setState(change);
         },
@@ -413,6 +414,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
     ReactionType type,
     Rect anchor,
   ) async {
+    if (!allowNetworkAction(context)) return;
     final id = message.id;
     final current = _reactionsOf(message);
     final removing = myChatReaction(current) == type.apiValue;
@@ -453,9 +455,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
         _reactionTokens.remove(id);
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No pudimos actualizar la reacci\u00f3n'),
-        ),
+        const SnackBar(content: Text('No pudimos actualizar la reacci\u00f3n')),
       );
     }
   }
@@ -481,7 +481,9 @@ class _ChatConversationPageState extends State<ChatConversationPage>
             DecoratedBox(
               decoration: BoxDecoration(
                 color: colors.surfaceRaised,
-                border: Border(top: BorderSide(color: colors.border, width: 0.5)),
+                border: Border(
+                  top: BorderSide(color: colors.border, width: 0.5),
+                ),
               ),
               child: SafeArea(top: false, child: _footer(conversation)),
             ),
@@ -847,7 +849,8 @@ class _ChatConversationPageState extends State<ChatConversationPage>
                 }
                 final item = entry as ChatMessageEntry;
                 final previous = index > 0 ? entries[index - 1] : null;
-                final topGap = previous == null || previous is ChatDaySeparatorEntry
+                final topGap =
+                    previous == null || previous is ChatDaySeparatorEntry
                     ? 0.0
                     : (item.firstInGroup ? 8.0 : 2.0);
                 return Padding(
@@ -974,11 +977,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
           if (hasText)
             Text(
               message.content,
-              style: TextStyle(
-                color: foreground,
-                fontSize: 15,
-                height: 1.3,
-              ),
+              style: TextStyle(color: foreground, fontSize: 15, height: 1.3),
             ),
           if (entry.lastInGroup) _meta(message, foreground, mediaOnly),
         ],
@@ -991,8 +990,10 @@ class _ChatConversationPageState extends State<ChatConversationPage>
         onLongPressHint: canReact ? 'Reaccionar al mensaje' : null,
         customSemanticsActions: canReact
             ? {
-                const CustomSemanticsAction(label: 'Reaccionar al mensaje'):
-                    () => _openReactions(bubbleContext, message),
+                const CustomSemanticsAction(
+                  label: 'Reaccionar al mensaje',
+                ): () =>
+                    _openReactions(bubbleContext, message),
               }
             : null,
         child: GestureDetector(

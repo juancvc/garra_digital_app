@@ -7,6 +7,7 @@ import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/utils/country_labels.dart';
 import '../../../core/widgets/garra_form.dart';
@@ -124,6 +125,7 @@ class _CreateCommunityPageState extends ConsumerState<CreateCommunityPage> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!allowNetworkAction(context)) return;
     setState(() => _submitting = true);
     try {
       final avatar = _avatar;
@@ -136,6 +138,7 @@ class _CreateCommunityPageState extends ConsumerState<CreateCommunityPage> {
       }
       final cover = _cover;
       if (cover != null) {
+        if (!mounted || !allowNetworkAction(context)) return;
         _coverAssetId ??= await uploadSinglePhoto(
           _media,
           cover,
@@ -144,6 +147,7 @@ class _CreateCommunityPageState extends ConsumerState<CreateCommunityPage> {
       }
       final description = _descCtrl.text.trim();
       final city = _cityCtrl.text.trim();
+      if (!mounted || !allowNetworkAction(context)) return;
       final clan = await ref
           .read(clanServiceProvider)
           .createClan(

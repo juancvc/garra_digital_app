@@ -7,6 +7,7 @@ import '../../../core/design/garra_colors.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../data/chat_image_uploads.dart';
 import '../data/chat_models.dart';
@@ -170,6 +171,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
   Future<void> _sendMarketplace() async {
     final text = _input.text.trim();
     if (text.isEmpty || _sending) return;
+    if (!allowNetworkAction(context)) return;
     setState(() => _sending = true);
     try {
       final created = await _chat.openMarketplace(
@@ -208,6 +210,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
   Future<void> _sendRequest() async {
     final text = _input.text.trim();
     if (text.isEmpty || _sending) return;
+    if (!allowNetworkAction(context)) return;
     setState(() => _sending = true);
     try {
       final created = await _chat.request(
@@ -250,6 +253,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
     final text = _input.text.trim();
     final ready = _drafts.where((d) => d.isReady && d.assetId != null).toList();
     if (text.isEmpty && ready.isEmpty) return;
+    if (!allowNetworkAction(context)) return;
     setState(() => _sending = true);
     try {
       final message = await _chat.send(
@@ -278,6 +282,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
     await pickAndUploadChatImages(
       media: _media,
       drafts: _drafts,
+      canUpload: () => mounted && allowNetworkAction(context),
       update: (change) {
         if (mounted) setState(change);
       },
