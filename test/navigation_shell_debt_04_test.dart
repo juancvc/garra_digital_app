@@ -169,6 +169,35 @@ void main() {
     expectExploreOwnsShell(tester);
   });
 
+  for (final root in <(String, int)>[
+    ('/comunidad', 1),
+    ('/explorar', 3),
+    ('/passport', 4),
+  ]) {
+    testWidgets('Back from ${root.$1} root selects Home', (tester) async {
+      await pumpShell(tester);
+      router.go(root.$1);
+      await settle(tester);
+      expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, root.$2);
+      await pop(tester);
+      expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 0);
+      expect(router.routeInformationProvider.value.uri.path, '/home');
+    });
+  }
+
+  testWidgets('Back from Home root is not consumed by the shell', (tester) async {
+    await pumpShell(tester);
+    router.go('/home');
+    await settle(tester);
+    final popScope = tester.widget<PopScope>(find.descendant(
+      of: find.byType(MainShell),
+      matching: find.byType(PopScope),
+    ).first);
+    expect(popScope.canPop, isTrue);
+    final handled = await tester.binding.handlePopRoute();
+    expect(handled, isFalse);
+  });
+
   testWidgets('switching tabs preserves the explore branch stack', (
     tester,
   ) async {

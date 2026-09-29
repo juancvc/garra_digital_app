@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/home/presentation/create_action_sheet.dart';
+import 'home_back_scroll.dart';
 import '../design/garra_colors.dart';
 import '../theme/garra_semantic_colors.dart';
 
 /// V1 shell — Inicio / Comunidad / Crear / Explorar / Perfil
-class MainShell extends StatelessWidget {
+class MainShell extends ConsumerWidget {
   const MainShell({required this.navigationShell, super.key});
 
   final StatefulNavigationShell navigationShell;
@@ -34,9 +36,20 @@ class MainShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.garraColors;
-    return Scaffold(
+    final homeScrolled = ref.watch(homeBackScrollProvider);
+    return PopScope(
+      canPop: navigationShell.currentIndex == 0 && !homeScrolled,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (navigationShell.currentIndex != 0) {
+          navigationShell.goBranch(0);
+        } else if (homeScrolled) {
+          ref.read(homeBackScrollProvider.notifier).scrollToTop();
+        }
+      },
+      child: Scaffold(
       backgroundColor: colors.background,
       body: navigationShell,
       bottomNavigationBar: Container(
@@ -85,6 +98,7 @@ class MainShell extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

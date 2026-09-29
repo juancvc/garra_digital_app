@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:garra_digital_app/core/navigation/main_shell.dart';
 import 'package:garra_digital_app/core/theme/app_theme.dart';
 import 'package:go_router/go_router.dart';
@@ -64,7 +65,9 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
+      ProviderScope(
+        child: MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
+      ),
     );
     await tester.pump();
 

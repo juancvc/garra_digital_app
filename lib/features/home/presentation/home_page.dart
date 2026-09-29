@@ -9,6 +9,7 @@ import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/design/garra_typography.dart';
+import '../../../core/navigation/home_back_scroll.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_brand_visual.dart';
 import '../../../core/widgets/garra_card.dart';
@@ -104,11 +105,33 @@ class _HomeBody extends ConsumerStatefulWidget {
 class _HomeBodyState extends ConsumerState<_HomeBody> {
   late _HomeFeedTab _tab;
   bool _manual = false;
+  final ScrollController _matchScrollController = ScrollController();
+  late final HomeBackScroll _homeBackScroll;
 
   @override
   void initState() {
     super.initState();
+    _homeBackScroll = ref.read(homeBackScrollProvider.notifier);
     _tab = _defaultTab(widget.home);
+  }
+
+  @override
+  void dispose() {
+    _homeBackScroll.detach(_matchScrollController);
+    _matchScrollController.dispose();
+    super.dispose();
+  }
+
+  void _selectTab(_HomeFeedTab tab) {
+    if (tab == _HomeFeedTab.match) {
+      _homeBackScroll.attach(_matchScrollController);
+    } else {
+      _homeBackScroll.detach(_matchScrollController);
+    }
+    setState(() {
+      _manual = true;
+      _tab = tab;
+    });
   }
 
   @override
@@ -142,10 +165,7 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
           ),
           child: _CompactMatchInsert(
             home: home,
-            onOpenMatch: () => setState(() {
-              _manual = true;
-              _tab = _HomeFeedTab.match;
-            }),
+            onOpenMatch: () => _selectTab(_HomeFeedTab.match),
           ),
         ),
       if (_hasContextualInsert(home))
@@ -172,10 +192,7 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
           ),
           child: _FeedTabChips(
             tab: _tab,
-            onChanged: (t) => setState(() {
-              _manual = true;
-              _tab = t;
-            }),
+            onChanged: _selectTab,
           ),
         ),
         Expanded(
@@ -184,6 +201,7 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
               color: const Color(GarraColors.burgundy),
               onRefresh: () async => ref.invalidate(homeProvider),
               child: ListView(
+                controller: _matchScrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(
                   GarraSpacing.lg,

@@ -8,6 +8,7 @@ import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/network/offline_action_guard.dart';
+import '../../../core/navigation/home_back_scroll.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_brand_visual.dart';
@@ -41,6 +42,8 @@ class SocialFeedTab extends ConsumerStatefulWidget {
 
 class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
   List<WallPostModel> _posts = [];
+  final ScrollController _scrollController = ScrollController();
+  HomeBackScroll? _homeBackScroll;
   final Set<String> _reactingPostIds = {};
   bool _loading = true;
   String? _error;
@@ -50,13 +53,31 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
   @override
   void initState() {
     super.initState();
+    if (widget.mode != 'RECENT') {
+      _homeBackScroll = ref.read(homeBackScrollProvider.notifier);
+      _homeBackScroll!.attach(_scrollController);
+    }
     _load();
+  }
+
+  @override
+  void dispose() {
+    _homeBackScroll?.detach(_scrollController);
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
   void didUpdateWidget(covariant SocialFeedTab oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.mode != widget.mode) {
+      if (widget.mode == 'RECENT') {
+        _homeBackScroll?.detach(_scrollController);
+        _homeBackScroll = null;
+      } else {
+        _homeBackScroll ??= ref.read(homeBackScrollProvider.notifier);
+        _homeBackScroll!.attach(_scrollController);
+      }
       _load();
     }
   }
@@ -249,6 +270,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
       color: const Color(GarraColors.burgundy),
       onRefresh: _load,
       child: ListView(
+        controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: GarraSpacing.xxl),
         children: [
