@@ -13,6 +13,8 @@ import '../../../core/media/media_upload_service.dart';
 import '../../../core/network/offline_action_guard.dart';
 import '../data/community_service.dart';
 import '../data/create_wall_post_request.dart';
+import '../data/wall_post_model.dart';
+import 'providers/community_provider.dart';
 
 /// Social composer V3 — Cancelar / Nueva publicación / Publicar + photo toolbar.
 class CreateCommunityPostPage extends ConsumerStatefulWidget {
@@ -167,13 +169,19 @@ class _CreateCommunityPostPageState
   }
 
   Future<void> _publish() async {
+    if (_publishing) return;
     if (!allowNetworkAction(context)) return;
     final text = _content.text.trim();
     if (text.isEmpty) {
       setState(() => _error = 'Escribe algo para compartir');
       return;
     }
-    if (_drafts.any((d) => d.state == MediaUploadState.signing || d.state == MediaUploadState.uploading || d.state == MediaUploadState.confirming)) {
+    if (_drafts.any(
+      (d) =>
+          d.state == MediaUploadState.signing ||
+          d.state == MediaUploadState.uploading ||
+          d.state == MediaUploadState.confirming,
+    )) {
       setState(() => _error = 'Espera a que terminen las fotos');
       return;
     }
@@ -191,6 +199,7 @@ class _CreateCommunityPostPageState
       _error = null;
     });
     try {
+      WallPostModel? publishedPost;
       if (_isMatchScoped) {
         final result = await _community.createPost(
           CreateWallPostRequest(
@@ -211,8 +220,26 @@ class _CreateCommunityPostPageState
         if (!result.success) {
           throw Exception(result.message);
         }
+        publishedPost = result.post;
+        if (!_canDisplayPost(publishedPost, hasPhoto: readyIds.isNotEmpty) &&
+            publishedPost != null &&
+            publishedPost.id.isNotEmpty) {
+          try {
+            publishedPost = await _community.getPost(publishedPost.id);
+          } catch (_) {
+            publishedPost = null;
+          }
+        }
+        if (!_canDisplayPost(publishedPost, hasPhoto: readyIds.isNotEmpty)) {
+          publishedPost = null;
+        }
       }
       if (!mounted) return;
+      if (!_isMatchScoped) {
+        ref
+            .read(communityFeedRevisionProvider.notifier)
+            .published(publishedPost?.copyWith(isMine: true));
+      }
       context.pop(true);
     } catch (_) {
       if (!mounted) return;
@@ -220,6 +247,21 @@ class _CreateCommunityPostPageState
     } finally {
       if (mounted) setState(() => _publishing = false);
     }
+  }
+
+  bool _canDisplayPost(WallPostModel? post, {required bool hasPhoto}) {
+    if (post == null ||
+        post.id.isEmpty ||
+        post.content.isEmpty ||
+        post.username.isEmpty ||
+        post.fullName.isEmpty ||
+        post.status.isEmpty ||
+        post.createdAt.isEmpty) {
+      return false;
+    }
+    return !hasPhoto ||
+        (post.imageUrl?.isNotEmpty ?? false) ||
+        post.media.isNotEmpty;
   }
 
   @override
@@ -236,7 +278,7 @@ class _CreateCommunityPostPageState
           TextButton(
             onPressed: _publishing ? null : _publish,
             child: Text(
-              _publishing ? '…' : 'Publicar',
+              _publishing ? 'Publicando...' : 'Publicar',
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),

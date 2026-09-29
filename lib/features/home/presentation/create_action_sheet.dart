@@ -39,9 +39,14 @@ class _CreateActionSheet extends StatelessWidget {
             // publishing and the feeds under the shell reload once.
             final router = GoRouter.of(context);
             final container = ProviderScope.containerOf(context, listen: false);
+            final revision = container
+                .read(communityFeedRevisionProvider)
+                .revision;
             Navigator.pop(context);
             final created = await router.push<bool>('/comunidad/compose');
-            if (created == true) {
+            if (created == true &&
+                container.read(communityFeedRevisionProvider).revision ==
+                    revision) {
               container.read(communityFeedRevisionProvider.notifier).bump();
             }
           },

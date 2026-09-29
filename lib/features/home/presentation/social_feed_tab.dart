@@ -47,6 +47,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
   final Set<String> _reactingPostIds = {};
   bool _loading = true;
   String? _error;
+  int _loadGeneration = 0;
 
   CommunityService get _service => ref.read(communityServiceProvider);
 
@@ -83,6 +84,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
   }
 
   Future<void> _load() async {
+    final generation = ++_loadGeneration;
     final hadContent = _posts.isNotEmpty;
     setState(() {
       if (!hadContent) _loading = true;
@@ -90,14 +92,14 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
     });
     try {
       final posts = await _service.getGlobalFeed(mode: widget.mode);
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _posts = posts;
         _loading = false;
         _error = null;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         if (!hadContent) {
           _error = 'No pudimos cargar el feed';
@@ -252,16 +254,44 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
     _load();
   }
 
-  /// Compose returns `true` after publishing: reload so the new post shows.
+  void _reconcilePublishedPost(WallPostModel post) {
+    ++_loadGeneration;
+    setState(() {
+      _posts = [post, ..._posts.where((existing) => existing.id != post.id)];
+      _loading = false;
+      _error = null;
+    });
+    _scrollToTop();
+  }
+
+  void _scrollToTop() {
+    if (_scrollController.hasClients) _scrollController.jumpTo(0);
+  }
+
   Future<void> _openCompose() async {
+    final revision = ref.read(communityFeedRevisionProvider).revision;
     final created = await context.push<bool>('/comunidad/compose');
-    if (created == true && mounted) await _load();
+    if (created == true &&
+        mounted &&
+        ref.read(communityFeedRevisionProvider).revision == revision) {
+      ref.read(communityFeedRevisionProvider.notifier).bump();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<int>(communityFeedRevisionProvider, (previous, next) {
-      if (previous != next) _load();
+    ref.listen<CommunityFeedChange>(communityFeedRevisionProvider, (
+      previous,
+      next,
+    ) {
+      if (previous?.revision == next.revision) return;
+      final post = next.post;
+      if (post == null) {
+        _scrollToTop();
+        _load();
+      } else {
+        _reconcilePublishedPost(post);
+      }
     });
     final me = ref.watch(currentFanProvider).asData?.value;
     final meId = me?.id;

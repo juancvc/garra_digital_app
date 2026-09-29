@@ -8,16 +8,28 @@ final communityServiceProvider = Provider<CommunityService>((ref) {
   return CommunityService();
 });
 
-/// Bumped after a post is published from an entry point that is not a feed
-/// (the "+" create sheet) so the visible feeds reload once.
+/// One publish event for all mounted feeds. A complete post can be shown
+/// locally; a null post asks each visible feed to reload its own mode once.
 final communityFeedRevisionProvider =
-    NotifierProvider<CommunityFeedRevision, int>(CommunityFeedRevision.new);
+    NotifierProvider<CommunityFeedRevision, CommunityFeedChange>(
+      CommunityFeedRevision.new,
+    );
 
-class CommunityFeedRevision extends Notifier<int> {
+class CommunityFeedChange {
+  const CommunityFeedChange(this.revision, this.post);
+
+  final int revision;
+  final WallPostModel? post;
+}
+
+class CommunityFeedRevision extends Notifier<CommunityFeedChange> {
   @override
-  int build() => 0;
+  CommunityFeedChange build() => const CommunityFeedChange(0, null);
 
-  void bump() => state++;
+  void bump() => state = CommunityFeedChange(state.revision + 1, null);
+
+  void published(WallPostModel? post) =>
+      state = CommunityFeedChange(state.revision + 1, post);
 }
 
 final wallStatusProvider = FutureProvider<WallStatusModel?>((ref) async {
@@ -26,10 +38,7 @@ final wallStatusProvider = FutureProvider<WallStatusModel?>((ref) async {
 });
 
 class WallPostsParams {
-  const WallPostsParams({
-    required this.matchId,
-    this.locationTag,
-  });
+  const WallPostsParams({required this.matchId, this.locationTag});
 
   final String matchId;
   final String? locationTag;
@@ -48,14 +57,17 @@ class WallPostsParams {
 }
 
 final wallPostsProvider =
-FutureProvider.family<List<WallPostModel>, WallPostsParams>((ref, params) async {
-  final service = ref.read(communityServiceProvider);
+    FutureProvider.family<List<WallPostModel>, WallPostsParams>((
+      ref,
+      params,
+    ) async {
+      final service = ref.read(communityServiceProvider);
 
-  return service.getPosts(
-    matchId: params.matchId,
-    locationTag: params.locationTag,
-  );
-});
+      return service.getPosts(
+        matchId: params.matchId,
+        locationTag: params.locationTag,
+      );
+    });
 
 final myWallPostsProvider = FutureProvider<List<WallPostModel>>((ref) async {
   final service = ref.read(communityServiceProvider);
