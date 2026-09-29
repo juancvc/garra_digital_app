@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/utils/date_utils.dart';
+import '../../../../core/utils/garra_count_format.dart';
 export '../../../../core/utils/date_utils.dart' show formatGarraRelativeTime;
 import '../../../../core/design/garra_spacing.dart';
 import '../../../../core/theme/garra_semantic_colors.dart';
 import '../../../../core/widgets/garra_avatar.dart';
 import '../../data/wall_post_model.dart';
+import '../../data/reaction_type.dart';
+import 'garra_comment_reactions.dart';
 import 'garra_post_media_grid.dart';
-import 'garra_reaction_bar.dart';
 import 'garra_reactors_sheet.dart';
+import 'garra_reaction_burst.dart';
 
 /// Shared social post row for Home feed and Comunidad surfaces.
 class GarraSocialPostCard extends StatelessWidget {
@@ -26,6 +29,7 @@ class GarraSocialPostCard extends StatelessWidget {
     this.onChangeReaction,
     this.onComment,
     this.onDelete,
+    this.onOpenOriginal,
   });
 
   final WallPostModel post;
@@ -41,9 +45,11 @@ class GarraSocialPostCard extends StatelessWidget {
   final VoidCallback? onChangeReaction;
   final VoidCallback? onComment;
   final VoidCallback? onDelete;
+  final VoidCallback? onOpenOriginal;
 
   @override
   Widget build(BuildContext context) {
+    final engagement = post.originalPost?.asPost() ?? post;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -75,7 +81,7 @@ class GarraSocialPostCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            post.fullName,
+                            post.isShare ? '${post.fullName} compartió' : post.fullName,
                             style: Theme.of(context).textTheme.titleSmall,
                           ),
                           Row(
@@ -115,7 +121,6 @@ class GarraSocialPostCard extends StatelessWidget {
                     onSelected: (v) {
                       if (v == 'profile') onOpenProfile?.call();
                       if (v == 'block') onBlock?.call();
-                      if (v == 'share') onShare?.call();
                       if (v == 'report') onReport?.call();
                       if (v == 'save') {
                         HapticFeedback.lightImpact();
@@ -126,11 +131,6 @@ class GarraSocialPostCard extends StatelessWidget {
                     itemBuilder: (_) {
                       if (post.isMine) {
                         return [
-                          if (onShare != null)
-                            const PopupMenuItem(
-                              value: 'share',
-                              child: Text('Compartir'),
-                            ),
                           if (onSave != null)
                             const PopupMenuItem(
                               value: 'save',
@@ -149,11 +149,6 @@ class GarraSocialPostCard extends StatelessWidget {
                             value: 'profile',
                             child: Text('Ver perfil'),
                           ),
-                        if (onShare != null)
-                          const PopupMenuItem(
-                            value: 'share',
-                            child: Text('Compartir'),
-                          ),
                         if (onReport != null)
                           const PopupMenuItem(
                             value: 'report',
@@ -170,51 +165,150 @@ class GarraSocialPostCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 10),
-              Text(post.content, maxLines: 4, overflow: TextOverflow.ellipsis),
-              if ((post.imageUrl != null && post.imageUrl!.isNotEmpty) ||
-                  post.media.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                GarraPostMediaGrid(
-                  media: post.media,
-                  legacyImageUrl: post.imageUrl,
-                  onViewPost: onOpen,
-                ),
+              if (post.originalPost case final original?)
+                InkWell(
+                  onTap: onOpenOriginal ?? onOpen,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(GarraSpacing.md),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: context.garraColors.border),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(original.fullName, style: Theme.of(context).textTheme.titleSmall),
+                      const SizedBox(height: 6),
+                      Text(original.content, maxLines: 4, overflow: TextOverflow.ellipsis),
+                      if (original.imageUrl?.isNotEmpty == true || original.media.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        GarraPostMediaGrid(
+                          media: original.media,
+                          legacyImageUrl: original.imageUrl,
+                          onViewPost: onOpenOriginal ?? onOpen,
+                        ),
+                      ],
+                    ]),
+                  ),
+                )
+              else ...[
+                Text(post.content, maxLines: 4, overflow: TextOverflow.ellipsis),
+                if (post.imageUrl?.isNotEmpty == true || post.media.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  GarraPostMediaGrid(media: post.media, legacyImageUrl: post.imageUrl, onViewPost: onOpen),
+                ],
               ],
-              const SizedBox(height: 8),
-              GarraReactionBar(
-                reactionSummary: post.reactionSummary,
-                reactionCount: post.reactionCount,
-                commentCount: post.commentCount,
-                viewCount: post.viewCount,
-                myReaction: post.myReaction,
-                onTapReactions: onReact,
-            onLongPressReactions: onChangeReaction,
-                onTapComments: onComment ?? onOpen,
+              const SizedBox(height: GarraSpacing.sm),
+              _PostEngagementSummary(
+                post: engagement,
+                onReactions: engagement.reactionCount > 0
+                    ? () => showGarraReactorsSheet(context, postId: engagement.id)
+                    : null,
+                onComments: onOpenOriginal ?? onOpen,
               ),
-              if (post.reactionCount > 0 || post.commentCount > 0)
-                Wrap(
-                  spacing: GarraSpacing.sm,
-                  children: [
-                    if (post.reactionCount > 0)
-                      TextButton(
-                        key: ValueKey('post_reactors_${post.id}'),
-                        onPressed: () =>
-                            showGarraReactorsSheet(context, postId: post.id),
-                        child: Text(reactorsLabel(post.reactionCount)),
-                      ),
-                    if (post.commentCount > 0)
-                      TextButton(
-                        onPressed: onOpen,
-                        child: Text('Ver ${post.commentCount} comentarios'),
-                      ),
-                  ],
-                ),
+              const SizedBox(height: GarraSpacing.xs),
+              Row(children: [
+                Expanded(child: _PostAction(
+                  key: const ValueKey('reaction_cta'),
+                  icon: engagement.myReaction == null
+                      ? const Icon(Icons.add_reaction_outlined)
+                      : GarraReactionGlyph(key: const ValueKey('post_my_reaction'), apiValue: engagement.myReaction!, size: 18),
+                  label: engagement.myReaction == null ? 'Reaccionar' : ReactionType.labelFor(engagement.myReaction!),
+                  onTap: onReact,
+                  onLongPress: onChangeReaction,
+                  reactionAnchor: true,
+                )),
+                Expanded(child: _PostAction(
+                  icon: const Icon(Icons.chat_bubble_outline_rounded),
+                  label: 'Comentar',
+                  onTap: onComment ?? onOpenOriginal ?? onOpen,
+                )),
+                Expanded(child: _PostAction(
+                  icon: const Icon(Icons.ios_share_rounded),
+                  label: 'Compartir',
+                  onTap: onShare,
+                )),
+              ]),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+class _PostEngagementSummary extends StatelessWidget {
+  const _PostEngagementSummary({required this.post, this.onReactions, required this.onComments});
+
+  final WallPostModel post;
+  final VoidCallback? onReactions;
+  final VoidCallback onComments;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.labelSmall?.copyWith(color: context.garraColors.textSecondary);
+    return LayoutBuilder(builder: (context, constraints) {
+    final reactions = topNonZeroReactions(post.reactionSummary,
+      limit: constraints.maxWidth < 310 ? 1 : 3);
+    return Row(children: [
+      Expanded(flex: 2, child: InkWell(
+        key: const ValueKey('post_reaction_summary'),
+        onTap: onReactions,
+        child: Row(children: [
+          for (final reaction in reactions)
+            Padding(padding: const EdgeInsets.only(right: 2),
+              child: GarraReactionGlyph(apiValue: reaction.key, size: 15)),
+          const SizedBox(width: 4),
+          Flexible(child: Text('${post.reactionCount}', style: style, overflow: TextOverflow.ellipsis)),
+        ]),
+      )),
+      Expanded(flex: 3, child: InkWell(
+        onTap: onComments,
+        child: Text('${post.commentCount} ${post.commentCount == 1 ? 'comentario' : 'comentarios'} · ${post.shareCount} ${post.shareCount == 1 ? 'compartido' : 'compartidos'}',
+          style: style, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.end),
+      )),
+      if (post.viewCount > 0) ...[
+        const SizedBox(width: 6),
+        Row(key: const ValueKey('post_view_count'), mainAxisSize: MainAxisSize.min,
+          children: [Icon(Icons.visibility_outlined, size: 15,
+            color: context.garraColors.textSecondary),
+            const SizedBox(width: 3),
+            Text(formatGarraCount(post.viewCount), style: style)]),
+      ],
+    ]);
+    });
+  }
+}
+
+class _PostAction extends StatelessWidget {
+  const _PostAction({super.key, required this.icon, required this.label,
+    this.onTap, this.onLongPress, this.reactionAnchor = false});
+
+  final Widget icon;
+  final String label;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final bool reactionAnchor;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap == null ? null : () {
+      if (reactionAnchor) GarraReactionAnchor.remember(context);
+      onTap!();
+    },
+    onLongPress: onLongPress == null ? null : () {
+      if (reactionAnchor) GarraReactionAnchor.remember(context);
+      onLongPress!();
+    },
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        IconTheme(data: IconThemeData(size: 19, color: context.garraColors.textSecondary), child: icon),
+        const SizedBox(height: 3),
+        Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.labelSmall),
+      ]),
+    ),
+  );
 }
 
 /// Entry to "who reacted" (shared by feed card and post detail).

@@ -347,14 +347,16 @@ void main() {
       expect(find.text('Compartir'), findsOneWidget);
       // Share lives in the action row only (no duplicate app bar icon).
       expect(find.byTooltip('Compartir'), findsNothing);
-      // No fake share counter.
-      expect(find.textContaining('compartido'), findsNothing);
+      expect(find.textContaining('0 compartidos'), findsOneWidget);
     });
 
-    testWidgets('Compartir opens the existing share sheet', (tester) async {
+    testWidgets('Compartir opens Garra first and preserves external options', (tester) async {
       final service = _Service([]);
       await _pump(tester, service, me: me);
       await tester.tap(find.byKey(const ValueKey('post_action_share')));
+      await tester.pumpAndSettle();
+      expect(find.text('Compartir en Garra'), findsOneWidget);
+      await tester.tap(find.text('Compartir en otras apps'));
       await tester.pumpAndSettle();
       expect(find.text('Compartir texto'), findsOneWidget);
       expect(find.text('Compartir tarjeta'), findsOneWidget);

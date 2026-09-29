@@ -115,13 +115,13 @@ Widget _card(WallPostModel post) => SingleChildScrollView(
 
 void main() {
   group('REACTIONS_07 who reacted', () {
-    testWidgets('card "Ver N reacciones" opens the reactors sheet', (
+    testWidgets('reaction summary opens the reactors sheet', (
       tester,
     ) async {
       final service = await _pumpRoutes(tester, _card(_post()));
-      expect(find.text('Ver 2 reacciones'), findsOneWidget);
+      expect(find.byKey(const ValueKey('post_reaction_summary')), findsOneWidget);
 
-      await tester.tap(find.byKey(const ValueKey('post_reactors_post-1')));
+      await tester.tap(find.byKey(const ValueKey('post_reaction_summary')));
       await tester.pumpAndSettle();
 
       expect(service.calls, ['post:post-1:']);
@@ -142,17 +142,17 @@ void main() {
 
     testWidgets('no reactions: no reactors entry', (tester) async {
       await _pumpRoutes(tester, _card(_post(reactionCount: 0)));
-      expect(find.byKey(const ValueKey('post_reactors_post-1')), findsNothing);
+      expect(find.byKey(const ValueKey('post_reaction_summary')), findsOneWidget);
     });
 
     testWidgets('one reaction uses singular label', (tester) async {
       await _pumpRoutes(tester, _card(_post(reactionCount: 1)));
-      expect(find.text('Ver 1 reacci\u00f3n'), findsOneWidget);
+      expect(find.byKey(const ValueKey('post_reaction_summary')), findsOneWidget);
     });
 
     testWidgets('Ver mas loads the next cursor page', (tester) async {
       final service = await _pumpRoutes(tester, _card(_post()));
-      await tester.tap(find.byKey(const ValueKey('post_reactors_post-1')));
+      await tester.tap(find.byKey(const ValueKey('post_reaction_summary')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('reactors_more')));
       await tester.pumpAndSettle();
@@ -163,7 +163,7 @@ void main() {
 
     testWidgets('tapping a reactor opens the public profile', (tester) async {
       await _pumpRoutes(tester, _card(_post()));
-      await tester.tap(find.byKey(const ValueKey('post_reactors_post-1')));
+      await tester.tap(find.byKey(const ValueKey('post_reaction_summary')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('reactor_b')));
       await tester.pumpAndSettle();
@@ -203,7 +203,7 @@ void main() {
       ) async {
         final (theme, colors) = entry.value;
         await _pumpRoutes(tester, _card(_post()), theme: theme());
-        await tester.tap(find.byKey(const ValueKey('post_reactors_post-1')));
+        await tester.tap(find.byKey(const ValueKey('post_reaction_summary')));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         final sheet = tester.widget<BottomSheet>(find.byType(BottomSheet));

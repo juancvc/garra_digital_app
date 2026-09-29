@@ -242,6 +242,29 @@ class CommunityService {
     }
   }
 
+  Future<WallActionResult> shareGlobalPost(String postId) async {
+    try {
+      final response = await _dio.post('/community/posts/$postId/share');
+      final data = response.data['data'];
+      return WallActionResult.success(
+        message: response.data['message']?.toString() ?? 'Compartido en Garra',
+        post: data is Map ? WallPostModel.fromJson(Map<String, dynamic>.from(data)) : null,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return WallActionResult.failure('La publicación original ya no está disponible');
+      }
+      return WallActionResult.failure(_dioMessage(e, 'No pudimos compartir la publicación'));
+    } catch (_) {
+      return WallActionResult.failure('No pudimos compartir la publicación');
+    }
+  }
+
+  Future<int?> undoGlobalShare(String postId) async {
+    final response = await _dio.delete('/community/posts/$postId/share');
+    return (response.data['data'] as num?)?.toInt();
+  }
+
   Future<void> blockUser(String userId) async {
     await _dio.post('/community/users/$userId/block');
   }

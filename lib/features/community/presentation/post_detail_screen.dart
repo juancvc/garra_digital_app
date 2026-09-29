@@ -30,8 +30,9 @@ import 'widgets/garra_reaction_actions.dart';
 import 'widgets/garra_reaction_burst.dart';
 import 'widgets/garra_reactors_sheet.dart';
 import 'widgets/garra_report_sheet.dart';
-import 'widgets/garra_social_post_card.dart' show reactorsLabel;
+import 'widgets/garra_social_post_card.dart' show GarraSocialPostCard;
 import 'widgets/garra_share_card.dart';
+import 'widgets/garra_share_sheet.dart';
 
 /// Clan moderation context passed by a clan feed when the viewer is
 /// OWNER/ADMIN/MODERATOR of that clan (the backend re-checks the role).
@@ -777,10 +778,32 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   }
 
   Future<void> _openShareSheet(WallPostModel post) async {
+    final target = post.originalPost?.asPost() ?? post;
+    final outcome = await showGarraShareSheet(
+      context, post: target, service: ref.read(communityServiceProvider));
+    if (!mounted || outcome == null) return;
+    if (outcome.sharedPost case final share?) {
+      final count = share.originalPost?.shareCount ?? target.shareCount;
+      setState(() {
+        if (_post?.id == target.id) _post = _post!.copyWith(shareCount: count, sharedByMe: true);
+      });
+      ref.read(communityFeedRevisionProvider.notifier).published(share);
+      _showSnack('Compartido en Garra');
+      return;
+    }
+    if (outcome.undoCount case final count?) {
+      setState(() {
+        if (_post?.id == target.id) _post = _post!.copyWith(shareCount: count, sharedByMe: false);
+      });
+      ref.read(communityFeedRevisionProvider.notifier).unshared(target.id, count);
+      _showSnack('Compartido eliminado');
+      return;
+    }
+    if (!outcome.external) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) => _SharePostSheet(post: post),
+      builder: (ctx) => _SharePostSheet(post: target),
     );
   }
 
@@ -857,6 +880,18 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
 
     final post = _post!;
 
+    if (post.originalPost != null) {
+      final originalId = post.originalPost!.id;
+      return SingleChildScrollView(child: GarraSocialPostCard(
+        post: post,
+        onOpen: () => context.push('/muro-crema/posts/$originalId'),
+        onOpenOriginal: () => context.push('/muro-crema/posts/$originalId'),
+        onShare: () => _openShareSheet(post),
+        onComment: () => context.push('/muro-crema/posts/$originalId'),
+        onReact: () => context.push('/muro-crema/posts/$originalId'),
+      ));
+    }
+
     return Column(
       children: [
         Expanded(
@@ -894,23 +929,14 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   reactionSummary: post.reactionSummary,
                   reactionCount: post.reactionCount,
                   commentCount: post.commentCount,
+                  shareCount: post.shareCount,
                   viewCount: post.viewCount,
                   showViewsLabel: true,
                   myReaction: post.myReaction,
-                  onTapReactions: _onReact,
-                  onLongPressReactions: () => _onReact(change: true),
+                  onTapReactions: post.reactionCount > 0 ? () =>
+                      showGarraReactorsSheet(context, postId: post.id) : null,
                   onTapComments: _focusComposer,
                 ),
-                if (post.reactionCount > 0)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton(
-                      key: const ValueKey('post_detail_reactors'),
-                      onPressed: () =>
-                          showGarraReactorsSheet(context, postId: post.id),
-                      child: Text(reactorsLabel(post.reactionCount)),
-                    ),
-                  ),
                 const SizedBox(height: GarraSpacing.sm),
                 _PostActionRow(
                   myReaction: post.myReaction,

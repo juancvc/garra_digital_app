@@ -16,10 +16,13 @@ final communityFeedRevisionProvider =
     );
 
 class CommunityFeedChange {
-  const CommunityFeedChange(this.revision, this.post);
+  const CommunityFeedChange(this.revision, this.post,
+      {this.unsharedOriginalId, this.shareCount});
 
   final int revision;
   final WallPostModel? post;
+  final String? unsharedOriginalId;
+  final int? shareCount;
 }
 
 class CommunityFeedRevision extends Notifier<CommunityFeedChange> {
@@ -30,6 +33,10 @@ class CommunityFeedRevision extends Notifier<CommunityFeedChange> {
 
   void published(WallPostModel? post) =>
       state = CommunityFeedChange(state.revision + 1, post);
+
+  void unshared(String originalId, int count) => state = CommunityFeedChange(
+      state.revision + 1, null,
+      unsharedOriginalId: originalId, shareCount: count);
 }
 
 final wallStatusProvider = FutureProvider<WallStatusModel?>((ref) async {

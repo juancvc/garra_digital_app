@@ -22,6 +22,7 @@ import '../../community/presentation/providers/community_provider.dart';
 import '../../community/presentation/widgets/garra_reaction_actions.dart';
 import '../../community/presentation/widgets/garra_report_sheet.dart';
 import '../../community/presentation/widgets/garra_social_post_card.dart';
+import '../../community/presentation/widgets/garra_share_sheet.dart';
 import '../../community/presentation/widgets/garra_viewport_tracker.dart';
 
 /// Home social feed for Para ti / Siguiendo modes.
@@ -213,8 +214,50 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
 
   void _replacePost(WallPostModel replacement) {
     _posts = _posts
-        .map((post) => post.id == replacement.id ? replacement : post)
+        .map((post) {
+          if (post.id == replacement.id) return replacement;
+          if (post.originalPost?.id == replacement.id) {
+            return post.copyWith(originalPost: post.originalPost!.copyWith(
+              reactionSummary: replacement.reactionSummary,
+              reactionCount: replacement.reactionCount,
+              myReaction: replacement.myReaction,
+              clearMyReaction: replacement.myReaction == null,
+            ));
+          }
+          return post;
+        })
         .toList();
+  }
+
+  Future<void> _share(WallPostModel post) async {
+    final target = post.originalPost?.asPost() ?? post;
+    final outcome = await showGarraShareSheet(context, post: target, service: _service);
+    if (!mounted || outcome == null) return;
+    if (outcome.external) {
+      await SharePlus.instance.share(ShareParams(
+        text: '${target.fullName}: ${target.content}\n\nÚnete a Garra Digital',
+      ));
+      return;
+    }
+    if (outcome.sharedPost case final share?) {
+      final count = share.originalPost?.shareCount ?? target.shareCount;
+      setState(() {
+        _posts = [share, ..._posts.where((p) => p.id != share.id).map((p) =>
+          p.id == target.id ? p.copyWith(shareCount: count, sharedByMe: true) :
+          p.originalPost?.id == target.id ? p.copyWith(originalPost:
+            p.originalPost!.copyWith(shareCount: count, sharedByMe: true)) : p)];
+      });
+      if (_scrollController.hasClients) _scrollController.jumpTo(0);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Compartido en Garra')));
+    } else if (outcome.undoCount case final count?) {
+      setState(() {
+        _posts = _posts.where((p) => !(p.originalPost?.id == target.id && p.isMine)).map((p) =>
+          p.id == target.id ? p.copyWith(shareCount: count, sharedByMe: false) :
+          p.originalPost?.id == target.id ? p.copyWith(originalPost:
+            p.originalPost!.copyWith(shareCount: count, sharedByMe: false)) : p).toList();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Compartido eliminado')));
+    }
   }
 
   void _showError(String message) {
@@ -257,7 +300,18 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
   void _reconcilePublishedPost(WallPostModel post) {
     ++_loadGeneration;
     setState(() {
-      _posts = [post, ..._posts.where((existing) => existing.id != post.id)];
+      final original = post.originalPost;
+      _posts = [post, ..._posts.where((existing) => existing.id != post.id).map((existing) {
+        if (original == null) return existing;
+        if (existing.id == original.id) {
+          return existing.copyWith(shareCount: original.shareCount, sharedByMe: true);
+        }
+        if (existing.originalPost?.id == original.id) {
+          return existing.copyWith(originalPost: existing.originalPost!.copyWith(
+              shareCount: original.shareCount, sharedByMe: true));
+        }
+        return existing;
+      })];
       _loading = false;
       _error = null;
     });
@@ -285,6 +339,20 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
       next,
     ) {
       if (previous?.revision == next.revision) return;
+      if (next.unsharedOriginalId case final originalId?) {
+        setState(() => _posts = _posts.where((p) =>
+          !(p.originalPost?.id == originalId && p.isMine)).map((p) {
+          if (p.id == originalId) {
+            return p.copyWith(shareCount: next.shareCount, sharedByMe: false);
+          }
+          if (p.originalPost?.id == originalId) {
+            return p.copyWith(originalPost: p.originalPost!.copyWith(
+                shareCount: next.shareCount, sharedByMe: false));
+          }
+          return p;
+        }).toList());
+        return;
+      }
       final post = next.post;
       if (post == null) {
         _scrollToTop();
@@ -374,8 +442,10 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
           onVisible: () => _onPostSeen(post.id),
           child: GarraSocialPostCard(
             post: view,
+            onOpenOriginal: post.originalPost == null ? null :
+                () => context.push('/muro-crema/posts/${post.originalPost!.id}').then((_) => _load()),
             onOpen: () => context
-                .push('/muro-crema/posts/${post.id}')
+                .push('/muro-crema/posts/${post.originalPost?.id ?? post.id}')
                 .then((_) => _load()),
             onOpenProfile:
                 mine || post.authorId == null || post.authorId!.isEmpty
@@ -392,18 +462,13 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
                     target: GarraReportTarget.post,
                     targetId: post.id,
                   ),
-            onShare: () => SharePlus.instance.share(
-              ShareParams(
-                text:
-                    '${post.fullName}: ${post.content}\n\nÚnete a Garra Digital',
-              ),
-            ),
+            onShare: () => _share(post),
             onSave: () => _toggleSave(post),
             onDelete: mine ? () => _deletePost(post.id) : null,
-            onReact: () => _react(post),
-            onChangeReaction: () => _react(post, change: true),
+            onReact: () => _react(post.originalPost?.asPost() ?? post),
+            onChangeReaction: () => _react(post.originalPost?.asPost() ?? post, change: true),
             onComment: () => context
-                .push('/muro-crema/posts/${post.id}')
+                .push('/muro-crema/posts/${post.originalPost?.id ?? post.id}')
                 .then((_) => _load()),
           ),
         ),

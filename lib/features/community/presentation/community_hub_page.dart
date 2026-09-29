@@ -16,8 +16,10 @@ import '../data/community_report.dart';
 import '../data/community_service.dart';
 import '../data/garra_view_tracker.dart';
 import '../data/wall_post_model.dart';
+import 'providers/community_provider.dart';
 import 'widgets/garra_report_sheet.dart';
 import 'widgets/garra_social_post_card.dart';
+import 'widgets/garra_share_sheet.dart';
 import 'widgets/garra_viewport_tracker.dart';
 import '../../retention/data/retention_service.dart';
 
@@ -140,6 +142,31 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
     );
   }
 
+  Future<void> _share(WallPostModel post) async {
+    final target = post.originalPost?.asPost() ?? post;
+    final outcome = await showGarraShareSheet(context, post: target, service: _service);
+    if (!mounted || outcome == null) return;
+    if (outcome.external) {
+      await SharePlus.instance.share(ShareParams(
+        text: '${target.fullName}: ${target.content}\n\nÚnete a Garra Digital'));
+      return;
+    }
+    if (outcome.sharedPost case final share?) {
+      final count = share.originalPost?.shareCount ?? target.shareCount;
+      setState(() => _posts = [share, ..._posts.where((p) => p.id != share.id).map((p) =>
+        p.id == target.id ? p.copyWith(shareCount: count, sharedByMe: true) :
+        p.originalPost?.id == target.id ? p.copyWith(originalPost:
+          p.originalPost!.copyWith(shareCount: count, sharedByMe: true)) : p)]);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Compartido en Garra')));
+    } else if (outcome.undoCount case final count?) {
+      setState(() => _posts = _posts.where((p) => !(p.originalPost?.id == target.id && p.isMine)).map((p) =>
+        p.id == target.id ? p.copyWith(shareCount: count, sharedByMe: false) :
+        p.originalPost?.id == target.id ? p.copyWith(originalPost:
+          p.originalPost!.copyWith(shareCount: count, sharedByMe: false)) : p).toList());
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Compartido eliminado')));
+    }
+  }
+
   Future<void> _confirmBlock(String userId) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -169,6 +196,35 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<CommunityFeedChange>(communityFeedRevisionProvider, (previous, next) {
+      if (previous?.revision == next.revision) return;
+      if (next.unsharedOriginalId case final originalId?) {
+        setState(() => _posts = _posts.where((p) =>
+          !(p.originalPost?.id == originalId && p.isMine)).map((p) {
+          if (p.id == originalId) {
+            return p.copyWith(shareCount: next.shareCount, sharedByMe: false);
+          }
+          if (p.originalPost?.id == originalId) {
+            return p.copyWith(originalPost: p.originalPost!.copyWith(
+                shareCount: next.shareCount, sharedByMe: false));
+          }
+          return p;
+        }).toList());
+      } else if (next.post case final created?) {
+        final original = created.originalPost;
+        setState(() => _posts = [created, ..._posts.where((p) => p.id != created.id).map((p) {
+          if (original == null) return p;
+          if (p.id == original.id) {
+            return p.copyWith(shareCount: original.shareCount, sharedByMe: true);
+          }
+          if (p.originalPost?.id == original.id) {
+            return p.copyWith(originalPost: p.originalPost!.copyWith(
+                shareCount: original.shareCount, sharedByMe: true));
+          }
+          return p;
+        })]);
+      }
+    });
     return Scaffold(
       backgroundColor: context.garraColors.background,
       appBar: AppBar(
@@ -329,8 +385,10 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
                             onVisible: () => _onPostSeen(post.id),
                             child: GarraSocialPostCard(
                               post: view,
+                              onOpenOriginal: post.originalPost == null ? null :
+                                  () => context.push('/muro-crema/posts/${post.originalPost!.id}').then((_) => _load()),
                               onOpen: () => context
-                                  .push('/muro-crema/posts/${post.id}')
+                                  .push('/muro-crema/posts/${post.originalPost?.id ?? post.id}')
                                   .then((_) => _load()),
                               onOpenProfile: mine ||
                                       post.authorId == null ||
@@ -352,12 +410,9 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
                                         target: GarraReportTarget.post,
                                         targetId: post.id,
                                       ),
-                              onShare: () => SharePlus.instance.share(
-                                ShareParams(
-                                  text:
-                                      '${post.fullName}: ${post.content}\n\nÚnete a Garra Digital',
-                                ),
-                              ),
+                              onShare: () => _share(post),
+                              onComment: () => context.push('/muro-crema/posts/${post.originalPost?.id ?? post.id}'),
+                              onReact: () => context.push('/muro-crema/posts/${post.originalPost?.id ?? post.id}'),
                               onSave: () => _toggleSave(post),
                               onDelete: mine ? () => _deletePost(post.id) : null,
                             ),

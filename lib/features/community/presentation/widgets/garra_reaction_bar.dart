@@ -24,6 +24,7 @@ class GarraReactionBar extends StatelessWidget {
     this.compact = true,
     this.viewCount = 0,
     this.showViewsLabel = false,
+    this.shareCount,
   });
 
   final Map<String, int> reactionSummary;
@@ -42,6 +43,7 @@ class GarraReactionBar extends StatelessWidget {
 
   /// Detail: slightly more explicit ("12 vistas") than the compact count.
   final bool showViewsLabel;
+  final int? shareCount;
 
   @override
   Widget build(BuildContext context) {
@@ -174,6 +176,11 @@ class GarraReactionBar extends StatelessWidget {
               ),
             ),
           ),
+          if (shareCount != null) ...[
+            const SizedBox(width: GarraSpacing.xs),
+            Flexible(child: Text('· $shareCount compartidos', style: textStyle,
+              maxLines: 1, overflow: TextOverflow.ellipsis)),
+          ],
           if (viewCount > 0) ...[
             const SizedBox(width: GarraSpacing.xs),
             Row(

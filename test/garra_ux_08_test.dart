@@ -137,6 +137,7 @@ Future<void> _pumpFeed(
 }
 
 Finder get _summary => find.byKey(const ValueKey('post_reaction_summary'));
+Finder get _action => find.byKey(const ValueKey('reaction_cta'));
 Finder get _burst => find.byKey(const ValueKey('garra_reaction_burst'));
 Finder get _picker => find.byKey(const ValueKey('post_reaction_picker'));
 
@@ -157,7 +158,7 @@ void main() {
       );
       await _pumpFeed(tester, service);
 
-      await tester.tap(_summary);
+      await tester.tap(_action);
       await tester.pumpAndSettle();
 
       expect(_picker, findsNothing);
@@ -175,20 +176,20 @@ void main() {
         }),
       )..hold = Completer<void>();
       await _pumpFeed(tester, service);
-      expect(_summaryCount('3'), findsOneWidget);
+      expect(_summaryCount('4'), findsOneWidget);
 
-      await tester.tap(_summary);
+      await tester.tap(_action);
       await tester.pump();
 
       // Request still in flight: UI already updated.
       expect(service.calls, ['remove']);
       expect(find.byKey(const ValueKey('post_my_reaction')), findsNothing);
-      expect(_summaryCount('2'), findsOneWidget);
-      expect(_summaryCount('3'), findsNothing);
+      expect(_summaryCount('3'), findsOneWidget);
+      expect(_summaryCount('4'), findsNothing);
 
       service.hold!.complete();
       await tester.pumpAndSettle();
-      expect(_summaryCount('2'), findsOneWidget);
+      expect(_summaryCount('3'), findsOneWidget);
     });
 
     testWidgets('3. DELETE error rolls back and shows a friendly message', (
@@ -201,7 +202,7 @@ void main() {
       )..failRemove = true;
       await _pumpFeed(tester, service);
 
-      await tester.tap(_summary);
+      await tester.tap(_action);
       await tester.pumpAndSettle();
 
       expect(service.calls, ['remove']);
@@ -224,7 +225,7 @@ void main() {
       );
       await _pumpFeed(tester, service);
 
-      await tester.longPress(_summary);
+      await tester.longPress(_action);
       await tester.pumpAndSettle();
       expect(_picker, findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('reaction_option_FIRE')));
@@ -239,7 +240,7 @@ void main() {
       final service = _ReactionService(_post());
       await _pumpFeed(tester, service);
 
-      await tester.tap(_summary);
+      await tester.tap(_action);
       await tester.pumpAndSettle();
       expect(_picker, findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('reaction_option_LOVE')));
@@ -257,7 +258,7 @@ void main() {
       final service = _ReactionService(_post());
       await _pumpFeed(tester, service);
 
-      await tester.tap(_summary);
+      await tester.tap(_action);
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('reaction_option_GARRA')));
       await tester.pump();
@@ -286,7 +287,7 @@ void main() {
       final service = _ReactionService(_post());
       await _pumpFeed(tester, service);
 
-      await tester.tap(_summary);
+      await tester.tap(_action);
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('reaction_option_FIRE')));
       await tester.pump(const Duration(milliseconds: 120));
@@ -294,11 +295,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // Change to GARRA then remove it: only the selection animates.
-      await tester.longPress(_summary);
+      await tester.longPress(_action);
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('reaction_option_GARRA')));
       await tester.pumpAndSettle();
-      await tester.tap(_summary);
+      await tester.tap(_action);
       await tester.pump(const Duration(milliseconds: 120));
       expect(_burst, findsNothing);
       await tester.pumpAndSettle();
@@ -311,7 +312,7 @@ void main() {
       final service = _ReactionService(_post());
       await _pumpFeed(tester, service, disableAnimations: true);
 
-      await tester.tap(_summary);
+      await tester.tap(_action);
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('reaction_option_GARRA')));
       await tester.pump(const Duration(milliseconds: 120));

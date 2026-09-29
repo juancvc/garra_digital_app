@@ -179,6 +179,7 @@ Future<void> _pumpPicker(
 }
 
 Finder get _summary => find.byKey(const ValueKey('post_reaction_summary'));
+Finder get _action => find.byKey(const ValueKey('reaction_cta'));
 Finder get _burst => find.byKey(const ValueKey('garra_reaction_burst'));
 Finder _option(String api) => find.byKey(ValueKey('reaction_option_$api'));
 Finder _summaryCount(String text) =>
@@ -300,7 +301,7 @@ void main() {
         final service = _ReactionService(_post());
         await _pumpFeed(tester, service);
 
-        await tester.tap(_summary);
+        await tester.tap(_action);
         await tester.pumpAndSettle();
         await tester.tap(_option(api));
         await tester.pump(const Duration(milliseconds: 120));
@@ -323,7 +324,7 @@ void main() {
         await _pumpFeed(tester, service);
         expect(_summaryCount('2'), findsOneWidget);
 
-        await tester.tap(_summary);
+        await tester.tap(_action);
         await tester.pumpAndSettle();
 
         expect(find.byKey(const ValueKey('post_reaction_picker')), findsNothing);
@@ -341,14 +342,14 @@ void main() {
       );
       await _pumpFeed(tester, service);
 
-      await tester.longPress(_summary);
+      await tester.longPress(_action);
       await tester.pumpAndSettle();
       await tester.tap(_option('CARE'));
       await tester.pumpAndSettle();
       expect(service.post.myReaction, 'CARE');
       expect(service.post.reactionSummary['LOVE'], 0);
 
-      await tester.longPress(_summary);
+      await tester.longPress(_action);
       await tester.pumpAndSettle();
       await tester.tap(_option('HAHA'));
       await tester.pumpAndSettle();
@@ -368,17 +369,17 @@ void main() {
 
       for (final type in ReactionType.values) {
         if (type == ReactionType.garra) continue;
-        await tester.tap(_summary);
+        await tester.tap(_action);
         await tester.pumpAndSettle();
         await tester.tap(_option(type.apiValue));
         await tester.pump(const Duration(milliseconds: 120));
         expect(_burst, findsNothing, reason: type.apiValue);
         await tester.pumpAndSettle();
-        await tester.tap(_summary); // remove
+        await tester.tap(_action); // remove
         await tester.pumpAndSettle();
       }
 
-      await tester.tap(_summary);
+      await tester.tap(_action);
       await tester.pumpAndSettle();
       await tester.tap(_option('GARRA'));
       await tester.pump();

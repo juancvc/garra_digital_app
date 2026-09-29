@@ -307,7 +307,8 @@ void main() {
       expect(community.postViews, isNot(contains('post-mine')));
 
       // Scrolling far down brings post-11 into view -> counted after 1s.
-      await tester.drag(find.byType(ListView), const Offset(0, -5000));
+      await tester.scrollUntilVisible(find.text('Arenga crema post-11'),
+          280, scrollable: find.byType(Scrollable).first);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 1100));
       expect(community.postViews.where((v) => v == 'post-11').length, 1);
