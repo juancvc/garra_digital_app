@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/utils/garra_message_time.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../chat/presentation/chat_unread_badge.dart';
+import '../../chat/data/chat_models.dart';
 import '../../clans/data/clan_models.dart';
 import '../../clans/presentation/providers/clans_provider.dart';
 import 'community_chat_page.dart';
@@ -28,6 +30,7 @@ class _CommunityChatInboxListState
     extends ConsumerState<CommunityChatInboxList> {
   Future<void> _refresh() async {
     ref.invalidate(chatUnreadCountProvider);
+    ref.invalidate(communityChatPreviewsProvider);
     try {
       ref.invalidate(myClansProvider);
       await ref.read(myClansProvider.future);
@@ -44,6 +47,7 @@ class _CommunityChatInboxListState
     if (!mounted) return;
     // Back from the chat (read, left or lost access): refresh both.
     ref.invalidate(chatUnreadCountProvider);
+    ref.invalidate(communityChatPreviewsProvider);
     ref.invalidate(myClansProvider);
   }
 
@@ -63,10 +67,20 @@ class _CommunityChatInboxListState
                 membership.clan.slug.isNotEmpty)
               membership.clan,
         ];
+        final previews = clans.isEmpty
+            ? const <String, CommunityChatPreview>{}
+            : ref.watch(communityChatPreviewsProvider).value ?? const <String, CommunityChatPreview>{};
+        clans.sort((a, b) {
+          final at = previews[a.slug]?.lastMessageAt;
+          final bt = previews[b.slug]?.lastMessageAt;
+          if (at == null) return bt == null ? 0 : 1;
+          if (bt == null) return -1;
+          return bt.compareTo(at);
+        });
         return RefreshIndicator(
           key: const Key('community-inbox-refresh'),
           onRefresh: _refresh,
-          child: clans.isEmpty ? _empty() : _list(clans),
+          child: clans.isEmpty ? _empty() : _list(clans, previews),
         );
       },
     );
@@ -91,7 +105,7 @@ class _CommunityChatInboxListState
     );
   }
 
-  Widget _list(List<ClanModel> clans) {
+  Widget _list(List<ClanModel> clans, Map<String, CommunityChatPreview> previews) {
     final colors = context.garraColors;
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -100,23 +114,26 @@ class _CommunityChatInboxListState
           Divider(height: 1, indent: 76, color: colors.border),
       itemBuilder: (context, index) {
         final clan = clans[index];
-        return _CommunityRow(clan: clan, onTap: () => _open(clan));
+        return _CommunityRow(clan: clan, preview: previews[clan.slug], onTap: () => _open(clan));
       },
     );
   }
 }
 
 class _CommunityRow extends StatelessWidget {
-  const _CommunityRow({required this.clan, required this.onTap});
+  const _CommunityRow({required this.clan, required this.preview, required this.onTap});
 
   final ClanModel clan;
+  final CommunityChatPreview? preview;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.garraColors;
     final members = clan.memberCount;
-    final subtitle = members <= 0
+    final subtitle = (preview?.lastMessagePreview.isNotEmpty ?? false)
+        ? preview!.lastMessagePreview
+        : members <= 0
         ? 'Chat de la comunidad'
         : (members == 1 ? '1 miembro' : '$members miembros');
     return Semantics(
@@ -149,7 +166,7 @@ class _CommunityRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                          fontWeight: (preview?.unreadCount ?? 0) > 0 ? FontWeight.w700 : FontWeight.w600,
                         color: colors.textPrimary,
                       ),
                     ),
@@ -166,6 +183,16 @@ class _CommunityRow extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+              if (preview != null) Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (preview!.lastMessageAt != null)
+                    Text(formatGarraMessageTime(preview!.lastMessageAt!),
+                      style: TextStyle(fontSize: 11, color: colors.textSecondary)),
+                  if (preview!.unreadCount > 0)
+                    Badge(label: Text(preview!.unreadCount > 99 ? '99+' : '${preview!.unreadCount}')),
+                ],
               ),
               Icon(Icons.chevron_right, color: colors.textSecondary),
             ],

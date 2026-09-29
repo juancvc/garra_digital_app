@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:garra_digital_app/core/theme/app_theme.dart';
 import 'package:garra_digital_app/core/widgets/garra_states.dart';
 import 'package:garra_digital_app/core/widgets/garra_ui.dart';
@@ -234,6 +235,32 @@ void main() {
     await tester.tap(find.text('Guardar cambios'));
     await tester.pumpAndSettle();
     expect(updated, isTrue);
+  });
+
+  testWidgets('profile draft asks before leaving and keeps local edits', (tester) async {
+    final router = GoRouter(routes: [
+      GoRoute(path: '/', builder: (_, _) => const Scaffold(body: Text('Perfil'))),
+      GoRoute(path: '/edit', builder: (_, _) => const ProfileEditScreen()),
+    ]);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [myPassportProvider.overrideWith((ref) async => samplePassport())],
+      child: MaterialApp.router(routerConfig: router),
+    ));
+    router.push('/edit');
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).first, 'Nuevo nombre');
+    await tester.pump();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('¿Descartar borrador?'), findsOneWidget);
+    await tester.tap(find.text('Seguir editando'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nuevo nombre'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Descartar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Perfil'), findsOneWidget);
   });
 }
 

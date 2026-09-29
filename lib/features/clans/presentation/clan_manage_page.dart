@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
 import '../../../core/network/offline_action_guard.dart';
+import '../../../core/navigation/draft_exit_guard.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_single_photo_field.dart';
@@ -49,6 +50,27 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
   XFile? _cover;
   bool _removeAvatar = false;
   bool _removeCover = false;
+  final _exitGuard = DraftExitGuard();
+  String? _initialSnapshot;
+  String get _snapshot => [
+    _nameController.text, _descriptionController.text, _cityController.text,
+    _countryController.text, _visibility, _joinPolicy,
+    _avatar?.path ?? '', _cover?.path ?? '', '$_removeAvatar', '$_removeCover',
+  ].join('\u0000');
+  bool get _dirty => _initialized && _snapshot != _initialSnapshot;
+  void _leave() => _exitGuard.leave(context, dirty: _dirty, busy: _saving,
+      refresh: () => setState(() {}), pop: () => Navigator.of(context).pop());
+
+  @override
+  void initState() {
+    super.initState();
+    for (final controller in [_nameController, _descriptionController,
+        _cityController, _countryController]) {
+      controller.addListener(_onDraftChanged);
+    }
+  }
+
+  void _onDraftChanged() { if (mounted && _initialized) setState(() {}); }
 
   Future<void> _pickAvatar() async {
     final file = await _media.pickImage(maxSide: 1024);
@@ -70,6 +92,10 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
 
   @override
   void dispose() {
+    for (final controller in [_nameController, _descriptionController,
+        _cityController, _countryController]) {
+      controller.removeListener(_onDraftChanged);
+    }
     _nameController.dispose();
     _descriptionController.dispose();
     _cityController.dispose();
@@ -85,6 +111,7 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
     _countryController.text = clan.countryCode ?? '';
     _visibility = clan.visibility;
     _joinPolicy = clan.joinPolicy;
+    _initialSnapshot = _snapshot;
     _initialized = true;
   }
 
@@ -137,6 +164,7 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
           _cover = null;
           _removeAvatar = false;
           _removeCover = false;
+          _initialSnapshot = _snapshot;
         });
         ScaffoldMessenger.of(
           context,
@@ -180,9 +208,12 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
     final requestsAsync = ref.watch(clanJoinRequestsProvider(widget.slug));
     final membersAsync = ref.watch(clanMembersPreviewProvider(widget.slug));
 
-    return Scaffold(
+    return PopScope(
+      canPop: _exitGuard.canPop(dirty: _dirty, busy: _saving),
+      onPopInvokedWithResult: (didPop, _) { if (!didPop) _leave(); },
+      child: Scaffold(
       backgroundColor: context.garraColors.background,
-      appBar: AppBar(title: const Text('Administrar comunidad')),
+      appBar: AppBar(leading: BackButton(onPressed: _leave), title: const Text('Administrar comunidad')),
       body: clanAsync.when(
         loading: () => Center(
           child: CircularProgressIndicator(
@@ -474,7 +505,7 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
           );
         },
       ),
-    );
+    ));
   }
 }
 

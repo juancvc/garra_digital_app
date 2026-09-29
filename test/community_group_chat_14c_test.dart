@@ -259,6 +259,10 @@ class _Chat extends ChatService {
   List<ChatConversation> requestsResult = const [];
   int summaryCalls = 0;
   int conversationsCalls = 0;
+  List<CommunityChatPreview> previews = const [];
+
+  @override
+  Future<List<CommunityChatPreview>> communityPreviews() async => previews;
 
   @override
   Future<ChatUnreadSummary> unreadSummary() async {
@@ -901,7 +905,7 @@ void main() {
       expect(chat.summaryCalls, 1);
     });
 
-    testWidgets('0 hides the badge; >9 keeps the 9+ presentation', (
+    testWidgets('0 hides the badge; two-digit count remains visible', (
       tester,
     ) async {
       await pumpBadge(tester, _Chat());
@@ -923,7 +927,7 @@ void main() {
           ),
         ),
       );
-      expect(find.text('9+'), findsOneWidget);
+      expect(find.text('12'), findsOneWidget);
     });
 
     testWidgets('community mark-read refetches the global unread', (
@@ -1152,6 +1156,41 @@ void main() {
         findsOneWidget,
       );
       expect(svc.calls, isEmpty);
+    });
+
+    testWidgets('community rows show backend preview, unread and latest first', (tester) async {
+      final chat = inboxChat()..previews = [
+        CommunityChatPreview(slug: _slug, lastMessagePreview: 'Nuevo mensaje',
+            lastMessageAt: DateTime(2026, 9, 29, 13), unreadCount: 120),
+        CommunityChatPreview(slug: 'crema-norte', lastMessagePreview: 'Anterior',
+            lastMessageAt: DateTime(2026, 9, 28, 13), unreadCount: 0),
+      ];
+      final clans = _Clans(myClans: [
+        _membership('crema-norte', 'Crema Norte'),
+        _membership(_slug, 'Garra Surco'),
+      ]);
+      await pumpInbox(tester, chat: chat, clans: clans, svc: _Svc());
+      await tester.tap(find.byKey(const Key('chat-section-communities')));
+      await _settle(tester);
+      expect(find.text('Nuevo mensaje'), findsOneWidget);
+      expect(find.text('99+'), findsOneWidget);
+      expect(find.text('Anterior'), findsOneWidget);
+      final first = tester.getTopLeft(find.byKey(Key('community-inbox-row-$_slug'))).dy;
+      final second = tester.getTopLeft(find.byKey(const Key('community-inbox-row-crema-norte'))).dy;
+      expect(first, lessThan(second));
+    });
+
+    testWidgets('community chat text draft asks before leaving and keeps text', (tester) async {
+      await _open(tester, _Svc());
+      await tester.enterText(find.byKey(const Key('community-chat-composer')), 'Mensaje pendiente');
+      await tester.pump();
+      await tester.tap(find.byType(BackButton));
+      await _settle(tester);
+      expect(find.text('¿Descartar borrador?'), findsOneWidget);
+      await tester.tap(find.text('Seguir editando'));
+      await _settle(tester);
+      expect(find.text('Mensaje pendiente'), findsOneWidget);
+      await _dispose(tester);
     });
 
     testWidgets('empty state when the viewer has no community', (tester) async {

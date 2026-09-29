@@ -13,6 +13,7 @@ import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/auth/current_fan_provider.dart';
 import '../../../core/network/offline_action_guard.dart';
+import '../../../core/navigation/draft_exit_guard.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/community_report.dart';
@@ -69,6 +70,12 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   final _commentController = TextEditingController();
   final _commentFocus = FocusNode();
   bool _sendingComment = false;
+  final _exitGuard = DraftExitGuard();
+  bool get _dirty => _commentController.text.trim().isNotEmpty;
+  void _leave() => _exitGuard.leave(context, dirty: _dirty, busy: _sendingComment,
+      refresh: () => setState(() {}), pop: () {
+        if (context.canPop()) { context.pop(); } else { context.go('/muro-crema'); }
+      });
   bool _reacting = false;
 
   /// In-flight guards per comment id (no duplicate requests on double tap).
@@ -89,15 +96,19 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _commentController.addListener(_onDraftChanged);
     _loadAll();
   }
 
   @override
   void dispose() {
+    _commentController.removeListener(_onDraftChanged);
     _commentController.dispose();
     _commentFocus.dispose();
     super.dispose();
   }
+
+  void _onDraftChanged() { if (mounted) setState(() {}); }
 
   Future<void> _loadAll() async {
     await Future.wait([_loadPost(), _loadComments(reset: true)]);
@@ -671,19 +682,16 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: _exitGuard.canPop(dirty: _dirty, busy: _sendingComment),
+      onPopInvokedWithResult: (didPop, _) { if (!didPop) _leave(); },
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('Publicación'),
         leading: IconButton(
           tooltip: 'Volver',
           icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/muro-crema');
-            }
-          },
+          onPressed: _leave,
         ),
         actions: [
           if (_post != null)
@@ -770,7 +778,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         ],
       ),
       body: _buildBody(),
-    );
+    ));
   }
 
   void _focusComposer() {

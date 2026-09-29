@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -28,6 +30,15 @@ final chatUnreadTotalProvider = Provider.autoDispose<int>(
   (ref) => ref.watch(chatUnreadCountProvider).value?.unreadCount ?? 0,
 );
 
+final communityChatPreviewsProvider = FutureProvider.autoDispose<Map<String, CommunityChatPreview>>((ref) async {
+  try {
+    final rows = await ref.watch(chatServiceProvider).communityPreviews();
+    return {for (final row in rows) row.slug: row};
+  } catch (_) {
+    return {};
+  }
+});
+
 /// Re-fetches the unread badge if a [ProviderScope] is available.
 void refreshChatUnreadBadge(BuildContext context) {
   try {
@@ -38,6 +49,59 @@ void refreshChatUnreadBadge(BuildContext context) {
   } on StateError {
     // Pumped without a ProviderScope (widget tests): nothing to refresh.
   }
+}
+
+/// Reconciles the existing backend unread total while the app is in use.
+/// Chat screens already refresh on read; this catches messages received while
+/// the user is elsewhere without adding a second unread counter.
+class ChatUnreadReconciler extends ConsumerStatefulWidget {
+  const ChatUnreadReconciler({super.key, required this.child});
+  final Widget child;
+
+  @override
+  ConsumerState<ChatUnreadReconciler> createState() => _ChatUnreadReconcilerState();
+}
+
+class _ChatUnreadReconcilerState extends ConsumerState<ChatUnreadReconciler>
+    with WidgetsBindingObserver {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _start();
+  }
+
+  void _start() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) ref.invalidate(chatUnreadCountProvider);
+      if (mounted) ref.invalidate(communityChatPreviewsProvider);
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(chatUnreadCountProvider);
+      ref.invalidate(communityChatPreviewsProvider);
+      _start();
+    } else {
+      _timer?.cancel();
+      _timer = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// App bar "Mensajes" action (Home and Comunidad) with the unread badge.
@@ -104,7 +168,7 @@ class _BadgedMessagesActionState extends ConsumerState<_BadgedMessagesAction> {
       icon: Badge(
         key: const Key('messages-entry-badge'),
         isLabelVisible: count > 0,
-        label: Text(count > 9 ? '9+' : '$count'),
+        label: Text(count > 99 ? '99+' : '$count'),
         child: const Icon(Icons.chat_bubble_outline),
       ),
     );

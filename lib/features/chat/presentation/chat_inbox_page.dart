@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,7 +26,7 @@ class ChatInboxPage extends StatefulWidget {
   State<ChatInboxPage> createState() => _ChatInboxPageState();
 }
 
-class _ChatInboxPageState extends State<ChatInboxPage> {
+class _ChatInboxPageState extends State<ChatInboxPage> with WidgetsBindingObserver {
   late final ChatService _chat = widget.chatService ?? ChatService();
   var _requestsTab = false;
 
@@ -36,11 +38,42 @@ class _ChatInboxPageState extends State<ChatInboxPage> {
   List<ChatConversation> _conversations = const [];
   List<ChatConversation> _requests = const [];
   String? _busyId;
+  Timer? _reconcileTimer;
+  bool _reconciling = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+    _startReconciliation();
+  }
+
+  void _startReconciliation() {
+    _reconcileTimer?.cancel();
+    _reconcileTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+      if (!mounted || _reconciling) return;
+      _reconciling = true;
+      try { await _refresh(); } finally { _reconciling = false; }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refresh();
+      _startReconciliation();
+    } else {
+      _reconcileTimer?.cancel();
+      _reconcileTimer = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _reconcileTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _load({bool silent = false}) async {
@@ -634,7 +667,7 @@ class _UnreadBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.garraColors;
-    final label = count > 9 ? '9+' : '$count';
+    final label = count > 99 ? '99+' : '$count';
     return Semantics(
       label: '$count sin leer',
       excludeSemantics: true,

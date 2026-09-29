@@ -387,7 +387,7 @@ void main() {
       await tester.tap(find.byIcon(Icons.chat_bubble_outline_rounded));
       await tester.pump();
       expect((commented, opened), (1, 0));
-      await tester.tap(find.text('2 comentarios · 0 compartidos'));
+      await tester.tap(find.text('· 0 compartidos'));
       await tester.pump();
       expect(opened, 1);
     });

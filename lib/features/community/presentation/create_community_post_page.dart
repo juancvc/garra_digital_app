@@ -11,6 +11,7 @@ import '../../../core/design/garra_spacing.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/media/media_upload_service.dart';
 import '../../../core/network/offline_action_guard.dart';
+import '../../../core/navigation/draft_exit_guard.dart';
 import '../data/community_service.dart';
 import '../data/create_wall_post_request.dart';
 import '../data/wall_post_model.dart';
@@ -44,7 +45,21 @@ class _CreateCommunityPostPageState
   final List<MediaDraft> _drafts = [];
   final CancelToken _uploadCancelToken = CancelToken();
   bool _publishing = false;
+  bool _completed = false;
+  final _exitGuard = DraftExitGuard();
   String? _error;
+
+  bool get _dirty => !_completed &&
+      (_content.text.trim().isNotEmpty || _drafts.isNotEmpty);
+
+  bool get _busy => _publishing || _drafts.any((draft) =>
+      draft.state == MediaUploadState.signing ||
+      draft.state == MediaUploadState.uploading ||
+      draft.state == MediaUploadState.confirming);
+
+  void _leave() => _exitGuard.leave(context,
+      dirty: _dirty, busy: _busy,
+      refresh: () => setState(() {}), pop: () => context.pop());
 
   bool get _isMatchScoped =>
       widget.matchId != null && widget.matchId!.isNotEmpty;
@@ -235,6 +250,7 @@ class _CreateCommunityPostPageState
         }
       }
       if (!mounted) return;
+      _completed = true;
       if (!_isMatchScoped) {
         ref
             .read(communityFeedRevisionProvider.notifier)
@@ -266,11 +282,16 @@ class _CreateCommunityPostPageState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: _exitGuard.canPop(dirty: _dirty, busy: _busy),
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _leave();
+      },
+      child: Scaffold(
       appBar: AppBar(
         leading: IconButton(
           tooltip: 'Cancelar',
-          onPressed: () => context.pop(),
+          onPressed: _leave,
           icon: const Icon(Icons.close),
         ),
         title: const Text('Nueva publicación'),
@@ -413,6 +434,6 @@ class _CreateCommunityPostPageState
           ),
         ],
       ),
-    );
+    ));
   }
 }

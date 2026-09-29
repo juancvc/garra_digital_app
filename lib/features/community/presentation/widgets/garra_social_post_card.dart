@@ -164,20 +164,20 @@ class GarraSocialPostCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: post.isShare ? 6 : 10),
               if (post.originalPost case final original?)
                 InkWell(
                   onTap: onOpenOriginal ?? onOpen,
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(GarraSpacing.md),
+                    padding: const EdgeInsets.symmetric(horizontal: GarraSpacing.md, vertical: 8),
                     decoration: BoxDecoration(
                       border: Border.all(color: context.garraColors.border),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(original.fullName, style: Theme.of(context).textTheme.titleSmall),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 3),
                       Text(original.content, maxLines: 4, overflow: TextOverflow.ellipsis),
                       if (original.imageUrl?.isNotEmpty == true || original.media.isNotEmpty) ...[
                         const SizedBox(height: 10),
@@ -197,7 +197,7 @@ class GarraSocialPostCard extends StatelessWidget {
                   GarraPostMediaGrid(media: post.media, legacyImageUrl: post.imageUrl, onViewPost: onOpen),
                 ],
               ],
-              const SizedBox(height: GarraSpacing.sm),
+              SizedBox(height: post.isShare ? 4 : GarraSpacing.sm),
               _PostEngagementSummary(
                 post: engagement,
                 onReactions: engagement.reactionCount > 0
@@ -263,8 +263,15 @@ class _PostEngagementSummary extends StatelessWidget {
       )),
       Expanded(flex: 3, child: InkWell(
         onTap: onComments,
-        child: Text('${post.commentCount} ${post.commentCount == 1 ? 'comentario' : 'comentarios'} · ${post.shareCount} ${post.shareCount == 1 ? 'compartido' : 'compartidos'}',
-          style: style, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.end),
+        child: LayoutBuilder(builder: (_, width) {
+          final compact = width.maxWidth < 175;
+          return Wrap(alignment: WrapAlignment.end, spacing: 4, children: [
+            Text(compact ? '${post.commentCount} com.' :
+              '${post.commentCount} ${post.commentCount == 1 ? 'comentario' : 'comentarios'}', style: style),
+            Text(compact ? '· ${post.shareCount} comp.' :
+              '· ${post.shareCount} ${post.shareCount == 1 ? 'compartido' : 'compartidos'}', style: style),
+          ]);
+        }),
       )),
       if (post.viewCount > 0) ...[
         const SizedBox(width: 6),

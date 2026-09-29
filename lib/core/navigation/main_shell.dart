@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/home/presentation/create_action_sheet.dart';
+import '../../features/chat/presentation/chat_unread_badge.dart';
 import 'home_back_scroll.dart';
 import '../design/garra_colors.dart';
 import '../theme/garra_semantic_colors.dart';
@@ -39,7 +40,8 @@ class MainShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.garraColors;
     final homeScrolled = ref.watch(homeBackScrollProvider);
-    return PopScope(
+    final chatUnread = ref.watch(chatUnreadTotalProvider);
+    return ChatUnreadReconciler(child: PopScope(
       canPop: navigationShell.currentIndex == 0 && !homeScrolled,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
@@ -69,28 +71,36 @@ class MainShell extends ConsumerWidget {
             labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
             selectedIndex: _navIndex,
             onDestinationSelected: (i) => _onTap(context, i),
-            destinations: const [
-              NavigationDestination(
+            destinations: [
+              const NavigationDestination(
                 icon: Icon(Icons.home_outlined),
                 selectedIcon: Icon(Icons.home_rounded),
                 label: 'Inicio',
               ),
               NavigationDestination(
-                icon: Icon(Icons.forum_outlined),
-                selectedIcon: Icon(Icons.forum_rounded),
+                icon: Badge(
+                  isLabelVisible: chatUnread > 0,
+                  label: Text(chatUnread > 99 ? '99+' : '$chatUnread'),
+                  child: const Icon(Icons.forum_outlined),
+                ),
+                selectedIcon: Badge(
+                  isLabelVisible: chatUnread > 0,
+                  label: Text(chatUnread > 99 ? '99+' : '$chatUnread'),
+                  child: const Icon(Icons.forum_rounded),
+                ),
                 label: 'Comunidad',
               ),
-              NavigationDestination(
+              const NavigationDestination(
                 icon: _CreateDestinationIcon(),
                 selectedIcon: _CreateDestinationIcon(selected: true),
                 label: 'Crear',
               ),
-              NavigationDestination(
+              const NavigationDestination(
                 icon: Icon(Icons.explore_outlined),
                 selectedIcon: Icon(Icons.explore_rounded),
                 label: 'Explorar',
               ),
-              NavigationDestination(
+              const NavigationDestination(
                 icon: Icon(Icons.person_outline),
                 selectedIcon: Icon(Icons.person_rounded),
                 label: 'Perfil',
@@ -100,7 +110,7 @@ class MainShell extends ConsumerWidget {
         ),
       ),
       ),
-    );
+    ));
   }
 }
 

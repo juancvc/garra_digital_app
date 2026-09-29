@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/network/offline_action_guard.dart';
+import '../../../core/navigation/draft_exit_guard.dart';
 import '../../../core/widgets/garra_form.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
@@ -32,9 +33,34 @@ class _SellerStoreFormPageState extends ConsumerState<SellerStoreFormPage> {
   final _cityController = TextEditingController();
   bool _loading = false;
   bool _hydrated = false;
+  bool _completed = false;
+  final _exitGuard = DraftExitGuard();
+  String? _initialSnapshot;
+  String get _snapshot => [_nameController.text, _descriptionController.text,
+      _cityController.text].join('\u0000');
+  bool get _dirty => !_completed && (widget.isEditing
+      ? _hydrated && _snapshot != _initialSnapshot
+      : _nameController.text.trim().isNotEmpty ||
+          _descriptionController.text.trim().isNotEmpty ||
+          _cityController.text.trim().isNotEmpty);
+  void _leave() => _exitGuard.leave(context, dirty: _dirty, busy: _loading,
+      refresh: () => setState(() {}), pop: () => context.pop());
+
+  @override
+  void initState() {
+    super.initState();
+    for (final controller in [_nameController, _descriptionController, _cityController]) {
+      controller.addListener(_onDraftChanged);
+    }
+  }
+
+  void _onDraftChanged() { if (mounted && (!widget.isEditing || _hydrated)) setState(() {}); }
 
   @override
   void dispose() {
+    for (final controller in [_nameController, _descriptionController, _cityController]) {
+      controller.removeListener(_onDraftChanged);
+    }
     _nameController.dispose();
     _descriptionController.dispose();
     _cityController.dispose();
@@ -43,10 +69,11 @@ class _SellerStoreFormPageState extends ConsumerState<SellerStoreFormPage> {
 
   void _hydrate(MarketplaceStore store) {
     if (_hydrated) return;
-    _hydrated = true;
     _nameController.text = store.name;
     _descriptionController.text = store.description ?? '';
     _cityController.text = store.city ?? '';
+    _initialSnapshot = _snapshot;
+    _hydrated = true;
   }
 
   Future<void> _save() async {
@@ -66,6 +93,7 @@ class _SellerStoreFormPageState extends ConsumerState<SellerStoreFormPage> {
         ref.invalidate(sellerStoreProvider(storeId));
         ref.invalidate(sellerStoresProvider);
         if (!mounted) return;
+        _completed = true;
         messenger.showSnackBar(
           const SnackBar(content: Text('Negocio actualizado.')),
         );
@@ -79,6 +107,7 @@ class _SellerStoreFormPageState extends ConsumerState<SellerStoreFormPage> {
         ref.invalidate(sellerStoresProvider);
         ref.invalidate(sellerSummaryProvider);
         if (!mounted) return;
+        _completed = true;
         messenger.showSnackBar(
           const SnackBar(content: Text('Negocio creado.')),
         );
@@ -112,8 +141,12 @@ class _SellerStoreFormPageState extends ConsumerState<SellerStoreFormPage> {
       storeAsync.whenData(_hydrate);
     }
 
-    return Scaffold(
+    return PopScope(
+      canPop: _exitGuard.canPop(dirty: _dirty, busy: _loading),
+      onPopInvokedWithResult: (didPop, _) { if (!didPop) _leave(); },
+      child: Scaffold(
       appBar: AppBar(
+        leading: BackButton(onPressed: _leave),
         title: Text(widget.isEditing ? 'Editar negocio' : 'Nuevo negocio'),
       ),
       body: Form(
@@ -164,6 +197,6 @@ class _SellerStoreFormPageState extends ConsumerState<SellerStoreFormPage> {
           ],
         ),
       ),
-    );
+    ));
   }
 }

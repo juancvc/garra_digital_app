@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
 import '../../../core/network/offline_action_guard.dart';
+import '../../../core/navigation/draft_exit_guard.dart';
 import '../../../core/utils/country_labels.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_form.dart';
@@ -40,6 +41,18 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   final CancelToken _uploadCancelToken = CancelToken();
   bool _loading = false;
   bool _seeded = false;
+  bool _completed = false;
+  final _exitGuard = DraftExitGuard();
+  String? _initialSnapshot;
+  String get _snapshot => [_displayName.text, _bio.text, _city.text, _year.text,
+      _visibility, _country, _avatarAssetId ?? ''].join('\u0000');
+  bool get _dirty => !_completed && _seeded &&
+      (_snapshot != _initialSnapshot || _selectedAvatar != null);
+  void _leave() => _exitGuard.leave(context, dirty: _dirty,
+      busy: _loading || _uploadingPhoto,
+      refresh: () => setState(() {}), pop: () => context.pop());
+
+  void _onDraftChanged() { if (mounted && _seeded) setState(() {}); }
 
   @override
   void initState() {
@@ -48,12 +61,18 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     _bio = TextEditingController();
     _city = TextEditingController();
     _year = TextEditingController();
+    for (final controller in [_displayName, _bio, _city, _year]) {
+      controller.addListener(_onDraftChanged);
+    }
     _media = widget.media ?? MediaUploadService();
   }
 
   @override
   void dispose() {
     _uploadCancelToken.cancel();
+    for (final controller in [_displayName, _bio, _city, _year]) {
+      controller.removeListener(_onDraftChanged);
+    }
     _displayName.dispose();
     _bio.dispose();
     _city.dispose();
@@ -63,7 +82,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
 
   void _seed(PassportModel passport) {
     if (_seeded) return;
-    _seeded = true;
     _displayName.text = passport.identity.displayName;
     _bio.text = passport.identity.bio ?? '';
     _city.text = passport.identity.city ?? '';
@@ -74,6 +92,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     _year.text = passport.identity.supporterSinceYear?.toString() ?? '';
     _visibility = passport.profileVisibility;
     _avatarUrl = passport.identity.avatarUrl;
+    _initialSnapshot = _snapshot;
+    _seeded = true;
   }
 
   Future<void> _changePhoto() async {
@@ -118,7 +138,10 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
               ? await _media.pickCamera(maxSide: 1024)
               : await _media.pickImage(maxSide: 1024));
       if (!mounted) return;
-      if (file == null) return;
+      if (file == null) {
+        setState(() => _uploadingPhoto = false);
+        return;
+      }
       if (!allowNetworkAction(context)) {
         setState(() {
           _selectedAvatar = file;
@@ -174,6 +197,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
           );
       ref.invalidate(myPassportProvider);
       if (!mounted) return;
+      _completed = true;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Perfil actualizado')));
@@ -192,9 +216,12 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   Widget build(BuildContext context) {
     final passportAsync = ref.watch(myPassportProvider);
 
-    return Scaffold(
+    return PopScope(
+      canPop: _exitGuard.canPop(dirty: _dirty, busy: _loading || _uploadingPhoto),
+      onPopInvokedWithResult: (didPop, _) { if (!didPop) _leave(); },
+      child: Scaffold(
       resizeToAvoidBottomInset: true,
-      appBar: AppBar(title: const Text('Editar perfil')),
+      appBar: AppBar(leading: BackButton(onPressed: _leave), title: const Text('Editar perfil')),
       body: passportAsync.when(
         loading: () => const GarraPassportSkeleton(),
         error: (error, stackTrace) => GarraErrorState(
@@ -347,6 +374,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
           );
         },
       ),
-    );
+    ));
   }
 }

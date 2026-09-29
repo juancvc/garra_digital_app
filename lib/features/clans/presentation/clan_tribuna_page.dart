@@ -8,6 +8,7 @@ import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
 import '../../../core/network/offline_action_guard.dart';
+import '../../../core/navigation/draft_exit_guard.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../community/data/community_report.dart';
@@ -47,16 +48,34 @@ class ClanTribunaPage extends ConsumerStatefulWidget {
   ConsumerState<ClanTribunaPage> createState() => _ClanTribunaPageState();
 }
 
-class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
+class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   final _contentController = TextEditingController();
   final _media = MediaUploadService();
   bool _publishing = false;
   String? _photoAssetId;
   XFile? _selectedPhoto;
   bool _uploadingPhoto = false;
+  final _exitGuard = DraftExitGuard();
+  bool get _dirty => _contentController.text.trim().isNotEmpty ||
+      _selectedPhoto != null || _photoAssetId != null;
+  void _leave() => _exitGuard.leave(context, dirty: _dirty,
+      busy: _publishing || _uploadingPhoto,
+      refresh: () => setState(() {}), pop: () => Navigator.of(context).pop());
+
+  @override
+  void initState() {
+    super.initState();
+    _contentController.addListener(_onDraftChanged);
+  }
+
+  void _onDraftChanged() { if (mounted) setState(() {}); }
 
   @override
   void dispose() {
+    _contentController.removeListener(_onDraftChanged);
     _contentController.dispose();
     super.dispose();
   }
@@ -166,6 +185,7 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
           );
       _contentController.clear();
       _photoAssetId = null;
+      _selectedPhoto = null;
       ref.invalidate(clanFeedProvider(widget.slug));
       if (mounted) {
         ScaffoldMessenger.of(
@@ -199,6 +219,7 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final clanAsync = ref.watch(clanDetailProvider(widget.slug));
     final feedAsync = ref.watch(clanFeedProvider(widget.slug));
 
@@ -305,11 +326,14 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
       },
     );
 
-    if (widget.embedded) return body;
-
-    return Scaffold(
+    return PopScope(
+      canPop: _exitGuard.canPop(dirty: _dirty,
+          busy: _publishing || _uploadingPhoto),
+      onPopInvokedWithResult: (didPop, _) { if (!didPop) _leave(); },
+      child: widget.embedded ? body : Scaffold(
       backgroundColor: context.garraColors.background,
       appBar: AppBar(
+        leading: BackButton(onPressed: _leave),
         title: Text(
           clanAsync.asData != null
               ? 'Tribuna · ${clanAsync.asData!.value.name}'
@@ -317,7 +341,7 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
         ),
       ),
       body: body,
-    );
+    ));
   }
 }
 

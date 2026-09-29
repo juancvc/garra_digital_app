@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/network/offline_action_guard.dart';
+import '../../../core/navigation/draft_exit_guard.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
@@ -46,11 +47,46 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
   List<MarketplaceStore> _eligibleStores = const [];
   final List<ListingImageDraft> _images = [];
   final CancelToken _uploadCancelToken = CancelToken();
+  final _exitGuard = DraftExitGuard();
+  bool _completed = false;
+  String? _initialSnapshot;
+  String get _snapshot => [
+    _titleController.text, _descriptionController.text, _priceController.text,
+    _categorySlug ?? '', _pickedStoreId ?? '', '$_priceOnRequest',
+    ..._images.map((image) => image.localId),
+  ].join('\u0000');
+  bool get _dirty => !_completed && (widget.isEditing
+      ? _hydrated && _snapshot != _initialSnapshot
+      : _titleController.text.trim().isNotEmpty ||
+          _descriptionController.text.trim().isNotEmpty ||
+          _priceController.text.trim().isNotEmpty || _categorySlug != null ||
+          _pickedStoreId != null || _priceOnRequest || _images.isNotEmpty);
+  bool get _busy => _loading || _images.any((image) =>
+      image.state == ListingImageUploadState.signing ||
+      image.state == ListingImageUploadState.uploading ||
+      image.state == ListingImageUploadState.confirming);
+  void _leave() => _exitGuard.leave(context, dirty: _dirty, busy: _busy,
+      refresh: () => setState(() {}), pop: () => context.pop());
+
+  @override
+  void initState() {
+    super.initState();
+    for (final controller in [_titleController, _descriptionController, _priceController]) {
+      controller.addListener(_onDraftChanged);
+    }
+  }
+
+  void _onDraftChanged() {
+    if (mounted && (!widget.isEditing || _hydrated)) setState(() {});
+  }
 
   static const _maxImages = 5;
 
   @override
   void dispose() {
+    for (final controller in [_titleController, _descriptionController, _priceController]) {
+      controller.removeListener(_onDraftChanged);
+    }
     _uploadCancelToken.cancel();
     _titleController.dispose();
     _descriptionController.dispose();
@@ -60,7 +96,6 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
 
   void _hydrateFrom(MarketplaceListing listing) {
     if (_hydrated) return;
-    _hydrated = true;
     _listingId = listing.id;
     _titleController.text = listing.title;
     _descriptionController.text = listing.description ?? '';
@@ -82,6 +117,8 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
         ),
       );
     }
+    _initialSnapshot = _snapshot;
+    _hydrated = true;
   }
 
   Future<void> _pickImage() async {
@@ -104,6 +141,7 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
       ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
+      _completed = true;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No pudimos seleccionar la imagen.')),
       );
@@ -349,8 +387,12 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
       listingAsync.whenData(_hydrateFrom);
     }
 
-    return Scaffold(
+    return PopScope(
+      canPop: _exitGuard.canPop(dirty: _dirty, busy: _busy),
+      onPopInvokedWithResult: (didPop, _) { if (!didPop) _leave(); },
+      child: Scaffold(
       appBar: AppBar(
+        leading: BackButton(onPressed: _leave),
         title: Text(
           widget.isEditing ? 'Editar publicación' : 'Nueva publicación',
         ),
@@ -613,6 +655,6 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
           ],
         ),
       ),
-    );
+    ));
   }
 }

@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/media/media_upload_service.dart';
 import '../../../core/network/offline_action_guard.dart';
+import '../../../core/navigation/draft_exit_guard.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/utils/garra_message_time.dart';
 import '../../../core/widgets/garra_avatar.dart';
@@ -115,6 +116,11 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
   var _pollInFlight = false;
   var _sending = false;
   var _picking = false;
+  final _exitGuard = DraftExitGuard();
+  bool get _dirty => _input.text.trim().isNotEmpty || _drafts.isNotEmpty;
+  void _leave() => _exitGuard.leave(context,
+      dirty: _dirty, busy: _sending || _picking || _uploading,
+      refresh: () => setState(() {}), pop: () => Navigator.of(context).pop());
   var _accessLost = false;
   var _following = true;
   var _unseenNew = false;
@@ -137,6 +143,7 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
   @override
   void initState() {
     super.initState();
+    _input.addListener(_onDraftChanged);
     WidgetsBinding.instance.addObserver(this);
     _scroll.addListener(_onScroll);
     _load();
@@ -145,6 +152,7 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
 
   @override
   void dispose() {
+    _input.removeListener(_onDraftChanged);
     _uploadCancelToken.cancel();
     _stopPolling();
     WidgetsBinding.instance.removeObserver(this);
@@ -153,6 +161,8 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
     _scroll.dispose();
     super.dispose();
   }
+
+  void _onDraftChanged() { if (mounted) setState(() {}); }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -406,6 +416,7 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
     ref.invalidate(myClansProvider);
     ref.invalidate(clanDetailProvider(_slug));
     ref.invalidate(chatUnreadCountProvider);
+    ref.invalidate(communityChatPreviewsProvider);
   }
 
   /// POST /read with a monotonic seq: never at or below what the backend
@@ -417,7 +428,10 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
     try {
       await _service.markRead(_slug, seq);
       // Home and inbox badges come from GET /chat/unread-count.
-      if (mounted) ref.invalidate(chatUnreadCountProvider);
+      if (mounted) {
+        ref.invalidate(chatUnreadCountProvider);
+        ref.invalidate(communityChatPreviewsProvider);
+      }
     } catch (_) {
       // Allow a later retry with the same seq; never go backwards.
       if (_readSeq == seq) _readSeq = previous;
@@ -812,10 +826,13 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
   @override
   Widget build(BuildContext context) {
     final colors = context.garraColors;
-    return Scaffold(
+    return PopScope(
+      canPop: _exitGuard.canPop(dirty: _dirty, busy: _sending || _picking || _uploading),
+      onPopInvokedWithResult: (didPop, _) { if (!didPop) _leave(); },
+      child: Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: colors.background,
-      appBar: AppBar(titleSpacing: 0, title: _header()),
+      appBar: AppBar(leading: BackButton(onPressed: _leave), titleSpacing: 0, title: _header()),
       body: ChatBackdrop(
         child: Column(
           children: [
@@ -833,7 +850,7 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _header() {

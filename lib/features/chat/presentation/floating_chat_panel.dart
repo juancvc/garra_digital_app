@@ -9,6 +9,7 @@ import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
 import '../../../core/network/offline_action_guard.dart';
+import '../../../core/navigation/draft_exit_guard.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../data/chat_image_uploads.dart';
 import '../data/chat_models.dart';
@@ -35,6 +36,8 @@ Future<void> showGarraFloatingChat({
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    isDismissible: false,
+    enableDrag: false,
     backgroundColor: Colors.transparent,
     builder: (ctx) {
       return DraggableScrollableSheet(
@@ -101,6 +104,14 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
   var _loading = true;
   var _sending = false;
   var _composingRequest = false;
+  final _exitGuard = DraftExitGuard();
+  String _initialText = '';
+  bool get _dirty => (_input.text.trim().isNotEmpty && _input.text != _initialText) || _drafts.isNotEmpty;
+  bool get _uploading => _drafts.any((draft) =>
+      draft.state != MediaUploadState.ready && draft.state != MediaUploadState.failed);
+  void _leave() => _exitGuard.leave(context,
+      dirty: _dirty, busy: _sending || _uploading,
+      refresh: () => setState(() {}), pop: () => Navigator.pop(context));
   String? _error;
 
   ChatRequestCopy get _requestCopy => ChatRequestCopy.resolve(
@@ -138,14 +149,19 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
     } else {
       _load(relationship.conversationId!);
     }
+    _initialText = _input.text;
+    _input.addListener(_onDraftChanged);
   }
 
   @override
   void dispose() {
+    _input.removeListener(_onDraftChanged);
     _uploadCancelToken.cancel();
     _input.dispose();
     super.dispose();
   }
+
+  void _onDraftChanged() { if (mounted) setState(() {}); }
 
   Future<void> _load(String conversationId) async {
     setState(() {
@@ -301,10 +317,15 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
 
   /// CHAT_V2_A: an ACTIVE thread belongs to the canonical `/chat/:id` screen.
   /// The panel only hands off; it never marks the conversation read.
-  void _openFullConversation() {
+  Future<void> _openFullConversation() async {
     final conversation = _conversation;
     final router = GoRouter.maybeOf(context);
     if (conversation == null || router == null) return;
+    if (_sending || _uploading) return;
+    if (_dirty && !await confirmDiscardDraft(context)) return;
+    if (!mounted) return;
+    _exitGuard.permitExit();
+    setState(() {});
     Navigator.pop(context);
     router.push('/chat/${conversation.id}');
   }
@@ -344,7 +365,10 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
               : (widget.otherDisplayName.isNotEmpty
                     ? widget.otherDisplayName
                     : 'Chat'));
-    return Material(
+    return PopScope(
+      canPop: _exitGuard.canPop(dirty: _dirty, busy: _sending || _uploading),
+      onPopInvokedWithResult: (didPop, _) { if (!didPop) _leave(); },
+      child: Material(
       key: const Key('floating-chat-panel'),
       color: context.garraColors.background,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -399,7 +423,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
                 IconButton(
                   key: const Key('floating-chat-close'),
                   tooltip: 'Cerrar',
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: _leave,
                   icon: const Icon(Icons.close),
                 ),
               ],
@@ -411,7 +435,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
           _footer(conversation),
         ],
       ),
-    );
+    ));
   }
 
   String _contextLine() {

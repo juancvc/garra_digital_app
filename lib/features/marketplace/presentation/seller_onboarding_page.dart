@@ -7,6 +7,7 @@ import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
 import '../../../core/network/offline_action_guard.dart';
+import '../../../core/navigation/draft_exit_guard.dart';
 import '../../../core/network/garra_error.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_form.dart';
@@ -37,6 +38,26 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
   bool _submitting = false;
   late final MediaUploadService _media = widget.media ?? MediaUploadService();
   XFile? _photo;
+  final _exitGuard = DraftExitGuard();
+  bool _completed = false;
+  bool get _dirty => !_completed && (_photo != null || _ipAck ||
+      _whatsappController.text.trim().isNotEmpty ||
+      _storeNameController.text.trim().isNotEmpty ||
+      _cityController.text.trim().isNotEmpty ||
+      _descriptionController.text.trim().isNotEmpty);
+  void _leave() => _exitGuard.leave(context, dirty: _dirty, busy: _submitting,
+      refresh: () => setState(() {}), pop: () => Navigator.of(context).pop());
+
+  @override
+  void initState() {
+    super.initState();
+    for (final controller in [_whatsappController, _storeNameController,
+        _cityController, _descriptionController]) {
+      controller.addListener(_onDraftChanged);
+    }
+  }
+
+  void _onDraftChanged() { if (mounted) setState(() {}); }
 
   Future<void> _pickPhoto() async {
     final file = await _media.pickImage();
@@ -46,6 +67,10 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
 
   @override
   void dispose() {
+    for (final controller in [_whatsappController, _storeNameController,
+        _cityController, _descriptionController]) {
+      controller.removeListener(_onDraftChanged);
+    }
     _whatsappController.dispose();
     _storeNameController.dispose();
     _cityController.dispose();
@@ -96,6 +121,7 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
       ref.invalidate(sellerMeProvider);
       ref.invalidate(sellerSummaryProvider);
       if (!mounted) return;
+      _completed = true;
       context.go('/marketplace/seller/dashboard');
     } catch (e) {
       if (!mounted) return;
@@ -125,8 +151,11 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
   Widget build(BuildContext context) {
     final sellerAsync = ref.watch(sellerMeProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Publica tu emprendimiento')),
+    return PopScope(
+      canPop: _exitGuard.canPop(dirty: _dirty, busy: _submitting),
+      onPopInvokedWithResult: (didPop, _) { if (!didPop) _leave(); },
+      child: Scaffold(
+      appBar: AppBar(leading: BackButton(onPressed: _leave), title: const Text('Publica tu emprendimiento')),
       body: sellerAsync.when(
         loading: () => const Center(
           child: CircularProgressIndicator(color: Color(GarraColors.gold)),
@@ -264,6 +293,6 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
           );
         },
       ),
-    );
+    ));
   }
 }

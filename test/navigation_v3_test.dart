@@ -4,6 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:garra_digital_app/core/navigation/main_shell.dart';
 import 'package:garra_digital_app/core/theme/app_theme.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
+import 'package:garra_digital_app/features/chat/data/chat_models.dart';
+import 'package:garra_digital_app/features/chat/data/chat_service.dart';
+import 'package:garra_digital_app/features/chat/presentation/chat_unread_badge.dart';
+
+class _UnreadChat extends ChatService {
+  _UnreadChat() : super(dio: Dio());
+  int count = 0;
+
+  @override
+  Future<ChatUnreadSummary> unreadSummary() async => ChatUnreadSummary(unreadCount: count);
+}
 
 void main() {
   testWidgets('main shell exposes five destinations including Crear', (
@@ -64,12 +76,25 @@ void main() {
       ],
     );
 
+    final chat = _UnreadChat();
+    final container = ProviderContainer(overrides: [chatServiceProvider.overrideWithValue(chat)]);
+    addTearDown(container.dispose);
+
     await tester.pumpWidget(
-      ProviderScope(
+      UncontrolledProviderScope(container: container,
         child: MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
       ),
     );
     await tester.pump();
+
+    final communityDestination = find.byWidgetPredicate((widget) =>
+      widget is NavigationDestination && widget.label == 'Comunidad');
+    expect(tester.widget<Badge>(find.descendant(
+      of: communityDestination, matching: find.byType(Badge)).first).isLabelVisible, isFalse);
+    chat.count = 120;
+    container.invalidate(chatUnreadCountProvider);
+    await tester.pumpAndSettle();
+    expect(find.text('99+'), findsWidgets);
 
     expect(find.byIcon(Icons.home_rounded), findsOneWidget);
     expect(find.byIcon(Icons.forum_outlined), findsOneWidget);

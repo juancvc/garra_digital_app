@@ -8,6 +8,7 @@ import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
 import '../../../core/network/offline_action_guard.dart';
+import '../../../core/navigation/draft_exit_guard.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/utils/country_labels.dart';
 import '../../../core/widgets/garra_form.dart';
@@ -96,9 +97,30 @@ class _CreateCommunityPageState extends ConsumerState<CreateCommunityPage> {
   // upload the same photo twice.
   String? _avatarAssetId;
   String? _coverAssetId;
+  final _exitGuard = DraftExitGuard();
+  bool _completed = false;
+  bool get _dirty => !_completed && (_nameCtrl.text.trim().isNotEmpty ||
+      _descCtrl.text.trim().isNotEmpty || _cityCtrl.text.trim().isNotEmpty ||
+      _avatar != null || _cover != null || _country != 'PE' ||
+      _visibility != 'PUBLIC' || _joinPolicy != 'OPEN');
+  void _leave() => _exitGuard.leave(context, dirty: _dirty, busy: _submitting,
+      refresh: () => setState(() {}), pop: () => Navigator.of(context).pop());
+
+  @override
+  void initState() {
+    super.initState();
+    for (final controller in [_nameCtrl, _descCtrl, _cityCtrl]) {
+      controller.addListener(_onDraftChanged);
+    }
+  }
+
+  void _onDraftChanged() { if (mounted) setState(() {}); }
 
   @override
   void dispose() {
+    for (final controller in [_nameCtrl, _descCtrl, _cityCtrl]) {
+      controller.removeListener(_onDraftChanged);
+    }
     _nameCtrl.dispose();
     _descCtrl.dispose();
     _cityCtrl.dispose();
@@ -167,6 +189,7 @@ class _CreateCommunityPageState extends ConsumerState<CreateCommunityPage> {
       ref.invalidate(myClansProvider);
       ref.invalidate(clanDiscoveryProvider(const ClanDiscoveryQuery()));
       if (!mounted) return;
+      _completed = true;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Comunidad creada')));
@@ -192,9 +215,12 @@ class _CreateCommunityPageState extends ConsumerState<CreateCommunityPage> {
   Widget build(BuildContext context) {
     final colors = context.garraColors;
     final textTheme = Theme.of(context).textTheme;
-    return Scaffold(
+    return PopScope(
+      canPop: _exitGuard.canPop(dirty: _dirty, busy: _submitting),
+      onPopInvokedWithResult: (didPop, _) { if (!didPop) _leave(); },
+      child: Scaffold(
       backgroundColor: colors.background,
-      appBar: AppBar(title: const Text('Crear comunidad')),
+      appBar: AppBar(leading: BackButton(onPressed: _leave), title: const Text('Crear comunidad')),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -325,7 +351,7 @@ class _CreateCommunityPageState extends ConsumerState<CreateCommunityPage> {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 

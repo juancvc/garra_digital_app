@@ -143,6 +143,11 @@ class ChatService {
     return ChatUnreadSummary.fromJson(data);
   }
 
+  Future<List<CommunityChatPreview>> communityPreviews() async {
+    final data = await _list('/chat/community-previews');
+    return data.map(CommunityChatPreview.fromJson).toList();
+  }
+
   Future<Map<String, dynamic>> _data(
     String path, {
     Object? body,

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/current_fan_provider.dart';
 import '../../../core/network/offline_action_guard.dart';
+import '../../../core/navigation/draft_exit_guard.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/widgets/garra_cached_network_image.dart';
@@ -33,10 +34,25 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
 
   String _selectedFilter = 'ALL';
   String _selectedPostLocationTag = 'STADIUM';
+  String _savedPostLocationTag = 'STADIUM';
   bool _publishing = false;
+  final _exitGuard = DraftExitGuard();
+  bool get _dirty => _contentController.text.trim().isNotEmpty ||
+      _selectedPostLocationTag != _savedPostLocationTag;
+  void _leave() => _exitGuard.leave(context, dirty: _dirty, busy: _publishing,
+      refresh: () => setState(() {}), pop: () => context.go('/home'));
+
+  @override
+  void initState() {
+    super.initState();
+    _contentController.addListener(_onDraftChanged);
+  }
+
+  void _onDraftChanged() { if (mounted) setState(() {}); }
 
   @override
   void dispose() {
+    _contentController.removeListener(_onDraftChanged);
     _contentController.dispose();
     super.dispose();
   }
@@ -59,13 +75,16 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(wallStatusProvider);
 
-    return Scaffold(
+    return PopScope(
+      canPop: _exitGuard.canPop(dirty: _dirty, busy: _publishing),
+      onPopInvokedWithResult: (didPop, _) { if (!didPop) _leave(); },
+      child: Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
         leading: IconButton(
           tooltip: 'Volver',
           icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.go('/home'),
+          onPressed: _leave,
         ),
         title: const Text(
           'Muro Crema',
@@ -211,7 +230,7 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
           },
         ),
       ),
-    );
+    ));
   }
 
   Future<void> _publish({required String matchId}) async {
@@ -251,6 +270,7 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
 
     if (result.success) {
       _contentController.clear();
+      _savedPostLocationTag = _selectedPostLocationTag;
 
       _showSnackBar(message: result.message, backgroundColor: Colors.green);
 

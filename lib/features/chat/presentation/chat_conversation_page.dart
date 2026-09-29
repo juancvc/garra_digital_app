@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
 import '../../../core/network/offline_action_guard.dart';
+import '../../../core/navigation/draft_exit_guard.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/utils/garra_message_time.dart';
 import '../../../core/widgets/garra_avatar.dart';
@@ -72,6 +73,12 @@ class _ChatConversationPageState extends State<ChatConversationPage>
   var _loading = true;
   var _sending = false;
   var _picking = false;
+  final _exitGuard = DraftExitGuard();
+  bool _completed = false;
+  bool get _dirty => !_completed && (_input.text.trim().isNotEmpty || _drafts.isNotEmpty);
+  void _leave() => _exitGuard.leave(context,
+      dirty: _dirty, busy: _sending || _picking || _uploading,
+      refresh: () => setState(() {}), pop: () => Navigator.of(context).pop());
   var _following = true;
   var _unseenNew = false;
   String? _error;
@@ -89,6 +96,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
   @override
   void initState() {
     super.initState();
+    _input.addListener(_onDraftChanged);
     WidgetsBinding.instance.addObserver(this);
     _scroll.addListener(_onScroll);
     _load();
@@ -97,6 +105,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
 
   @override
   void dispose() {
+    _input.removeListener(_onDraftChanged);
     _uploadCancelToken.cancel();
     _stopPolling();
     WidgetsBinding.instance.removeObserver(this);
@@ -105,6 +114,8 @@ class _ChatConversationPageState extends State<ChatConversationPage>
     _scroll.dispose();
     super.dispose();
   }
+
+  void _onDraftChanged() { if (mounted) setState(() {}); }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -266,6 +277,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
     try {
       await _chat.reject(widget.conversationId);
       if (!mounted) return;
+      _completed = true;
       context.pop();
     } catch (_) {
       if (!mounted) return;
@@ -474,10 +486,14 @@ class _ChatConversationPageState extends State<ChatConversationPage>
   Widget build(BuildContext context) {
     final conversation = _conversation;
     final colors = context.garraColors;
-    return Scaffold(
+    return PopScope(
+      canPop: _exitGuard.canPop(dirty: _dirty, busy: _sending || _picking || _uploading),
+      onPopInvokedWithResult: (didPop, _) { if (!didPop) _leave(); },
+      child: Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: colors.background,
       appBar: AppBar(
+        leading: BackButton(onPressed: _leave),
         titleSpacing: 0,
         title: conversation == null
             ? const Text('Mensajes')
@@ -500,7 +516,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _header(ChatConversation conversation) {

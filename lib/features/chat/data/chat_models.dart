@@ -330,3 +330,20 @@ class ChatUnreadSummary {
     );
   }
 }
+
+class CommunityChatPreview {
+  const CommunityChatPreview({required this.slug, required this.lastMessagePreview,
+    required this.lastMessageAt, required this.unreadCount});
+
+  final String slug;
+  final String lastMessagePreview;
+  final DateTime? lastMessageAt;
+  final int unreadCount;
+
+  factory CommunityChatPreview.fromJson(Map<String, dynamic> json) => CommunityChatPreview(
+    slug: json['slug'] as String? ?? '',
+    lastMessagePreview: json['lastMessagePreview'] as String? ?? '',
+    lastMessageAt: DateTime.tryParse(json['lastMessageAt'] as String? ?? ''),
+    unreadCount: (json['unreadCount'] as num?)?.toInt() ?? 0,
+  );
+}

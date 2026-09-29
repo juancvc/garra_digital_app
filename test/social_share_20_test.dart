@@ -64,6 +64,15 @@ Future<void> _pumpSheet(WidgetTester tester, _ShareService service, WallPostMode
 }
 
 void main() {
+  testWidgets('narrow post metrics fit without truncating share count', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: Center(
+      child: SizedBox(width: 280, child: GarraSocialPostCard(
+        post: _original, onOpen: () {})),
+    ))));
+    expect(tester.takeException(), isNull);
+    expect(find.text('· 1 comp.'), findsOneWidget);
+    expect(find.textContaining('comparti...'), findsNothing);
+  });
   test('legacy response has safe share defaults; share preview is flat', () {
     expect(_original.shareCount, 1);
     expect(WallPostModel.fromJson({'id': 'legacy'}).shareCount, 0);
@@ -77,13 +86,14 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: GarraSocialPostCard(
       post: _original, onOpen: () => opened++, onReact: () => reacted++,
       onComment: () => commented++, onShare: () => shared++))));
-    expect(find.text('3 comentarios · 1 compartido'), findsOneWidget);
+    expect(find.text('3 comentarios'), findsOneWidget);
+    expect(find.text('· 1 compartido'), findsOneWidget);
     expect(find.textContaining('Ver 2 reacciones'), findsNothing);
     await tester.tap(find.text('Reaccionar'));
     await tester.tap(find.text('Comentar'));
     await tester.tap(find.text('Compartir'));
     expect((reacted, commented, shared), (1, 1, 1));
-    await tester.tap(find.text('3 comentarios · 1 compartido'));
+    await tester.tap(find.text('· 1 compartido'));
     expect(opened, 1);
   });
 
@@ -155,7 +165,8 @@ void main() {
     container.read(communityFeedRevisionProvider.notifier).published(_share);
     await tester.pumpAndSettle();
     expect(find.text('Luis compartió'), findsOneWidget);
-    expect(find.text('0 comentarios · 2 compartidos'), findsWidgets);
+    expect(find.text('0 comentarios'), findsWidgets);
+    expect(find.text('· 2 compartidos'), findsWidgets);
     container.read(communityFeedRevisionProvider.notifier).published(_share);
     await tester.pumpAndSettle();
     expect(find.text('Luis compartió'), findsOneWidget);
@@ -164,6 +175,6 @@ void main() {
     expect(find.text('Luis compartió'), findsNothing);
     expect(tester.widgetList<Text>(find.byType(Text)).map((t) => t.data)
         .where((t) => t?.contains('compartid') == true).toList(),
-        contains('3 comentarios · 1 compartido'));
+        contains('· 1 compartido'));
   });
 }
