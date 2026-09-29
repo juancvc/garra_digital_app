@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garra_digital_app/features/community/data/community_service.dart';
+import 'package:garra_digital_app/features/community/data/post_location.dart';
 import 'package:garra_digital_app/core/media/media_upload_service.dart';
 import 'package:garra_digital_app/features/community/data/wall_post_model.dart';
 import 'package:garra_digital_app/features/community/presentation/create_community_post_page.dart';
@@ -51,6 +52,7 @@ class FakeService extends CommunityService {
     String? mediaAssetId,
     List<String>? mediaAssetIds,
     String? locationTag,
+    PostLocation? postLocation,
   }) async {
     creates++;
     uploadedIds = mediaAssetIds;

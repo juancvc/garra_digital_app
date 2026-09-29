@@ -1,3 +1,5 @@
+import 'post_location.dart';
+
 class CreateWallPostRequest {
   const CreateWallPostRequest({
     required this.matchId,
@@ -5,6 +7,7 @@ class CreateWallPostRequest {
     required this.locationTag,
     this.imageUrl,
     this.mediaAssetId,
+    this.postLocation,
   });
 
   final String matchId;
@@ -12,6 +15,7 @@ class CreateWallPostRequest {
   final String? imageUrl;
   final String? mediaAssetId;
   final String locationTag;
+  final PostLocation? postLocation;
 
   Map<String, dynamic> toJson() {
     return {
@@ -20,6 +24,7 @@ class CreateWallPostRequest {
       if (imageUrl != null) 'imageUrl': imageUrl,
       if (mediaAssetId != null) 'mediaAssetId': mediaAssetId,
       'locationTag': locationTag,
+      if (postLocation != null) 'postLocation': postLocation!.toJson(),
     };
   }
 }

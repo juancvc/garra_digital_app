@@ -12,6 +12,7 @@ import 'package:garra_digital_app/features/chat/data/chat_models.dart';
 import 'package:garra_digital_app/features/chat/data/chat_service.dart';
 import 'package:garra_digital_app/features/chat/presentation/chat_conversation_page.dart';
 import 'package:garra_digital_app/features/community/data/community_service.dart';
+import 'package:garra_digital_app/features/community/data/post_location.dart';
 import 'package:garra_digital_app/features/community/data/create_wall_post_request.dart';
 import 'package:garra_digital_app/features/community/presentation/create_community_post_page.dart';
 import 'package:garra_digital_app/features/polla/data/matchday_poll_models.dart';
@@ -54,6 +55,7 @@ class _Community extends CommunityService {
     String? mediaAssetId,
     List<String>? mediaAssetIds,
     String? locationTag,
+    PostLocation? postLocation,
   }) async {
     calls++;
     return WallActionResult.success(message: 'ok');

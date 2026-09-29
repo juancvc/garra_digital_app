@@ -15,6 +15,9 @@ import '../../../core/navigation/draft_exit_guard.dart';
 import '../data/community_service.dart';
 import '../data/create_wall_post_request.dart';
 import '../data/wall_post_model.dart';
+import '../data/post_location.dart';
+import 'post_location_picker.dart';
+import '../../locations/data/location_service.dart';
 import 'providers/community_provider.dart';
 
 /// Social composer V3 — Cancelar / Nueva publicación / Publicar + photo toolbar.
@@ -24,11 +27,13 @@ class CreateCommunityPostPage extends ConsumerStatefulWidget {
     this.matchId,
     this.media,
     this.communityService,
+    this.locationService,
   });
 
   final String? matchId;
   final MediaUploadService? media;
   final CommunityService? communityService;
+  final LocationService? locationService;
 
   @override
   ConsumerState<CreateCommunityPostPage> createState() =>
@@ -48,9 +53,10 @@ class _CreateCommunityPostPageState
   bool _completed = false;
   final _exitGuard = DraftExitGuard();
   String? _error;
+  PostLocation? _postLocation;
 
   bool get _dirty => !_completed &&
-      (_content.text.trim().isNotEmpty || _drafts.isNotEmpty);
+      (_content.text.trim().isNotEmpty || _drafts.isNotEmpty || _postLocation != null);
 
   bool get _busy => _publishing || _drafts.any((draft) =>
       draft.state == MediaUploadState.signing ||
@@ -222,6 +228,7 @@ class _CreateCommunityPostPageState
             content: text,
             locationTag: 'HOME',
             mediaAssetId: readyIds.isEmpty ? null : readyIds.first,
+            postLocation: _postLocation,
           ),
         );
         if (!result.success) {
@@ -231,6 +238,7 @@ class _CreateCommunityPostPageState
         final result = await _community.createGlobalPost(
           content: text,
           mediaAssetIds: readyIds.isEmpty ? null : readyIds,
+          postLocation: _postLocation,
         );
         if (!result.success) {
           throw Exception(result.message);
@@ -251,6 +259,7 @@ class _CreateCommunityPostPageState
       }
       if (!mounted) return;
       _completed = true;
+      _postLocation = null;
       if (!_isMatchScoped) {
         ref
             .read(communityFeedRevisionProvider.notifier)
@@ -396,6 +405,26 @@ class _CreateCommunityPostPageState
                 },
               ),
             ),
+          if (_postLocation case final location?)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: GarraSpacing.md),
+              child: Row(children: [
+                const Icon(Icons.place_outlined, size: 18),
+                const SizedBox(width: 4),
+                Expanded(child: Text(location.name, maxLines: 1,
+                    overflow: TextOverflow.ellipsis)),
+                TextButton(onPressed: () async {
+                  final selected = await pickPostLocation(context,
+                      locationService: widget.locationService);
+                  if (mounted && selected != null) {
+                    setState(() => _postLocation = selected);
+                  }
+                }, child: const Text('Cambiar')),
+                IconButton(tooltip: 'Quitar ubicación',
+                  onPressed: () => setState(() => _postLocation = null),
+                  icon: const Icon(Icons.close)),
+              ]),
+            ),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.all(GarraSpacing.md),
@@ -414,16 +443,24 @@ class _CreateCommunityPostPageState
               ),
               child: Row(
                 children: [
-                  TextButton(
-                    key: const ValueKey('add-photos'),
-                    onPressed: _drafts.length >= _photoLimit
-                        ? null
-                        : _choosePhotoSource,
-                    child: Text(
-                      _isMatchScoped ? 'Agregar foto' : 'Agregar fotos',
+                  Expanded(child: Wrap(children: [
+                    TextButton(
+                      key: const ValueKey('add-photos'),
+                      onPressed: _drafts.length >= _photoLimit
+                          ? null : _choosePhotoSource,
+                      child: Text(_isMatchScoped ? 'Agregar foto' : 'Agregar fotos'),
                     ),
-                  ),
-                  const Spacer(),
+                    TextButton(
+                      onPressed: () async {
+                        final selected = await pickPostLocation(context,
+                            locationService: widget.locationService);
+                        if (mounted && selected != null) {
+                          setState(() => _postLocation = selected);
+                        }
+                      },
+                      child: const Text('Agregar ubicación'),
+                    ),
+                  ])),
                   Text(
                     '${_content.text.length}/220',
                     style: Theme.of(context).textTheme.bodySmall,

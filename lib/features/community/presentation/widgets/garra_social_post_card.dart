@@ -13,6 +13,9 @@ import 'garra_comment_reactions.dart';
 import 'garra_post_media_grid.dart';
 import 'garra_reactors_sheet.dart';
 import 'garra_reaction_burst.dart';
+import '../../../../core/widgets/linked_text.dart';
+import 'social_link_card.dart';
+import 'post_location_label.dart';
 
 /// Shared social post row for Home feed and Comunidad surfaces.
 class GarraSocialPostCard extends StatelessWidget {
@@ -95,10 +98,12 @@ class GarraSocialPostCard extends StatelessWidget {
                                 ),
                               ),
                               const Text(' · '),
-                              Text(
+                              Flexible(child: Text(
                                 formatGarraRelativeTime(post.createdAt),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.bodySmall,
-                              ),
+                              )),
                             ],
                           ),
                         ],
@@ -178,7 +183,14 @@ class GarraSocialPostCard extends StatelessWidget {
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(original.fullName, style: Theme.of(context).textTheme.titleSmall),
                       const SizedBox(height: 3),
-                      Text(original.content, maxLines: 4, overflow: TextOverflow.ellipsis),
+                      LinkedText(original.content, maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodyMedium ??
+                              const TextStyle()),
+                      if (original.postLocation != null)
+                        PostLocationLabel(location: original.postLocation!),
+                      if (firstSocialLink(original.content) case final link?)
+                        SocialLinkCard(link: link),
                       if (original.imageUrl?.isNotEmpty == true || original.media.isNotEmpty) ...[
                         const SizedBox(height: 10),
                         GarraPostMediaGrid(
@@ -191,7 +203,14 @@ class GarraSocialPostCard extends StatelessWidget {
                   ),
                 )
               else ...[
-                Text(post.content, maxLines: 4, overflow: TextOverflow.ellipsis),
+                LinkedText(post.content, maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium ??
+                        const TextStyle()),
+                if (post.postLocation != null)
+                  PostLocationLabel(location: post.postLocation!),
+                if (firstSocialLink(post.content) case final link?)
+                  SocialLinkCard(link: link),
                 if (post.imageUrl?.isNotEmpty == true || post.media.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   GarraPostMediaGrid(media: post.media, legacyImageUrl: post.imageUrl, onViewPost: onOpen),

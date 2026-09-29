@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'post_location.dart';
 
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/garra_error.dart';
@@ -211,6 +212,7 @@ class CommunityService {
     String? mediaAssetId,
     List<String>? mediaAssetIds,
     String? locationTag,
+    PostLocation? postLocation,
   }) async {
     try {
       final ids = <String>[
@@ -226,6 +228,7 @@ class CommunityService {
           if (ids.length == 1) 'mediaAssetId': ids.first,
           if (ids.isNotEmpty) 'mediaAssetIds': ids,
           if (locationTag != null) 'locationTag': locationTag,
+          if (postLocation != null) 'postLocation': postLocation.toJson(),
         },
       );
       final data = response.data['data'];

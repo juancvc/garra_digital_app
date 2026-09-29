@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:garra_digital_app/core/media/media_upload_service.dart';
 import 'package:garra_digital_app/features/community/data/community_service.dart';
+import 'package:garra_digital_app/features/community/data/post_location.dart';
 import 'package:garra_digital_app/features/community/data/wall_post_model.dart';
 import 'package:garra_digital_app/features/community/presentation/create_community_post_page.dart';
 import 'package:garra_digital_app/features/chat/data/chat_models.dart';
@@ -19,7 +20,8 @@ class _Posts extends CommunityService {
 
   @override
   Future<WallActionResult> createGlobalPost({required String content,
-      String? mediaAssetId, List<String>? mediaAssetIds, String? locationTag}) async {
+      String? mediaAssetId, List<String>? mediaAssetIds, String? locationTag,
+      PostLocation? postLocation}) async {
     calls++;
     if (fail) throw Exception('network');
     return WallActionResult.success(message: 'ok', post: WallPostModel(

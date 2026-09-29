@@ -32,6 +32,9 @@ import 'widgets/garra_reaction_burst.dart';
 import 'widgets/garra_reactors_sheet.dart';
 import 'widgets/garra_report_sheet.dart';
 import 'widgets/garra_social_post_card.dart' show GarraSocialPostCard;
+import '../../../core/widgets/linked_text.dart';
+import 'widgets/social_link_card.dart';
+import 'widgets/post_location_label.dart';
 import 'widgets/garra_share_card.dart';
 import 'widgets/garra_share_sheet.dart';
 
@@ -916,14 +919,18 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
               children: [
                 _PostHeader(post: post),
                 const SizedBox(height: GarraSpacing.md),
-                Text(
+                LinkedText(
                   post.content,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: context.garraColors.textPrimary,
                     height: 1.35,
                     fontWeight: FontWeight.w600,
-                  ),
+                  ) ?? const TextStyle(),
                 ),
+                if (post.postLocation != null)
+                  PostLocationLabel(location: post.postLocation!),
+                if (firstSocialLink(post.content) case final link?)
+                  SocialLinkCard(link: link),
                 if ((post.imageUrl != null && post.imageUrl!.isNotEmpty) ||
                     post.media.isNotEmpty) ...[
                   const SizedBox(height: GarraSpacing.md),

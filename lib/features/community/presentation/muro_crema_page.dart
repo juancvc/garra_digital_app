@@ -13,6 +13,11 @@ import '../data/engagement_utils.dart';
 import '../data/garra_view_tracker.dart';
 import '../data/reaction_type.dart';
 import '../data/wall_post_model.dart';
+import '../data/post_location.dart';
+import '../../../core/widgets/linked_text.dart';
+import 'post_location_picker.dart';
+import 'widgets/social_link_card.dart';
+import 'widgets/post_location_label.dart';
 import '../data/wall_status_model.dart';
 import 'providers/community_provider.dart';
 import 'widgets/garra_post_media_grid.dart';
@@ -35,10 +40,11 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
   String _selectedFilter = 'ALL';
   String _selectedPostLocationTag = 'STADIUM';
   String _savedPostLocationTag = 'STADIUM';
+  PostLocation? _postLocation;
   bool _publishing = false;
   final _exitGuard = DraftExitGuard();
   bool get _dirty => _contentController.text.trim().isNotEmpty ||
-      _selectedPostLocationTag != _savedPostLocationTag;
+      _selectedPostLocationTag != _savedPostLocationTag || _postLocation != null;
   void _leave() => _exitGuard.leave(context, dirty: _dirty, busy: _publishing,
       refresh: () => setState(() {}), pop: () => context.go('/home'));
 
@@ -176,6 +182,15 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
                         onLocationChanged: (value) {
                           setState(() => _selectedPostLocationTag = value);
                         },
+                        postLocation: _postLocation,
+                        onPickPostLocation: () async {
+                          final selected = await pickPostLocation(context);
+                          if (mounted && selected != null) {
+                            setState(() => _postLocation = selected);
+                          }
+                        },
+                        onRemovePostLocation: () =>
+                            setState(() => _postLocation = null),
                         onPublish: () => _publish(matchId: matchId),
                       ),
                       SizedBox(height: isMobile ? 14 : 18),
@@ -263,6 +278,7 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
         content: content,
         imageUrl: null,
         locationTag: _selectedPostLocationTag,
+        postLocation: _postLocation,
       ),
     );
 
@@ -270,6 +286,7 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
 
     if (result.success) {
       _contentController.clear();
+      _postLocation = null;
       _savedPostLocationTag = _selectedPostLocationTag;
 
       _showSnackBar(message: result.message, backgroundColor: Colors.green);
@@ -584,6 +601,9 @@ class _CreatePostCard extends StatelessWidget {
     required this.isMobile,
     required this.onLocationChanged,
     required this.onPublish,
+    required this.postLocation,
+    required this.onPickPostLocation,
+    required this.onRemovePostLocation,
   });
 
   final TextEditingController controller;
@@ -594,6 +614,9 @@ class _CreatePostCard extends StatelessWidget {
   final bool isMobile;
   final ValueChanged<String> onLocationChanged;
   final VoidCallback onPublish;
+  final PostLocation? postLocation;
+  final VoidCallback onPickPostLocation;
+  final VoidCallback onRemovePostLocation;
 
   @override
   Widget build(BuildContext context) {
@@ -725,6 +748,18 @@ class _CreatePostCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
+            if (postLocation != null) Row(children: [
+              const Icon(Icons.place_outlined, size: 18),
+              Expanded(child: Text(postLocation!.name)),
+              TextButton(onPressed: onPickPostLocation,
+                  child: const Text('Cambiar')),
+              IconButton(tooltip: 'Quitar ubicación',
+                  onPressed: onRemovePostLocation,
+                  icon: const Icon(Icons.close)),
+            ]),
+            TextButton.icon(onPressed: onPickPostLocation,
+                icon: const Icon(Icons.add_location_alt_outlined),
+                label: const Text('Agregar ubicación')),
             SizedBox(
               width: double.infinity,
               height: 46,
@@ -950,7 +985,7 @@ class _WallPostCardState extends ConsumerState<_WallPostCard> {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Text(
+                  LinkedText(
                     post.content,
                     maxLines: 4,
                     overflow: TextOverflow.ellipsis,
@@ -961,6 +996,10 @@ class _WallPostCardState extends ConsumerState<_WallPostCard> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  if (post.postLocation != null)
+                    PostLocationLabel(location: post.postLocation!),
+                  if (firstSocialLink(post.content) case final link?)
+                    SocialLinkCard(link: link),
                   if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
                     const SizedBox(height: 10),
                     ClipRRect(
