@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/location/location_service.dart';
 import '../../../core/media/media_upload_service.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_cached_network_image.dart';
 import '../../../core/widgets/garra_card.dart';
@@ -426,6 +427,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
           _media,
           photo,
           MediaUploadPurpose.communityPost,
+          canStartRemote: () => mounted && allowNetworkAction(context),
         );
       }
       await _service.createEvent({

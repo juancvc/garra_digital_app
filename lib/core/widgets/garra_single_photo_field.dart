@@ -166,8 +166,9 @@ Future<String> uploadSinglePhoto(
   MediaUploadService media,
   XFile file,
   MediaUploadPurpose purpose,
+  {bool Function()? canStartRemote}
 ) async {
-  final draft = await media.uploadFile(file: file, purpose: purpose);
+  final draft = await media.uploadFile(file: file, purpose: purpose, canStartRemote: canStartRemote);
   if (!draft.isReady) {
     throw SinglePhotoUploadException(
       draft.error ?? MediaUploadService.uploadFailedMessage,

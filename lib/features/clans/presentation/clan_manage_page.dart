@@ -100,6 +100,7 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
               _media,
               avatar,
               MediaUploadPurpose.communityPost,
+              canStartRemote: () => mounted && allowNetworkAction(context),
             );
       if (!mounted || !allowNetworkAction(context)) return;
       final bannerId = cover == null
@@ -108,6 +109,7 @@ class _ClanManagePageState extends ConsumerState<ClanManagePage> {
               _media,
               cover,
               MediaUploadPurpose.communityPost,
+              canStartRemote: () => mounted && allowNetworkAction(context),
             );
       if (!mounted || !allowNetworkAction(context)) return;
       await ref

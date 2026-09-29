@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -36,6 +37,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   String? _avatarAssetId;
   XFile? _selectedAvatar;
   bool _uploadingPhoto = false;
+  final CancelToken _uploadCancelToken = CancelToken();
   bool _loading = false;
   bool _seeded = false;
 
@@ -51,6 +53,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
 
   @override
   void dispose() {
+    _uploadCancelToken.cancel();
     _displayName.dispose();
     _bio.dispose();
     _city.dispose();
@@ -123,7 +126,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
         });
         return;
       }
-      final draft = await _media.uploadAvatar(file);
+      setState(() => _selectedAvatar = file);
+      final draft = await _media.uploadAvatar(file, canStartRemote: () => mounted && allowNetworkAction(context), cancelToken: _uploadCancelToken);
       if (!mounted) return;
       if (!draft.isReady) {
         setState(() => _uploadingPhoto = false);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -44,11 +45,13 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
   String? _pickedStoreId;
   List<MarketplaceStore> _eligibleStores = const [];
   final List<ListingImageDraft> _images = [];
+  final CancelToken _uploadCancelToken = CancelToken();
 
   static const _maxImages = 5;
 
   @override
   void dispose() {
+    _uploadCancelToken.cancel();
     _titleController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
@@ -119,6 +122,8 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
       await media.uploadDraft(
         draft,
         purpose: MediaUploadPurpose.marketplaceListing,
+        canStartRemote: () => mounted && allowNetworkAction(context),
+        cancelToken: _uploadCancelToken,
         onProgress: (_) {
           if (mounted) setState(() {});
         },
@@ -185,9 +190,15 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
       );
       return;
     }
-    if (_images.any((i) => i.state == ListingImageUploadState.uploading)) {
+    if (_images.any((i) => i.state == ListingImageUploadState.signing || i.state == ListingImageUploadState.uploading || i.state == ListingImageUploadState.confirming)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Espera a que terminen las subidas.')),
+      );
+      return;
+    }
+    if (_images.any((i) => i.state == ListingImageUploadState.failed)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reintenta o quita la foto con error.')),
       );
       return;
     }

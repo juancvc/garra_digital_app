@@ -111,9 +111,11 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage> {
         });
         return;
       }
+      setState(() => _selectedPhoto = file);
       final draft = await _media.uploadFile(
         file: file,
         purpose: MediaUploadPurpose.communityPost,
+        canStartRemote: () => mounted && allowNetworkAction(context),
       );
       if (!mounted) return;
       setState(() {

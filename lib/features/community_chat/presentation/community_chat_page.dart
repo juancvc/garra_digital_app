@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -84,6 +85,7 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
   final _scroll = ScrollController();
   final _centerKey = const ValueKey<String>('community-chat-center');
   final List<MediaDraft> _drafts = [];
+  final CancelToken _uploadCancelToken = CancelToken();
   Timer? _poll;
 
   CommunityChatInfo? _info;
@@ -143,6 +145,7 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
 
   @override
   void dispose() {
+    _uploadCancelToken.cancel();
     _stopPolling();
     WidgetsBinding.instance.removeObserver(this);
     _scroll.removeListener(_onScroll);
@@ -599,6 +602,7 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
         media: _media,
         drafts: _drafts,
         canUpload: () => mounted && allowNetworkAction(context),
+        cancelToken: _uploadCancelToken,
         update: (change) {
           if (mounted) setState(change);
         },
@@ -1510,7 +1514,18 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
                       color: colors.mediaBackdrop.withValues(alpha: 0.45),
                       child: Center(
                         child: failed
-                            ? Icon(Icons.error_outline, color: colors.danger)
+                            ? IconButton(
+                                tooltip: 'Reintentar foto',
+                                icon: Icon(Icons.refresh, color: colors.danger),
+                                onPressed: () => retryChatImage(
+                                  media: _media,
+                                  drafts: _drafts,
+                                  failed: draft,
+                                  update: (change) { if (mounted) setState(change); },
+                                  canUpload: () => mounted && allowNetworkAction(context),
+                                  cancelToken: _uploadCancelToken,
+                                ),
+                              )
                             : SizedBox(
                                 width: 22,
                                 height: 22,

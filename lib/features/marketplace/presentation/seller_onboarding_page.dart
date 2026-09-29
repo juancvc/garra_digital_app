@@ -77,6 +77,7 @@ class _SellerOnboardingPageState extends ConsumerState<SellerOnboardingPage> {
           _media,
           photo,
           MediaUploadPurpose.storeLogo,
+          canStartRemote: () => mounted && allowNetworkAction(context),
         );
       }
       if (!mounted || !allowNetworkAction(context)) return;

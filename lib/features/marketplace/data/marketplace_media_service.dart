@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -21,7 +22,9 @@ enum MediaUploadPurpose {
 enum ListingImageUploadState {
   selected,
   pending,
+  signing,
   uploading,
+  confirming,
   ready,
   failed,
 }
@@ -86,13 +89,19 @@ class ListingImageDraft {
 
 /// Client-side media helper — never holds storage credentials.
 class MarketplaceMediaService {
-  MarketplaceMediaService({Dio? dio, ImagePicker? picker})
+  MarketplaceMediaService({Dio? dio, Dio? binaryClient, ImagePicker? picker})
       : _dio = dio ?? DioClient.instance,
+        _binaryClient = binaryClient,
         _picker = picker ?? ImagePicker();
 
   final Dio _dio;
+  final Dio? _binaryClient;
   final ImagePicker _picker;
   final _uuid = const Uuid();
+  static const storageConnectTimeout = Duration(seconds: 20);
+  static const storageSendTimeout = Duration(minutes: 2);
+  static const storageReceiveTimeout = Duration(seconds: 30);
+  static const storageTotalTimeout = Duration(minutes: 3);
 
   /// Analytics session id (ephemeral, not a device fingerprint).
   static String? _sessionId;
@@ -148,9 +157,11 @@ class MarketplaceMediaService {
     required String fileName,
     required String contentType,
     required int sizeBytes,
+    CancelToken? cancelToken,
   }) async {
     final response = await _dio.post(
       '/media/uploads',
+      cancelToken: cancelToken,
       data: {
         'purpose': purpose.apiValue,
         'fileName': fileName,
@@ -162,8 +173,8 @@ class MarketplaceMediaService {
     return SignedUploadResult.fromJson(data);
   }
 
-  Future<String> confirmUpload(String assetId) async {
-    final response = await _dio.post('/media/$assetId/confirm');
+  Future<String> confirmUpload(String assetId, {CancelToken? cancelToken}) async {
+    final response = await _dio.post('/media/$assetId/confirm', cancelToken: cancelToken);
     final data = Map<String, dynamic>.from(response.data['data'] as Map);
     return data['mediaUrl']?.toString() ?? data['id']?.toString() ?? assetId;
   }
@@ -172,6 +183,8 @@ class MarketplaceMediaService {
     ListingImageDraft draft, {
     required MediaUploadPurpose purpose,
     void Function(double progress)? onProgress,
+    bool Function()? canStartRemote,
+    CancelToken? cancelToken,
   }) async {
     final bytes = draft.bytes;
     if (bytes == null) {
@@ -182,41 +195,57 @@ class MarketplaceMediaService {
     draft.error = null;
 
     try {
-      draft.state = ListingImageUploadState.uploading;
+      draft.state = ListingImageUploadState.signing;
+      if (canStartRemote != null && !canStartRemote()) throw StateError('Offline');
       final signed = await requestSignedUpload(
         purpose: purpose,
         fileName: 'image.jpg',
         contentType: 'image/jpeg',
         sizeBytes: bytes.lengthInBytes,
+        cancelToken: cancelToken,
       );
       draft.assetId = signed.assetId;
 
-      final uploadDio = Dio();
-      await uploadDio.put(
+      if (canStartRemote != null && !canStartRemote()) throw StateError('Offline');
+      draft.state = ListingImageUploadState.uploading;
+      final uploadDio = _binaryClient ?? Dio(BaseOptions(connectTimeout: storageConnectTimeout));
+      final token = cancelToken ?? CancelToken();
+      final deadline = Timer(storageTotalTimeout, () => token.cancel('Storage upload timeout'));
+      try {
+        await uploadDio.put(
         signed.uploadUrl,
         data: bytes,
         options: Options(
+          sendTimeout: storageSendTimeout,
+          receiveTimeout: storageReceiveTimeout,
           headers: {
             ...signed.requiredHeaders,
             Headers.contentLengthHeader: bytes.lengthInBytes,
           },
           contentType: signed.requiredHeaders['Content-Type'] ?? 'image/jpeg',
         ),
+        cancelToken: token,
         onSendProgress: (sent, total) {
           if (total > 0) {
             draft.progress = sent / total;
             onProgress?.call(draft.progress);
           }
         },
-      );
+        );
+      } finally {
+        deadline.cancel();
+      }
 
-      final mediaUrl = await confirmUpload(signed.assetId);
+      if (canStartRemote != null && !canStartRemote()) throw StateError('Offline');
+      draft.state = ListingImageUploadState.confirming;
+      final mediaUrl = await confirmUpload(signed.assetId, cancelToken: cancelToken);
       draft.mediaUrl = mediaUrl;
       draft.state = ListingImageUploadState.ready;
       draft.progress = 1;
       return draft;
     } catch (e) {
       draft.state = ListingImageUploadState.failed;
+      draft.progress = 0;
       draft.error = e.toString();
       rethrow;
     }

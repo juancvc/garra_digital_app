@@ -87,7 +87,7 @@ class _Media extends MediaUploadService {
   }
 
   @override
-  Future<MediaDraft> uploadAvatar(XFile file) async {
+  Future<MediaDraft> uploadAvatar(XFile file, {bool Function()? canStartRemote, CancelToken? cancelToken}) async {
     avatarUploads++;
     return MediaDraft(
       localId: file.path,
@@ -103,6 +103,8 @@ class _Media extends MediaUploadService {
     required MediaUploadPurpose purpose,
     void Function(MediaDraft draft)? onUpdate,
     int? squareMax,
+    bool Function()? canStartRemote,
+    CancelToken? cancelToken,
   }) async {
     uploads++;
     return MediaDraft(

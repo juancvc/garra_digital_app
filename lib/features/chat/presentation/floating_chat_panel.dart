@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_colors.dart';
@@ -94,6 +95,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
   final _input = TextEditingController();
   final _media = MediaUploadService();
   final List<MediaDraft> _drafts = [];
+  final CancelToken _uploadCancelToken = CancelToken();
   ChatConversation? _conversation;
   List<ChatMessage> _messages = const [];
   var _loading = true;
@@ -140,6 +142,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
 
   @override
   void dispose() {
+    _uploadCancelToken.cancel();
     _input.dispose();
     super.dispose();
   }
@@ -250,6 +253,12 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
     if (conversation == null || conversation.status != 'ACTIVE' || _sending) {
       return;
     }
+    if (_drafts.any((draft) => draft.state == MediaUploadState.failed)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reintenta o quita la foto con error.')),
+      );
+      return;
+    }
     final text = _input.text.trim();
     final ready = _drafts.where((d) => d.isReady && d.assetId != null).toList();
     if (text.isEmpty && ready.isEmpty) return;
@@ -283,6 +292,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
       media: _media,
       drafts: _drafts,
       canUpload: () => mounted && allowNetworkAction(context),
+      cancelToken: _uploadCancelToken,
       update: (change) {
         if (mounted) setState(change);
       },
@@ -597,6 +607,23 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
                                   fit: BoxFit.cover,
                                 ),
                         ),
+                        if (draft.state == MediaUploadState.failed)
+                          Positioned(
+                            left: 0,
+                            bottom: 0,
+                            child: IconButton(
+                              tooltip: 'Reintentar foto',
+                              icon: const Icon(Icons.refresh, size: 18),
+                              onPressed: () => retryChatImage(
+                                media: _media,
+                                drafts: _drafts,
+                                failed: draft,
+                                update: (change) { if (mounted) setState(change); },
+                                canUpload: () => mounted && allowNetworkAction(context),
+                                cancelToken: _uploadCancelToken,
+                              ),
+                            ),
+                          ),
                         Positioned(
                           right: 0,
                           top: 0,

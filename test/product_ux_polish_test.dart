@@ -36,6 +36,8 @@ class _MatchPhotoMedia extends MediaUploadService {
     required MediaUploadPurpose purpose,
     void Function(MediaDraft draft)? onUpdate,
     int? squareMax,
+    bool Function()? canStartRemote,
+    CancelToken? cancelToken,
   }) async {
     uploads++;
     final draft = MediaDraft(

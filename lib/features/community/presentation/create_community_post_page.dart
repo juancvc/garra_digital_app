@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -39,6 +40,7 @@ class _CreateCommunityPostPageState
       widget.communityService ?? CommunityService();
 
   final List<MediaDraft> _drafts = [];
+  final CancelToken _uploadCancelToken = CancelToken();
   bool _publishing = false;
   String? _error;
 
@@ -50,6 +52,7 @@ class _CreateCommunityPostPageState
 
   @override
   void dispose() {
+    _uploadCancelToken.cancel();
     _content.dispose();
     super.dispose();
   }
@@ -87,6 +90,8 @@ class _CreateCommunityPostPageState
         draft = await _media.uploadFile(
           file: file,
           purpose: MediaUploadPurpose.communityPost,
+          canStartRemote: () => mounted && allowNetworkAction(context),
+          cancelToken: _uploadCancelToken,
           onUpdate: (d) {
             draft = d;
             if (!mounted) return;
@@ -147,6 +152,8 @@ class _CreateCommunityPostPageState
     final uploaded = await _media.uploadFile(
       file: XFile(draft.localPath!),
       purpose: MediaUploadPurpose.communityPost,
+      canStartRemote: () => mounted && allowNetworkAction(context),
+      cancelToken: _uploadCancelToken,
       onUpdate: (d) {
         if (!mounted) return;
         final idx = _drafts.indexWhere((x) => x.localId == draft.localId);
@@ -166,7 +173,7 @@ class _CreateCommunityPostPageState
       setState(() => _error = 'Escribe algo para compartir');
       return;
     }
-    if (_drafts.any((d) => d.state == MediaUploadState.uploading)) {
+    if (_drafts.any((d) => d.state == MediaUploadState.signing || d.state == MediaUploadState.uploading || d.state == MediaUploadState.confirming)) {
       setState(() => _error = 'Espera a que terminen las fotos');
       return;
     }

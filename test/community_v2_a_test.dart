@@ -39,6 +39,8 @@ class _FakeMedia extends MediaUploadService {
     required MediaUploadPurpose purpose,
     void Function(MediaDraft draft)? onUpdate,
     int? squareMax,
+    bool Function()? canStartRemote,
+    CancelToken? cancelToken,
   }) async {
     final name = file.path.split('/').last;
     uploads.add(name);

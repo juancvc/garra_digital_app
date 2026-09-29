@@ -134,6 +134,7 @@ class _CreateCommunityPageState extends ConsumerState<CreateCommunityPage> {
           _media,
           avatar,
           MediaUploadPurpose.communityPost,
+          canStartRemote: () => mounted && allowNetworkAction(context),
         );
       }
       final cover = _cover;
@@ -143,6 +144,7 @@ class _CreateCommunityPageState extends ConsumerState<CreateCommunityPage> {
           _media,
           cover,
           MediaUploadPurpose.communityPost,
+          canStartRemote: () => mounted && allowNetworkAction(context),
         );
       }
       final description = _descCtrl.text.trim();

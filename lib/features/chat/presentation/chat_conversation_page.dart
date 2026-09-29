@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -64,6 +65,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
   final _input = TextEditingController();
   final _scroll = ScrollController();
   final List<MediaDraft> _drafts = [];
+  final CancelToken _uploadCancelToken = CancelToken();
   Timer? _poll;
   ChatConversation? _conversation;
   List<ChatMessage> _messages = const [];
@@ -95,6 +97,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
 
   @override
   void dispose() {
+    _uploadCancelToken.cancel();
     _stopPolling();
     WidgetsBinding.instance.removeObserver(this);
     _scroll.removeListener(_onScroll);
@@ -284,6 +287,12 @@ class _ChatConversationPageState extends State<ChatConversationPage>
 
   Future<void> _send() async {
     if (_sending || _uploading || _conversation?.status != 'ACTIVE') return;
+    if (_drafts.any((draft) => draft.state == MediaUploadState.failed)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reintenta o quita la foto con error.')),
+      );
+      return;
+    }
     final text = _input.text.trim();
     final ready = _readyDrafts;
     if (text.isEmpty && ready.isEmpty) return;
@@ -322,6 +331,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
         media: _media,
         drafts: _drafts,
         canUpload: () => mounted && allowNetworkAction(context),
+        cancelToken: _uploadCancelToken,
         update: (change) {
           if (mounted) setState(change);
         },
@@ -788,7 +798,18 @@ class _ChatConversationPageState extends State<ChatConversationPage>
                       color: colors.mediaBackdrop.withValues(alpha: 0.45),
                       child: Center(
                         child: failed
-                            ? Icon(Icons.error_outline, color: colors.danger)
+                            ? IconButton(
+                                tooltip: 'Reintentar foto',
+                                icon: Icon(Icons.refresh, color: colors.danger),
+                                onPressed: () => retryChatImage(
+                                  media: _media,
+                                  drafts: _drafts,
+                                  failed: draft,
+                                  update: (change) { if (mounted) setState(change); },
+                                  canUpload: () => mounted && allowNetworkAction(context),
+                                  cancelToken: _uploadCancelToken,
+                                ),
+                              )
                             : SizedBox(
                                 width: 22,
                                 height: 22,

@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/media/media_upload_service.dart';
 
 /// Max photos per chat message (backend + V1 product rule).
@@ -15,6 +17,7 @@ Future<void> pickAndUploadChatImages({
   required List<MediaDraft> drafts,
   required void Function(void Function() change) update,
   bool Function()? canUpload,
+  CancelToken? cancelToken,
 }) async {
   if (drafts.length >= chatMaxImages) return;
   final files = await media.pickMultiImage(max: chatMaxImages - drafts.length);
@@ -50,7 +53,38 @@ Future<void> pickAndUploadChatImages({
       file: file,
       purpose: MediaUploadPurpose.chatImage,
       onUpdate: track,
+      canStartRemote: canUpload,
+      cancelToken: cancelToken,
     );
     track(result);
   }
+}
+
+/// Retries only when the user taps a failed photo; keeps its composer slot.
+Future<void> retryChatImage({
+  required MediaUploadService media,
+  required List<MediaDraft> drafts,
+  required MediaDraft failed,
+  required void Function(void Function() change) update,
+  bool Function()? canUpload,
+  CancelToken? cancelToken,
+}) async {
+  final path = failed.localPath;
+  if (path == null || (canUpload != null && !canUpload())) return;
+  var current = failed;
+  void track(MediaDraft next) {
+    update(() {
+      final index = drafts.indexOf(current);
+      if (index >= 0) drafts[index] = next;
+      current = next;
+    });
+  }
+  final result = await media.uploadFile(
+    file: XFile(path),
+    purpose: MediaUploadPurpose.chatImage,
+    onUpdate: track,
+    canStartRemote: canUpload,
+    cancelToken: cancelToken,
+  );
+  track(result);
 }

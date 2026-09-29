@@ -436,6 +436,8 @@ class _Media extends MediaUploadService {
     required MediaUploadPurpose purpose,
     void Function(MediaDraft draft)? onUpdate,
     int? squareMax,
+    bool Function()? canStartRemote,
+    CancelToken? cancelToken,
   }) async {
     final draft = MediaDraft(
       localId: file.path,

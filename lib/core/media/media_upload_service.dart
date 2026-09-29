@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -25,7 +26,9 @@ enum MediaUploadPurpose {
 enum MediaUploadState {
   selected,
   pending,
+  signing,
   uploading,
+  confirming,
   ready,
   failed,
 }
@@ -96,6 +99,10 @@ class MediaUploadService {
         _picker = picker ?? ImagePicker();
 
   static const int communityPhotoLimit = 4;
+  static const storageConnectTimeout = Duration(seconds: 20);
+  static const storageSendTimeout = Duration(minutes: 2);
+  static const storageReceiveTimeout = Duration(seconds: 30);
+  static const storageTotalTimeout = Duration(minutes: 3);
   static const String uploadFailedMessage =
       'No pudimos subir la foto. Intenta nuevamente.';
 
@@ -128,11 +135,13 @@ class MediaUploadService {
     );
   }
 
-  Future<MediaDraft> uploadAvatar(XFile file) {
+  Future<MediaDraft> uploadAvatar(XFile file, {bool Function()? canStartRemote, CancelToken? cancelToken}) {
     return uploadFile(
       file: file,
       purpose: MediaUploadPurpose.profileAvatar,
       squareMax: 720,
+      canStartRemote: canStartRemote,
+      cancelToken: cancelToken,
     );
   }
 
@@ -171,9 +180,11 @@ class MediaUploadService {
     required String contentType,
     required int sizeBytes,
     String fileName = 'photo.jpg',
+    CancelToken? cancelToken,
   }) async {
     final response = await _dio.post(
       '/media/uploads',
+      cancelToken: cancelToken,
       data: {
         'purpose': purpose.apiValue,
         'fileName': fileName,
@@ -189,26 +200,36 @@ class MediaUploadService {
     required SignedUploadResult signed,
     required Uint8List bytes,
     void Function(double progress)? onProgress,
+    CancelToken? cancelToken,
   }) async {
-    final put = _binaryClient ?? Dio();
-    await put.put(
+    final put = _binaryClient ?? Dio(BaseOptions(connectTimeout: storageConnectTimeout));
+    final token = cancelToken ?? CancelToken();
+    final deadline = Timer(storageTotalTimeout, () => token.cancel('Storage upload timeout'));
+    try {
+      await put.put(
       signed.uploadUrl,
       data: bytes,
       options: Options(
+        sendTimeout: storageSendTimeout,
+        receiveTimeout: storageReceiveTimeout,
         headers: {
           ...signed.requiredHeaders,
           'Content-Length': bytes.length,
         },
         contentType: signed.requiredHeaders['Content-Type'] ?? 'image/jpeg',
       ),
+      cancelToken: token,
       onSendProgress: (sent, total) {
         if (total > 0) onProgress?.call(sent / total);
       },
-    );
+      );
+    } finally {
+      deadline.cancel();
+    }
   }
 
-  Future<String?> confirm(String assetId) async {
-    final response = await _dio.post('/media/$assetId/confirm');
+  Future<String?> confirm(String assetId, {CancelToken? cancelToken}) async {
+    final response = await _dio.post('/media/$assetId/confirm', cancelToken: cancelToken);
     final data = response.data['data'];
     if (data is Map) return data['mediaUrl']?.toString();
     return null;
@@ -219,6 +240,8 @@ class MediaUploadService {
     required MediaUploadPurpose purpose,
     void Function(MediaDraft draft)? onUpdate,
     int? squareMax,
+    bool Function()? canStartRemote,
+    CancelToken? cancelToken,
   }) async {
     final draft = MediaDraft(
       localId: _uuid.v4(),
@@ -229,8 +252,9 @@ class MediaUploadService {
     try {
       final bytes = await compressIfNeeded(file, maxSide: squareMax);
       draft.bytes = bytes;
-      draft.state = MediaUploadState.uploading;
+      draft.state = MediaUploadState.signing;
       onUpdate?.call(draft);
+      if (canStartRemote != null && !canStartRemote()) throw StateError('Offline');
       if (kDebugMode) {
         debugPrint(
           '[MEDIA] stage=signed purpose=${purpose.apiValue} '
@@ -241,17 +265,25 @@ class MediaUploadService {
         purpose: purpose,
         contentType: 'image/jpeg',
         sizeBytes: bytes.length,
+        cancelToken: cancelToken,
       );
+      draft.assetId = signed.assetId;
+      if (canStartRemote != null && !canStartRemote()) throw StateError('Offline');
+      draft.state = MediaUploadState.uploading;
+      onUpdate?.call(draft);
       await putBytes(
         signed: signed,
         bytes: bytes,
+        cancelToken: cancelToken,
         onProgress: (p) {
           draft.progress = p;
           onUpdate?.call(draft);
         },
       );
-      final url = await confirm(signed.assetId);
-      draft.assetId = signed.assetId;
+      if (canStartRemote != null && !canStartRemote()) throw StateError('Offline');
+      draft.state = MediaUploadState.confirming;
+      onUpdate?.call(draft);
+      final url = await confirm(signed.assetId, cancelToken: cancelToken);
       draft.mediaUrl = url ?? signed.mediaUrl;
       draft.state = MediaUploadState.ready;
       draft.progress = 1;
@@ -264,6 +296,7 @@ class MediaUploadService {
       }
     } catch (e) {
       draft.state = MediaUploadState.failed;
+      draft.progress = 0;
       draft.error = uploadFailedMessage;
       onUpdate?.call(draft);
       if (kDebugMode) {

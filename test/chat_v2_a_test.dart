@@ -1076,6 +1076,8 @@ class _Media extends MediaUploadService {
     required MediaUploadPurpose purpose,
     void Function(MediaDraft draft)? onUpdate,
     int? squareMax,
+    bool Function()? canStartRemote,
+    CancelToken? cancelToken,
   }) async {
     purposes.add(purpose);
     final draft = MediaDraft(

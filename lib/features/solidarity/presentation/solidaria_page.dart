@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_cached_network_image.dart';
 import '../../../core/widgets/garra_card.dart';
@@ -346,6 +347,7 @@ class _SolidariaCreatePageState extends State<SolidariaCreatePage> {
           _media,
           photo,
           MediaUploadPurpose.solidarity,
+          canStartRemote: () => mounted && allowNetworkAction(context),
         );
       }
       final created = await _service.create({
