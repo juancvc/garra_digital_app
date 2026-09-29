@@ -11,11 +11,16 @@ Future<void> openGarraMediaViewer(
   BuildContext context,
   List<String> urls, {
   int initialIndex = 0,
+  VoidCallback? onViewPost,
 }) {
   if (urls.isEmpty) return Future.value();
   return Navigator.of(context, rootNavigator: true).push(
     MaterialPageRoute<void>(
-      builder: (_) => _MediaViewer(urls: urls, initialIndex: initialIndex),
+      builder: (_) => _MediaViewer(
+        urls: urls,
+        initialIndex: initialIndex,
+        onViewPost: onViewPost,
+      ),
     ),
   );
 }
@@ -26,10 +31,12 @@ class GarraPostMediaGrid extends StatelessWidget {
     super.key,
     required this.media,
     this.legacyImageUrl,
+    this.onViewPost,
   });
 
   final List<WallPostMediaItem> media;
   final String? legacyImageUrl;
+  final VoidCallback? onViewPost;
 
   List<String> get _urls {
     if (media.isNotEmpty) {
@@ -44,7 +51,12 @@ class GarraPostMediaGrid extends StatelessWidget {
   }
 
   void _openViewer(BuildContext context, int index) {
-    openGarraMediaViewer(context, _urls, initialIndex: index);
+    openGarraMediaViewer(
+      context,
+      _urls,
+      initialIndex: index,
+      onViewPost: onViewPost,
+    );
   }
 
   @override
@@ -186,10 +198,15 @@ class GarraPostMediaGrid extends StatelessWidget {
 }
 
 class _MediaViewer extends StatefulWidget {
-  const _MediaViewer({required this.urls, required this.initialIndex});
+  const _MediaViewer({
+    required this.urls,
+    required this.initialIndex,
+    this.onViewPost,
+  });
 
   final List<String> urls;
   final int initialIndex;
+  final VoidCallback? onViewPost;
 
   @override
   State<_MediaViewer> createState() => _MediaViewerState();
@@ -214,6 +231,20 @@ class _MediaViewerState extends State<_MediaViewer> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: const Color(GarraColors.cream),
+        actions: [
+          if (widget.onViewPost != null)
+            TextButton(
+              key: const ValueKey('viewer_view_post'),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(GarraColors.cream),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                widget.onViewPost!();
+              },
+              child: const Text('Ver publicación'),
+            ),
+        ],
       ),
       body: PageView.builder(
         controller: _controller,

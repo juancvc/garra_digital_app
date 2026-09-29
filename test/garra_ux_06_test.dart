@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:garra_digital_app/core/auth/current_fan_provider.dart';
 import 'package:garra_digital_app/core/theme/app_theme.dart';
 import 'package:garra_digital_app/core/theme/garra_semantic_colors.dart';
+import 'package:garra_digital_app/core/widgets/garra_cached_network_image.dart';
 import 'package:garra_digital_app/features/auth/data/auth_user.dart';
 import 'package:garra_digital_app/features/chat/data/chat_models.dart';
 import 'package:garra_digital_app/features/chat/data/chat_service.dart';
@@ -271,6 +272,90 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(_viewer), findsOneWidget);
       expect(find.text('NAVBAR'), findsNothing);
+    });
+
+    testWidgets('photo viewer opens the matching post and Back returns to feed', (
+      tester,
+    ) async {
+      final post = _post(id: 'post-photo');
+      final router = GoRouter(
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) => Scaffold(
+              body: SingleChildScrollView(
+                child: GarraSocialPostCard(
+                  post: post,
+                  onOpen: () => context.push('/muro-crema/posts/${post.id}'),
+                ),
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '/muro-crema/posts/:id',
+            builder: (_, state) => Scaffold(
+              appBar: AppBar(),
+              body: Text('DETAIL:${state.pathParameters['id']}'),
+            ),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(MaterialApp.router(
+        theme: AppTheme.darkTheme,
+        routerConfig: router,
+      ));
+
+      await tester.tap(find.byKey(const ValueKey('post_media_0')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(_viewer), findsOneWidget);
+      expect(find.text('Ver publicación'), findsOneWidget);
+      final image = tester.widget<GarraCachedNetworkImage>(
+        find.descendant(
+          of: find.byKey(_viewer),
+          matching: find.byType(GarraCachedNetworkImage),
+        ).first,
+      );
+      expect(image.imageUrl, 'https://example.invalid/photo-0.jpg');
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.byKey(_viewer), findsNothing);
+      expect(find.text('Vamos la U'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('post_media_0')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('viewer_view_post')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(_viewer), findsNothing);
+      expect(find.text('DETAIL:post-photo'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('Vamos la U'), findsOneWidget);
+      expect(find.byKey(_viewer), findsNothing);
+
+      await tester.tap(find.text('Vamos la U'));
+      await tester.pumpAndSettle();
+      expect(find.text('DETAIL:post-photo'), findsOneWidget);
+    });
+
+    testWidgets('multiple photos still swipe in the fullscreen viewer', (
+      tester,
+    ) async {
+      final post = _post().copyWith(media: const [
+        WallPostMediaItem(id: 'm0', url: 'https://example.invalid/photo-0.jpg', sortOrder: 0),
+        WallPostMediaItem(id: 'm1', url: 'https://example.invalid/photo-1.jpg', sortOrder: 1),
+      ]);
+      await tester.pumpWidget(_card(post));
+      await tester.tap(find.byKey(const ValueKey('post_media_0')));
+      await tester.pumpAndSettle();
+      final pageView = tester.widget<PageView>(find.byType(PageView));
+      expect(pageView.controller!.page, 0);
+      await tester.drag(find.byType(PageView), const Offset(-500, 0));
+      await tester.pumpAndSettle();
+      expect(pageView.controller!.page, 1);
+      expect(find.text('Ver publicación'), findsOneWidget);
     });
   });
 

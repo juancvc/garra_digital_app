@@ -177,6 +177,7 @@ class GarraSocialPostCard extends StatelessWidget {
                 GarraPostMediaGrid(
                   media: post.media,
                   legacyImageUrl: post.imageUrl,
+                  onViewPost: onOpen,
                 ),
               ],
               const SizedBox(height: 8),
