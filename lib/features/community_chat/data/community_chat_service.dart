@@ -90,6 +90,37 @@ class CommunityChatService {
     return CommunityChatMessage.fromJson(data);
   }
 
+  Future<CommunityChatMessage> sendReply(
+    String slug,
+    String content,
+    String replyToMessageId, {
+    List<String> mediaAssetIds = const [],
+  }) async {
+    final data = await _request(
+      'POST',
+      '${_base(slug)}/messages',
+      body: {
+        'content': content,
+        if (mediaAssetIds.isNotEmpty) 'mediaAssetIds': mediaAssetIds,
+        'replyToMessageId': replyToMessageId,
+      },
+    );
+    return CommunityChatMessage.fromJson(data);
+  }
+
+  Future<CommunityChatMessage> editMessage(
+    String slug,
+    String messageId,
+    String content,
+  ) async {
+    final data = await _request(
+      'PUT',
+      '${_base(slug)}/messages/${Uri.encodeComponent(messageId)}',
+      body: {'content': content},
+    );
+    return CommunityChatMessage.fromJson(data);
+  }
+
   /// PUT /clans/{slug}/chat/messages/{id}/reaction {type}
   Future<CommunityChatReactionsResult> react(
     String slug,

@@ -109,6 +109,37 @@ class ChatService {
     return ChatMessage.fromJson(data);
   }
 
+  Future<ChatMessage> sendReply(
+    String conversationId,
+    String content,
+    String replyToMessageId, {
+    List<String> mediaAssetIds = const [],
+  }) async {
+    final data = await _data(
+      '/chat/conversations/$conversationId/messages',
+      body: {
+        'content': content,
+        if (mediaAssetIds.isNotEmpty) 'mediaAssetIds': mediaAssetIds,
+        'replyToMessageId': replyToMessageId,
+      },
+    );
+    return ChatMessage.fromJson(data);
+  }
+
+  Future<ChatMessage> editMessage(String messageId, String content) async {
+    final data = await _write(
+      'PUT',
+      '/chat/messages/$messageId',
+      body: {'content': content},
+    );
+    return ChatMessage.fromJson(data);
+  }
+
+  Future<ChatMessage> deleteMessage(String messageId) async {
+    final data = await _write('DELETE', '/chat/messages/$messageId');
+    return ChatMessage.fromJson(data);
+  }
+
   /// CHAT_REACTIONS_13: set or change my reaction (PUT, idempotent).
   Future<ChatMessageReactionsResult> reactToMessage(
     String messageId,

@@ -23,6 +23,8 @@ import '../../chat/presentation/chat_conversation_page.dart'
 import '../../chat/presentation/chat_media_grid.dart';
 import '../../chat/presentation/chat_message_reactions.dart';
 import '../../chat/presentation/chat_unread_badge.dart';
+import '../../chat/presentation/chat_linked_text.dart';
+import '../../chat/presentation/chat_reply_tile.dart';
 import '../../clans/presentation/clan_moderation_dialogs.dart';
 import '../../clans/presentation/providers/clans_provider.dart';
 import '../../community/data/reaction_type.dart';
@@ -91,6 +93,10 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
 
   CommunityChatInfo? _info;
   List<CommunityChatMessage> _messages = const [];
+  CommunityChatMessage? _editing;
+  String? _beforeEdit;
+  ChatReplyPreview? _replyTo;
+  final Map<String, GlobalKey> _messageKeys = {};
 
   /// First message of the "center" sliver: older pages grow above it, so
   /// prepending never moves what is on screen.
@@ -117,10 +123,18 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
   var _sending = false;
   var _picking = false;
   final _exitGuard = DraftExitGuard();
-  bool get _dirty => _input.text.trim().isNotEmpty || _drafts.isNotEmpty;
-  void _leave() => _exitGuard.leave(context,
-      dirty: _dirty, busy: _sending || _picking || _uploading,
-      refresh: () => setState(() {}), pop: () => Navigator.of(context).pop());
+  bool get _dirty =>
+      _input.text.trim().isNotEmpty ||
+      _drafts.isNotEmpty ||
+      _replyTo != null ||
+      _editing != null;
+  void _leave() => _exitGuard.leave(
+    context,
+    dirty: _dirty,
+    busy: _sending || _picking || _uploading,
+    refresh: () => setState(() {}),
+    pop: () => Navigator.of(context).pop(),
+  );
   var _accessLost = false;
   var _following = true;
   var _unseenNew = false;
@@ -162,7 +176,9 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
     super.dispose();
   }
 
-  void _onDraftChanged() { if (mounted) setState(() {}); }
+  void _onDraftChanged() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -553,6 +569,68 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
       ..showSnackBar(SnackBar(content: Text(text)));
   }
 
+  void _startReply(CommunityChatMessage message) {
+    _cancelEdit();
+    setState(
+      () => _replyTo = ChatReplyPreview(
+        id: message.id,
+        senderId: message.sender.id,
+        senderName: message.mine ? 'Tú' : message.sender.label,
+        content: message.isTombstone
+            ? 'Mensaje eliminado'
+            : (message.content?.trim().isNotEmpty == true
+                  ? message.content!
+                  : 'Foto'),
+        deleted: message.isTombstone,
+      ),
+    );
+  }
+
+  void _startEdit(CommunityChatMessage message) {
+    if (!message.mine ||
+        !message.isVisible ||
+        (message.content ?? '').trim().isEmpty) {
+      return;
+    }
+    if (_drafts.isNotEmpty) {
+      _snack('Termina o quita las fotos antes de editar.');
+      return;
+    }
+    _beforeEdit = _input.text;
+    setState(() {
+      _editing = message;
+      _replyTo = null;
+      _input.text = message.content!;
+    });
+  }
+
+  void _cancelEdit() {
+    if (_editing == null) return;
+    setState(() {
+      _editing = null;
+      _input.text = _beforeEdit ?? '';
+      _beforeEdit = null;
+    });
+  }
+
+  void _jumpToReply(String id) {
+    final target = _messageKeys[id]?.currentContext;
+    if (target != null) {
+      Scrollable.ensureVisible(
+        target,
+        duration: const Duration(milliseconds: 220),
+      );
+      return;
+    }
+    final index = _messages.indexWhere((message) => message.id == id);
+    if (index < 0 || !_scroll.hasClients) return;
+    _scroll.animateTo(
+      (index * 80.0).clamp(0.0, _scroll.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+    );
+  }
+
   Future<void> _send() async {
     if (!_canWrite || _sending || _uploading) return;
     if (_drafts.any((draft) => draft.state == MediaUploadState.failed)) {
@@ -561,7 +639,7 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
     }
     final text = _input.text.trim();
     final ready = _readyDrafts;
-    if (text.isEmpty && ready.isEmpty) return;
+    if (text.isEmpty && (ready.isEmpty || _editing != null)) return;
     if (text.length > chatMessageMaxLength) {
       _snack('El mensaje supera los $chatMessageMaxLength caracteres.');
       return;
@@ -569,17 +647,38 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
     if (!allowNetworkAction(context)) return;
     setState(() => _sending = true);
     try {
-      final message = await _service.send(
-        _slug,
-        text,
-        mediaAssetIds: ready.map((draft) => draft.assetId!).toList(),
-      );
+      final editing = _editing;
+      if (editing != null) {
+        final updated = await _service.editMessage(_slug, editing.id, text);
+        if (!mounted) return;
+        _input.clear();
+        setState(() {
+          _messages = mergeCommunityMessages(_messages, [updated]);
+          _editing = null;
+          _beforeEdit = null;
+          _sending = false;
+        });
+        return;
+      }
+      final message = _replyTo == null
+          ? await _service.send(
+              _slug,
+              text,
+              mediaAssetIds: ready.map((draft) => draft.assetId!).toList(),
+            )
+          : await _service.sendReply(
+              _slug,
+              text,
+              _replyTo!.id,
+              mediaAssetIds: ready.map((draft) => draft.assetId!).toList(),
+            );
       if (!mounted) return;
       _input.clear();
       setState(() {
         _messages = mergeCommunityMessages(_messages, [message]);
         _anchorId ??= message.id;
         _drafts.clear();
+        _replyTo = null;
         _sending = false;
         _unseenNew = false;
       });
@@ -660,8 +759,24 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
   /// picker itself is not offered there).
   List<ChatMessageAction> _messageActions(CommunityChatMessage message) {
     if (!_canWrite || !message.isVisible) return const [];
+    final reply = ChatMessageAction(
+      key: const Key('community-chat-action-reply'),
+      label: 'Responder',
+      icon: Icons.reply,
+      onSelected: () => _startReply(message),
+    );
     if (message.mine) {
       return [
+        reply,
+        if ((message.content ?? '').trim().isNotEmpty &&
+            message.createdAt != null &&
+            DateTime.now().difference(message.createdAt!).inMinutes < 15)
+          ChatMessageAction(
+            key: const Key('community-chat-action-edit'),
+            label: 'Editar',
+            icon: Icons.edit_outlined,
+            onSelected: () => _startEdit(message),
+          ),
         ChatMessageAction(
           key: const Key('community-chat-action-delete'),
           label: 'Eliminar',
@@ -673,6 +788,7 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
     }
     if (_info?.canModerate == true) {
       return [
+        reply,
         ChatMessageAction(
           key: const Key('community-chat-action-hide'),
           label: 'Retirar mensaje',
@@ -682,7 +798,7 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
         ),
       ];
     }
-    return const [];
+    return [reply];
   }
 
   /// Server-confirmed self-delete: the local message only changes when the
@@ -827,30 +943,40 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
   Widget build(BuildContext context) {
     final colors = context.garraColors;
     return PopScope(
-      canPop: _exitGuard.canPop(dirty: _dirty, busy: _sending || _picking || _uploading),
-      onPopInvokedWithResult: (didPop, _) { if (!didPop) _leave(); },
+      canPop: _exitGuard.canPop(
+        dirty: _dirty,
+        busy: _sending || _picking || _uploading,
+      ),
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _leave();
+      },
       child: Scaffold(
-      resizeToAvoidBottomInset: true,
-      backgroundColor: colors.background,
-      appBar: AppBar(leading: BackButton(onPressed: _leave), titleSpacing: 0, title: _header()),
-      body: ChatBackdrop(
-        child: Column(
-          children: [
-            Expanded(child: _transcript()),
-            if (_info != null)
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: colors.surfaceRaised,
-                  border: Border(
-                    top: BorderSide(color: colors.border, width: 0.5),
+        resizeToAvoidBottomInset: true,
+        backgroundColor: colors.background,
+        appBar: AppBar(
+          leading: BackButton(onPressed: _leave),
+          titleSpacing: 0,
+          title: _header(),
+        ),
+        body: ChatBackdrop(
+          child: Column(
+            children: [
+              Expanded(child: _transcript()),
+              if (_info != null)
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colors.surfaceRaised,
+                    border: Border(
+                      top: BorderSide(color: colors.border, width: 0.5),
+                    ),
                   ),
+                  child: SafeArea(top: false, child: _footer()),
                 ),
-                child: SafeArea(top: false, child: _footer()),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _header() {
@@ -1256,6 +1382,11 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
             ? CrossAxisAlignment.end
             : CrossAxisAlignment.start,
         children: [
+          if (message.replyTo != null)
+            ChatReplyTile(
+              reply: message.replyTo!,
+              onTap: () => _jumpToReply(message.replyTo!.id),
+            ),
           if (images.isNotEmpty)
             Padding(
               padding: EdgeInsets.only(bottom: hasText ? 6 : 0),
@@ -1265,7 +1396,7 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
               ),
             ),
           if (hasText)
-            Text(
+            ChatLinkedText(
               content,
               style: TextStyle(color: foreground, fontSize: 15, height: 1.3),
             ),
@@ -1273,24 +1404,33 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
         ],
       ),
     );
-    final interactive = Builder(
-      builder: (bubbleContext) => Semantics(
-        onLongPressHint: canReact ? 'Reaccionar al mensaje' : null,
-        customSemanticsActions: canReact
-            ? {
-                const CustomSemanticsAction(
-                  label: 'Reaccionar al mensaje',
-                ): () =>
-                    _openReactions(bubbleContext, message),
-              }
-            : null,
-        child: GestureDetector(
-          key: Key('community-chat-bubble-gesture-${message.id}'),
-          behavior: HitTestBehavior.opaque,
-          onLongPress: canReact
-              ? () => _openReactions(bubbleContext, message)
+    final interactive = KeyedSubtree(
+      key: _messageKeys.putIfAbsent(message.id, () => GlobalKey()),
+      child: Builder(
+        builder: (bubbleContext) => Semantics(
+          onLongPressHint: canReact ? 'Reaccionar al mensaje' : null,
+          customSemanticsActions: canReact
+              ? {
+                  const CustomSemanticsAction(
+                    label: 'Reaccionar al mensaje',
+                  ): () =>
+                      _openReactions(bubbleContext, message),
+                }
               : null,
-          child: bubble,
+          child: GestureDetector(
+            key: Key('community-chat-bubble-gesture-${message.id}'),
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragEnd: (details) {
+              if (details.primaryVelocity != null &&
+                  details.primaryVelocity! > 250) {
+                _startReply(message);
+              }
+            },
+            onLongPress: canReact
+                ? () => _openReactions(bubbleContext, message)
+                : null,
+            child: bubble,
+          ),
         ),
       ),
     );
@@ -1328,7 +1468,7 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
             : 'Mensaje de ${message.sender.label}, a las $time',
         excludeSemantics: true,
         child: Text(
-          time,
+          message.editedAt == null ? time : '$time · editado',
           key: Key('community-chat-meta-${message.id}'),
           style: TextStyle(
             fontSize: 11,
@@ -1376,6 +1516,21 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (_editing != null)
+            ListTile(
+              dense: true,
+              title: const Text('Editar mensaje'),
+              trailing: IconButton(
+                tooltip: 'Cancelar edición',
+                onPressed: _cancelEdit,
+                icon: const Icon(Icons.close),
+              ),
+            ),
+          if (_replyTo != null)
+            ChatReplyTile(
+              reply: _replyTo!,
+              onCancel: () => setState(() => _replyTo = null),
+            ),
           if (_drafts.isNotEmpty) _draftStrip(),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -1384,7 +1539,10 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
                 key: const Key('community-chat-attach-photo'),
                 tooltip: 'Adjuntar foto',
                 onPressed:
-                    _drafts.length >= chatMaxImages || _sending || _picking
+                    _editing != null ||
+                        _drafts.length >= chatMaxImages ||
+                        _sending ||
+                        _picking
                     ? null
                     : _pickPhotos,
                 color: colors.textSecondary,
@@ -1444,12 +1602,13 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
                 valueListenable: _input,
                 builder: (context, value, _) {
                   final hasContent =
-                      value.text.trim().isNotEmpty || _readyDrafts.isNotEmpty;
+                      value.text.trim().isNotEmpty ||
+                      (_editing == null && _readyDrafts.isNotEmpty);
                   final enabled =
                       _canWrite && !_sending && !_uploading && hasContent;
                   return IconButton(
                     key: const Key('community-chat-send'),
-                    tooltip: 'Enviar',
+                    tooltip: _editing == null ? 'Enviar' : 'Guardar edición',
                     onPressed: enabled ? _send : null,
                     style: IconButton.styleFrom(
                       backgroundColor: colors.brandPrimary,
@@ -1538,8 +1697,11 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
                                   media: _media,
                                   drafts: _drafts,
                                   failed: draft,
-                                  update: (change) { if (mounted) setState(change); },
-                                  canUpload: () => mounted && allowNetworkAction(context),
+                                  update: (change) {
+                                    if (mounted) setState(change);
+                                  },
+                                  canUpload: () =>
+                                      mounted && allowNetworkAction(context),
                                   cancelToken: _uploadCancelToken,
                                 ),
                               )

@@ -9,6 +9,7 @@ import 'package:garra_digital_app/core/theme/garra_semantic_colors.dart';
 import 'package:garra_digital_app/features/chat/data/chat_models.dart';
 import 'package:garra_digital_app/features/chat/data/chat_service.dart';
 import 'package:garra_digital_app/features/chat/presentation/chat_conversation_page.dart';
+import 'package:garra_digital_app/features/chat/presentation/chat_linked_text.dart';
 import 'package:garra_digital_app/features/chat/presentation/chat_message_reactions.dart';
 import 'package:garra_digital_app/features/chat/presentation/floating_chat_panel.dart';
 import 'package:garra_digital_app/features/community/data/reaction_type.dart';
@@ -134,7 +135,7 @@ void main() {
       tester,
     ) async {
       final chat = _Chat()
-        ..conversationResult = _conversation(status: 'PENDING')
+        ..conversationResult = _conversation(status: 'PENDING', outgoing: true)
         ..messagesResult = [_msg('m1', mine: true)];
       await _open(tester, chat);
 
@@ -549,6 +550,148 @@ void main() {
   });
 
   group('CHAT_REACTIONS_13 floating panel', () {
+    testWidgets('floating panel renders links, replies and tombstones safely', (
+      tester,
+    ) async {
+      final chat = _Chat()
+        ..messagesResult = [
+          ChatMessage(
+            id: 'deleted',
+            conversationId: 'c1',
+            senderId: 'u2',
+            content: 'private old text',
+            mine: false,
+            deleted: true,
+            createdAt: DateTime.now(),
+            media: [_image('old')],
+          ),
+          ChatMessage(
+            id: 'reply',
+            conversationId: 'c1',
+            senderId: 'me',
+            content: 'Ver https://garra.test',
+            mine: true,
+            createdAt: DateTime.now(),
+            editedAt: DateTime.now(),
+            replyTo: const ChatReplyPreview(
+              id: 'deleted',
+              senderId: 'u2',
+              senderName: 'Diego',
+              content: 'Mensaje eliminado',
+              deleted: true,
+            ),
+          ),
+        ];
+      await _openPanel(tester, chat);
+      expect(find.text('private old text'), findsNothing);
+      expect(find.text('Mensaje eliminado'), findsWidgets);
+      expect(find.byType(ChatLinkedText), findsOneWidget);
+      expect(find.text('editado'), findsOneWidget);
+      await _dispose(tester);
+    });
+    testWidgets(
+      'pending panel reconciles acceptance and new messages in place',
+      (tester) async {
+        final chat = _Chat()
+          ..conversationResult = _conversation(
+            status: 'PENDING',
+            outgoing: true,
+          )
+          ..messagesResult = [_msg('request', mine: true)];
+        await _openPanel(tester, chat);
+        expect(find.byKey(const Key('chat-pending-banner')), findsOneWidget);
+        expect(
+          tester
+              .widget<TextField>(find.byKey(const Key('chat-composer')))
+              .enabled,
+          isFalse,
+        );
+
+        chat.conversationResult = _conversation();
+        chat.messagesResult = [
+          _msg('request', mine: true),
+          _msg('accepted', mine: false),
+        ];
+        await tester.pump(const Duration(seconds: 3));
+        await _settle(tester);
+        expect(find.byKey(const Key('chat-pending-banner')), findsNothing);
+        expect(
+          tester
+              .widget<TextField>(find.byKey(const Key('chat-composer')))
+              .enabled,
+          isTrue,
+        );
+        expect(
+          find.text('Mensaje accepted para coordinar la previa'),
+          findsOneWidget,
+        );
+        await tester.enterText(
+          find.byKey(const Key('chat-composer')),
+          'Recibido',
+        );
+        await tester.tap(find.byKey(const Key('chat-send')));
+        await _settle(tester);
+        expect(chat.sentTexts, ['Recibido']);
+
+        chat.messagesResult = [
+          ...chat.messagesResult,
+          _msg('later', mine: false),
+        ];
+        await tester.pump(const Duration(seconds: 5));
+        await _settle(tester);
+        expect(
+          find.text('Mensaje later para coordinar la previa'),
+          findsOneWidget,
+        );
+        await _dispose(tester);
+      },
+    );
+
+    testWidgets(
+      'pending panel survives a temporary reconcile error and resume',
+      (tester) async {
+        final chat = _Chat()
+          ..conversationResult = _conversation(
+            status: 'PENDING',
+            outgoing: true,
+          );
+        await _openPanel(tester, chat);
+        chat.failConversation = true;
+        await tester.pump(const Duration(seconds: 3));
+        await _settle(tester);
+        expect(find.byKey(const Key('floating-chat-panel')), findsOneWidget);
+        chat.failConversation = false;
+        chat.conversationResult = _conversation();
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.inactive,
+        );
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+        await tester.pump(const Duration(seconds: 4));
+        expect(find.byKey(const Key('chat-pending-banner')), findsOneWidget);
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.inactive,
+        );
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+        await _settle(tester);
+        expect(find.byKey(const Key('chat-pending-banner')), findsNothing);
+        await _dispose(tester);
+      },
+    );
+
+    testWidgets('disposing pending panel stops reconciliation', (tester) async {
+      final chat = _Chat()
+        ..conversationResult = _conversation(status: 'PENDING', outgoing: true);
+      await _openPanel(tester, chat);
+      final before = chat.conversationReads;
+      await _dispose(tester);
+      await tester.pump(const Duration(seconds: 9));
+      expect(chat.conversationReads, before);
+    });
+
     testWidgets('22 floating panel shows reactions read-only', (tester) async {
       final chat = _Chat()
         ..messagesResult = [
@@ -586,6 +729,89 @@ void main() {
       await _transition(tester);
       expect(find.byKey(const Key('chat-reaction-picker')), findsNothing);
       expect(chat.calls, isEmpty);
+    });
+  });
+
+  group('CHAT_PRO_22 direct actions', () {
+    testWidgets('poll reconciles an edited message without a new message', (
+      tester,
+    ) async {
+      final chat = _Chat()..messagesResult = [_msg('m1', mine: false)];
+      await _open(tester, chat, poll: _poll);
+      final old = chat.messagesResult.single;
+      chat.messagesResult = [
+        ChatMessage(
+          id: old.id,
+          conversationId: old.conversationId,
+          senderId: old.senderId,
+          content: 'Texto editado por Diego',
+          mine: false,
+          createdAt: old.createdAt,
+          editedAt: DateTime.now(),
+        ),
+      ];
+      await _pollOnce(tester);
+      expect(find.text('Texto editado por Diego'), findsOneWidget);
+      expect(find.text(old.content), findsNothing);
+      expect(find.byKey(const Key('chat-new-messages-pill')), findsNothing);
+      await _dispose(tester);
+    });
+
+    testWidgets('own message edit can be cancelled and saved', (tester) async {
+      final chat = _Chat()..messagesResult = [_msg('m1', mine: true)];
+      await _open(tester, chat);
+      await _longPress(tester, 'm1');
+      await tester.tap(find.byKey(const Key('chat-action-edit')));
+      await _transition(tester);
+      expect(find.text('Editar mensaje'), findsOneWidget);
+      await tester.tap(find.byTooltip('Cancelar edición'));
+      await _settle(tester);
+      expect(chat.edits, isEmpty);
+      await _longPress(tester, 'm1');
+      await tester.tap(find.byKey(const Key('chat-action-edit')));
+      await _transition(tester);
+      await tester.enterText(
+        find.byKey(const Key('chat-composer')),
+        'Texto corregido',
+      );
+      await tester.tap(find.byTooltip('Guardar edición'));
+      await _settle(tester);
+      expect(chat.edits, ['m1:Texto corregido']);
+      expect(find.text('Texto corregido'), findsOneWidget);
+      expect(find.textContaining('editado'), findsWidgets);
+      await _dispose(tester);
+    });
+
+    testWidgets('reply and delete keep tombstone in timeline', (tester) async {
+      final chat = _Chat()..messagesResult = [_msg('m1', mine: true)];
+      await _open(tester, chat);
+      await _longPress(tester, 'm1');
+      await tester.tap(find.byKey(const Key('chat-action-reply')));
+      await _transition(tester);
+      expect(find.textContaining('Respondiendo a'), findsWidgets);
+      await tester.enterText(
+        find.byKey(const Key('chat-composer')),
+        'Respuesta',
+      );
+      await _settle(tester);
+      expect(
+        tester.widget<IconButton>(find.byKey(const Key('chat-send'))).onPressed,
+        isNotNull,
+      );
+      await tester.tap(find.byKey(const Key('chat-send')));
+      await _settle(tester);
+      expect(chat.replyCalls, [
+        'm1:Respuesta',
+      ], reason: 'plain sends: ${chat.sentTexts}');
+      await _longPress(tester, 'm1');
+      await tester.tap(find.byKey(const Key('chat-action-delete')));
+      await _transition(tester);
+      await tester.tap(find.text('Eliminar').last);
+      await _transition(tester);
+      expect(chat.deletes, ['m1']);
+      expect(find.byKey(const Key('chat-tombstone-m1')), findsOneWidget);
+      expect(find.text('Mensaje m1 para coordinar la previa'), findsNothing);
+      await _dispose(tester);
     });
   });
 
@@ -750,6 +976,32 @@ Future<void> _open(
   await _settle(tester);
 }
 
+Future<void> _openPanel(WidgetTester tester, _Chat chat) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: AppTheme.darkTheme,
+      home: Scaffold(
+        body: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => showGarraFloatingChat(
+              context: context,
+              otherUserId: 'u2',
+              chatService: chat,
+              relationship: const ChatRelationship(
+                conversationId: 'c1',
+                status: 'PENDING',
+              ),
+            ),
+            child: const Text('abrir'),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.text('abrir'));
+  await _transition(tester);
+}
+
 Future<void> _dispose(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump(const Duration(milliseconds: 500));
@@ -873,13 +1125,17 @@ Future<void> _expectTheme(
   await _dispose(tester);
 }
 
-ChatConversation _conversation({String status = 'ACTIVE'}) {
+ChatConversation _conversation({
+  String status = 'ACTIVE',
+  bool outgoing = false,
+}) {
   return ChatConversation(
     id: 'c1',
     otherUserId: 'u2',
     otherDisplayName: 'Diego Ramos',
     otherUsername: 'diegor',
     status: status,
+    outgoing: outgoing,
   );
 }
 
@@ -942,6 +1198,12 @@ class _Chat extends ChatService {
   final List<String> calls = [];
   Completer<void>? gate;
   bool fail = false;
+  bool failConversation = false;
+  final sentTexts = <String>[];
+  final edits = <String>[];
+  final deletes = <String>[];
+  final replyCalls = <String>[];
+  int conversationReads = 0;
 
   @override
   Future<ChatRelationship> relationship(
@@ -950,8 +1212,78 @@ class _Chat extends ChatService {
   }) async => ChatRelationship.none();
 
   @override
-  Future<ChatConversation> conversation(String conversationId) async =>
-      conversationResult ?? _conversation();
+  Future<ChatConversation> conversation(String conversationId) async {
+    conversationReads += 1;
+    if (failConversation) throw ChatException('Temporal');
+    return conversationResult ?? _conversation();
+  }
+
+  @override
+  Future<ChatMessage> send(
+    String conversationId,
+    String content, {
+    List<String> mediaAssetIds = const [],
+  }) async {
+    sentTexts.add(content);
+    return _msg('sent', mine: true, content: content);
+  }
+
+  @override
+  Future<ChatMessage> sendReply(
+    String conversationId,
+    String content,
+    String replyToMessageId, {
+    List<String> mediaAssetIds = const [],
+  }) async {
+    replyCalls.add('$replyToMessageId:$content');
+    return ChatMessage(
+      id: 'reply',
+      conversationId: conversationId,
+      senderId: 'me',
+      content: content,
+      mine: true,
+      createdAt: DateTime.now(),
+      replyTo: ChatReplyPreview(
+        id: replyToMessageId,
+        senderId: 'me',
+        senderName: 'Tú',
+        content: 'Mensaje m1 para coordinar la previa',
+      ),
+    );
+  }
+
+  @override
+  Future<ChatMessage> editMessage(String messageId, String content) async {
+    edits.add('$messageId:$content');
+    final old = messagesResult.firstWhere((message) => message.id == messageId);
+    return ChatMessage(
+      id: old.id,
+      conversationId: old.conversationId,
+      senderId: old.senderId,
+      content: content,
+      mine: old.mine,
+      createdAt: old.createdAt,
+      editedAt: DateTime.now(),
+      reactions: old.reactions,
+      media: old.media,
+      replyTo: old.replyTo,
+    );
+  }
+
+  @override
+  Future<ChatMessage> deleteMessage(String messageId) async {
+    deletes.add(messageId);
+    final old = messagesResult.firstWhere((message) => message.id == messageId);
+    return ChatMessage(
+      id: old.id,
+      conversationId: old.conversationId,
+      senderId: old.senderId,
+      content: '',
+      mine: old.mine,
+      createdAt: old.createdAt,
+      deleted: true,
+    );
+  }
 
   @override
   Future<List<ChatMessage>> messages(String conversationId) async =>

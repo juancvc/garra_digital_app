@@ -117,6 +117,30 @@ class ChatMediaItem {
   }
 }
 
+class ChatReplyPreview {
+  const ChatReplyPreview({
+    required this.id,
+    required this.senderId,
+    required this.senderName,
+    required this.content,
+    this.deleted = false,
+  });
+  final String id;
+  final String senderId;
+  final String senderName;
+  final String content;
+  final bool deleted;
+
+  factory ChatReplyPreview.fromJson(Map<String, dynamic> json) =>
+      ChatReplyPreview(
+        id: json['id']?.toString() ?? '',
+        senderId: json['senderId']?.toString() ?? '',
+        senderName: json['senderName']?.toString() ?? '',
+        content: json['content']?.toString() ?? '',
+        deleted: json['deleted'] == true,
+      );
+}
+
 class ChatMessage {
   const ChatMessage({
     required this.id,
@@ -128,6 +152,9 @@ class ChatMessage {
     this.media = const [],
     this.read = false,
     this.reactions = const [],
+    this.editedAt,
+    this.deleted = false,
+    this.replyTo,
   });
 
   final String id;
@@ -144,11 +171,17 @@ class ChatMessage {
 
   /// CHAT_REACTIONS_13: per-type summary (count > 0 only, no user ids).
   final List<ChatMessageReactionSummary> reactions;
+  final DateTime? editedAt;
+  final bool deleted;
+  final ChatReplyPreview? replyTo;
 
   /// Deterministic per-message reaction state, used by the polling diff.
   String get reactionSignature => chatReactionSignature(reactions);
 
-  ChatMessage copyWith({List<ChatMessageReactionSummary>? reactions}) {
+  ChatMessage copyWith({
+    List<ChatMessageReactionSummary>? reactions,
+    ChatReplyPreview? replyTo,
+  }) {
     return ChatMessage(
       id: id,
       conversationId: conversationId,
@@ -159,6 +192,9 @@ class ChatMessage {
       media: media,
       read: read,
       reactions: reactions ?? this.reactions,
+      editedAt: editedAt,
+      deleted: deleted,
+      replyTo: replyTo ?? this.replyTo,
     );
   }
 
@@ -178,6 +214,13 @@ class ChatMessage {
           )
           .toList(),
       reactions: parseChatReactions(json['reactions']),
+      editedAt: parseGarraInstant(json['editedAt']?.toString() ?? ''),
+      deleted: json['deleted'] == true,
+      replyTo: json['replyTo'] is Map
+          ? ChatReplyPreview.fromJson(
+              Map<String, dynamic>.from(json['replyTo'] as Map),
+            )
+          : null,
     );
   }
 }
@@ -332,18 +375,25 @@ class ChatUnreadSummary {
 }
 
 class CommunityChatPreview {
-  const CommunityChatPreview({required this.slug, required this.lastMessagePreview,
-    required this.lastMessageAt, required this.unreadCount});
+  const CommunityChatPreview({
+    required this.slug,
+    required this.lastMessagePreview,
+    required this.lastMessageAt,
+    required this.unreadCount,
+  });
 
   final String slug;
   final String lastMessagePreview;
   final DateTime? lastMessageAt;
   final int unreadCount;
 
-  factory CommunityChatPreview.fromJson(Map<String, dynamic> json) => CommunityChatPreview(
-    slug: json['slug'] as String? ?? '',
-    lastMessagePreview: json['lastMessagePreview'] as String? ?? '',
-    lastMessageAt: DateTime.tryParse(json['lastMessageAt'] as String? ?? ''),
-    unreadCount: (json['unreadCount'] as num?)?.toInt() ?? 0,
-  );
+  factory CommunityChatPreview.fromJson(Map<String, dynamic> json) =>
+      CommunityChatPreview(
+        slug: json['slug'] as String? ?? '',
+        lastMessagePreview: json['lastMessagePreview'] as String? ?? '',
+        lastMessageAt: DateTime.tryParse(
+          json['lastMessageAt'] as String? ?? '',
+        ),
+        unreadCount: (json['unreadCount'] as num?)?.toInt() ?? 0,
+      );
 }

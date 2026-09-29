@@ -466,7 +466,8 @@ void main() {
       expect(_picker(), findsOneWidget);
       expect(find.byKey(_deleteAction), findsNothing);
       expect(find.byKey(_hideAction), findsNothing);
-      expect(find.byKey(const Key('chat-message-actions')), findsNothing);
+      expect(find.byKey(const Key('chat-message-actions')), findsOneWidget);
+      expect(find.text('Responder'), findsOneWidget);
       await _closePicker(tester);
       await _dispose(tester);
     });
@@ -1158,40 +1159,66 @@ void main() {
       expect(svc.calls, isEmpty);
     });
 
-    testWidgets('community rows show backend preview, unread and latest first', (tester) async {
-      final chat = inboxChat()..previews = [
-        CommunityChatPreview(slug: _slug, lastMessagePreview: 'Nuevo mensaje',
-            lastMessageAt: DateTime(2026, 9, 29, 13), unreadCount: 120),
-        CommunityChatPreview(slug: 'crema-norte', lastMessagePreview: 'Anterior',
-            lastMessageAt: DateTime(2026, 9, 28, 13), unreadCount: 0),
-      ];
-      final clans = _Clans(myClans: [
-        _membership('crema-norte', 'Crema Norte'),
-        _membership(_slug, 'Garra Surco'),
-      ]);
-      await pumpInbox(tester, chat: chat, clans: clans, svc: _Svc());
-      await tester.tap(find.byKey(const Key('chat-section-communities')));
-      await _settle(tester);
-      expect(find.text('Nuevo mensaje'), findsOneWidget);
-      expect(find.text('99+'), findsOneWidget);
-      expect(find.text('Anterior'), findsOneWidget);
-      final first = tester.getTopLeft(find.byKey(Key('community-inbox-row-$_slug'))).dy;
-      final second = tester.getTopLeft(find.byKey(const Key('community-inbox-row-crema-norte'))).dy;
-      expect(first, lessThan(second));
-    });
+    testWidgets(
+      'community rows show backend preview, unread and latest first',
+      (tester) async {
+        final chat = inboxChat()
+          ..previews = [
+            CommunityChatPreview(
+              slug: _slug,
+              lastMessagePreview: 'Nuevo mensaje',
+              lastMessageAt: DateTime(2026, 9, 29, 13),
+              unreadCount: 120,
+            ),
+            CommunityChatPreview(
+              slug: 'crema-norte',
+              lastMessagePreview: 'Anterior',
+              lastMessageAt: DateTime(2026, 9, 28, 13),
+              unreadCount: 0,
+            ),
+          ];
+        final clans = _Clans(
+          myClans: [
+            _membership('crema-norte', 'Crema Norte'),
+            _membership(_slug, 'Garra Surco'),
+          ],
+        );
+        await pumpInbox(tester, chat: chat, clans: clans, svc: _Svc());
+        await tester.tap(find.byKey(const Key('chat-section-communities')));
+        await _settle(tester);
+        expect(find.text('Nuevo mensaje'), findsOneWidget);
+        expect(find.text('99+'), findsOneWidget);
+        expect(find.text('Anterior'), findsOneWidget);
+        final first = tester
+            .getTopLeft(find.byKey(Key('community-inbox-row-$_slug')))
+            .dy;
+        final second = tester
+            .getTopLeft(
+              find.byKey(const Key('community-inbox-row-crema-norte')),
+            )
+            .dy;
+        expect(first, lessThan(second));
+      },
+    );
 
-    testWidgets('community chat text draft asks before leaving and keeps text', (tester) async {
-      await _open(tester, _Svc());
-      await tester.enterText(find.byKey(const Key('community-chat-composer')), 'Mensaje pendiente');
-      await tester.pump();
-      await tester.tap(find.byType(BackButton));
-      await _settle(tester);
-      expect(find.text('¿Descartar borrador?'), findsOneWidget);
-      await tester.tap(find.text('Seguir editando'));
-      await _settle(tester);
-      expect(find.text('Mensaje pendiente'), findsOneWidget);
-      await _dispose(tester);
-    });
+    testWidgets(
+      'community chat text draft asks before leaving and keeps text',
+      (tester) async {
+        await _open(tester, _Svc());
+        await tester.enterText(
+          find.byKey(const Key('community-chat-composer')),
+          'Mensaje pendiente',
+        );
+        await tester.pump();
+        await tester.tap(find.byType(BackButton));
+        await _settle(tester);
+        expect(find.text('¿Descartar borrador?'), findsOneWidget);
+        await tester.tap(find.text('Seguir editando'));
+        await _settle(tester);
+        expect(find.text('Mensaje pendiente'), findsOneWidget);
+        await _dispose(tester);
+      },
+    );
 
     testWidgets('empty state when the viewer has no community', (tester) async {
       final chat = inboxChat();

@@ -147,6 +147,8 @@ class _Svc extends CommunityChatService {
   final List<int> beforeSeqs = [];
   final List<Object> changesQueue = [];
   final List<({String content, List<String> media})> sent = [];
+  final List<String> edits = [];
+  final List<String> replies = [];
   Object? infoError;
   Object? sendError;
   Object? reactError;
@@ -233,6 +235,64 @@ class _Svc extends CommunityChatService {
       media: [for (final id in mediaAssetIds) _image(id)],
       at: DateTime.now(),
       version: ++_version,
+    );
+    all = [...all, message];
+    return message;
+  }
+
+  @override
+  Future<CommunityChatMessage> editMessage(
+    String slug,
+    String messageId,
+    String content,
+  ) async {
+    edits.add('$messageId:$content');
+    final old = all.firstWhere((message) => message.id == messageId);
+    final updated = CommunityChatMessage(
+      id: old.id,
+      seq: old.seq,
+      version: old.version + 1,
+      status: old.status,
+      sender: old.sender,
+      mine: old.mine,
+      content: content,
+      createdAt: old.createdAt,
+      editedAt: DateTime.now(),
+      media: old.media,
+      reactions: old.reactions,
+      myReaction: old.myReaction,
+      replyTo: old.replyTo,
+    );
+    all = [
+      for (final message in all) message.id == messageId ? updated : message,
+    ];
+    return updated;
+  }
+
+  @override
+  Future<CommunityChatMessage> sendReply(
+    String slug,
+    String content,
+    String replyToMessageId, {
+    List<String> mediaAssetIds = const [],
+  }) async {
+    replies.add('$replyToMessageId:$content');
+    final target = all.firstWhere((message) => message.id == replyToMessageId);
+    final message = CommunityChatMessage(
+      id: 'reply-new',
+      seq: all.last.seq + 1,
+      version: all.last.version + 1,
+      status: communityMessageVisible,
+      sender: const CommunityChatSender(id: 'me', displayName: 'Yo Crema'),
+      mine: true,
+      content: content,
+      createdAt: DateTime.now(),
+      replyTo: ChatReplyPreview(
+        id: target.id,
+        senderId: target.sender.id,
+        senderName: target.sender.label,
+        content: target.content ?? 'Foto',
+      ),
     );
     all = [...all, message];
     return message;
@@ -509,6 +569,38 @@ Future<void> _pumpFrames(WidgetTester tester) async {
 void main() {
   setUpAll(() async {
     await initializeDateFormatting('es_PE');
+  });
+
+  group('CHAT_PRO_22 community actions', () {
+    testWidgets('own message edit and reply use the new operations', (
+      tester,
+    ) async {
+      final svc = _Svc(messages: [_m(1, mine: true, at: DateTime.now())]);
+      await _open(tester, svc);
+      await _longPress(tester, 'm1');
+      await tester.tap(find.byKey(const Key('community-chat-action-edit')));
+      await _transition(tester);
+      expect(find.text('Editar mensaje'), findsOneWidget);
+      await tester.enterText(find.byKey(_composer), 'Corregido');
+      await _settle(tester);
+      await tester.tap(find.byTooltip('Guardar edición'));
+      await _transition(tester);
+      expect(svc.edits, ['m1:Corregido']);
+      expect(find.text('Corregido'), findsOneWidget);
+      expect(find.textContaining('editado'), findsWidgets);
+
+      await _longPress(tester, 'm1');
+      await tester.tap(find.byKey(const Key('community-chat-action-reply')));
+      await _transition(tester);
+      expect(find.textContaining('Respondiendo a'), findsWidgets);
+      await tester.enterText(find.byKey(_composer), 'Vamos');
+      await _settle(tester);
+      await tester.tap(find.byKey(_send));
+      await _transition(tester);
+      expect(svc.replies, ['m1:Vamos']);
+      expect(find.text('Corregido'), findsWidgets);
+      await _dispose(tester);
+    });
   });
 
   group('14B contract models', () {

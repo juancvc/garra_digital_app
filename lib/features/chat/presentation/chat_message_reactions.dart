@@ -353,7 +353,7 @@ class _ChatMessageActionsBar extends StatelessWidget {
         side: BorderSide(color: colors.border),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Row(
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           for (final action in actions)
@@ -364,10 +364,8 @@ class _ChatMessageActionsBar extends StatelessWidget {
               child: InkWell(
                 key: action.key,
                 onTap: () => onTap(action),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minHeight: chatMessageActionsHeight,
-                  ),
+                child: SizedBox(
+                  height: chatMessageActionsHeight,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
@@ -513,7 +511,7 @@ class _ChatReactionPickerRoute extends PopupRoute<ReactionType> {
   ) {
     const gap = 6.0;
     const margin = 8.0;
-    const extra = chatMessageActionsHeight + gap;
+    final extra = actions.length * chatMessageActionsHeight + gap;
     final above = origin.dy < anchor.top;
     final minTop = media.padding.top + margin;
     final maxTop =

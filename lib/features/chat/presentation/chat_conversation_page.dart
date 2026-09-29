@@ -28,6 +28,8 @@ import 'chat_message_reactions.dart';
 import 'chat_request_copy.dart';
 import 'chat_timeline.dart';
 import 'chat_unread_badge.dart';
+import 'chat_linked_text.dart';
+import 'chat_reply_tile.dart';
 
 /// Distance to the bottom (px) that still counts as following the thread.
 const double chatFollowThreshold = 120;
@@ -69,16 +71,28 @@ class _ChatConversationPageState extends State<ChatConversationPage>
   final CancelToken _uploadCancelToken = CancelToken();
   Timer? _poll;
   ChatConversation? _conversation;
+  ChatMessage? _editing;
+  String? _beforeEdit;
+  ChatReplyPreview? _replyTo;
   List<ChatMessage> _messages = const [];
   var _loading = true;
   var _sending = false;
   var _picking = false;
   final _exitGuard = DraftExitGuard();
   bool _completed = false;
-  bool get _dirty => !_completed && (_input.text.trim().isNotEmpty || _drafts.isNotEmpty);
-  void _leave() => _exitGuard.leave(context,
-      dirty: _dirty, busy: _sending || _picking || _uploading,
-      refresh: () => setState(() {}), pop: () => Navigator.of(context).pop());
+  bool get _dirty =>
+      !_completed &&
+      (_input.text.trim().isNotEmpty ||
+          _drafts.isNotEmpty ||
+          _replyTo != null ||
+          _editing != null);
+  void _leave() => _exitGuard.leave(
+    context,
+    dirty: _dirty,
+    busy: _sending || _picking || _uploading,
+    refresh: () => setState(() {}),
+    pop: () => Navigator.of(context).pop(),
+  );
   var _following = true;
   var _unseenNew = false;
   String? _error;
@@ -115,7 +129,9 @@ class _ChatConversationPageState extends State<ChatConversationPage>
     super.dispose();
   }
 
-  void _onDraftChanged() { if (mounted) setState(() {}); }
+  void _onDraftChanged() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -209,10 +225,12 @@ class _ChatConversationPageState extends State<ChatConversationPage>
           added.isNotEmpty || messages.length != _messages.length;
       final readChanged = !structureChanged && _readFlagsChanged(messages);
       final reactionsChanged = !structureChanged && _reactionsChanged(messages);
+      final detailsChanged = !structureChanged && _detailsChanged(messages);
       final statusChanged = conversation.status != _conversation?.status;
       if (!structureChanged &&
           !readChanged &&
           !reactionsChanged &&
+          !detailsChanged &&
           !statusChanged &&
           _conversation != null) {
         return;
@@ -251,6 +269,138 @@ class _ChatConversationPageState extends State<ChatConversationPage>
     }
     return false;
   }
+
+  bool _detailsChanged(List<ChatMessage> next) {
+    for (var i = 0; i < next.length && i < _messages.length; i++) {
+      final old = _messages[i];
+      final fresh = next[i];
+      if (old.id != fresh.id ||
+          old.content != fresh.content ||
+          old.editedAt != fresh.editedAt ||
+          old.deleted != fresh.deleted ||
+          old.replyTo?.content != fresh.replyTo?.content ||
+          old.replyTo?.deleted != fresh.replyTo?.deleted) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void _startReply(ChatMessage message) {
+    if (message.deleted) return;
+    _cancelEdit();
+    setState(
+      () => _replyTo = ChatReplyPreview(
+        id: message.id,
+        senderId: message.senderId,
+        senderName: message.mine
+            ? 'Tú'
+            : (_conversation?.otherDisplayName ?? 'Hincha'),
+        content: message.content.trim().isEmpty ? 'Foto' : message.content,
+      ),
+    );
+  }
+
+  void _startEdit(ChatMessage message) {
+    if (!message.mine || message.deleted || message.content.trim().isEmpty) {
+      return;
+    }
+    if (_drafts.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Termina o quita las fotos antes de editar.'),
+        ),
+      );
+      return;
+    }
+    _beforeEdit = _input.text;
+    setState(() {
+      _editing = message;
+      _replyTo = null;
+      _input.text = message.content;
+    });
+  }
+
+  void _cancelEdit() {
+    if (_editing == null) return;
+    setState(() {
+      _editing = null;
+      _input.text = _beforeEdit ?? '';
+      _beforeEdit = null;
+    });
+  }
+
+  Future<void> _delete(ChatMessage message) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Eliminar este mensaje?'),
+        content: const Text('El mensaje dejará de mostrarse en el chat.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted || !allowNetworkAction(context)) return;
+    try {
+      final tombstone = await _chat.deleteMessage(message.id);
+      if (mounted) {
+        setState(
+          () => _messages = [
+            for (final row in _messages)
+              row.id == message.id
+                  ? tombstone
+                  : row.replyTo?.id == message.id
+                  ? row.copyWith(
+                      replyTo: ChatReplyPreview(
+                        id: message.id,
+                        senderId: message.senderId,
+                        senderName: message.mine
+                            ? 'Tú'
+                            : (_conversation?.otherDisplayName ?? 'Hincha'),
+                        content: 'Mensaje eliminado',
+                        deleted: true,
+                      ),
+                    )
+                  : row,
+          ],
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No pudimos eliminar el mensaje')),
+        );
+      }
+    }
+  }
+
+  void _jumpToReply(String id) {
+    final index = _messages.indexWhere((message) => message.id == id);
+    if (index < 0 || !_scroll.hasClients) return;
+    final contextOfTarget = _messageKeys[id]?.currentContext;
+    if (contextOfTarget != null) {
+      Scrollable.ensureVisible(
+        contextOfTarget,
+        duration: const Duration(milliseconds: 220),
+      );
+      return;
+    }
+    _scroll.animateTo(
+      (index * 80.0).clamp(0.0, _scroll.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+    );
+  }
+
+  final Map<String, GlobalKey> _messageKeys = {};
 
   Future<void> _accept() async {
     if (_sending) return;
@@ -307,20 +457,58 @@ class _ChatConversationPageState extends State<ChatConversationPage>
     }
     final text = _input.text.trim();
     final ready = _readyDrafts;
-    if (text.isEmpty && ready.isEmpty) return;
+    if (text.isEmpty && (ready.isEmpty || _editing != null)) return;
     if (!allowNetworkAction(context)) return;
     setState(() => _sending = true);
     try {
-      final message = await _chat.send(
-        widget.conversationId,
-        text,
-        mediaAssetIds: ready.map((draft) => draft.assetId!).toList(),
-      );
+      final editing = _editing;
+      if (editing != null) {
+        final updated = await _chat.editMessage(editing.id, text);
+        if (!mounted) return;
+        setState(() {
+          _messages = [
+            for (final row in _messages)
+              row.id == updated.id
+                  ? updated
+                  : row.replyTo?.id == updated.id
+                  ? row.copyWith(
+                      replyTo: ChatReplyPreview(
+                        id: updated.id,
+                        senderId: updated.senderId,
+                        senderName: updated.mine
+                            ? 'Tú'
+                            : (_conversation?.otherDisplayName ?? 'Hincha'),
+                        content: updated.content,
+                        deleted: false,
+                      ),
+                    )
+                  : row,
+          ];
+          _editing = null;
+          _beforeEdit = null;
+          _sending = false;
+          _input.clear();
+        });
+        return;
+      }
+      final message = _replyTo == null
+          ? await _chat.send(
+              widget.conversationId,
+              text,
+              mediaAssetIds: ready.map((draft) => draft.assetId!).toList(),
+            )
+          : await _chat.sendReply(
+              widget.conversationId,
+              text,
+              _replyTo!.id,
+              mediaAssetIds: ready.map((draft) => draft.assetId!).toList(),
+            );
       if (!mounted) return;
       _input.clear();
       setState(() {
         _messages = [..._messages, message];
         _drafts.clear();
+        _replyTo = null;
         _sending = false;
         _unseenNew = false;
       });
@@ -423,6 +611,32 @@ class _ChatConversationPageState extends State<ChatConversationPage>
       anchor: anchor,
       alignEnd: message.mine,
       current: myChatReaction(_reactionsOf(message)),
+      actions: [
+        ChatMessageAction(
+          key: const Key('chat-action-reply'),
+          label: 'Responder',
+          icon: Icons.reply,
+          onSelected: () => _startReply(message),
+        ),
+        if (message.mine &&
+            message.content.trim().isNotEmpty &&
+            message.createdAt != null &&
+            DateTime.now().difference(message.createdAt!).inMinutes < 15)
+          ChatMessageAction(
+            key: const Key('chat-action-edit'),
+            label: 'Editar',
+            icon: Icons.edit_outlined,
+            onSelected: () => _startEdit(message),
+          ),
+        if (message.mine)
+          ChatMessageAction(
+            key: const Key('chat-action-delete'),
+            label: 'Eliminar',
+            icon: Icons.delete_outline,
+            destructive: true,
+            onSelected: () => _delete(message),
+          ),
+      ],
     );
     if (selected == null || !mounted || !_canReact) return;
     await _react(message, selected, anchor);
@@ -487,36 +701,42 @@ class _ChatConversationPageState extends State<ChatConversationPage>
     final conversation = _conversation;
     final colors = context.garraColors;
     return PopScope(
-      canPop: _exitGuard.canPop(dirty: _dirty, busy: _sending || _picking || _uploading),
-      onPopInvokedWithResult: (didPop, _) { if (!didPop) _leave(); },
-      child: Scaffold(
-      resizeToAvoidBottomInset: true,
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        leading: BackButton(onPressed: _leave),
-        titleSpacing: 0,
-        title: conversation == null
-            ? const Text('Mensajes')
-            : _header(conversation),
+      canPop: _exitGuard.canPop(
+        dirty: _dirty,
+        busy: _sending || _picking || _uploading,
       ),
-      body: ChatBackdrop(
-        child: Column(
-          children: [
-            if (conversation != null) _statusBanner(conversation),
-            Expanded(child: _transcript()),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: colors.surfaceRaised,
-                border: Border(
-                  top: BorderSide(color: colors.border, width: 0.5),
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _leave();
+      },
+      child: Scaffold(
+        resizeToAvoidBottomInset: true,
+        backgroundColor: colors.background,
+        appBar: AppBar(
+          leading: BackButton(onPressed: _leave),
+          titleSpacing: 0,
+          title: conversation == null
+              ? const Text('Mensajes')
+              : _header(conversation),
+        ),
+        body: ChatBackdrop(
+          child: Column(
+            children: [
+              if (conversation != null) _statusBanner(conversation),
+              Expanded(child: _transcript()),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: colors.surfaceRaised,
+                  border: Border(
+                    top: BorderSide(color: colors.border, width: 0.5),
+                  ),
                 ),
+                child: SafeArea(top: false, child: _footer(conversation)),
               ),
-              child: SafeArea(top: false, child: _footer(conversation)),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _header(ChatConversation conversation) {
@@ -651,11 +871,26 @@ class _ChatConversationPageState extends State<ChatConversationPage>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (_editing != null)
+            ListTile(
+              dense: true,
+              title: const Text('Editar mensaje'),
+              trailing: IconButton(
+                tooltip: 'Cancelar edición',
+                onPressed: _cancelEdit,
+                icon: const Icon(Icons.close),
+              ),
+            ),
+          if (_replyTo != null)
+            ChatReplyTile(
+              reply: _replyTo!,
+              onCancel: () => setState(() => _replyTo = null),
+            ),
           if (_drafts.isNotEmpty) _draftStrip(),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              if (canWrite)
+              if (canWrite && _editing == null)
                 IconButton(
                   key: const Key('chat-attach-photo'),
                   tooltip: 'Adjuntar foto',
@@ -705,7 +940,9 @@ class _ChatConversationPageState extends State<ChatConversationPage>
                       },
                   style: TextStyle(fontSize: 15, color: colors.textPrimary),
                   decoration: InputDecoration(
-                    hintText: canWrite
+                    hintText: _editing != null
+                        ? 'Editar mensaje...'
+                        : canWrite
                         ? 'Escribe un mensaje...'
                         : ChatRequestCopy.resolve(
                             conversation: conversation,
@@ -733,7 +970,8 @@ class _ChatConversationPageState extends State<ChatConversationPage>
                 valueListenable: _input,
                 builder: (context, value, _) {
                   final hasContent =
-                      value.text.trim().isNotEmpty || _readyDrafts.isNotEmpty;
+                      value.text.trim().isNotEmpty ||
+                      (_editing == null && _readyDrafts.isNotEmpty);
                   // Disabled (visually and for semantics) until there is text
                   // or a ready photo; media-only messages can be sent. Stays
                   // disabled while a photo uploads or a message is sending.
@@ -741,7 +979,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
                       canWrite && !_sending && !_uploading && hasContent;
                   return IconButton(
                     key: const Key('chat-send'),
-                    tooltip: 'Enviar',
+                    tooltip: _editing == null ? 'Enviar' : 'Guardar edición',
                     onPressed: enabled ? _send : null,
                     style: IconButton.styleFrom(
                       backgroundColor: colors.brandPrimary,
@@ -821,8 +1059,11 @@ class _ChatConversationPageState extends State<ChatConversationPage>
                                   media: _media,
                                   drafts: _drafts,
                                   failed: draft,
-                                  update: (change) { if (mounted) setState(change); },
-                                  canUpload: () => mounted && allowNetworkAction(context),
+                                  update: (change) {
+                                    if (mounted) setState(change);
+                                  },
+                                  canUpload: () =>
+                                      mounted && allowNetworkAction(context),
                                   cancelToken: _uploadCancelToken,
                                 ),
                               )
@@ -964,6 +1205,17 @@ class _ChatConversationPageState extends State<ChatConversationPage>
   Widget _bubble(ChatMessageEntry entry, double maxWidth) {
     final colors = context.garraColors;
     final message = entry.message;
+    if (message.deleted) {
+      return Align(
+        alignment: message.mine ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          key: Key('chat-tombstone-${message.id}'),
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          padding: const EdgeInsets.all(12),
+          child: const Text('Mensaje eliminado'),
+        ),
+      );
+    }
     final mine = message.mine;
     final background = mine ? colors.brandPrimary : colors.surfaceRaised;
     final foreground = mine ? colors.onBrand : colors.textPrimary;
@@ -1003,6 +1255,11 @@ class _ChatConversationPageState extends State<ChatConversationPage>
             ? CrossAxisAlignment.end
             : CrossAxisAlignment.start,
         children: [
+          if (message.replyTo != null)
+            ChatReplyTile(
+              reply: message.replyTo!,
+              onTap: () => _jumpToReply(message.replyTo!.id),
+            ),
           if (images.isNotEmpty)
             Padding(
               padding: EdgeInsets.only(bottom: hasText ? 6 : 0),
@@ -1012,7 +1269,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
               ),
             ),
           if (hasText)
-            Text(
+            ChatLinkedText(
               message.content,
               style: TextStyle(color: foreground, fontSize: 15, height: 1.3),
             ),
@@ -1022,24 +1279,33 @@ class _ChatConversationPageState extends State<ChatConversationPage>
     );
     // CHAT_REACTIONS_13: long press on the whole bubble (text, photos, own or
     // other) opens the picker; taps still reach the photos (media viewer).
-    final interactive = Builder(
-      builder: (bubbleContext) => Semantics(
-        onLongPressHint: canReact ? 'Reaccionar al mensaje' : null,
-        customSemanticsActions: canReact
-            ? {
-                const CustomSemanticsAction(
-                  label: 'Reaccionar al mensaje',
-                ): () =>
-                    _openReactions(bubbleContext, message),
-              }
-            : null,
-        child: GestureDetector(
-          key: Key('chat-bubble-gesture-${message.id}'),
-          behavior: HitTestBehavior.opaque,
-          onLongPress: canReact
-              ? () => _openReactions(bubbleContext, message)
+    final interactive = KeyedSubtree(
+      key: _messageKeys.putIfAbsent(message.id, () => GlobalKey()),
+      child: Builder(
+        builder: (bubbleContext) => Semantics(
+          onLongPressHint: canReact ? 'Reaccionar al mensaje' : null,
+          customSemanticsActions: canReact
+              ? {
+                  const CustomSemanticsAction(
+                    label: 'Reaccionar al mensaje',
+                  ): () =>
+                      _openReactions(bubbleContext, message),
+                }
               : null,
-          child: bubble,
+          child: GestureDetector(
+            key: Key('chat-bubble-gesture-${message.id}'),
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragEnd: (details) {
+              if (details.primaryVelocity != null &&
+                  details.primaryVelocity! > 250) {
+                _startReply(message);
+              }
+            },
+            onLongPress: canReact
+                ? () => _openReactions(bubbleContext, message)
+                : null,
+            child: bubble,
+          ),
         ),
       ),
     );
@@ -1075,7 +1341,11 @@ class _ChatConversationPageState extends State<ChatConversationPage>
     final status = message.mine
         ? (message.read ? 'Le\u00eddo' : 'Enviado')
         : null;
-    final parts = [if (time.isNotEmpty) time, ?status];
+    final parts = [
+      if (time.isNotEmpty) time,
+      if (message.editedAt != null) 'editado',
+      ?status,
+    ];
     if (parts.isEmpty) return const SizedBox.shrink();
     final semantics = message.mine
         ? '${status!}${time.isEmpty ? '' : ', enviado a las $time'}'

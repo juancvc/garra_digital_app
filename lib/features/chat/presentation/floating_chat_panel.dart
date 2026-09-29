@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
@@ -15,7 +16,9 @@ import '../data/chat_image_uploads.dart';
 import '../data/chat_models.dart';
 import '../data/chat_service.dart';
 import 'chat_media_grid.dart';
+import 'chat_linked_text.dart';
 import 'chat_message_reactions.dart';
+import 'chat_reply_tile.dart';
 import 'chat_request_copy.dart';
 
 /// Short video stays off until physical QA. Images are the V1 attachment.
@@ -93,12 +96,15 @@ class _FloatingChatPanel extends StatefulWidget {
   State<_FloatingChatPanel> createState() => _FloatingChatPanelState();
 }
 
-class _FloatingChatPanelState extends State<_FloatingChatPanel> {
+class _FloatingChatPanelState extends State<_FloatingChatPanel>
+    with WidgetsBindingObserver {
   late final ChatService _chat = widget.chatService ?? ChatService();
   final _input = TextEditingController();
   final _media = MediaUploadService();
   final List<MediaDraft> _drafts = [];
   final CancelToken _uploadCancelToken = CancelToken();
+  Timer? _poll;
+  bool _reconciling = false;
   ChatConversation? _conversation;
   List<ChatMessage> _messages = const [];
   var _loading = true;
@@ -106,12 +112,21 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
   var _composingRequest = false;
   final _exitGuard = DraftExitGuard();
   String _initialText = '';
-  bool get _dirty => (_input.text.trim().isNotEmpty && _input.text != _initialText) || _drafts.isNotEmpty;
-  bool get _uploading => _drafts.any((draft) =>
-      draft.state != MediaUploadState.ready && draft.state != MediaUploadState.failed);
-  void _leave() => _exitGuard.leave(context,
-      dirty: _dirty, busy: _sending || _uploading,
-      refresh: () => setState(() {}), pop: () => Navigator.pop(context));
+  bool get _dirty =>
+      (_input.text.trim().isNotEmpty && _input.text != _initialText) ||
+      _drafts.isNotEmpty;
+  bool get _uploading => _drafts.any(
+    (draft) =>
+        draft.state != MediaUploadState.ready &&
+        draft.state != MediaUploadState.failed,
+  );
+  void _leave() => _exitGuard.leave(
+    context,
+    dirty: _dirty,
+    busy: _sending || _uploading,
+    refresh: () => setState(() {}),
+    pop: () => Navigator.pop(context),
+  );
   String? _error;
 
   ChatRequestCopy get _requestCopy => ChatRequestCopy.resolve(
@@ -123,6 +138,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final relationship = widget.relationship;
     final title = widget.listingTitle?.trim() ?? '';
     final hasThread =
@@ -155,13 +171,58 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
 
   @override
   void dispose() {
+    _poll?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _input.removeListener(_onDraftChanged);
     _uploadCancelToken.cancel();
     _input.dispose();
     super.dispose();
   }
 
-  void _onDraftChanged() { if (mounted) setState(() {}); }
+  void _onDraftChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _startPolling();
+      _reconcile();
+    } else {
+      _poll?.cancel();
+      _poll = null;
+    }
+  }
+
+  void _startPolling() {
+    _poll?.cancel();
+    if (!mounted || _conversation == null) return;
+    final interval = _conversation!.status == 'PENDING'
+        ? const Duration(seconds: 3)
+        : const Duration(seconds: 5);
+    _poll = Timer.periodic(interval, (_) => _reconcile());
+  }
+
+  Future<void> _reconcile() async {
+    final id = _conversation?.id;
+    if (!mounted || id == null || _reconciling || _sending) return;
+    _reconciling = true;
+    try {
+      final updated = await _chat.conversation(id);
+      final messages = await _chat.messages(id);
+      if (!mounted || _conversation?.id != id) return;
+      final statusChanged = updated.status != _conversation?.status;
+      setState(() {
+        _conversation = updated;
+        _messages = messages;
+      });
+      if (statusChanged) _startPolling();
+    } catch (_) {
+      // Keep the visible conversation and retry on the next bounded tick.
+    } finally {
+      _reconciling = false;
+    }
+  }
 
   Future<void> _load(String conversationId) async {
     setState(() {
@@ -178,6 +239,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
         _composingRequest = false;
         _loading = false;
       });
+      _startPolling();
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -217,6 +279,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
         _sending = false;
         _input.clear();
       });
+      _startPolling();
     } catch (_) {
       if (!mounted) return;
       setState(() => _sending = false);
@@ -255,6 +318,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
         _sending = false;
         _input.clear();
       });
+      _startPolling();
     } catch (_) {
       if (!mounted) return;
       setState(() => _sending = false);
@@ -341,6 +405,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
         _conversation = accepted;
         _sending = false;
       });
+      _startPolling();
     } catch (_) {
       if (!mounted) return;
       setState(() => _sending = false);
@@ -367,75 +432,78 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
                     : 'Chat'));
     return PopScope(
       canPop: _exitGuard.canPop(dirty: _dirty, busy: _sending || _uploading),
-      onPopInvokedWithResult: (didPop, _) { if (!didPop) _leave(); },
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _leave();
+      },
       child: Material(
-      key: const Key('floating-chat-panel'),
-      color: context.garraColors.background,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          const SizedBox(height: 8),
-          Container(
-            width: 42,
-            height: 4,
-            decoration: BoxDecoration(
-              color: context.garraColors.border,
-              borderRadius: BorderRadius.circular(99),
+        key: const Key('floating-chat-panel'),
+        color: context.garraColors.background,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: context.garraColors.border,
+                borderRadius: BorderRadius.circular(99),
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
-            child: Row(
-              children: [
-                GarraAvatar(
-                  displayName: name,
-                  avatarUrl: _conversation?.otherAvatarUrl,
-                  size: 36,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      if (_contextLine().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+              child: Row(
+                children: [
+                  GarraAvatar(
+                    displayName: name,
+                    avatarUrl: _conversation?.otherAvatarUrl,
+                    size: 36,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          _contextLine(),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall,
+                          name,
+                          style: Theme.of(context).textTheme.titleMedium,
                         ),
-                    ],
+                        if (_contextLine().isNotEmpty)
+                          Text(
+                            _contextLine(),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                if (conversation?.status == 'ACTIVE' &&
-                    GoRouter.maybeOf(context) != null)
+                  if (conversation?.status == 'ACTIVE' &&
+                      GoRouter.maybeOf(context) != null)
+                    IconButton(
+                      key: const Key('floating-chat-open-full'),
+                      tooltip: 'Abrir conversaci\u00f3n',
+                      onPressed: _openFullConversation,
+                      icon: const Icon(Icons.open_in_full),
+                    ),
                   IconButton(
-                    key: const Key('floating-chat-open-full'),
-                    tooltip: 'Abrir conversaci\u00f3n',
-                    onPressed: _openFullConversation,
-                    icon: const Icon(Icons.open_in_full),
+                    key: const Key('floating-chat-close'),
+                    tooltip: 'Cerrar',
+                    onPressed: _leave,
+                    icon: const Icon(Icons.close),
                   ),
-                IconButton(
-                  key: const Key('floating-chat-close'),
-                  tooltip: 'Cerrar',
-                  onPressed: _leave,
-                  icon: const Icon(Icons.close),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const Divider(height: 1, color: Color(GarraColors.borderSubtle)),
-          if (conversation != null) _banner(conversation),
-          Expanded(child: _body()),
-          _footer(conversation),
-        ],
+            const Divider(height: 1, color: Color(GarraColors.borderSubtle)),
+            if (conversation != null) _banner(conversation),
+            Expanded(child: _body()),
+            _footer(conversation),
+          ],
+        ),
       ),
-    ));
+    );
   }
 
   String _contextLine() {
@@ -523,10 +591,14 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (message.media.isNotEmpty)
+                if (message.replyTo != null)
+                  ChatReplyTile(reply: message.replyTo!),
+                if (message.deleted)
+                  const Text('Mensaje eliminado')
+                else if (message.media.isNotEmpty)
                   ChatImageStrip(media: message.media),
-                if (message.content.trim().isNotEmpty)
-                  Text(
+                if (!message.deleted && message.content.trim().isNotEmpty)
+                  ChatLinkedText(
                     message.content,
                     style: TextStyle(
                       color: message.mine
@@ -534,11 +606,13 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
                           : context.garraColors.textPrimary,
                     ),
                   ),
+                if (!message.deleted && message.editedAt != null)
+                  const Text('editado', style: TextStyle(fontSize: 11)),
               ],
             ),
           ),
         );
-        if (!hasReactions) return bubble;
+        if (!hasReactions || message.deleted) return bubble;
         // CHAT_REACTIONS_13: read-only chips (no picker in the floating panel).
         return Column(
           crossAxisAlignment: message.mine
@@ -642,8 +716,11 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel> {
                                 media: _media,
                                 drafts: _drafts,
                                 failed: draft,
-                                update: (change) { if (mounted) setState(change); },
-                                canUpload: () => mounted && allowNetworkAction(context),
+                                update: (change) {
+                                  if (mounted) setState(change);
+                                },
+                                canUpload: () =>
+                                    mounted && allowNetworkAction(context),
                                 cancelToken: _uploadCancelToken,
                               ),
                             ),

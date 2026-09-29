@@ -61,6 +61,8 @@ class CommunityChatMessage {
     this.media = const [],
     this.reactions = const [],
     this.myReaction,
+    this.editedAt,
+    this.replyTo,
   });
 
   final String id;
@@ -76,6 +78,8 @@ class CommunityChatMessage {
   final List<ChatMediaItem> media;
   final List<ChatMessageReactionSummary> reactions;
   final String? myReaction;
+  final DateTime? editedAt;
+  final ChatReplyPreview? replyTo;
 
   bool get isVisible => status == communityMessageVisible;
   bool get isDeletedByAuthor => status == communityMessageDeletedByAuthor;
@@ -89,6 +93,7 @@ class CommunityChatMessage {
     List<ChatMessageReactionSummary>? reactions,
     String? myReaction,
     bool clearMyReaction = false,
+    ChatReplyPreview? replyTo,
   }) {
     return CommunityChatMessage(
       id: id,
@@ -102,6 +107,8 @@ class CommunityChatMessage {
       media: media,
       reactions: reactions ?? this.reactions,
       myReaction: clearMyReaction ? null : (myReaction ?? this.myReaction),
+      editedAt: editedAt,
+      replyTo: replyTo ?? this.replyTo,
     );
   }
 
@@ -136,6 +143,12 @@ class CommunityChatMessage {
       reactions: visible ? parseChatReactions(json['reactions']) : const [],
       myReaction: visible
           ? ReactionType.tryParse(json['myReaction']?.toString())?.apiValue
+          : null,
+      editedAt: _date(json['editedAt']),
+      replyTo: json['replyTo'] is Map
+          ? ChatReplyPreview.fromJson(
+              Map<String, dynamic>.from(json['replyTo'] as Map),
+            )
           : null,
     );
   }
@@ -322,5 +335,23 @@ List<CommunityChatMessage> mergeCommunityMessages(
     }
   }
   final merged = byId.values.toList()..sort((a, b) => a.seq.compareTo(b.seq));
-  return List.unmodifiable(merged);
+  return List.unmodifiable([
+    for (final message in merged)
+      if (message.replyTo == null || byId[message.replyTo!.id] == null)
+        message
+      else
+        message.copyWith(
+          replyTo: ChatReplyPreview(
+            id: message.replyTo!.id,
+            senderId: byId[message.replyTo!.id]!.sender.id,
+            senderName: byId[message.replyTo!.id]!.sender.label,
+            content: byId[message.replyTo!.id]!.isTombstone
+                ? 'Mensaje eliminado'
+                : ((byId[message.replyTo!.id]!.content ?? '').trim().isNotEmpty
+                      ? byId[message.replyTo!.id]!.content!
+                      : 'Foto'),
+            deleted: byId[message.replyTo!.id]!.isTombstone,
+          ),
+        ),
+  ]);
 }
