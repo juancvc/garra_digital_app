@@ -923,6 +923,11 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
               ),
               children: [
                 _PostHeader(post: post),
+                if (post.isFollowersOnly)
+                  const Tooltip(
+                    message: 'Las publicaciones para seguidores no se pueden compartir',
+                    child: Text('Solo seguidores'),
+                  ),
                 const SizedBox(height: GarraSpacing.md),
                 LinkedText(
                   post.content,
@@ -966,7 +971,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   onReact: _onReact,
                   onChangeReaction: () => _onReact(change: true),
                   onComment: _focusComposer,
-                  onShare: () => _openShareSheet(post),
+                  onShare: post.isFollowersOnly ? null : () => _openShareSheet(post),
                 ),
                 const SizedBox(height: GarraSpacing.xl),
                 Text(
@@ -1240,7 +1245,7 @@ class _PostActionRow extends StatelessWidget {
   final VoidCallback onReact;
   final VoidCallback? onChangeReaction;
   final VoidCallback onComment;
-  final VoidCallback onShare;
+  final VoidCallback? onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -1255,7 +1260,7 @@ class _PostActionRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(
+          if (onShare != null) Expanded(
             child: _PostActionButton(
               key: const ValueKey('reaction_cta'),
               icon: reacted

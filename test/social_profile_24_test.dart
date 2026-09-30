@@ -141,13 +141,29 @@ void main() {
     ),
         'https://instagram.com.evil.test/ana');
     tester.testTextInput.hide();
-    await tester.scrollUntilVisible(find.text('Guardar cambios'), 200,
-        scrollable: find.byType(Scrollable).first);
-    await tester.drag(find.byType(Scrollable).first, const Offset(0, -120));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Guardar cambios'));
     await tester.pump();
     expect(find.text('Enlace de INSTAGRAM no válido'), findsOneWidget);
     expect(find.text('https://instagram.com.evil.test/ana'), findsOneWidget);
+  });
+
+  testWidgets('profile save stays reachable above keyboard on a small screen',
+      (tester) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(ProviderScope(overrides: [
+      myPassportProvider.overrideWith((ref) async => _passport()),
+    ], child: const MaterialApp(home: ProfileEditScreen())));
+    await tester.pumpAndSettle();
+    tester.view.viewInsets = const FakeViewPadding(bottom: 260);
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pumpAndSettle();
+    expect(find.text('Guardar cambios').hitTestable(), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('YouTube'), 180,
+        scrollable: find.byType(Scrollable).first);
+    expect(find.text('YouTube'), findsOneWidget);
   });
 }

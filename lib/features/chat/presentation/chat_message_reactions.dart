@@ -302,6 +302,42 @@ Future<ReactionType?> showChatReactionPicker(
   List<ChatMessageAction> actions = const [],
 }) {
   final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+  if (actions.isNotEmpty) {
+    return showModalBottomSheet<ReactionType>(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      showDragHandle: true,
+      constraints: const BoxConstraints(maxWidth: 420),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ChatReactionPicker(
+                selected: current,
+                onSelected: (type) {
+                  HapticFeedback.selectionClick();
+                  Navigator.of(sheetContext).pop(type);
+                },
+              ),
+              const SizedBox(height: 12),
+              _ChatMessageActionsBar(
+                actions: actions,
+                onTap: (action) {
+                  HapticFeedback.selectionClick();
+                  Navigator.of(sheetContext).pop();
+                  action.onSelected();
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
   return Navigator.of(context, rootNavigator: true).push<ReactionType>(
     _ChatReactionPickerRoute(
       anchor: anchor,

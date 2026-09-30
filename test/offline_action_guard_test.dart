@@ -56,6 +56,7 @@ class _Community extends CommunityService {
     List<String>? mediaAssetIds,
     String? locationTag,
     PostLocation? postLocation,
+    String visibility = 'PUBLIC',
   }) async {
     calls++;
     return WallActionResult.success(message: 'ok');

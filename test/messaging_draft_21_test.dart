@@ -21,7 +21,7 @@ class _Posts extends CommunityService {
   @override
   Future<WallActionResult> createGlobalPost({required String content,
       String? mediaAssetId, List<String>? mediaAssetIds, String? locationTag,
-      PostLocation? postLocation}) async {
+      PostLocation? postLocation, String visibility = 'PUBLIC'}) async {
     calls++;
     if (fail) throw Exception('network');
     return WallActionResult.success(message: 'ok', post: WallPostModel(

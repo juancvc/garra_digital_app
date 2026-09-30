@@ -56,9 +56,11 @@ class _CreateCommunityPostPageState
   final _exitGuard = DraftExitGuard();
   String? _error;
   PostLocation? _postLocation;
+  String _visibility = 'PUBLIC';
 
   bool get _dirty => !_completed &&
-      (_content.text.trim().isNotEmpty || _drafts.isNotEmpty || _postLocation != null);
+      (_content.text.trim().isNotEmpty || _drafts.isNotEmpty ||
+          _postLocation != null || _visibility != 'PUBLIC');
 
   bool get _busy => _publishing || _drafts.any((draft) =>
       draft.state == MediaUploadState.signing ||
@@ -239,6 +241,7 @@ class _CreateCommunityPostPageState
       } else {
         final result = await _community.createGlobalPost(
           content: text,
+          visibility: _visibility,
           mediaAssetIds: readyIds.isEmpty ? null : readyIds,
           postLocation: _postLocation,
         );
@@ -341,6 +344,23 @@ class _CreateCommunityPostPageState
           ),
           MentionAutocomplete(controller: _content,
               search: (query) => searchGlobalMentions(_community, query)),
+          if (!_isMatchScoped)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: GarraSpacing.lg),
+              child: DropdownButtonFormField<String>(
+                key: const ValueKey('post-visibility'),
+                initialValue: _visibility,
+                decoration: const InputDecoration(
+                  labelText: 'Quién puede ver esta publicación'),
+                items: const [
+                  DropdownMenuItem(value: 'PUBLIC', child: Text('Todo Garra')),
+                  DropdownMenuItem(value: 'FOLLOWERS', child: Text('Mis seguidores')),
+                ],
+                onChanged: (value) {
+                  if (value != null) setState(() => _visibility = value);
+                },
+              ),
+            ),
           if (_drafts.isNotEmpty)
             SizedBox(
               height: 104,

@@ -80,9 +80,6 @@ void main() {
     await tester.ensureVisible(year);
     await tester.enterText(year, '1800');
     tester.testTextInput.hide();
-    await tester.scrollUntilVisible(find.text('Guardar cambios'), 200,
-        scrollable: find.byType(Scrollable).first);
-    await tester.drag(find.byType(Scrollable).first, const Offset(0, -150));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Guardar cambios'));
     await tester.pump();

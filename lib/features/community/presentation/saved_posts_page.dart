@@ -119,7 +119,7 @@ class _SavedPostsPageState extends State<SavedPostsPage> {
                                     viewCount: post.viewCount,
                                     myReaction: post.myReaction,
                                   ),
-                                  Align(
+                                  if (!post.isFollowersOnly) Align(
                                     alignment: Alignment.centerRight,
                                     child: IconButton(
                                       onPressed: () => Share.share('${post.fullName}: ${post.content}'),

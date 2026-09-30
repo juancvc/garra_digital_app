@@ -31,6 +31,7 @@ class WallPostModel {
     this.originalPost,
     this.postLocation,
     this.mentions = const [],
+    this.visibility = 'PUBLIC',
   });
 
   final String id;
@@ -62,6 +63,9 @@ class WallPostModel {
   final SharedOriginalPostModel? originalPost;
   final PostLocation? postLocation;
   final List<MentionSpan> mentions;
+  final String visibility;
+
+  bool get isFollowersOnly => visibility == 'FOLLOWERS';
 
   bool get isShare => originalPost != null;
 
@@ -117,6 +121,7 @@ class WallPostModel {
           ? PostLocation.fromJson(Map<String, dynamic>.from(json['postLocation'] as Map))
           : null,
       mentions: parseMentionSpans(json['mentions']),
+      visibility: json['visibility']?.toString() ?? 'PUBLIC',
     );
   }
 
@@ -149,6 +154,7 @@ class WallPostModel {
     SharedOriginalPostModel? originalPost,
     PostLocation? postLocation,
     List<MentionSpan>? mentions,
+    String? visibility,
   }) {
     return WallPostModel(
       id: id ?? this.id,
@@ -178,6 +184,7 @@ class WallPostModel {
       originalPost: originalPost ?? this.originalPost,
       postLocation: postLocation ?? this.postLocation,
       mentions: mentions ?? this.mentions,
+      visibility: visibility ?? this.visibility,
     );
   }
 }

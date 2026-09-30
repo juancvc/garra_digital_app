@@ -107,6 +107,12 @@ class GarraSocialPostCard extends StatelessWidget {
                               )),
                             ],
                           ),
+                          if (post.isFollowersOnly)
+                            const Tooltip(
+                              message: 'Las publicaciones para seguidores no se pueden compartir',
+                              child: Text('Solo seguidores',
+                                  style: TextStyle(fontSize: 11)),
+                            ),
                         ],
                       ),
                     ),
@@ -246,6 +252,7 @@ class GarraSocialPostCard extends StatelessWidget {
                   label: 'Comentar',
                   onTap: onComment ?? onOpenOriginal ?? onOpen,
                 )),
+                if (!engagement.isFollowersOnly)
                 Expanded(child: _PostAction(
                   icon: const Icon(Icons.ios_share_rounded),
                   label: 'Compartir',

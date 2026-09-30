@@ -27,6 +27,7 @@ import '../../chat/presentation/chat_message_reactions.dart';
 import '../../chat/presentation/chat_unread_badge.dart';
 import '../../chat/presentation/chat_linked_text.dart';
 import '../../chat/presentation/chat_reply_tile.dart';
+import '../../chat/presentation/chat_swipe_to_reply.dart';
 import '../../clans/presentation/clan_moderation_dialogs.dart';
 import '../../clans/presentation/providers/clans_provider.dart';
 import '../../community/data/reaction_type.dart';
@@ -1421,15 +1422,9 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
                       _openReactions(bubbleContext, message),
                 }
               : null,
-          child: GestureDetector(
+          child: ChatSwipeToReply(
             key: Key('community-chat-bubble-gesture-${message.id}'),
-            behavior: HitTestBehavior.opaque,
-            onHorizontalDragEnd: (details) {
-              if (details.primaryVelocity != null &&
-                  details.primaryVelocity! > 250) {
-                _startReply(message);
-              }
-            },
+            onReply: () => _startReply(message),
             onLongPress: canReact
                 ? () => _openReactions(bubbleContext, message)
                 : null,

@@ -18,6 +18,9 @@ Future<GarraShareOutcome?> showGarraShareSheet(
   required WallPostModel post,
   required CommunityService service,
 }) {
+  if ((post.originalPost?.asPost() ?? post).isFollowersOnly) {
+    return Future.value(null);
+  }
   final original = post.originalPost;
   final postId = original?.id ?? post.id;
   final sharedByMe = post.sharedByMe;

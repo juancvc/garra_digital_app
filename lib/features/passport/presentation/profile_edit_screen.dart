@@ -249,6 +249,21 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       child: Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(leading: BackButton(onPressed: _leave), title: const Text('Editar perfil')),
+      bottomNavigationBar: passportAsync.maybeWhen(
+        data: (_) => SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              GarraSpacing.lg, GarraSpacing.sm, GarraSpacing.lg, GarraSpacing.sm),
+            child: IntrinsicHeight(child: GarraFormActionBar(
+              label: 'Guardar cambios',
+              loading: _loading,
+              onPressed: _submit,
+            )),
+          ),
+        ),
+        orElse: () => null,
+      ),
       body: passportAsync.when(
         loading: () => const GarraPassportSkeleton(),
         error: (error, stackTrace) => GarraErrorState(
@@ -267,7 +282,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                 GarraSpacing.lg,
                 GarraSpacing.md,
                 GarraSpacing.lg,
-                GarraSpacing.xl + MediaQuery.viewInsetsOf(context).bottom,
+                GarraSpacing.xl,
               ),
               children: [
                 Center(
@@ -402,11 +417,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                     GarraTextField(label: 'YouTube', controller: _youtube,
                       helper: '@canal o enlace de canal'),
                   ],
-                ),
-                GarraFormActionBar(
-                  label: 'Guardar cambios',
-                  loading: _loading,
-                  onPressed: _submit,
                 ),
               ],
             ),

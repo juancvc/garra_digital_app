@@ -209,6 +209,7 @@ class CommunityService {
 
   Future<WallActionResult> createGlobalPost({
     required String content,
+    String visibility = 'PUBLIC',
     String? mediaAssetId,
     List<String>? mediaAssetIds,
     String? locationTag,
@@ -225,6 +226,7 @@ class CommunityService {
         '/community/posts',
         data: {
           'content': content,
+          'visibility': visibility,
           if (ids.length == 1) 'mediaAssetId': ids.first,
           if (ids.isNotEmpty) 'mediaAssetIds': ids,
           if (locationTag != null) 'locationTag': locationTag,

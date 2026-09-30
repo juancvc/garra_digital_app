@@ -187,12 +187,6 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).first, 'A');
-    await tester.scrollUntilVisible(
-      find.text('Guardar cambios'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.drag(find.byType(Scrollable).first, const Offset(0, -160));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Guardar cambios'));
     await tester.pump();
@@ -226,12 +220,6 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).first, 'Nuevo Nombre');
-    await tester.scrollUntilVisible(
-      find.text('Guardar cambios'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.drag(find.byType(Scrollable).first, const Offset(0, -160));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Guardar cambios'));
     await tester.pumpAndSettle();

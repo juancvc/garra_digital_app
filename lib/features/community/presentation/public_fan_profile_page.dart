@@ -133,7 +133,13 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
   void _openFollows(bool followers) {
     Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => ProfileFollowsPage(userId: widget.userId,
-          followers: followers, service: _service),
+          followers: followers, service: _service,
+          ownerIsMe: _profile?['isMe'] == true,
+          onOwnFollowingCountChanged: (delta) {
+            if (!mounted || _profile == null) return;
+            setState(() => _profile!['followingCount'] =
+                ((_profile!['followingCount'] as num?)?.toInt() ?? 0) + delta);
+          }),
     ));
   }
 

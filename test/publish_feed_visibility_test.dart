@@ -34,6 +34,7 @@ class FakeService extends CommunityService {
   int feedCalls = 0;
   List<WallPostModel> feed = [post('old', 'Post anterior')];
   List<String>? uploadedIds;
+  String? submittedVisibility;
   Completer<WallActionResult>? pending;
   WallActionResult result = WallActionResult.success(
     message: 'ok',
@@ -53,8 +54,10 @@ class FakeService extends CommunityService {
     List<String>? mediaAssetIds,
     String? locationTag,
     PostLocation? postLocation,
+    String visibility = 'PUBLIC',
   }) async {
     creates++;
+    submittedVisibility = visibility;
     uploadedIds = mediaAssetIds;
     return pending?.future ?? result;
   }
@@ -122,6 +125,25 @@ Future<void> openComposer(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('GLOBAL defaults PUBLIC and can publish to followers', (tester) async {
+    final service = FakeService();
+    await mountFeed(tester, service, 'RECENT');
+    await openComposer(tester);
+    expect(find.text('Todo Garra'), findsOneWidget);
+    await tester.tap(find.text('Todo Garra'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mis seguidores').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(find.text('¿Descartar borrador?'), findsOneWidget);
+    await tester.tap(find.text('Seguir editando'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'Solo seguidores');
+    await tester.tap(find.text('Publicar'));
+    await tester.pumpAndSettle();
+    expect(service.submittedVisibility, 'FOLLOWERS');
+  });
   testWidgets(
     'publish shows progress, blocks duplicate tap, then inserts once in FOR_YOU',
     (tester) async {

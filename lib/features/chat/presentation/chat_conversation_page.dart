@@ -30,6 +30,7 @@ import 'chat_timeline.dart';
 import 'chat_unread_badge.dart';
 import 'chat_linked_text.dart';
 import 'chat_reply_tile.dart';
+import 'chat_swipe_to_reply.dart';
 
 /// Distance to the bottom (px) that still counts as following the thread.
 const double chatFollowThreshold = 120;
@@ -1292,15 +1293,9 @@ class _ChatConversationPageState extends State<ChatConversationPage>
                       _openReactions(bubbleContext, message),
                 }
               : null,
-          child: GestureDetector(
+          child: ChatSwipeToReply(
             key: Key('chat-bubble-gesture-${message.id}'),
-            behavior: HitTestBehavior.opaque,
-            onHorizontalDragEnd: (details) {
-              if (details.primaryVelocity != null &&
-                  details.primaryVelocity! > 250) {
-                _startReply(message);
-              }
-            },
+            onReply: () => _startReply(message),
             onLongPress: canReact
                 ? () => _openReactions(bubbleContext, message)
                 : null,

@@ -39,7 +39,7 @@ class FakePosts extends CommunityService {
   @override
   Future<WallActionResult> createGlobalPost({required String content,
     String? mediaAssetId, List<String>? mediaAssetIds, String? locationTag,
-    PostLocation? postLocation}) async {
+    PostLocation? postLocation, String visibility = 'PUBLIC'}) async {
     submitted = postLocation;
     calls++;
     return WallActionResult.success(message: 'ok');
