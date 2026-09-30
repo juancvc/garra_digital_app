@@ -7,6 +7,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/media/media_upload_service.dart';
 import '../../../core/network/offline_action_guard.dart';
@@ -15,6 +16,7 @@ import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/utils/garra_message_time.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_states.dart';
+import '../../../core/widgets/mention_autocomplete.dart';
 import '../../chat/data/chat_image_uploads.dart';
 import '../../chat/data/chat_models.dart';
 import '../../chat/presentation/chat_backdrop.dart';
@@ -1398,6 +1400,8 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
           if (hasText)
             ChatLinkedText(
               content,
+              mentions: message.mentions,
+              onOpenMention: (id) => context.push('/comunidad/u/$id'),
               style: TextStyle(color: foreground, fontSize: 15, height: 1.3),
             ),
           if (entry.lastInGroup) _meta(message, foreground, mediaOnly),
@@ -1532,6 +1536,8 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
               onCancel: () => setState(() => _replyTo = null),
             ),
           if (_drafts.isNotEmpty) _draftStrip(),
+          MentionAutocomplete(controller: _input,
+              search: (query) => _service.mentionCandidates(_slug, query)),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [

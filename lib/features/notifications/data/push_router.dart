@@ -21,6 +21,14 @@ class PushRouter {
     if (ref == 'POST' && id.isNotEmpty) {
       return '/muro-crema/posts/$id';
     }
+    if (ref.startsWith('POST_COMMENT:') && id.isNotEmpty) {
+      final postId = (referenceType ?? '').substring('POST_COMMENT:'.length);
+      if (postId.isNotEmpty) return '/muro-crema/posts/$postId?commentId=$id';
+    }
+    if (ref.startsWith('COMMUNITY_CHAT:') && id.isNotEmpty) {
+      final slug = (referenceType ?? '').substring('COMMUNITY_CHAT:'.length);
+      if (slug.isNotEmpty) return '/clans/${Uri.encodeComponent(slug)}/chat?messageId=$id';
+    }
     // Invitation deep link — never treat invitation UUID as a clan slug.
     if (ref == 'CLAN_INVITATION') {
       return '/clans/invitations';

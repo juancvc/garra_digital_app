@@ -1,5 +1,6 @@
 import '../../chat/data/chat_models.dart';
 import '../../community/data/reaction_type.dart';
+import '../../../core/widgets/mention_span.dart';
 
 /// COMMUNITY_GROUP_CHAT_14B: models of the community group chat
 /// (`/clans/{slug}/chat`, backend CommunityChatDtos). Media items and reaction
@@ -63,6 +64,7 @@ class CommunityChatMessage {
     this.myReaction,
     this.editedAt,
     this.replyTo,
+    this.mentions = const [],
   });
 
   final String id;
@@ -80,6 +82,7 @@ class CommunityChatMessage {
   final String? myReaction;
   final DateTime? editedAt;
   final ChatReplyPreview? replyTo;
+  final List<MentionSpan> mentions;
 
   bool get isVisible => status == communityMessageVisible;
   bool get isDeletedByAuthor => status == communityMessageDeletedByAuthor;
@@ -109,6 +112,7 @@ class CommunityChatMessage {
       myReaction: clearMyReaction ? null : (myReaction ?? this.myReaction),
       editedAt: editedAt,
       replyTo: replyTo ?? this.replyTo,
+      mentions: mentions,
     );
   }
 
@@ -150,6 +154,7 @@ class CommunityChatMessage {
               Map<String, dynamic>.from(json['replyTo'] as Map),
             )
           : null,
+      mentions: visible ? parseMentionSpans(json['mentions']) : const [],
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'reaction_type.dart';
 import 'post_location.dart';
+import '../../../core/widgets/mention_span.dart';
 
 class WallPostModel {
   const WallPostModel({
@@ -29,6 +30,7 @@ class WallPostModel {
     this.sharedByMe = false,
     this.originalPost,
     this.postLocation,
+    this.mentions = const [],
   });
 
   final String id;
@@ -59,6 +61,7 @@ class WallPostModel {
   final bool sharedByMe;
   final SharedOriginalPostModel? originalPost;
   final PostLocation? postLocation;
+  final List<MentionSpan> mentions;
 
   bool get isShare => originalPost != null;
 
@@ -113,6 +116,7 @@ class WallPostModel {
       postLocation: json['postLocation'] is Map
           ? PostLocation.fromJson(Map<String, dynamic>.from(json['postLocation'] as Map))
           : null,
+      mentions: parseMentionSpans(json['mentions']),
     );
   }
 
@@ -144,6 +148,7 @@ class WallPostModel {
     bool? sharedByMe,
     SharedOriginalPostModel? originalPost,
     PostLocation? postLocation,
+    List<MentionSpan>? mentions,
   }) {
     return WallPostModel(
       id: id ?? this.id,
@@ -172,6 +177,7 @@ class WallPostModel {
       sharedByMe: sharedByMe ?? this.sharedByMe,
       originalPost: originalPost ?? this.originalPost,
       postLocation: postLocation ?? this.postLocation,
+      mentions: mentions ?? this.mentions,
     );
   }
 }
@@ -182,7 +188,7 @@ class SharedOriginalPostModel {
     this.imageUrl, this.media = const [], this.shareCount = 0,
     this.createdAt = '', this.reactionSummary = const {}, this.reactionCount = 0,
     this.commentCount = 0, this.myReaction, this.viewCount = 0,
-    this.sharedByMe = false, this.postLocation});
+    this.sharedByMe = false, this.postLocation, this.mentions = const []});
 
   final String id;
   final String authorId;
@@ -200,6 +206,7 @@ class SharedOriginalPostModel {
   final int viewCount;
   final bool sharedByMe;
   final PostLocation? postLocation;
+  final List<MentionSpan> mentions;
 
   WallPostModel asPost() => WallPostModel(
     id: id, username: username, fullName: fullName, content: content,
@@ -209,6 +216,7 @@ class SharedOriginalPostModel {
     reactionSummary: reactionSummary, reactionCount: reactionCount,
     commentCount: commentCount, myReaction: myReaction, viewCount: viewCount,
     postLocation: postLocation,
+    mentions: mentions,
   );
 
   factory SharedOriginalPostModel.fromJson(Map<String, dynamic> json) =>
@@ -234,6 +242,7 @@ class SharedOriginalPostModel {
         postLocation: json['postLocation'] is Map
             ? PostLocation.fromJson(Map<String, dynamic>.from(json['postLocation'] as Map))
             : null,
+        mentions: parseMentionSpans(json['mentions']),
       );
 
   SharedOriginalPostModel copyWith({int? shareCount, bool? sharedByMe,
@@ -250,6 +259,7 @@ class SharedOriginalPostModel {
       myReaction: clearMyReaction ? null : myReaction ?? this.myReaction,
       viewCount: viewCount,
       postLocation: postLocation,
+      mentions: mentions,
     );
 }
 

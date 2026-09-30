@@ -7,6 +7,10 @@ import '../../../../core/theme/garra_semantic_colors.dart';
 import '../../../../core/utils/date_utils.dart';
 import '../../../../core/widgets/garra_avatar.dart';
 import '../../../../core/widgets/garra_sheet.dart';
+import '../../../../core/widgets/linked_text.dart';
+import '../../../../core/widgets/mention_autocomplete.dart';
+import '../../data/mention_search.dart';
+import '../../data/community_service.dart';
 import '../../data/reaction_type.dart';
 import '../../data/wall_comment_model.dart';
 import 'garra_comment_reactions.dart';
@@ -127,32 +131,20 @@ class GarraCommentTile extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 2),
-                if (comment.replyToUsername != null)
-                  Text.rich(
-                    key: ValueKey('comment_reply_to_${comment.id}'),
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: '@${comment.replyToUsername} ',
-                          style: TextStyle(
-                            color: colors.brandPrimary,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        TextSpan(text: comment.content),
-                      ],
-                    ),
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: colors.textPrimary,
-                    ),
-                  )
-                else
-                  Text(
-                    comment.content,
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: colors.textPrimary,
-                    ),
-                  ),
+                LinkedText(
+                  comment.content,
+                  key: comment.replyToUsername == null ? null
+                      : ValueKey('comment_reply_to_${comment.id}'),
+                  prefix: comment.replyToUsername == null ? null
+                      : '@${comment.replyToUsername} ',
+                  prefixStyle: TextStyle(color: colors.brandPrimary,
+                      fontWeight: FontWeight.w800),
+                  mentions: comment.mentions,
+                  onOpenMention: (id) => context.push('/comunidad/u/$id'),
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colors.textPrimary,
+                  ) ?? const TextStyle(),
+                ),
                 const SizedBox(height: 2),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -509,6 +501,8 @@ class _GarraEditCommentSheetState extends State<GarraEditCommentSheet> {
                 errorMaxLines: 3,
               ),
             ),
+            MentionAutocomplete(controller: _controller,
+                search: (query) => searchGlobalMentions(CommunityService(), query)),
             const SizedBox(height: GarraSpacing.sm),
             Row(
               children: [

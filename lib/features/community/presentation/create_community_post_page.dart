@@ -13,6 +13,8 @@ import '../../../core/media/media_upload_service.dart';
 import '../../../core/network/offline_action_guard.dart';
 import '../../../core/navigation/draft_exit_guard.dart';
 import '../data/community_service.dart';
+import '../data/mention_search.dart';
+import '../../../core/widgets/mention_autocomplete.dart';
 import '../data/create_wall_post_request.dart';
 import '../data/wall_post_model.dart';
 import '../data/post_location.dart';
@@ -337,6 +339,8 @@ class _CreateCommunityPostPageState
               ),
             ),
           ),
+          MentionAutocomplete(controller: _content,
+              search: (query) => searchGlobalMentions(_community, query)),
           if (_drafts.isNotEmpty)
             SizedBox(
               height: 104,

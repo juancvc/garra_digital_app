@@ -11,6 +11,9 @@ import '../../../core/network/offline_action_guard.dart';
 import '../../../core/navigation/draft_exit_guard.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
+import '../../../core/widgets/mention_autocomplete.dart';
+import '../../community/data/mention_search.dart';
+import '../../community/data/community_service.dart';
 import '../../community/data/community_report.dart';
 import '../../community/data/engagement_utils.dart';
 import '../../community/data/garra_view_tracker.dart';
@@ -383,6 +386,8 @@ class _ClanComposer extends StatelessWidget {
             maxLines: 3,
             decoration: InputDecoration(hintText: 'Escribe en $clanName'),
           ),
+          MentionAutocomplete(controller: controller,
+              search: (query) => searchGlobalMentions(CommunityService(), query)),
           const SizedBox(height: GarraSpacing.sm),
           Row(
             children: [

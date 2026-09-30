@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/utils/date_utils.dart';
 import '../../../../core/utils/garra_count_format.dart';
@@ -184,6 +185,8 @@ class GarraSocialPostCard extends StatelessWidget {
                       Text(original.fullName, style: Theme.of(context).textTheme.titleSmall),
                       const SizedBox(height: 3),
                       LinkedText(original.content, maxLines: 4,
+                          mentions: original.mentions,
+                          onOpenMention: (id) => context.push('/comunidad/u/$id'),
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodyMedium ??
                               const TextStyle()),
@@ -204,6 +207,8 @@ class GarraSocialPostCard extends StatelessWidget {
                 )
               else ...[
                 LinkedText(post.content, maxLines: 4,
+                    mentions: post.mentions,
+                    onOpenMention: (id) => context.push('/comunidad/u/$id'),
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyMedium ??
                         const TextStyle()),

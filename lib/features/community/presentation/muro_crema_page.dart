@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/widgets/mention_autocomplete.dart';
+import '../data/mention_search.dart';
+import '../data/community_service.dart';
 
 import '../../../core/auth/current_fan_provider.dart';
 import '../../../core/network/offline_action_guard.dart';
@@ -705,6 +708,8 @@ class _CreatePostCard extends StatelessWidget {
                 isDense: true,
               ),
             ),
+            MentionAutocomplete(controller: controller,
+                search: (query) => searchGlobalMentions(CommunityService(), query)),
             const SizedBox(height: 4),
             const Text(
               '¿Desde dónde alientas?',
@@ -987,6 +992,8 @@ class _WallPostCardState extends ConsumerState<_WallPostCard> {
                   const SizedBox(height: 10),
                   LinkedText(
                     post.content,
+                    mentions: post.mentions,
+                    onOpenMention: (id) => context.push('/comunidad/u/$id'),
                     maxLines: 4,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(

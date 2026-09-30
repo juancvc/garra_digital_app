@@ -1,4 +1,5 @@
 import 'reaction_type.dart';
+import '../../../core/widgets/mention_span.dart';
 
 class WallCommentModel {
   const WallCommentModel({
@@ -19,6 +20,7 @@ class WallCommentModel {
     this.parentCommentId,
     this.replyCount = 0,
     this.replyToUsername,
+    this.mentions = const [],
   });
 
   final String id;
@@ -48,6 +50,7 @@ class WallCommentModel {
   /// Author being answered when replying to a reply (rendered as "@usuario",
   /// never part of [content]).
   final String? replyToUsername;
+  final List<MentionSpan> mentions;
 
   bool get isEdited => editedAt != null && editedAt!.isNotEmpty;
 
@@ -84,6 +87,7 @@ class WallCommentModel {
       parentCommentId: _nonEmpty(json['parentCommentId']),
       replyCount: (json['replyCount'] as num?)?.toInt() ?? 0,
       replyToUsername: _nonEmpty(json['replyToUsername']),
+      mentions: parseMentionSpans(json['mentions']),
     );
   }
 
@@ -104,6 +108,7 @@ class WallCommentModel {
     String? myReaction,
     bool clearMyReaction = false,
     int? replyCount,
+    List<MentionSpan>? mentions,
   }) {
     return WallCommentModel(
       id: id,
@@ -123,6 +128,7 @@ class WallCommentModel {
       parentCommentId: parentCommentId,
       replyCount: replyCount ?? this.replyCount,
       replyToUsername: replyToUsername,
+      mentions: mentions ?? this.mentions,
     );
   }
 }

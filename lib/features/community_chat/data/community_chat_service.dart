@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/dio_client.dart';
 import '../../community/data/reaction_type.dart';
 import 'community_chat_models.dart';
+import '../../../core/widgets/mention_autocomplete.dart';
 
 /// Error of a community chat call. [statusCode] drives the UX (403 access
 /// lost / read-only, 404 unavailable); the backend text is never shown.
@@ -31,6 +32,20 @@ class CommunityChatService {
   static const int pageSize = 30;
 
   String _base(String slug) => '/clans/${Uri.encodeComponent(slug)}/chat';
+
+  Future<List<MentionCandidate>> mentionCandidates(String slug, String query) async {
+    final response = await _dio.get('${_base(slug)}/mentions',
+        queryParameters: {'q': query});
+    final raw = response.data is Map ? response.data['data'] : null;
+    if (raw is! List) return const [];
+    return raw.whereType<Map>().map((item) => MentionCandidate(
+      id: item['id']?.toString() ?? '',
+      username: item['username']?.toString() ?? '',
+      displayName: item['displayName']?.toString() ?? '',
+      avatarUrl: item['avatarUrl']?.toString(),
+    )).where((item) => item.id.isNotEmpty &&
+        isMentionableUsername(item.username)).toList();
+  }
 
   /// GET /clans/{slug}/chat
   Future<CommunityChatInfo> info(String slug) async {

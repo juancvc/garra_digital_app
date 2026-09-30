@@ -22,6 +22,9 @@ import '../data/garra_view_tracker.dart';
 import '../data/reaction_type.dart';
 import '../data/wall_comment_model.dart';
 import '../data/wall_post_model.dart';
+import '../data/community_service.dart';
+import '../data/mention_search.dart';
+import '../../../core/widgets/mention_autocomplete.dart';
 import 'providers/community_provider.dart';
 import 'widgets/garra_comment_reactions.dart';
 import 'widgets/garra_comment_tile.dart';
@@ -923,6 +926,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 const SizedBox(height: GarraSpacing.md),
                 LinkedText(
                   post.content,
+                  mentions: post.mentions,
+                  onOpenMention: (id) => context.push('/comunidad/u/$id'),
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: context.garraColors.textPrimary,
                     height: 1.35,
@@ -1393,6 +1398,8 @@ class _CommentComposer extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              MentionAutocomplete(controller: controller,
+                  search: (query) => searchGlobalMentions(CommunityService(), query)),
               if (replyingTo != null)
                 Padding(
                   key: const ValueKey('reply_mode_bar'),
