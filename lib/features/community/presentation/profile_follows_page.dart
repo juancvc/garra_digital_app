@@ -88,39 +88,60 @@ class _ProfileFollowsPageState extends ConsumerState<ProfileFollowsPage> {
             final action = _busyId != null || id.isEmpty
                 ? null : () => _toggle(person);
             final colors = context.garraColors;
-            return ListTile(
+            final button = followed
+                ? OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colors.textSecondary,
+                      side: BorderSide(color: colors.border),
+                      minimumSize: const Size(0, 32),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: action,
+                    child: Text(_busyId == id ? '...' : 'Dejar de seguir'),
+                  )
+                : FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: colors.brandPrimary,
+                      foregroundColor: colors.onBrand,
+                      minimumSize: const Size(0, 32),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: action,
+                    child: Text(_busyId == id ? '...' : 'Seguir'),
+                  );
+            return LayoutBuilder(builder: (context, constraints) {
+              final inline = !isSelf && constraints.maxWidth >= 350 &&
+                  MediaQuery.textScalerOf(context).scale(14) <= 17;
+              return ListTile(
               leading: GarraAvatar(displayName: name,
                   avatarUrl: person['avatarUrl']?.toString(), size: 40),
-              title: Text(name, maxLines: 2, overflow: TextOverflow.ellipsis),
-              subtitle: Column(
+              title: inline ? Row(children: [
+                Expanded(child: Text(name, maxLines: 1,
+                    overflow: TextOverflow.ellipsis)),
+                const SizedBox(width: 8),
+                SizedBox(width: 136, child: button),
+              ]) : Text(name, maxLines: 2, overflow: TextOverflow.ellipsis),
+              subtitle: inline
+                  ? username.isEmpty ? null : Text('@$username', maxLines: 1,
+                      overflow: TextOverflow.ellipsis)
+                  : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (username.isNotEmpty) Text('@$username', maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                   if (!isSelf)
-                    Align(alignment: Alignment.centerRight, child: followed
-                        ? OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: colors.danger,
-                              side: BorderSide(color: colors.danger.withValues(alpha: .5)),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                            onPressed: action,
-                            child: Text(_busyId == id ? '...' : 'Dejar de seguir'),
-                          )
-                        : FilledButton(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: colors.brandPrimary,
-                              foregroundColor: colors.onBrand,
-                              visualDensity: VisualDensity.compact,
-                            ),
-                            onPressed: action,
-                            child: Text(_busyId == id ? '...' : 'Seguir'),
-                          )),
+                    Align(alignment: Alignment.centerRight, child:
+                        ConstrainedBox(constraints: const BoxConstraints(
+                            maxWidth: 190), child: button)),
                 ],
               ),
               onTap: id.isEmpty ? null : () => context.push('/comunidad/u/$id'),
             );
+            });
           },
         );
       },

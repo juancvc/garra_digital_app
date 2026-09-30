@@ -163,6 +163,23 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('follow action is small and aligned with the user at normal width',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 740));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(ProviderScope(child: MaterialApp(home:
+      ProfileFollowsPage(userId: 'owner', followers: false,
+          service: _Follows([{'userId': 'fan-2', 'displayName': 'Dos',
+            'followedByMe': true}])))));
+    await tester.pumpAndSettle();
+    final button = find.widgetWithText(OutlinedButton, 'Dejar de seguir');
+    expect(tester.getSize(button).height, lessThanOrEqualTo(42));
+    expect(tester.getSize(button).width, lessThan(160));
+    expect((tester.getCenter(button).dy - tester.getCenter(find.text('Dos')).dy)
+        .abs(), lessThan(20));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('GPS map has selected coordinates and confirms only on tap',
       (tester) async {
     final gps = _Gps(const LocationResult(success: true, message: 'ok',

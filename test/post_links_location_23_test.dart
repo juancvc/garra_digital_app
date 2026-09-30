@@ -98,6 +98,45 @@ void main() {
     expect(find.textContaining('YouTube'), findsOneWidget);
   });
 
+  testWidgets('post location searches only its public label in external Maps',
+      (tester) async {
+    Uri? opened;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: PostLocationLabel(
+      location: const PostLocation(name: 'A.h Coronel Francisco Bolognesi',
+          kind: 'CITY_OR_AREA', latitude: -12.1, longitude: -77.0),
+      openExternal: (uri) async { opened = uri; return true; },
+    ))));
+    await tester.tap(find.text('A.h Coronel Francisco Bolognesi'));
+    await tester.pump();
+    expect(opened?.host, 'www.google.com');
+    expect(opened?.path, '/maps/search/');
+    expect(opened?.queryParameters['query'], 'A.h Coronel Francisco Bolognesi');
+    expect(opened.toString(), isNot(contains('-12.1')));
+    expect(opened.toString(), isNot(contains('-77.0')));
+    expect(opened.toString(), isNot(contains(' ')));
+  });
+
+  testWidgets('approximate area is not searched and launcher failure is safe',
+      (tester) async {
+    var calls = 0;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: Column(children: [
+      PostLocationLabel(location: const PostLocation(
+        name: 'Zona aproximada', kind: 'CITY_OR_AREA'),
+        openExternal: (_) async { calls++; return true; }),
+      PostLocationLabel(location: const PostLocation(
+        name: 'Callao', kind: 'CITY_OR_AREA'),
+        openExternal: (_) async { calls++; return false; }),
+    ]))));
+    await tester.tap(find.text('Zona aproximada'));
+    await tester.pump();
+    expect(calls, 0);
+    await tester.tap(find.text('Callao'));
+    await tester.pump();
+    expect(calls, 1);
+    expect(find.text('No se pudo abrir el mapa'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('narrow card remains within its width', (tester) async {
     final post = WallPostModel.fromJson({
       'id': 'p', 'username': 'ana', 'fullName': 'Ana', 'content': 'Vamos la U',
