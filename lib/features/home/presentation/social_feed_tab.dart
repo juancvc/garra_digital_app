@@ -448,7 +448,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
                 .push('/muro-crema/posts/${post.originalPost?.id ?? post.id}')
                 .then((_) => _load()),
             onOpenProfile:
-                mine || post.authorId == null || post.authorId!.isEmpty
+                post.authorId == null || post.authorId!.isEmpty
                 ? null
                 : () => context.push('/comunidad/u/${post.authorId}'),
             onBlock: mine || post.authorId == null || post.authorId!.isEmpty

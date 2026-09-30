@@ -895,6 +895,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       final originalId = post.originalPost!.id;
       return SingleChildScrollView(child: GarraSocialPostCard(
         post: post,
+        onOpenProfile: post.authorId == null ? null :
+            () => context.push('/comunidad/u/${post.authorId}'),
         onOpen: () => context.push('/muro-crema/posts/$originalId'),
         onOpenOriginal: () => context.push('/muro-crema/posts/$originalId'),
         onShare: () => _openShareSheet(post),
@@ -1171,7 +1173,10 @@ class _PostHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return InkWell(
+      onTap: post.authorId == null ? null :
+          () => context.push('/comunidad/u/${post.authorId}'),
+      child: Row(
       children: [
         CircleAvatar(
           radius: 22,
@@ -1209,7 +1214,7 @@ class _PostHeader extends StatelessWidget {
           ),
         ),
       ],
-    );
+    ));
   }
 }
 

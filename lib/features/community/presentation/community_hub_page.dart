@@ -390,8 +390,7 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
                               onOpen: () => context
                                   .push('/muro-crema/posts/${post.originalPost?.id ?? post.id}')
                                   .then((_) => _load()),
-                              onOpenProfile: mine ||
-                                      post.authorId == null ||
+                              onOpenProfile: post.authorId == null ||
                                       post.authorId!.isEmpty
                                   ? null
                                   : () => context.push(

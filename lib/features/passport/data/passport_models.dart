@@ -118,6 +118,9 @@ class PassportIdentity {
     this.countryCode,
     this.supporterSinceYear,
     this.memberSince,
+    this.instagramUrl,
+    this.tiktokUrl,
+    this.youtubeUrl,
   });
 
   final String username;
@@ -128,6 +131,9 @@ class PassportIdentity {
   final String? countryCode;
   final int? supporterSinceYear;
   final String? memberSince;
+  final String? instagramUrl;
+  final String? tiktokUrl;
+  final String? youtubeUrl;
 
   factory PassportIdentity.fromJson(Map<String, dynamic> json) {
     return PassportIdentity(
@@ -139,6 +145,9 @@ class PassportIdentity {
       countryCode: json['countryCode'] as String?,
       supporterSinceYear: (json['supporterSinceYear'] as num?)?.toInt(),
       memberSince: json['memberSince'] as String?,
+      instagramUrl: json['instagramUrl'] as String?,
+      tiktokUrl: json['tiktokUrl'] as String?,
+      youtubeUrl: json['youtubeUrl'] as String?,
     );
   }
 }
@@ -213,8 +222,13 @@ class ProfileUpdateRequest {
     this.city,
     this.countryCode,
     this.supporterSinceYear,
+    this.updateSupporterSinceYear = false,
     this.profileVisibility,
     this.avatarMediaAssetId,
+    this.instagramUrl,
+    this.tiktokUrl,
+    this.youtubeUrl,
+    this.updateSocialLinks = false,
   });
 
   final String? displayName;
@@ -222,8 +236,13 @@ class ProfileUpdateRequest {
   final String? city;
   final String? countryCode;
   final int? supporterSinceYear;
+  final bool updateSupporterSinceYear;
   final String? profileVisibility;
   final String? avatarMediaAssetId;
+  final String? instagramUrl;
+  final String? tiktokUrl;
+  final String? youtubeUrl;
+  final bool updateSocialLinks;
 
   Map<String, dynamic> toJson() {
     return {
@@ -231,9 +250,12 @@ class ProfileUpdateRequest {
       if (bio != null) 'bio': bio,
       if (city != null) 'city': city,
       if (countryCode != null) 'countryCode': countryCode,
-      if (supporterSinceYear != null) 'supporterSinceYear': supporterSinceYear,
+      if (updateSupporterSinceYear || supporterSinceYear != null) 'supporterSinceYear': supporterSinceYear,
       if (profileVisibility != null) 'profileVisibility': profileVisibility,
       if (avatarMediaAssetId != null) 'avatarMediaAssetId': avatarMediaAssetId,
+      if (updateSocialLinks) 'instagramUrl': instagramUrl,
+      if (updateSocialLinks) 'tiktokUrl': tiktokUrl,
+      if (updateSocialLinks) 'youtubeUrl': youtubeUrl,
     };
   }
 }

@@ -79,9 +79,15 @@ void main() {
     final year = find.byKey(const Key('profile-supporter-year'));
     await tester.ensureVisible(year);
     await tester.enterText(year, '1800');
-    await tester.ensureVisible(find.text('Guardar cambios'));
+    tester.testTextInput.hide();
+    await tester.scrollUntilVisible(find.text('Guardar cambios'), 200,
+        scrollable: find.byType(Scrollable).first);
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -150));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Guardar cambios'));
     await tester.pump();
+    await tester.scrollUntilVisible(find.text('Crema desde'), -200,
+        scrollable: find.byType(Scrollable).first);
     expect(find.text('Año no válido'), findsOneWidget);
   });
 

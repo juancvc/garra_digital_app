@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -31,6 +32,9 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   late final TextEditingController _bio;
   late final TextEditingController _city;
   late final TextEditingController _year;
+  late final TextEditingController _instagram;
+  late final TextEditingController _tiktok;
+  late final TextEditingController _youtube;
   late final MediaUploadService _media;
   String _visibility = 'PUBLIC';
   String _country = 'PE';
@@ -45,7 +49,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   final _exitGuard = DraftExitGuard();
   String? _initialSnapshot;
   String get _snapshot => [_displayName.text, _bio.text, _city.text, _year.text,
-      _visibility, _country, _avatarAssetId ?? ''].join('\u0000');
+      _visibility, _country, _avatarAssetId ?? '', _instagram.text,
+      _tiktok.text, _youtube.text].join('\u0000');
   bool get _dirty => !_completed && _seeded &&
       (_snapshot != _initialSnapshot || _selectedAvatar != null);
   void _leave() => _exitGuard.leave(context, dirty: _dirty,
@@ -61,7 +66,10 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     _bio = TextEditingController();
     _city = TextEditingController();
     _year = TextEditingController();
-    for (final controller in [_displayName, _bio, _city, _year]) {
+    _instagram = TextEditingController();
+    _tiktok = TextEditingController();
+    _youtube = TextEditingController();
+    for (final controller in [_displayName, _bio, _city, _year, _instagram, _tiktok, _youtube]) {
       controller.addListener(_onDraftChanged);
     }
     _media = widget.media ?? MediaUploadService();
@@ -70,13 +78,16 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   @override
   void dispose() {
     _uploadCancelToken.cancel();
-    for (final controller in [_displayName, _bio, _city, _year]) {
+    for (final controller in [_displayName, _bio, _city, _year, _instagram, _tiktok, _youtube]) {
       controller.removeListener(_onDraftChanged);
     }
     _displayName.dispose();
     _bio.dispose();
     _city.dispose();
     _year.dispose();
+    _instagram.dispose();
+    _tiktok.dispose();
+    _youtube.dispose();
     super.dispose();
   }
 
@@ -92,6 +103,9 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     _year.text = passport.identity.supporterSinceYear?.toString() ?? '';
     _visibility = passport.profileVisibility;
     _avatarUrl = passport.identity.avatarUrl;
+    _instagram.text = passport.identity.instagramUrl ?? '';
+    _tiktok.text = passport.identity.tiktokUrl ?? '';
+    _youtube.text = passport.identity.youtubeUrl ?? '';
     _initialSnapshot = _snapshot;
     _seeded = true;
   }
@@ -191,8 +205,13 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
               supporterSinceYear: yearText.isEmpty
                   ? null
                   : int.tryParse(yearText),
+              updateSupporterSinceYear: true,
               profileVisibility: _visibility,
               avatarMediaAssetId: _avatarAssetId,
+              instagramUrl: _instagram.text.trim(),
+              tiktokUrl: _tiktok.text.trim(),
+              youtubeUrl: _youtube.text.trim(),
+              updateSocialLinks: true,
             ),
           );
       ref.invalidate(myPassportProvider);
@@ -202,6 +221,14 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
         context,
       ).showSnackBar(const SnackBar(content: Text('Perfil actualizado')));
       context.pop();
+    } on DioException catch (error) {
+      if (!mounted) return;
+      final data = error.response?.data;
+      final message = data is Map ? data['message']?.toString() : null;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(message != null && message.startsWith('Enlace de ')
+            ? message : 'No se pudo guardar el perfil'),
+      ));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -234,6 +261,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
           return Form(
             key: _formKey,
             child: ListView(
+              scrollCacheExtent: const ScrollCacheExtent.pixels(3000),
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: EdgeInsets.fromLTRB(
                 GarraSpacing.lg,
@@ -362,6 +390,17 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                         if (value != null) setState(() => _visibility = value);
                       },
                     ),
+                  ],
+                ),
+                GarraFormSection(
+                  title: 'MIS REDES SOCIALES',
+                  children: [
+                    GarraTextField(label: 'Instagram', controller: _instagram,
+                      helper: '@usuario o enlace de perfil'),
+                    GarraTextField(label: 'TikTok', controller: _tiktok,
+                      helper: '@usuario o enlace de perfil'),
+                    GarraTextField(label: 'YouTube', controller: _youtube,
+                      helper: '@canal o enlace de canal'),
                   ],
                 ),
                 GarraFormActionBar(

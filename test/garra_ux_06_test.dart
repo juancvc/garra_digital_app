@@ -426,8 +426,8 @@ void main() {
     ) async {
       await pumpProfile(tester);
       expect(find.byKey(const Key('profile-post-p1')), findsOneWidget);
-      expect(find.text('Comentar'), findsOneWidget);
-      expect(find.text('Ver 3 comentarios'), findsOneWidget);
+      expect(find.text('Comentar'), findsNWidgets(2));
+      expect(find.text('3 comentarios'), findsOneWidget);
 
       await tester.tap(find.text('Post p1 de Ana'));
       await tester.pumpAndSettle();
@@ -438,7 +438,10 @@ void main() {
       tester,
     ) async {
       await pumpProfile(tester);
-      await tester.tap(find.byKey(const Key('profile-post-comments-p2')));
+      await tester.tap(find.descendant(
+        of: find.byKey(const Key('profile-post-p2')),
+        matching: find.text('Comentar'),
+      ));
       await tester.pumpAndSettle();
       expect(find.text('DETAIL:p2'), findsOneWidget);
     });

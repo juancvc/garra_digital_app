@@ -201,6 +201,7 @@ void main() {
       -300,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.pumpAndSettle();
     expect(find.text('Mínimo 2 caracteres'), findsOneWidget);
   });
 

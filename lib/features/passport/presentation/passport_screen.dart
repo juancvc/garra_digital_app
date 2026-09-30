@@ -21,6 +21,7 @@ import '../../retention/data/retention_service.dart';
 import '../../retention/presentation/season_progress_page.dart';
 import '../data/passport_models.dart';
 import 'providers/passport_provider.dart';
+import 'social_profile_links.dart';
 
 class PassportScreen extends ConsumerWidget {
   const PassportScreen({super.key});
@@ -476,6 +477,11 @@ class _ProfileHero extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
         ],
+        SocialProfileLinks(
+          instagramUrl: identity.instagramUrl,
+          tiktokUrl: identity.tiktokUrl,
+          youtubeUrl: identity.youtubeUrl,
+        ),
         const SizedBox(height: GarraSpacing.lg),
         GarraSectionAtmosphere(
           padding: const EdgeInsets.symmetric(

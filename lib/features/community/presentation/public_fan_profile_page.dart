@@ -18,8 +18,10 @@ import '../data/community_report.dart';
 import '../data/community_service.dart';
 import '../data/garra_view_tracker.dart';
 import '../data/wall_post_model.dart';
-import 'widgets/garra_post_media_grid.dart';
 import 'widgets/garra_report_sheet.dart';
+import 'widgets/garra_social_post_card.dart';
+import 'profile_follows_page.dart';
+import '../../passport/presentation/social_profile_links.dart';
 
 class PublicFanProfilePage extends StatefulWidget {
   const PublicFanProfilePage({
@@ -46,6 +48,10 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
   bool _loading = true;
   String? _error;
   bool _busy = false;
+  List<WallPostModel> _posts = [];
+  String? _postsCursor;
+  bool _postsHasNext = false;
+  bool _postsLoading = false;
 
   @override
   void initState() {
@@ -60,6 +66,11 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
     });
     try {
       final profile = await _service.getPublicProfile(widget.userId);
+      final privateVisitor = profile['profileVisibility'] == 'PRIVATE' && profile['isMe'] != true;
+      final postPage = privateVisitor ? null :
+          <String, dynamic>{'items': profile['globalPosts'] ?? <dynamic>[],
+            'page': {'hasNext': profile['globalPostsHasNext'] == true,
+              'nextCursor': profile['globalPostsNextCursor']}};
       var relationship = ChatRelationship.none();
       if (profile['isMe'] != true) {
         try {
@@ -71,6 +82,7 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
       if (!mounted) return;
       setState(() {
         _profile = profile;
+        _applyPostsPage(postPage, replace: true);
         _chatRelationship = relationship;
         _loading = false;
       });
@@ -86,6 +98,43 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
         _loading = false;
       });
     }
+  }
+
+  void _applyPostsPage(Map<String, dynamic>? page, {required bool replace}) {
+    final raw = page?['items'];
+    final incoming = raw is List
+        ? raw.whereType<Map>().map((e) => WallPostModel.fromJson(Map<String, dynamic>.from(e))).toList()
+        : <WallPostModel>[];
+    final existing = replace ? <WallPostModel>[] : _posts;
+    final seen = <String>{};
+    _posts = [...existing, ...incoming].where((post) => seen.add(post.id)).toList();
+    final info = page?['page'];
+    _postsHasNext = info is Map && info['hasNext'] == true;
+    _postsCursor = info is Map ? info['nextCursor']?.toString() : null;
+  }
+
+  Future<void> _loadMorePosts() async {
+    if (_postsLoading || !_postsHasNext) return;
+    setState(() => _postsLoading = true);
+    try {
+      final page = await _service.getPublicProfilePostsPage(widget.userId, cursor: _postsCursor);
+      if (mounted) setState(() => _applyPostsPage(page, replace: false));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudieron cargar más publicaciones')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _postsLoading = false);
+    }
+  }
+
+  void _openFollows(bool followers) {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => ProfileFollowsPage(userId: widget.userId,
+          followers: followers, service: _service),
+    ));
   }
 
   Future<void> _toggleFollow() async {
@@ -167,7 +216,8 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
   Widget _messageButton() {
     final relationship = _chatRelationship;
     final pendingIn = relationship.isPending && !relationship.outgoing;
-    final label = pendingIn ? 'Aceptar chat' : 'Mensaje';
+    final label = pendingIn ? 'Aceptar chat' :
+        relationship.isPending && relationship.outgoing ? 'Solicitud enviada' : 'Mensaje';
     final colors = context.garraColors;
     return OutlinedButton.icon(
       key: const Key('profile-message-action'),
@@ -253,13 +303,8 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
     final followed = p['isFollowedByMe'] == true;
     final blocked = p['isBlockedByMe'] == true;
     final isMe = p['isMe'] == true;
-    final rawPosts = p['globalPosts'];
-    final posts = rawPosts is List
-        ? rawPosts
-              .whereType<Map>()
-              .map((e) => WallPostModel.fromJson(Map<String, dynamic>.from(e)))
-              .toList()
-        : <WallPostModel>[];
+    final posts = _posts;
+    final privateVisitor = p['profileVisibility'] == 'PRIVATE' && !isMe;
 
     final colors = context.garraColors;
     final displayName = name.isEmpty ? username : name;
@@ -279,7 +324,17 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
           sinceYear: sinceYear,
         ),
         const SizedBox(height: GarraSpacing.lg),
-        Container(
+        if (!privateVisitor && p['primaryClanName'] != null)
+          Text('Comunidad: ${p['primaryClanName']}', textAlign: TextAlign.center),
+        if (!privateVisitor && (p['bio']?.toString().isNotEmpty ?? false))
+          Padding(padding: const EdgeInsets.only(top: 12),
+              child: Text(p['bio'].toString(), textAlign: TextAlign.center)),
+        if (!privateVisitor) SocialProfileLinks(
+          instagramUrl: p['instagramUrl']?.toString(),
+          tiktokUrl: p['tiktokUrl']?.toString(),
+          youtubeUrl: p['youtubeUrl']?.toString(),
+        ),
+        if (!privateVisitor) Container(
           key: const Key('profile-stats'),
           padding: const EdgeInsets.symmetric(vertical: GarraSpacing.md),
           decoration: BoxDecoration(
@@ -290,8 +345,8 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
           child: Row(
             children: [
               _Stat(label: 'Publicaciones', value: '$postCount'),
-              _Stat(label: 'Seguidores', value: '$followers'),
-              _Stat(label: 'Siguiendo', value: '$following'),
+              _Stat(label: 'Seguidores', value: '$followers', onTap: () => _openFollows(true)),
+              _Stat(label: 'Siguiendo', value: '$following', onTap: () => _openFollows(false)),
             ],
           ),
         ),
@@ -365,58 +420,28 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
                   ),
           ),
         const SizedBox(height: GarraSpacing.lg),
-        const GarraSectionHeader(title: 'Publicaciones'),
-        const SizedBox(height: GarraSpacing.md),
-        if (posts.isEmpty)
+        if (!privateVisitor) const GarraSectionHeader(title: 'Publicaciones'),
+        if (!privateVisitor) const SizedBox(height: GarraSpacing.md),
+        if (!privateVisitor && posts.isEmpty)
           const GarraEmptyState(
             title: 'Sin publicaciones',
             message: 'Este hincha aún no publicó en la comunidad.',
           )
-        else
-          ...posts.map(
-            (post) => Padding(
-              padding: const EdgeInsets.only(bottom: GarraSpacing.md),
-              child: GarraCard(
-                key: Key('profile-post-${post.id}'),
-                onTap: () => context.push('/muro-crema/posts/${post.id}'),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      post.content,
-                      maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if ((post.imageUrl != null && post.imageUrl!.isNotEmpty) ||
-                        post.media.isNotEmpty) ...[
-                      const SizedBox(height: GarraSpacing.sm),
-                      GarraPostMediaGrid(
-                        media: post.media,
-                        legacyImageUrl: post.imageUrl,
-                      ),
-                    ],
-                    const SizedBox(height: GarraSpacing.xs),
-                    TextButton.icon(
-                      key: Key('profile-post-comments-${post.id}'),
-                      onPressed: () =>
-                          context.push('/muro-crema/posts/${post.id}'),
-                      icon: const Icon(
-                        Icons.chat_bubble_outline_rounded,
-                        size: 18,
-                      ),
-                      label: Text(
-                        post.commentCount == 0
-                            ? 'Comentar'
-                            : post.commentCount == 1
-                            ? 'Ver 1 comentario'
-                            : 'Ver ${post.commentCount} comentarios',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+        else if (!privateVisitor)
+          ...posts.map((post) => GarraSocialPostCard(
+            key: Key('profile-post-${post.id}'),
+            post: post,
+            onOpen: () => context.push('/muro-crema/posts/${post.id}'),
+            onReact: () => context.push('/muro-crema/posts/${post.id}'),
+            onComment: () => context.push('/muro-crema/posts/${post.id}'),
+            onShare: () => context.push('/muro-crema/posts/${post.id}'),
+            onOpenProfile: () => context.push('/comunidad/u/${post.authorId}'),
+            onOpenOriginal: post.originalPost == null ? null :
+                () => context.push('/muro-crema/posts/${post.originalPost!.id}'),
+          )),
+        if (!privateVisitor && _postsHasNext)
+          TextButton(onPressed: _postsLoading ? null : _loadMorePosts,
+              child: Text(_postsLoading ? 'Cargando...' : 'Ver más publicaciones')),
       ],
     );
   }
@@ -595,15 +620,16 @@ class _ProfileViews extends StatelessWidget {
 }
 
 class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value});
+  const _Stat({required this.label, required this.value, this.onTap});
 
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Column(
+      child: InkWell(onTap: onTap, child: Column(
         children: [
           Text(
             value,
@@ -619,7 +645,7 @@ class _Stat extends StatelessWidget {
             ),
           ),
         ],
-      ),
+      )),
     );
   }
 }

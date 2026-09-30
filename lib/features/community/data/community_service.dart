@@ -287,6 +287,18 @@ class CommunityService {
     return Map<String, dynamic>.from(response.data['data'] as Map);
   }
 
+  Future<Map<String, dynamic>> getPublicProfilePostsPage(String userId, {String? cursor}) async {
+    final response = await _dio.get('/community/users/$userId/posts/page',
+        queryParameters: {if (cursor != null) 'cursor': cursor});
+    return Map<String, dynamic>.from(response.data['data'] as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> getProfileFollows(String userId, {required bool followers}) async {
+    final response = await _dio.get('/community/users/$userId/${followers ? 'followers' : 'following'}');
+    final List data = response.data['data'] ?? [];
+    return data.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+  }
+
   /// ANALYTICS_12: registers a real view of someone else's post. The backend
   /// dedupes per viewer+post (rolling 24h) and ignores the author's own views.
   /// Best-effort: never throws; returns null when the request fails.
