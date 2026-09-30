@@ -1,4 +1,5 @@
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter/services.dart';
 
 class LocationResult {
   const LocationResult({
@@ -17,6 +18,22 @@ class LocationResult {
 }
 
 class AppLocationService {
+  static const _socialAreaChannel = MethodChannel(
+      'com.garradigital.app/social_area');
+
+  /// Resolves only a district/locality/region. The native side omits streets.
+  Future<String?> resolveSocialArea(double latitude, double longitude) async {
+    try {
+      final label = await _socialAreaChannel.invokeMethod<String>(
+          'resolveSocialArea', {'latitude': latitude, 'longitude': longitude})
+          .timeout(const Duration(seconds: 5));
+      final cleaned = label?.trim();
+      return cleaned == null || cleaned.isEmpty ? null : cleaned;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<LocationResult> getCurrentLocation() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();

@@ -42,8 +42,8 @@ class _PostLocationPickerState extends State<PostLocationPicker> {
   Future<void> _useCurrentLocation() async {
     if (_locating) return;
     setState(() => _locating = true);
-    final result = await (widget.gpsService ?? AppLocationService())
-        .getCurrentLocation();
+    final gpsService = widget.gpsService ?? AppLocationService();
+    final result = await gpsService.getCurrentLocation();
     if (!mounted) return;
     setState(() => _locating = false);
     if (!result.success || result.latitude == null || result.longitude == null ||
@@ -57,6 +57,7 @@ class _PostLocationPickerState extends State<PostLocationPicker> {
         Navigator.of(context).push<PostLocation>(
       MaterialPageRoute(builder: (_) => _CurrentPostLocationMap(
         latitude: result.latitude!, longitude: result.longitude!,
+        areaService: gpsService,
       )),
     ));
     if (mounted && selected != null) Navigator.of(context).pop(selected);
@@ -158,9 +159,11 @@ Future<PostLocation?> pickPostLocation(BuildContext context,
 
 /// GPS is local map context only. No precise coordinate leaves this screen.
 class _CurrentPostLocationMap extends StatefulWidget {
-  const _CurrentPostLocationMap({required this.latitude, required this.longitude});
+  const _CurrentPostLocationMap({required this.latitude, required this.longitude,
+    required this.areaService});
   final double latitude;
   final double longitude;
+  final AppLocationService areaService;
 
   @override
   State<_CurrentPostLocationMap> createState() => _CurrentPostLocationMapState();
@@ -169,6 +172,43 @@ class _CurrentPostLocationMap extends StatefulWidget {
 class _CurrentPostLocationMapState extends State<_CurrentPostLocationMap> {
   final _label = TextEditingController();
   late LatLng _selected = LatLng(widget.latitude, widget.longitude);
+  late Future<String?> _areaLookup;
+  String? _resolvedArea;
+  bool _resolving = true;
+  bool _confirming = false;
+  int _lookupVersion = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveArea(_selected);
+  }
+
+  void _resolveArea(LatLng point) {
+    final version = ++_lookupVersion;
+    _areaLookup = widget.areaService.resolveSocialArea(
+        point.latitude, point.longitude);
+    _areaLookup.then((area) {
+      if (!mounted || version != _lookupVersion) return;
+      setState(() {
+        _resolvedArea = area;
+        _resolving = false;
+      });
+    });
+  }
+
+  Future<void> _confirm() async {
+    if (_confirming) return;
+    final manual = _label.text.trim();
+    if (manual.isNotEmpty) {
+      Navigator.pop(context, confirmedPostArea(manual));
+      return;
+    }
+    setState(() => _confirming = true);
+    final area = _resolvedArea ?? await _areaLookup;
+    if (!mounted) return;
+    Navigator.pop(context, confirmedPostArea(area ?? _approximateAreaLabel));
+  }
 
   @override
   void dispose() {
@@ -182,20 +222,30 @@ class _CurrentPostLocationMapState extends State<_CurrentPostLocationMap> {
     body: Column(children: [
       Expanded(child: GoogleMap(
         initialCameraPosition: CameraPosition(target: _selected, zoom: 12),
-        onTap: (point) => setState(() => _selected = point),
+        onTap: _confirming ? null : (point) {
+          setState(() {
+            _selected = point;
+            _resolvedArea = null;
+            _resolving = true;
+          });
+          _resolveArea(point);
+        },
         markers: {Marker(markerId: const MarkerId('selected'), position: _selected)},
         myLocationButtonEnabled: false,
       )),
       SafeArea(top: false, child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Row(children: [
-            Icon(Icons.place_outlined),
-            SizedBox(width: 8),
-            Expanded(child: Text('Zona aproximada seleccionada en el mapa')),
+          Row(children: [
+            const Icon(Icons.place_outlined),
+            const SizedBox(width: 8),
+            Expanded(child: Text(_resolvedArea != null
+                ? 'Zona seleccionada: $_resolvedArea'
+                : _resolving ? 'Buscando ciudad o zona...'
+                    : 'Zona aproximada seleccionada en el mapa')),
           ]),
           const SizedBox(height: 8),
-          const Text('Puedes indicar una ciudad o zona para mostrarla. Si no, se mostrará "Zona aproximada". No se publicarán tus coordenadas.'),
+          const Text('Puedes cambiar la ciudad o zona que se mostrará. Si no se encuentra un nombre, se mostrará "Zona aproximada". No se publicarán tus coordenadas.'),
           TextField(
             controller: _label,
             maxLength: 160,
@@ -203,9 +253,8 @@ class _CurrentPostLocationMapState extends State<_CurrentPostLocationMap> {
             decoration: const InputDecoration(labelText: 'Ciudad o zona publicable'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, confirmedPostArea(
-              _label.text.trim().isEmpty ? _approximateAreaLabel : _label.text)),
-            child: const Text('Confirmar ubicación'),
+            onPressed: _confirming ? null : _confirm,
+            child: Text(_confirming ? 'Confirmando...' : 'Confirmar ubicación'),
           ),
         ]),
       )),

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -26,13 +29,30 @@ class _Follows extends CommunityService {
 }
 
 class _Gps extends AppLocationService {
-  _Gps(this.result);
+  _Gps(this.result, {this.areaLookup});
   final LocationResult result;
+  final Future<String?> Function(double, double)? areaLookup;
   @override
   Future<LocationResult> getCurrentLocation() async => result;
+  @override
+  Future<String?> resolveSocialArea(double latitude, double longitude) =>
+      areaLookup?.call(latitude, longitude) ?? Future.value(null);
 }
 
 void main() {
+  test('native area resolver returns a trimmed social label', () async {
+    const channel = MethodChannel('com.garradigital.app/social_area');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'resolveSocialArea');
+      expect(call.arguments, {'latitude': -12.1, 'longitude': -77.0});
+      return ' Callao ';
+    });
+    addTearDown(() => TestDefaultBinaryMessengerBinding.instance
+        .defaultBinaryMessenger.setMockMethodCallHandler(channel, null));
+    expect(await AppLocationService().resolveSocialArea(-12.1, -77.0), 'Callao');
+  });
+
   for (final followers in [true, false]) {
     testWidgets('${followers ? 'followers' : 'following'} route renders partial people and returns',
         (tester) async {
@@ -108,6 +128,41 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('followers show primary follow, soft unfollow, and no self action',
+      (tester) async {
+    final service = _Follows([
+      {'userId': 'fan-2', 'displayName': 'Dos', 'followedByMe': true},
+      {'userId': 'fan-3', 'displayName': 'Tres', 'followedByMe': false},
+      {'userId': 'owner', 'displayName': 'Yo', 'isMe': true},
+    ]);
+    await tester.pumpWidget(ProviderScope(child: MaterialApp(home:
+      ProfileFollowsPage(userId: 'owner', followers: true,
+          ownerIsMe: true, service: service))));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(OutlinedButton, 'Dejar de seguir'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Seguir'), findsOneWidget);
+    expect(find.descendant(of: find.ancestor(of: find.text('Yo'),
+        matching: find.byType(ListTile)), matching: find.byType(ButtonStyleButton)),
+        findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('following action stays compact at large text scale', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(ProviderScope(child: MaterialApp(
+      builder: (context, child) => MediaQuery(data: MediaQuery.of(context)
+          .copyWith(textScaler: const TextScaler.linear(2.2)), child: child!),
+      home: ProfileFollowsPage(userId: 'owner', followers: false,
+          service: _Follows([{'userId': 'fan-2', 'displayName': 'Dos',
+            'followedByMe': true}])))));
+    await tester.pumpAndSettle();
+    final button = find.widgetWithText(OutlinedButton, 'Dejar de seguir');
+    expect(button, findsOneWidget);
+    expect(tester.getSize(button).width, lessThan(280));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('GPS map has selected coordinates and confirms only on tap',
       (tester) async {
     final gps = _Gps(const LocationResult(success: true, message: 'ok',
@@ -139,6 +194,63 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('RESULT:Zona aproximada:null'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('GPS resolves a safe locality and publishes only its label',
+      (tester) async {
+    String? selected;
+    final gps = _Gps(const LocationResult(success: true, message: 'ok',
+      latitude: -12.1, longitude: -77.0),
+      areaLookup: (latitude, longitude) async {
+        expect(latitude, -12.1);
+        expect(longitude, -77.0);
+        return 'San Miguel';
+      });
+    await tester.pumpWidget(ProviderScope(child: MaterialApp(home: Scaffold(
+      body: Builder(builder: (context) => TextButton(
+        onPressed: () async {
+          final result = await pickPostLocation(context,
+              locationService: FakePoints(), gpsService: gps);
+          selected = result?.name;
+          expect(result?.latitude, isNull);
+          expect(result?.longitude, isNull);
+        }, child: const Text('Abrir'))),
+    ))));
+    await tester.tap(find.text('Abrir'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Usar mi ubicación actual'));
+    await tester.pumpAndSettle();
+    expect(find.text('Zona seleccionada: San Miguel'), findsOneWidget);
+    expect(selected, isNull);
+    await tester.tap(find.widgetWithText(FilledButton, 'Confirmar ubicación'));
+    await tester.pumpAndSettle();
+    expect(selected, 'San Miguel');
+  });
+
+  testWidgets('confirm waits for pending locality instead of publishing fallback',
+      (tester) async {
+    final area = Completer<String?>();
+    String? selected;
+    final gps = _Gps(const LocationResult(success: true, message: 'ok',
+      latitude: -12.1, longitude: -77.0),
+      areaLookup: (_, _) => area.future);
+    await tester.pumpWidget(ProviderScope(child: MaterialApp(home: Scaffold(
+      body: Builder(builder: (context) => TextButton(
+        onPressed: () async => selected = (await pickPostLocation(context,
+            locationService: FakePoints(), gpsService: gps))?.name,
+        child: const Text('Abrir'))),
+    ))));
+    await tester.tap(find.text('Abrir'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Usar mi ubicación actual'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Confirmar ubicación'));
+    await tester.pump();
+    expect(selected, isNull);
+    expect(find.text('Confirmando...'), findsOneWidget);
+    area.complete('Callao');
+    await tester.pumpAndSettle();
+    expect(selected, 'Callao');
   });
 
   testWidgets('map marker follows visual selection and manual area remains available',

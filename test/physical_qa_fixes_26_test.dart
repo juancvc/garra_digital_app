@@ -155,7 +155,7 @@ void main() {
         ProfileFollowsPage(userId: 'owner', followers: false, service: service))));
     await tester.pumpAndSettle();
     await tester.tap(find.descendant(
-        of: find.byType(ListTile), matching: find.text('Siguiendo')));
+        of: find.byType(ListTile), matching: find.text('Dejar de seguir')));
     await tester.pumpAndSettle();
     expect(service.unfollows, 1);
     expect(find.text('Seguir'), findsOneWidget);
@@ -176,11 +176,34 @@ void main() {
     ));
     await tester.pumpAndSettle();
     await tester.tap(find.descendant(
-        of: find.byType(ListTile), matching: find.text('Siguiendo')));
+        of: find.byType(ListTile), matching: find.text('Dejar de seguir')));
     await tester.pumpAndSettle();
     expect(service.unfollows, 1);
     expect(delta, -1);
     expect(find.text('Todavía no hay personas aquí'), findsOneWidget);
+  });
+
+  testWidgets('own Followers updates follow state and following counter', (tester) async {
+    final service = _Follows();
+    var delta = 0;
+    await tester.pumpWidget(ProviderScope(
+      overrides: [connectivitySourceProvider.overrideWithValue(_OnlineSource())],
+      child: MaterialApp(home: ProfileFollowsPage(
+        userId: 'owner', followers: true, service: service,
+        ownerIsMe: true, onOwnFollowingCountChanged: (value) => delta += value,
+      )),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Dejar de seguir'));
+    await tester.pumpAndSettle();
+    expect(service.unfollows, 1);
+    expect(delta, -1);
+    expect(find.text('Seguir'), findsOneWidget);
+    await tester.tap(find.text('Seguir'));
+    await tester.pumpAndSettle();
+    expect(service.follows, 1);
+    expect(delta, 0);
+    expect(find.text('Dejar de seguir'), findsOneWidget);
   });
 }
 

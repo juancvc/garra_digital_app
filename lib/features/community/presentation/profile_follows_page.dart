@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/current_fan_provider.dart';
 import '../../../core/network/offline_action_guard.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../data/community_service.dart';
 
@@ -48,7 +49,7 @@ class _ProfileFollowsPageState extends ConsumerState<ProfileFollowsPage> {
           person['followedByMe'] = !wasFollowing;
         }
       });
-      if (ownerIsMe && !widget.followers) {
+      if (ownerIsMe) {
         widget.onOwnFollowingCountChanged?.call(wasFollowing ? -1 : 1);
       }
     } catch (_) {
@@ -81,6 +82,12 @@ class _ProfileFollowsPageState extends ConsumerState<ProfileFollowsPage> {
             final displayName = person['displayName']?.toString().trim() ?? '';
             final name = displayName.isNotEmpty ? displayName :
                 username.isNotEmpty ? username : 'Hincha';
+            final isSelf = person['isMe'] == true ||
+                (widget.ownerIsMe == true && isSameFanId(id, widget.userId));
+            final followed = person['followedByMe'] == true;
+            final action = _busyId != null || id.isEmpty
+                ? null : () => _toggle(person);
+            final colors = context.garraColors;
             return ListTile(
               leading: GarraAvatar(displayName: name,
                   avatarUrl: person['avatarUrl']?.toString(), size: 40),
@@ -90,13 +97,26 @@ class _ProfileFollowsPageState extends ConsumerState<ProfileFollowsPage> {
                 children: [
                   if (username.isNotEmpty) Text('@$username', maxLines: 1,
                       overflow: TextOverflow.ellipsis),
-                  if (person['isMe'] != true)
-                    Align(alignment: Alignment.centerRight, child: OutlinedButton(
-                      onPressed: _busyId != null || id.isEmpty
-                          ? null : () => _toggle(person),
-                      child: Text(_busyId == id ? '...' :
-                          person['followedByMe'] == true ? 'Siguiendo' : 'Seguir'),
-                    )),
+                  if (!isSelf)
+                    Align(alignment: Alignment.centerRight, child: followed
+                        ? OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: colors.danger,
+                              side: BorderSide(color: colors.danger.withValues(alpha: .5)),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            onPressed: action,
+                            child: Text(_busyId == id ? '...' : 'Dejar de seguir'),
+                          )
+                        : FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: colors.brandPrimary,
+                              foregroundColor: colors.onBrand,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            onPressed: action,
+                            child: Text(_busyId == id ? '...' : 'Seguir'),
+                          )),
                 ],
               ),
               onTap: id.isEmpty ? null : () => context.push('/comunidad/u/$id'),
