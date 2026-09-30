@@ -113,6 +113,15 @@ void main() {
     await tester.tap(find.text('Hincha Dos'));
     await tester.pumpAndSettle();
     expect(find.text('PROFILE:other'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('Hincha Dos'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Siguiendo'));
+    await tester.pumpAndSettle();
+    expect(find.text('Hincha Dos'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('private visitor sees identity and actions without expanded content', (tester) async {

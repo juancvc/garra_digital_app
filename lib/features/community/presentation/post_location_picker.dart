@@ -9,9 +9,16 @@ import '../../locations/data/location_service.dart';
 import '../../locations/data/crema_point_model.dart';
 import '../data/post_location.dart';
 
-/// A map tap is orientation only; publishing requires an explicit area label.
+/// The chosen map area is represented without publishing precise coordinates.
 PostLocation confirmedPostArea(String label) => PostLocation(
     name: label.trim(), kind: 'CITY_OR_AREA');
+
+const _approximateAreaLabel = 'Zona aproximada';
+
+bool _validMapCoordinates(double latitude, double longitude) =>
+    latitude.isFinite && longitude.isFinite &&
+    latitude >= -90 && latitude <= 90 &&
+    longitude >= -180 && longitude <= 180;
 
 /// Explicit post location selection. Opening this sheet never asks for GPS.
 class PostLocationPicker extends StatefulWidget {
@@ -39,7 +46,8 @@ class _PostLocationPickerState extends State<PostLocationPicker> {
         .getCurrentLocation();
     if (!mounted) return;
     setState(() => _locating = false);
-    if (!result.success || result.latitude == null || result.longitude == null) {
+    if (!result.success || result.latitude == null || result.longitude == null ||
+        !_validMapCoordinates(result.latitude!, result.longitude!)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result.message)),
       );
@@ -181,7 +189,13 @@ class _CurrentPostLocationMapState extends State<_CurrentPostLocationMap> {
       SafeArea(top: false, child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('El mapa solo te orienta. Escribe y confirma la ciudad o zona que se mostrará; no se publicarán tus coordenadas.'),
+          const Row(children: [
+            Icon(Icons.place_outlined),
+            SizedBox(width: 8),
+            Expanded(child: Text('Zona aproximada seleccionada en el mapa')),
+          ]),
+          const SizedBox(height: 8),
+          const Text('Puedes indicar una ciudad o zona para mostrarla. Si no, se mostrará "Zona aproximada". No se publicarán tus coordenadas.'),
           TextField(
             controller: _label,
             maxLength: 160,
@@ -189,8 +203,8 @@ class _CurrentPostLocationMapState extends State<_CurrentPostLocationMap> {
             decoration: const InputDecoration(labelText: 'Ciudad o zona publicable'),
           ),
           FilledButton(
-            onPressed: _label.text.trim().isEmpty ? null : () => Navigator.pop(
-              context, confirmedPostArea(_label.text)),
+            onPressed: () => Navigator.pop(context, confirmedPostArea(
+              _label.text.trim().isEmpty ? _approximateAreaLabel : _label.text)),
             child: const Text('Confirmar ubicación'),
           ),
         ]),

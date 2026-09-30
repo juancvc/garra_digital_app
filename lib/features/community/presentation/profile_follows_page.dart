@@ -77,16 +77,27 @@ class _ProfileFollowsPageState extends ConsumerState<ProfileFollowsPage> {
           itemBuilder: (context, index) {
             final person = people[index];
             final id = person['userId']?.toString() ?? '';
-            final name = person['displayName']?.toString() ?? '';
+            final username = person['username']?.toString().trim() ?? '';
+            final displayName = person['displayName']?.toString().trim() ?? '';
+            final name = displayName.isNotEmpty ? displayName :
+                username.isNotEmpty ? username : 'Hincha';
             return ListTile(
               leading: GarraAvatar(displayName: name,
                   avatarUrl: person['avatarUrl']?.toString(), size: 40),
-              title: Text(name),
-              subtitle: Text('@${person['username'] ?? ''}'),
-              trailing: person['isMe'] == true ? null : OutlinedButton(
-                onPressed: _busyId != null ? null : () => _toggle(person),
-                child: Text(_busyId == id ? '...' :
-                    person['followedByMe'] == true ? 'Siguiendo' : 'Seguir'),
+              title: Text(name, maxLines: 2, overflow: TextOverflow.ellipsis),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (username.isNotEmpty) Text('@$username', maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  if (person['isMe'] != true)
+                    Align(alignment: Alignment.centerRight, child: OutlinedButton(
+                      onPressed: _busyId != null || id.isEmpty
+                          ? null : () => _toggle(person),
+                      child: Text(_busyId == id ? '...' :
+                          person['followedByMe'] == true ? 'Siguiendo' : 'Seguir'),
+                    )),
+                ],
               ),
               onTap: id.isEmpty ? null : () => context.push('/comunidad/u/$id'),
             );
