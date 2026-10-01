@@ -32,6 +32,7 @@ class WallPostModel {
     this.postLocation,
     this.mentions = const [],
     this.visibility = 'PUBLIC',
+    this.avatarUrl,
   });
 
   final String id;
@@ -64,6 +65,7 @@ class WallPostModel {
   final PostLocation? postLocation;
   final List<MentionSpan> mentions;
   final String visibility;
+  final String? avatarUrl;
 
   bool get isFollowersOnly => visibility == 'FOLLOWERS';
 
@@ -122,6 +124,7 @@ class WallPostModel {
           : null,
       mentions: parseMentionSpans(json['mentions']),
       visibility: json['visibility']?.toString() ?? 'PUBLIC',
+      avatarUrl: json['avatarUrl']?.toString(),
     );
   }
 
@@ -155,6 +158,7 @@ class WallPostModel {
     PostLocation? postLocation,
     List<MentionSpan>? mentions,
     String? visibility,
+    String? avatarUrl,
   }) {
     return WallPostModel(
       id: id ?? this.id,
@@ -185,6 +189,7 @@ class WallPostModel {
       postLocation: postLocation ?? this.postLocation,
       mentions: mentions ?? this.mentions,
       visibility: visibility ?? this.visibility,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
     );
   }
 }
@@ -195,7 +200,8 @@ class SharedOriginalPostModel {
     this.imageUrl, this.media = const [], this.shareCount = 0,
     this.createdAt = '', this.reactionSummary = const {}, this.reactionCount = 0,
     this.commentCount = 0, this.myReaction, this.viewCount = 0,
-    this.sharedByMe = false, this.postLocation, this.mentions = const []});
+    this.sharedByMe = false, this.postLocation, this.mentions = const [],
+    this.avatarUrl});
 
   final String id;
   final String authorId;
@@ -214,6 +220,7 @@ class SharedOriginalPostModel {
   final bool sharedByMe;
   final PostLocation? postLocation;
   final List<MentionSpan> mentions;
+  final String? avatarUrl;
 
   WallPostModel asPost() => WallPostModel(
     id: id, username: username, fullName: fullName, content: content,
@@ -224,6 +231,7 @@ class SharedOriginalPostModel {
     commentCount: commentCount, myReaction: myReaction, viewCount: viewCount,
     postLocation: postLocation,
     mentions: mentions,
+    avatarUrl: avatarUrl,
   );
 
   factory SharedOriginalPostModel.fromJson(Map<String, dynamic> json) =>
@@ -250,6 +258,7 @@ class SharedOriginalPostModel {
             ? PostLocation.fromJson(Map<String, dynamic>.from(json['postLocation'] as Map))
             : null,
         mentions: parseMentionSpans(json['mentions']),
+        avatarUrl: json['avatarUrl']?.toString(),
       );
 
   SharedOriginalPostModel copyWith({int? shareCount, bool? sharedByMe,
@@ -267,6 +276,7 @@ class SharedOriginalPostModel {
       viewCount: viewCount,
       postLocation: postLocation,
       mentions: mentions,
+      avatarUrl: avatarUrl,
     );
 }
 

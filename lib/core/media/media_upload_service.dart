@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -17,7 +16,8 @@ enum MediaUploadPurpose {
   communityPost('COMMUNITY_POST'),
   profileAvatar('PROFILE_AVATAR'),
   solidarity('SOLIDARITY_EVIDENCE'),
-  chatImage('CHAT_IMAGE');
+  chatImage('CHAT_IMAGE'),
+  chatAudio('CHAT_AUDIO');
 
   const MediaUploadPurpose(this.apiValue);
   final String apiValue;
@@ -105,6 +105,7 @@ class MediaUploadService {
   static const storageTotalTimeout = Duration(minutes: 3);
   static const String uploadFailedMessage =
       'No pudimos subir la foto. Intenta nuevamente.';
+  static const int chatAudioMaxBytes = 3 * 1024 * 1024;
 
   final Dio _dio;
   final Dio? _binaryClient;
@@ -305,6 +306,58 @@ class MediaUploadService {
           'correlationId=${DioClient.lastCorrelationId}',
         );
       }
+    }
+    return draft;
+  }
+
+  /// Audio is already encoded by the recorder; do not run image compression.
+  /// A failed attempt retains its local path for an explicit user retry.
+  Future<MediaDraft> uploadChatAudio({
+    required String path,
+    void Function(MediaDraft draft)? onUpdate,
+    bool Function()? canStartRemote,
+    CancelToken? cancelToken,
+  }) async {
+    final draft = MediaDraft(localId: _uuid.v4(), localPath: path,
+        state: MediaUploadState.pending);
+    onUpdate?.call(draft);
+    try {
+      final file = XFile(path);
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty || bytes.length > chatAudioMaxBytes) {
+        throw StateError('Audio size out of range');
+      }
+      draft.state = MediaUploadState.signing;
+      onUpdate?.call(draft);
+      if (canStartRemote != null && !canStartRemote()) throw StateError('Offline');
+      final signed = await createSignedUpload(
+        purpose: MediaUploadPurpose.chatAudio,
+        contentType: 'audio/mp4',
+        sizeBytes: bytes.length,
+        fileName: 'message.m4a',
+        cancelToken: cancelToken,
+      );
+      draft.assetId = signed.assetId;
+      if (canStartRemote != null && !canStartRemote()) throw StateError('Offline');
+      draft.state = MediaUploadState.uploading;
+      onUpdate?.call(draft);
+      await putBytes(signed: signed, bytes: bytes, cancelToken: cancelToken,
+          onProgress: (progress) {
+        draft.progress = progress;
+        onUpdate?.call(draft);
+      });
+      if (canStartRemote != null && !canStartRemote()) throw StateError('Offline');
+      draft.state = MediaUploadState.confirming;
+      onUpdate?.call(draft);
+      draft.mediaUrl = await confirm(signed.assetId, cancelToken: cancelToken);
+      draft.state = MediaUploadState.ready;
+      draft.progress = 1;
+      onUpdate?.call(draft);
+    } catch (_) {
+      draft.state = MediaUploadState.failed;
+      draft.progress = 0;
+      draft.error = 'No pudimos subir el audio. Toca para reintentar.';
+      onUpdate?.call(draft);
     }
     return draft;
   }

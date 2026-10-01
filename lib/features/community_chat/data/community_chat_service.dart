@@ -123,6 +123,15 @@ class CommunityChatService {
     return CommunityChatMessage.fromJson(data);
   }
 
+  Future<CommunityChatMessage> sendAudio(String slug, String assetId,
+      int durationSeconds) async {
+    final data = await _request('POST', '${_base(slug)}/messages', body: {
+      'content': '', 'mediaAssetIds': [assetId],
+      'audioDurationSeconds': durationSeconds,
+    });
+    return CommunityChatMessage.fromJson(data);
+  }
+
   Future<CommunityChatMessage> editMessage(
     String slug,
     String messageId,

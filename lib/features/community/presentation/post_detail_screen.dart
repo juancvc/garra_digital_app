@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import '../../../core/widgets/garra_stickers.dart';
+import '../../../core/widgets/garra_avatar.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -1251,17 +1253,8 @@ class _PostHeader extends StatelessWidget {
           () => context.push('/comunidad/u/${post.authorId}'),
       child: Row(
       children: [
-        CircleAvatar(
-          radius: 22,
-          backgroundColor: const Color(GarraColors.garnet),
-          child: Text(
-            post.username.isNotEmpty ? post.username[0].toUpperCase() : 'U',
-            style: const TextStyle(
-              color: Color(GarraColors.cream),
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
+        GarraAvatar(displayName: post.fullName.isEmpty ? post.username : post.fullName,
+            avatarUrl: post.avatarUrl, size: 44),
         const SizedBox(width: GarraSpacing.md),
         Expanded(
           child: Column(
@@ -1510,6 +1503,12 @@ class _CommentComposer extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  IconButton(
+                    key: const ValueKey('comment_sticker'),
+                    tooltip: 'Elegir sticker',
+                    onPressed: sending ? null : () => insertGarraSticker(context, controller),
+                    icon: const Icon(Icons.emoji_emotions_outlined),
+                  ),
                   Expanded(
                     child: TextField(
                       key: const ValueKey('comment_composer'),

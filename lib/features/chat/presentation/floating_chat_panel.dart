@@ -12,10 +12,12 @@ import '../../../core/media/media_upload_service.dart';
 import '../../../core/network/offline_action_guard.dart';
 import '../../../core/navigation/draft_exit_guard.dart';
 import '../../../core/widgets/garra_avatar.dart';
+import '../../../core/widgets/garra_stickers.dart';
 import '../data/chat_image_uploads.dart';
 import '../data/chat_models.dart';
 import '../data/chat_service.dart';
 import 'chat_media_grid.dart';
+import 'chat_audio_composer.dart';
 import 'chat_linked_text.dart';
 import 'chat_message_reactions.dart';
 import 'chat_reply_tile.dart';
@@ -109,12 +111,13 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel>
   List<ChatMessage> _messages = const [];
   var _loading = true;
   var _sending = false;
+  bool _audioDirty = false;
   var _composingRequest = false;
   final _exitGuard = DraftExitGuard();
   String _initialText = '';
   bool get _dirty =>
       (_input.text.trim().isNotEmpty && _input.text != _initialText) ||
-      _drafts.isNotEmpty;
+      _drafts.isNotEmpty || _audioDirty;
   bool get _uploading => _drafts.any(
     (draft) =>
         draft.state != MediaUploadState.ready &&
@@ -325,6 +328,22 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No pudimos enviar la consulta')),
       );
+    }
+  }
+
+  Future<void> _sendAudio(String assetId, int durationSeconds) async {
+    final conversation = _conversation;
+    if (conversation == null || conversation.status != 'ACTIVE' || _sending) return;
+    if (!allowNetworkAction(context)) throw StateError('Offline');
+    setState(() => _sending = true);
+    try {
+      final message = await _chat.sendAudio(conversation.id,
+          assetId, durationSeconds);
+      if (!mounted) return;
+      setState(() { _messages = [..._messages, message]; _sending = false; });
+    } catch (_) {
+      if (mounted) setState(() => _sending = false);
+      rethrow;
     }
   }
 
@@ -597,7 +616,9 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel>
                   const Text('Mensaje eliminado')
                 else if (message.media.isNotEmpty)
                   ChatImageStrip(media: message.media),
-                if (!message.deleted && message.content.trim().isNotEmpty)
+                if (GarraSticker.fromContent(message.deleted ? '' : message.content) case final sticker?)
+                  GarraStickerView(sticker: sticker, compact: true)
+                else if (!message.deleted && message.content.trim().isNotEmpty)
                   ChatLinkedText(
                     message.content,
                     style: TextStyle(
@@ -740,8 +761,18 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel>
                   },
                 ),
               ),
+            if (chatAudioEnabled && active)
+              Align(alignment: Alignment.centerLeft,
+                child: ChatAudioComposer(onSend: _sendAudio, enabled: !_sending,
+                    media: _media, onDirtyChanged: (dirty) {
+                      if (mounted) setState(() => _audioDirty = dirty);
+                    })),
             Row(
               children: [
+                if (active)
+                  IconButton(tooltip: 'Elegir sticker',
+                    onPressed: () => insertGarraSticker(context, _input),
+                    icon: const Icon(Icons.emoji_emotions_outlined)),
                 if (active)
                   IconButton(
                     key: const Key('chat-attach-photo'),

@@ -125,9 +125,14 @@ class GarraReactionBar extends StatelessWidget {
                             ],
                           ),
                   ),
-                  if (myReaction != null) ...[
-                    const SizedBox(width: GarraSpacing.sm),
-                    Container(
+                  if (myReaction != null) const SizedBox(width: GarraSpacing.sm),
+                  AnimatedSwitcher(
+                    duration: MediaQuery.maybeOf(context)?.disableAnimations == true
+                        ? Duration.zero : const Duration(milliseconds: 160),
+                    transitionBuilder: (child, animation) =>
+                        ScaleTransition(scale: animation, child: child),
+                    child: myReaction == null ? const SizedBox.shrink() : Container(
+                      key: ValueKey(myReaction),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 6,
                         vertical: 2,
@@ -143,7 +148,7 @@ class GarraReactionBar extends StatelessWidget {
                         size: 13,
                       ),
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),

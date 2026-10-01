@@ -126,6 +126,14 @@ class ChatService {
     return ChatMessage.fromJson(data);
   }
 
+  Future<ChatMessage> sendAudio(String conversationId, String assetId,
+      int durationSeconds) async {
+    final data = await _data('/chat/conversations/$conversationId/messages',
+        body: {'content': '', 'mediaAssetIds': [assetId],
+          'audioDurationSeconds': durationSeconds});
+    return ChatMessage.fromJson(data);
+  }
+
   Future<ChatMessage> editMessage(String messageId, String content) async {
     final data = await _write(
       'PUT',

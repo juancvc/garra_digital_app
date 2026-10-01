@@ -73,20 +73,28 @@ class GarraSocialPostCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  GestureDetector(
+                  InkWell(
                     onTap: onOpenProfile,
-                    child: GarraAvatar(displayName: post.fullName, size: 40),
+                    borderRadius: BorderRadius.circular(24),
+                    child: GarraAvatar(displayName: post.fullName,
+                        avatarUrl: post.avatarUrl, size: 40),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: GestureDetector(
+                    child: InkWell(
                       onTap: onOpenProfile,
+                      borderRadius: BorderRadius.circular(8),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             post.isShare ? '${post.fullName} compartió' : post.fullName,
-                            style: Theme.of(context).textTheme.titleSmall,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: context.garraColors.textPrimary,
+                            ),
                           ),
                           Row(
                             children: [
@@ -95,7 +103,8 @@ class GarraSocialPostCard extends StatelessWidget {
                                   '@${post.username}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.bodySmall,
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: context.garraColors.textSecondary),
                                 ),
                               ),
                               const Text(' · '),
@@ -103,7 +112,8 @@ class GarraSocialPostCard extends StatelessWidget {
                                 formatGarraRelativeTime(post.createdAt),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodySmall,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: context.garraColors.textSecondary),
                               )),
                             ],
                           ),
@@ -197,8 +207,25 @@ class GarraSocialPostCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(original.fullName, style: Theme.of(context).textTheme.titleSmall),
-                      const SizedBox(height: 3),
+                      Row(children: [
+                        GarraAvatar(displayName: original.fullName,
+                            avatarUrl: original.avatarUrl, size: 28),
+                        const SizedBox(width: 8),
+                        Expanded(child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(original.fullName, maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w800)),
+                            Text('@${original.username}', maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: context.garraColors.textSecondary)),
+                          ],
+                        )),
+                      ]),
+                      const SizedBox(height: 8),
                       LinkedText(original.content, maxLines: 4,
                           mentions: original.mentions,
                           onOpenMention: (id) => context.push('/comunidad/u/$id'),

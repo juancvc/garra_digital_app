@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/garra_stickers.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/design/garra_radius.dart';
@@ -131,7 +132,15 @@ class GarraCommentTile extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 2),
-                LinkedText(
+                if (GarraSticker.fromContent(comment.content) case final sticker?)
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    if (comment.replyToUsername != null)
+                      Text('@${comment.replyToUsername}',
+                        style: TextStyle(color: colors.brandPrimary,
+                          fontWeight: FontWeight.w800)),
+                    GarraStickerView(sticker: sticker, compact: true),
+                  ])
+                else LinkedText(
                   comment.content,
                   key: comment.replyToUsername == null ? null
                       : ValueKey('comment_reply_to_${comment.id}'),

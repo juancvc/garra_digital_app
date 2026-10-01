@@ -16,10 +16,12 @@ import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/utils/garra_message_time.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_states.dart';
+import '../../../core/widgets/garra_stickers.dart';
 import '../../../core/widgets/mention_autocomplete.dart';
 import '../../chat/data/chat_image_uploads.dart';
 import '../../chat/data/chat_models.dart';
 import '../../chat/presentation/chat_backdrop.dart';
+import '../../chat/presentation/chat_audio_composer.dart';
 import '../../chat/presentation/chat_conversation_page.dart'
     show chatCounterFromLength, chatFollowThreshold, chatMessageMaxLength;
 import '../../chat/presentation/chat_media_grid.dart';
@@ -125,10 +127,12 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
   var _pollInFlight = false;
   var _sending = false;
   var _picking = false;
+  bool _audioDirty = false;
   final _exitGuard = DraftExitGuard();
   bool get _dirty =>
       _input.text.trim().isNotEmpty ||
       _drafts.isNotEmpty ||
+      _audioDirty ||
       _replyTo != null ||
       _editing != null;
   void _leave() => _exitGuard.leave(
@@ -694,6 +698,27 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
       if (error is CommunityChatException && error.isForbidden) {
         _recheckAccess();
       }
+    }
+  }
+
+  Future<void> _sendAudio(String assetId, int durationSeconds) async {
+    if (!_canWrite || _sending) return;
+    if (!allowNetworkAction(context)) throw StateError('Offline');
+    setState(() => _sending = true);
+    try {
+      final message = await _service.sendAudio(_slug, assetId,
+          durationSeconds);
+      if (!mounted) return;
+      setState(() {
+        _messages = mergeCommunityMessages(_messages, [message]);
+        _anchorId ??= message.id;
+        _sending = false;
+      });
+      _following = true;
+      _animateToEnd();
+    } catch (_) {
+      if (mounted) setState(() => _sending = false);
+      rethrow;
     }
   }
 
@@ -1398,7 +1423,9 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
                 maxWidth: maxWidth - (mediaOnly ? 8 : 24),
               ),
             ),
-          if (hasText)
+          if (GarraSticker.fromContent(content) case final sticker?)
+            GarraStickerView(sticker: sticker, compact: true)
+          else if (hasText)
             ChatLinkedText(
               content,
               mentions: message.mentions,
@@ -1531,11 +1558,21 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
               onCancel: () => setState(() => _replyTo = null),
             ),
           if (_drafts.isNotEmpty) _draftStrip(),
+          if (chatAudioEnabled && _editing == null)
+            Align(alignment: Alignment.centerLeft,
+              child: ChatAudioComposer(onSend: _sendAudio, enabled: !_sending,
+                  media: _media, onDirtyChanged: (dirty) {
+                    if (mounted) setState(() => _audioDirty = dirty);
+                  })),
           MentionAutocomplete(controller: _input,
               search: (query) => _service.mentionCandidates(_slug, query)),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
+              if (_editing == null)
+                IconButton(tooltip: 'Elegir sticker',
+                  onPressed: () => insertGarraSticker(context, _input),
+                  icon: const Icon(Icons.emoji_emotions_outlined)),
               IconButton(
                 key: const Key('community-chat-attach-photo'),
                 tooltip: 'Adjuntar foto',

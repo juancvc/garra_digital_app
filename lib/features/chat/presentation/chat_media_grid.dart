@@ -5,6 +5,7 @@ import '../../../core/widgets/garra_cached_network_image.dart';
 import '../../community/presentation/widgets/garra_post_media_grid.dart'
     show openGarraMediaViewer;
 import '../data/chat_models.dart';
+import 'chat_audio_player.dart';
 
 /// CHAT_V2_A: chat photos (up to 4) in a fixed-size grid, so the transcript
 /// layout is stable before images load. Tap opens the shared fullscreen
@@ -19,8 +20,10 @@ class ChatMediaGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final audio = media.where((item) => item.kind == 'AUDIO' && item.url.isNotEmpty).toList();
+    if (audio.isNotEmpty) return ChatAudioPlayer(url: audio.first.url);
     final images = media
-        .where((item) => !item.isVideo && item.url.isNotEmpty)
+        .where((item) => item.kind == 'IMAGE' && item.url.isNotEmpty)
         .take(4)
         .toList();
     if (images.isEmpty) return const SizedBox.shrink();

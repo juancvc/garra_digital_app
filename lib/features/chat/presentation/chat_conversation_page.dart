@@ -17,12 +17,14 @@ import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/utils/garra_message_time.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_states.dart';
+import '../../../core/widgets/garra_stickers.dart';
 import '../../community/data/reaction_type.dart';
 import '../../home/presentation/providers/home_provider.dart';
 import '../data/chat_image_uploads.dart';
 import '../data/chat_models.dart';
 import '../data/chat_service.dart';
 import 'chat_backdrop.dart';
+import 'chat_audio_composer.dart';
 import 'chat_media_grid.dart';
 import 'chat_message_reactions.dart';
 import 'chat_request_copy.dart';
@@ -81,10 +83,12 @@ class _ChatConversationPageState extends State<ChatConversationPage>
   var _picking = false;
   final _exitGuard = DraftExitGuard();
   bool _completed = false;
+  bool _audioDirty = false;
   bool get _dirty =>
       !_completed &&
       (_input.text.trim().isNotEmpty ||
           _drafts.isNotEmpty ||
+          _audioDirty ||
           _replyTo != null ||
           _editing != null);
   void _leave() => _exitGuard.leave(
@@ -524,6 +528,23 @@ class _ChatConversationPageState extends State<ChatConversationPage>
     }
   }
 
+  Future<void> _sendAudio(String assetId, int durationSeconds) async {
+    if (_sending || _conversation?.status != 'ACTIVE') return;
+    if (!allowNetworkAction(context)) throw StateError('Offline');
+    setState(() => _sending = true);
+    try {
+      final message = await _chat.sendAudio(widget.conversationId,
+          assetId, durationSeconds);
+      if (!mounted) return;
+      setState(() { _messages = [..._messages, message]; _sending = false; });
+      _following = true;
+      _animateToEnd();
+    } catch (_) {
+      if (mounted) setState(() => _sending = false);
+      rethrow;
+    }
+  }
+
   Future<void> _pickPhotos() async {
     if (_picking || _drafts.length >= chatMaxImages) return;
     setState(() => _picking = true);
@@ -888,9 +909,19 @@ class _ChatConversationPageState extends State<ChatConversationPage>
               onCancel: () => setState(() => _replyTo = null),
             ),
           if (_drafts.isNotEmpty) _draftStrip(),
+          if (chatAudioEnabled && canWrite && _editing == null)
+            Align(alignment: Alignment.centerLeft,
+              child: ChatAudioComposer(onSend: _sendAudio, enabled: !_sending,
+                  media: _media, onDirtyChanged: (dirty) {
+                    if (mounted) setState(() => _audioDirty = dirty);
+                  })),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
+              if (canWrite && _editing == null)
+                IconButton(tooltip: 'Elegir sticker',
+                  onPressed: () => insertGarraSticker(context, _input),
+                  icon: const Icon(Icons.emoji_emotions_outlined)),
               if (canWrite && _editing == null)
                 IconButton(
                   key: const Key('chat-attach-photo'),
@@ -1269,7 +1300,9 @@ class _ChatConversationPageState extends State<ChatConversationPage>
                 maxWidth: maxWidth - (mediaOnly ? 8 : 24),
               ),
             ),
-          if (hasText)
+          if (GarraSticker.fromContent(message.content) case final sticker?)
+            GarraStickerView(sticker: sticker, compact: true)
+          else if (hasText)
             ChatLinkedText(
               message.content,
               style: TextStyle(color: foreground, fontSize: 15, height: 1.3),
