@@ -48,6 +48,8 @@ class CremaBusinessApplication {
     this.phone,
     this.whatsapp,
     this.instagram,
+    this.facebook,
+    this.tiktok,
     this.rejectionReason,
     this.cremaPointId,
   });
@@ -62,6 +64,8 @@ class CremaBusinessApplication {
   final String? phone;
   final String? whatsapp;
   final String? instagram;
+  final String? facebook;
+  final String? tiktok;
   final CremaBusinessApplicationStatus status;
   final String? rejectionReason;
   final String? cremaPointId;
@@ -78,7 +82,11 @@ class CremaBusinessApplication {
       phone: json['phone']?.toString(),
       whatsapp: json['whatsapp']?.toString(),
       instagram: json['instagram']?.toString(),
-      status: CremaBusinessApplicationStatus.fromApi(json['status']?.toString()),
+      facebook: json['facebook']?.toString(),
+      tiktok: json['tiktok']?.toString(),
+      status: CremaBusinessApplicationStatus.fromApi(
+        json['status']?.toString(),
+      ),
       rejectionReason: json['rejectionReason']?.toString(),
       cremaPointId: json['cremaPointId']?.toString(),
     );
@@ -86,18 +94,37 @@ class CremaBusinessApplication {
 }
 
 class CremaBusinessApplicationService {
-  CremaBusinessApplicationService({Dio? dio}) : _dio = dio ?? DioClient.instance;
+  CremaBusinessApplicationService({Dio? dio})
+    : _dio = dio ?? DioClient.instance;
 
   final Dio _dio;
+
+  Future<List<String>> listCategories() async {
+    final response = await _dio.get(
+      '/locations/business-applications/categories',
+    );
+    final data = response.data['data'];
+    if (data is! List)
+      throw const FormatException('Invalid business categories');
+    final categories = data
+        .map((value) => value.toString().trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (categories.isEmpty)
+      throw const FormatException('Empty business categories');
+    return categories;
+  }
 
   Future<List<CremaBusinessApplication>> listMine() async {
     final response = await _dio.get('/locations/business-applications/me');
     final data = response.data['data'];
     final list = data is List ? data : const [];
     return list
-        .map((e) => CremaBusinessApplication.fromJson(
-              Map<String, dynamic>.from(e as Map),
-            ))
+        .map(
+          (e) => CremaBusinessApplication.fromJson(
+            Map<String, dynamic>.from(e as Map),
+          ),
+        )
         .toList();
   }
 
@@ -125,7 +152,9 @@ class CremaBusinessApplicationService {
   }
 
   Future<CremaBusinessApplication> submit(String id) async {
-    final response = await _dio.post('/locations/business-applications/$id/submit');
+    final response = await _dio.post(
+      '/locations/business-applications/$id/submit',
+    );
     return CremaBusinessApplication.fromJson(
       Map<String, dynamic>.from(response.data['data'] as Map),
     );

@@ -1346,7 +1346,7 @@ class _PostActionRow extends StatelessWidget {
           Expanded(
             child: _PostActionButton(
               key: const ValueKey('post_action_share'),
-              icon: Icon(Icons.ios_share_rounded, size: 20, color: accent),
+              icon: Icon(Icons.share_rounded, size: 20, color: accent),
               label: 'Compartir',
               color: colors.textSecondary,
               onPressed: onShare,

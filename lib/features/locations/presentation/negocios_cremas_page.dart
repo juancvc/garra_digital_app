@@ -5,6 +5,8 @@ import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../data/crema_point_model.dart';
 import '../data/location_service.dart';
+import '../data/business_social_links.dart';
+import '../../marketplace/data/marketplace_url_launcher.dart';
 
 /// Registered crema businesses. Separate from Marketplace listings and from
 /// the stadium route.
@@ -270,10 +272,10 @@ class _BusinessCard extends StatelessWidget {
                     ),
                 ],
               ),
-              if (copy.category != null) ...[
+              if (point.category != null || copy.category != null) ...[
                 const SizedBox(height: 4),
                 Text(
-                  copy.category!,
+                  point.category ?? copy.category!,
                   style: TextStyle(color: context.garraColors.brandPrestige),
                 ),
               ],
@@ -286,7 +288,8 @@ class _BusinessCard extends StatelessWidget {
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
-                  onPressed: () => context.push('/negocios/mapa'),
+                  onPressed: () =>
+                      context.push('/negocios/mapa?pointId=${point.id}'),
                   icon: const Icon(Icons.map_outlined, size: 18),
                   label: const Text('Ver en el mapa'),
                 ),
@@ -318,18 +321,25 @@ class BusinessCopy {
 }
 
 class NegocioCremaDetailPage extends StatefulWidget {
-  const NegocioCremaDetailPage({super.key, required this.idOrSlug});
+  const NegocioCremaDetailPage({
+    super.key,
+    required this.idOrSlug,
+    this.locationService,
+  });
 
   final String idOrSlug;
+  final LocationService? locationService;
 
   @override
   State<NegocioCremaDetailPage> createState() => _NegocioCremaDetailPageState();
 }
 
 class _NegocioCremaDetailPageState extends State<NegocioCremaDetailPage> {
-  final _service = LocationService();
+  late final LocationService _service =
+      widget.locationService ?? LocationService();
   CremaPointModel? _point;
   var _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -338,6 +348,10 @@ class _NegocioCremaDetailPageState extends State<NegocioCremaDetailPage> {
   }
 
   Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final points = await _service.getActivePoints();
       final key = widget.idOrSlug.toLowerCase();
@@ -356,8 +370,21 @@ class _NegocioCremaDetailPageState extends State<NegocioCremaDetailPage> {
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        _error = 'No pudimos cargar este negocio';
+      });
     }
+  }
+
+  Future<void> _openLink(Uri uri) async {
+    try {
+      if (await marketplaceUrlLauncher(uri)) return;
+    } catch (_) {}
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('No se pudo abrir el enlace')));
   }
 
   @override
@@ -367,6 +394,16 @@ class _NegocioCremaDetailPageState extends State<NegocioCremaDetailPage> {
       appBar: AppBar(title: Text(point?.name ?? 'Negocio')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_error!),
+                  TextButton(onPressed: _load, child: const Text('Reintentar')),
+                ],
+              ),
+            )
           : point == null
           ? const Center(child: Text('No encontramos este negocio'))
           : ListView(
@@ -377,15 +414,102 @@ class _NegocioCremaDetailPageState extends State<NegocioCremaDetailPage> {
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 8),
-                Text(point.address),
+                Row(
+                  children: [
+                    const Icon(Icons.place_outlined, size: 18),
+                    const SizedBox(width: 6),
+                    Expanded(child: Text(point.address)),
+                  ],
+                ),
+                if ((point.category ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    point.category!,
+                    style: TextStyle(
+                      color: context.garraColors.brandPrestige,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (point.verified) ...[
+                  const SizedBox(height: 8),
+                  const Chip(label: Text('Verificado por Garra')),
+                ],
                 if ((point.description ?? '').isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Text(point.description!),
                 ],
+                if ((point.phone ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: () =>
+                        _openLink(Uri(scheme: 'tel', path: point.phone)),
+                    icon: const Icon(Icons.call_outlined),
+                    label: Text('Llamar · ${point.phone}'),
+                  ),
+                ],
+                if ((point.whatsapp ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      final digits = point.whatsapp!.replaceAll(
+                        RegExp(r'[^0-9]'),
+                        '',
+                      );
+                      if (digits.isNotEmpty) {
+                        _openLink(Uri.https('wa.me', '/$digits'));
+                      }
+                    },
+                    icon: const Icon(Icons.chat_outlined),
+                    label: const Text('WhatsApp'),
+                  ),
+                ],
+                if ([
+                  point.instagram,
+                  point.facebook,
+                  point.tiktok,
+                ].any((value) => value?.isNotEmpty == true)) ...[
+                  const SizedBox(height: 20),
+                  Text(
+                    'Redes sociales',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      for (final (network, value)
+                          in <(BusinessSocialNetwork, String?)>[
+                            (BusinessSocialNetwork.instagram, point.instagram),
+                            (BusinessSocialNetwork.facebook, point.facebook),
+                            (BusinessSocialNetwork.tiktok, point.tiktok),
+                          ])
+                        if (businessSocialUri(network, value) != null)
+                          ActionChip(
+                            avatar: const Icon(Icons.open_in_new, size: 16),
+                            label: Text(socialNetworkLabel(network)),
+                            onPressed: () async {
+                              if (await openBusinessSocial(network, value)) {
+                                return;
+                              }
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'No se pudo abrir la red social',
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 24),
                 FilledButton(
-                  onPressed: () => context.push('/negocios/mapa'),
-                  child: const Text('Ver en el mapa'),
+                  onPressed: () =>
+                      context.push('/negocios/mapa?pointId=${point.id}'),
+                  child: const Text('Ver ubicación del negocio'),
                 ),
               ],
             ),

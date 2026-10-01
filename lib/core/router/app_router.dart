@@ -172,7 +172,8 @@ List<RouteBase> _buildRoutes() => [
   GoRoute(
     path: '/negocios/mapa',
     name: 'negocios-mapa',
-    builder: (context, state) => const MapCremaPage(),
+    builder: (context, state) =>
+        MapCremaPage(focusPointId: state.uri.queryParameters['pointId']),
   ),
   GoRoute(
     path: '/negocios/mi-negocio/nuevo',

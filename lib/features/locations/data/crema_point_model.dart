@@ -14,6 +14,12 @@ class CremaPointModel {
     required this.updatedAt,
     this.checkinRadiusMeters = 500,
     this.marketplaceStoreSlug,
+    this.instagram,
+    this.facebook,
+    this.tiktok,
+    this.phone,
+    this.whatsapp,
+    this.category,
   });
 
   final String id;
@@ -30,6 +36,12 @@ class CremaPointModel {
   final String updatedAt;
   final int checkinRadiusMeters;
   final String? marketplaceStoreSlug;
+  final String? instagram;
+  final String? facebook;
+  final String? tiktok;
+  final String? phone;
+  final String? whatsapp;
+  final String? category;
 
   factory CremaPointModel.fromJson(Map<String, dynamic> json) {
     return CremaPointModel(
@@ -48,6 +60,12 @@ class CremaPointModel {
       checkinRadiusMeters:
           (json['checkinRadiusMeters'] as num?)?.toInt() ?? 500,
       marketplaceStoreSlug: json['marketplaceStoreSlug']?.toString(),
+      instagram: json['instagram']?.toString(),
+      facebook: json['facebook']?.toString(),
+      tiktok: json['tiktok']?.toString(),
+      phone: json['phone']?.toString(),
+      whatsapp: json['whatsapp']?.toString(),
+      category: json['category']?.toString(),
     );
   }
 }

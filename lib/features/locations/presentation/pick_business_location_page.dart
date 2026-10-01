@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../../core/location/location_service.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 
@@ -10,10 +11,12 @@ class PickBusinessLocationPage extends StatefulWidget {
     super.key,
     this.initialLat = -12.0553,
     this.initialLng = -77.0379,
+    this.locationService,
   });
 
   final double initialLat;
   final double initialLng;
+  final AppLocationService? locationService;
 
   @override
   State<PickBusinessLocationPage> createState() =>
@@ -22,11 +25,41 @@ class PickBusinessLocationPage extends StatefulWidget {
 
 class _PickBusinessLocationPageState extends State<PickBusinessLocationPage> {
   late LatLng _point;
+  bool _resolving = false;
+  late final AppLocationService _locationService =
+      widget.locationService ?? AppLocationService();
 
   @override
   void initState() {
     super.initState();
     _point = LatLng(widget.initialLat, widget.initialLng);
+  }
+
+  Future<void> _confirm() async {
+    if (_resolving) return;
+    setState(() => _resolving = true);
+    final label = await _locationService.resolveSocialArea(
+      _point.latitude,
+      _point.longitude,
+    );
+    if (!mounted) return;
+    context.pop(<String, dynamic>{
+      'lat': _point.latitude,
+      'lng': _point.longitude,
+      'label': label ?? 'Zona seleccionada en mapa',
+    });
+  }
+
+  Future<void> _useCurrentLocation() async {
+    final result = await _locationService.getCurrentLocation();
+    if (!mounted) return;
+    if (result.latitude != null && result.longitude != null) {
+      setState(() => _point = LatLng(result.latitude!, result.longitude!));
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message)));
+    }
   }
 
   @override
@@ -38,11 +71,8 @@ class _PickBusinessLocationPageState extends State<PickBusinessLocationPage> {
         backgroundColor: const Color(GarraColors.charcoal),
         actions: [
           TextButton(
-            onPressed: () => context.pop({
-              'lat': _point.latitude,
-              'lng': _point.longitude,
-            }),
-            child: const Text('Usar'),
+            onPressed: _resolving ? null : _confirm,
+            child: Text(_resolving ? 'Resolviendo...' : 'Confirmar'),
           ),
         ],
       ),
@@ -60,15 +90,25 @@ class _PickBusinessLocationPageState extends State<PickBusinessLocationPage> {
                 ),
               },
               onTap: (p) => setState(() => _point = p),
-              myLocationButtonEnabled: true,
+              myLocationButtonEnabled: false,
               zoomControlsEnabled: true,
             ),
           ),
           Padding(
             padding: const EdgeInsets.all(GarraSpacing.md),
-            child: Text(
-              'Toca el mapa o arrastra el pin.\n${_point.latitude.toStringAsFixed(5)}, ${_point.longitude.toStringAsFixed(5)}',
-              textAlign: TextAlign.center,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Toca el mapa o arrastra el pin para elegir el punto del negocio.',
+                  textAlign: TextAlign.center,
+                ),
+                TextButton.icon(
+                  onPressed: _useCurrentLocation,
+                  icon: const Icon(Icons.my_location_rounded),
+                  label: const Text('Usar mi ubicación actual'),
+                ),
+              ],
             ),
           ),
         ],

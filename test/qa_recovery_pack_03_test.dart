@@ -8,6 +8,7 @@ import 'package:garra_digital_app/core/media/media_upload_service.dart';
 import 'package:garra_digital_app/core/theme/app_theme.dart';
 import 'package:garra_digital_app/features/explore/presentation/explore_page.dart';
 import 'package:garra_digital_app/features/locations/data/crema_point_model.dart';
+import 'package:garra_digital_app/features/locations/data/crema_business_application_service.dart';
 import 'package:garra_digital_app/features/locations/data/location_service.dart';
 import 'package:garra_digital_app/features/locations/presentation/mi_negocio_crema_page.dart';
 import 'package:garra_digital_app/features/locations/presentation/negocios_cremas_page.dart';
@@ -18,6 +19,11 @@ import 'package:garra_digital_app/features/solidarity/presentation/solidaria_pag
 import 'package:go_router/go_router.dart';
 
 import 'passport_screen_test.dart' show samplePassport;
+
+class _BusinessCategories extends CremaBusinessApplicationService {
+  @override
+  Future<List<String>> listCategories() async => ['Comida', 'Servicios'];
+}
 
 void main() {
   test('signed upload uses the canonical media contract', () async {
@@ -348,13 +354,13 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.darkTheme,
-        home: const RegistrarNegocioCremaPage(),
+        home: RegistrarNegocioCremaPage(categoryService: _BusinessCategories()),
       ),
     );
     await tester.pumpAndSettle();
     expect(find.text('TU NEGOCIO'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('Elegir en mapa'),
+      find.text('Elegir ubicación en mapa'),
       200,
       scrollable: find.byType(Scrollable).first,
     );

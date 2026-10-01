@@ -290,7 +290,7 @@ class GarraSocialPostCard extends StatelessWidget {
                 )),
                 if (!engagement.isFollowersOnly)
                 Expanded(child: _PostAction(
-                  icon: const Icon(Icons.ios_share_rounded),
+                  icon: const Icon(Icons.share_rounded),
                   label: 'Compartir',
                   onTap: onShare,
                 )),

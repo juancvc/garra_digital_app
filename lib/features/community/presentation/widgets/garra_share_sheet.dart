@@ -123,7 +123,7 @@ Future<GarraShareOutcome?> showGarraShareSheet(
                 permitExit = true;
                 Navigator.pop(sheetContext, const GarraShareOutcome(external: true));
               },
-              icon: const Icon(Icons.ios_share_rounded),
+              icon: const Icon(Icons.share_rounded),
               label: const Text('Compartir en otras apps'),
             ),
             if (error != null) Padding(

@@ -15,10 +15,18 @@ import '../data/create_checkin_request.dart';
 import 'providers/location_provider.dart';
 import 'widgets/garra_checkin_success.dart';
 
+bool shouldLoadMapCurrentLocation(String? focusPointId) => focusPointId == null;
+
+LatLng initialBusinessMapTarget(CremaPointModel? focused, LatLng? current) =>
+    focused == null
+    ? (current ?? const LatLng(-12.0464, -77.0428))
+    : LatLng(focused.latitude, focused.longitude);
+
 class MapCremaPage extends ConsumerStatefulWidget {
-  const MapCremaPage({super.key, this.matchId});
+  const MapCremaPage({super.key, this.matchId, this.focusPointId});
 
   final String? matchId;
+  final String? focusPointId;
 
   @override
   ConsumerState<MapCremaPage> createState() => _MapCremaPageState();
@@ -38,7 +46,9 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
   @override
   void initState() {
     super.initState();
-    _loadCurrentLocation();
+    if (shouldLoadMapCurrentLocation(widget.focusPointId)) {
+      _loadCurrentLocation();
+    }
     _loadFollowing();
   }
 
@@ -330,15 +340,30 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
             onRetry: () => ref.invalidate(cremaPointsProvider),
           ),
           data: (points) {
+            CremaPointModel? focused;
+            for (final point in points) {
+              if (point.id == widget.focusPointId) {
+                focused = point;
+                break;
+              }
+            }
+            if (focused != null && _selectedPoint == null) {
+              final selected = focused;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted && _selectedPoint == null) _selectPoint(selected);
+              });
+            }
             return Stack(
               children: [
                 GoogleMap(
                   initialCameraPosition: CameraPosition(
-                    target: _currentLatLng ?? _limaLatLng,
-                    zoom: _currentLatLng == null ? 12 : 15,
+                    target: initialBusinessMapTarget(focused, _currentLatLng),
+                    zoom: focused != null
+                        ? 16
+                        : (_currentLatLng == null ? 12 : 15),
                   ),
                   markers: _buildMarkers(points),
-                  myLocationEnabled: true,
+                  myLocationEnabled: widget.focusPointId == null,
                   myLocationButtonEnabled: false,
                   zoomControlsEnabled: false,
                   mapToolbarEnabled: false,

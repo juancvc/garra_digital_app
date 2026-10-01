@@ -6,6 +6,7 @@ import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_form.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../data/crema_business_application_service.dart';
+import '../data/business_social_links.dart';
 
 class MiNegocioCremaPage extends StatefulWidget {
   const MiNegocioCremaPage({super.key});
@@ -50,9 +51,7 @@ class _MiNegocioCremaPageState extends State<MiNegocioCremaPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mi Negocio Crema'),
-      ),
+      appBar: AppBar(title: const Text('Mi Negocio Crema')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           final ok = await context.push<bool>('/negocios/mi-negocio/nuevo');
@@ -65,7 +64,9 @@ class _MiNegocioCremaPageState extends State<MiNegocioCremaPage> {
       ),
       body: _loading
           ? Center(
-              child: CircularProgressIndicator(color: context.garraColors.brandPrestige),
+              child: CircularProgressIndicator(
+                color: context.garraColors.brandPrestige,
+              ),
             )
           : _error != null
           ? Center(child: Text(_error!))
@@ -80,7 +81,7 @@ class _MiNegocioCremaPageState extends State<MiNegocioCremaPage> {
           : ListView.separated(
               padding: const EdgeInsets.all(GarraSpacing.lg),
               itemCount: _items.length,
-              separatorBuilder: (_, __) =>
+              separatorBuilder: (_, _) =>
                   const SizedBox(height: GarraSpacing.md),
               itemBuilder: (context, i) {
                 final item = _items[i];
@@ -143,9 +144,14 @@ class _MiNegocioCremaPageState extends State<MiNegocioCremaPage> {
 }
 
 class RegistrarNegocioCremaPage extends StatefulWidget {
-  const RegistrarNegocioCremaPage({super.key, this.existing});
+  const RegistrarNegocioCremaPage({
+    super.key,
+    this.existing,
+    this.categoryService,
+  });
 
   final CremaBusinessApplication? existing;
+  final CremaBusinessApplicationService? categoryService;
 
   @override
   State<RegistrarNegocioCremaPage> createState() =>
@@ -153,22 +159,30 @@ class RegistrarNegocioCremaPage extends StatefulWidget {
 }
 
 class _RegistrarNegocioCremaPageState extends State<RegistrarNegocioCremaPage> {
-  final _service = CremaBusinessApplicationService();
+  late final CremaBusinessApplicationService _service =
+      widget.categoryService ?? CremaBusinessApplicationService();
+  List<String> _categories = const [];
+  bool _loadingCategories = true;
+  String? _categoryError;
   final _name = TextEditingController();
-  final _category = TextEditingController(text: 'Comida');
+  final _category = TextEditingController();
   final _description = TextEditingController();
   final _address = TextEditingController();
   final _phone = TextEditingController();
   final _whatsapp = TextEditingController();
   final _instagram = TextEditingController();
+  final _facebook = TextEditingController();
+  final _tiktok = TextEditingController();
   double _lat = -12.0553;
   double _lng = -77.0379;
   bool _authorized = false;
   bool _submitting = false;
+  bool _locationSelected = false;
 
   @override
   void initState() {
     super.initState();
+    _loadCategories();
     final e = widget.existing;
     if (e != null) {
       _name.text = e.businessName;
@@ -178,8 +192,32 @@ class _RegistrarNegocioCremaPageState extends State<RegistrarNegocioCremaPage> {
       _phone.text = e.phone ?? '';
       _whatsapp.text = e.whatsapp ?? '';
       _instagram.text = e.instagram ?? '';
+      _facebook.text = e.facebook ?? '';
+      _tiktok.text = e.tiktok ?? '';
       _lat = e.latitude;
       _lng = e.longitude;
+      _locationSelected = true;
+    }
+  }
+
+  Future<void> _loadCategories() async {
+    setState(() {
+      _loadingCategories = true;
+      _categoryError = null;
+    });
+    try {
+      final categories = await _service.listCategories();
+      if (!mounted) return;
+      setState(() {
+        _categories = categories;
+        _loadingCategories = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingCategories = false;
+        _categoryError = 'No pudimos cargar las categorías';
+      });
     }
   }
 
@@ -192,6 +230,8 @@ class _RegistrarNegocioCremaPageState extends State<RegistrarNegocioCremaPage> {
     _phone.dispose();
     _whatsapp.dispose();
     _instagram.dispose();
+    _facebook.dispose();
+    _tiktok.dispose();
     super.dispose();
   }
 
@@ -206,15 +246,50 @@ class _RegistrarNegocioCremaPageState extends State<RegistrarNegocioCremaPage> {
     'longitude': _lng,
     'phone': _phone.text.trim().isEmpty ? null : _phone.text.trim(),
     'whatsapp': _whatsapp.text.trim().isEmpty ? null : _whatsapp.text.trim(),
-    'instagram': _instagram.text.trim().isEmpty ? null : _instagram.text.trim(),
+    'instagram': businessSocialUri(
+      BusinessSocialNetwork.instagram,
+      _instagram.text,
+    )?.toString(),
+    'facebook': businessSocialUri(
+      BusinessSocialNetwork.facebook,
+      _facebook.text,
+    )?.toString(),
+    'tiktok': businessSocialUri(
+      BusinessSocialNetwork.tiktok,
+      _tiktok.text,
+    )?.toString(),
   };
 
   Future<void> _submit() async {
-    if (_name.text.trim().isEmpty || _address.text.trim().isEmpty) {
+    if (_name.text.trim().isEmpty ||
+        _address.text.trim().isEmpty ||
+        _category.text.trim().isEmpty ||
+        !_locationSelected ||
+        (!_categories.contains(_category.text.trim()) &&
+            _category.text.trim() != widget.existing?.category)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nombre y ciudad son obligatorios')),
+        const SnackBar(
+          content: Text('Completa nombre, categoría y ubicación en el mapa'),
+        ),
       );
       return;
+    }
+    for (final entry in <(BusinessSocialNetwork, String)>[
+      (BusinessSocialNetwork.instagram, _instagram.text),
+      (BusinessSocialNetwork.facebook, _facebook.text),
+      (BusinessSocialNetwork.tiktok, _tiktok.text),
+    ]) {
+      if (entry.$2.trim().isNotEmpty &&
+          businessSocialUri(entry.$1, entry.$2) == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Revisa el usuario o enlace de ${socialNetworkLabel(entry.$1)}',
+            ),
+          ),
+        );
+        return;
+      }
     }
     if (!_authorized) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -252,9 +327,7 @@ class _RegistrarNegocioCremaPageState extends State<RegistrarNegocioCremaPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Registrar mi negocio'),
-      ),
+      appBar: AppBar(title: const Text('Registrar mi negocio')),
       resizeToAvoidBottomInset: true,
       body: ListView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -274,7 +347,37 @@ class _RegistrarNegocioCremaPageState extends State<RegistrarNegocioCremaPage> {
             title: 'TU NEGOCIO',
             children: [
               GarraTextField(label: 'Nombre', controller: _name),
-              GarraTextField(label: 'Categoría', controller: _category),
+              if (_loadingCategories) const LinearProgressIndicator(),
+              if (_categoryError != null)
+                Row(
+                  children: [
+                    Expanded(child: Text(_categoryError!)),
+                    TextButton(
+                      onPressed: _loadCategories,
+                      child: const Text('Reintentar'),
+                    ),
+                  ],
+                ),
+              DropdownMenu<String>(
+                controller: _category,
+                enabled: _categories.isNotEmpty || widget.existing != null,
+                label: const Text('Categoría'),
+                enableFilter: true,
+                enableSearch: true,
+                expandedInsets: EdgeInsets.zero,
+                dropdownMenuEntries:
+                    {
+                          ..._categories,
+                          if (widget.existing != null &&
+                              !_categories.contains(widget.existing!.category))
+                            widget.existing!.category,
+                        }
+                        .map(
+                          (value) =>
+                              DropdownMenuEntry(value: value, label: value),
+                        )
+                        .toList(),
+              ),
               GarraTextArea(
                 label: 'Descripción',
                 controller: _description,
@@ -285,12 +388,20 @@ class _RegistrarNegocioCremaPageState extends State<RegistrarNegocioCremaPage> {
           GarraFormSection(
             title: 'UBICACIÓN',
             children: [
-              GarraTextField(label: 'Ciudad', controller: _address),
+              TextField(
+                controller: _address,
+                readOnly: true,
+                decoration: const InputDecoration(
+                  labelText: 'Ubicación seleccionada',
+                  hintText: 'Elige un punto en el mapa',
+                  prefixIcon: Icon(Icons.place_outlined),
+                ),
+              ),
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
                   onPressed: () async {
-                    final picked = await context.push<Map<String, double>>(
+                    final picked = await context.push<Map<String, dynamic>>(
                       '/negocios/mi-negocio/ubicacion',
                       extra: {'lat': _lat, 'lng': _lng},
                     );
@@ -298,11 +409,19 @@ class _RegistrarNegocioCremaPageState extends State<RegistrarNegocioCremaPage> {
                       setState(() {
                         _lat = picked['lat'] ?? _lat;
                         _lng = picked['lng'] ?? _lng;
+                        _address.text =
+                            picked['label']?.toString() ??
+                            'Zona seleccionada en mapa';
+                        _locationSelected = true;
                       });
                     }
                   },
                   icon: const Icon(Icons.map_outlined),
-                  label: const Text('Elegir en mapa'),
+                  label: Text(
+                    _locationSelected
+                        ? 'Cambiar ubicación'
+                        : 'Elegir ubicación en mapa',
+                  ),
                 ),
               ),
             ],
@@ -311,16 +430,28 @@ class _RegistrarNegocioCremaPageState extends State<RegistrarNegocioCremaPage> {
             title: 'CONTACTO',
             children: [
               GarraTextField(
-                label: 'WhatsApp',
-                controller: _whatsapp,
-                keyboardType: TextInputType.phone,
-              ),
-              GarraTextField(
                 label: 'Teléfono',
                 controller: _phone,
                 keyboardType: TextInputType.phone,
               ),
-              GarraTextField(label: 'Instagram', controller: _instagram),
+              GarraTextField(
+                label: 'WhatsApp (si es diferente)',
+                controller: _whatsapp,
+                keyboardType: TextInputType.phone,
+              ),
+              const Text('Redes sociales · opcional'),
+              GarraTextField(
+                label: 'Instagram · @usuario o URL',
+                controller: _instagram,
+              ),
+              GarraTextField(
+                label: 'Facebook · usuario o URL',
+                controller: _facebook,
+              ),
+              GarraTextField(
+                label: 'TikTok · @usuario o URL',
+                controller: _tiktok,
+              ),
             ],
           ),
           GarraFormSection(
