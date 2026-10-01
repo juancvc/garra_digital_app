@@ -129,10 +129,22 @@ class _FakeService extends CommunityService {
   String? editError;
   int? serverCountOverride;
   Completer<void>? holdReaction;
+  WallCommentModel? contextComment;
   final List<String> calls = [];
 
   @override
   Future<WallPostModel> getPost(String postId) async => post;
+
+  @override
+  Future<WallCommentModel> getContextComment({required String postId,
+      required String commentId}) async {
+    if (contextComment == null) {
+      final options = RequestOptions(path: '/community/posts/$postId/comments/$commentId');
+      throw DioException(requestOptions: options, type: DioExceptionType.badResponse,
+          response: Response(requestOptions: options, statusCode: 404));
+    }
+    return contextComment!;
+  }
 
   @override
   Future<CommentsPageResult> listComments({
@@ -307,6 +319,31 @@ Widget _tileHost(ThemeData theme, WallCommentModel comment) {
 }
 
 void main() {
+  testWidgets('notification opens targeted comment with post context', (tester) async {
+    final fake = _FakeService(comments: [])
+      ..contextComment = _comment(id: 'target', content: 'Comentario mencionado');
+    await tester.pumpWidget(ProviderScope(overrides: [
+      communityServiceProvider.overrideWith((ref) => fake),
+      currentFanProvider.overrideWith(() => _FakeFan()),
+    ], child: MaterialApp(theme: AppTheme.darkTheme,
+      home: const PostDetailScreen(postId: 'post-1', initialCommentId: 'target'))));
+    await tester.pumpAndSettle();
+    expect(find.text('Comentario mencionado'), findsWidgets);
+    expect(find.text('Arenga de detalle'), findsOneWidget);
+  });
+
+  testWidgets('missing notification comment shows controlled state', (tester) async {
+    final fake = _FakeService(comments: []);
+    await tester.pumpWidget(ProviderScope(overrides: [
+      communityServiceProvider.overrideWith((ref) => fake),
+      currentFanProvider.overrideWith(() => _FakeFan()),
+    ], child: MaterialApp(theme: AppTheme.darkTheme,
+      home: const PostDetailScreen(postId: 'post-1', initialCommentId: 'gone'))));
+    await tester.pumpAndSettle();
+    expect(find.text('Comentario no disponible'), findsOneWidget);
+    expect(find.text('Arenga de detalle'), findsOneWidget);
+  });
+
   group('model', () {
     test('COMMENT_PARSE_REACTION_FIELDS', () {
       final full = WallCommentModel.fromJson({

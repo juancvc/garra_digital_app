@@ -16,14 +16,16 @@ import '../data/community_service.dart';
 
 /// Global search across fans, communities, businesses, marketplace, Solidaria.
 class GlobalSearchPage extends StatefulWidget {
-  const GlobalSearchPage({super.key});
+  const GlobalSearchPage({super.key, this.service});
+
+  final CommunityService? service;
 
   @override
   State<GlobalSearchPage> createState() => _GlobalSearchPageState();
 }
 
 class _GlobalSearchPageState extends State<GlobalSearchPage> {
-  final _service = CommunityService();
+  late final CommunityService _service = widget.service ?? CommunityService();
   final _controller = TextEditingController();
   Timer? _debounce;
   String _type = 'ALL';
@@ -31,6 +33,9 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
   String? _error;
   Map<String, dynamic>? _results;
   List<String> _recent = [];
+  int _searchGeneration = 0;
+
+  String _query(String value) => value.trim().replaceFirst(RegExp(r'^@'), '').trim();
 
   static const _chips = [
     ('ALL', 'Todo'),
@@ -81,19 +86,23 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
 
   void _onQueryChanged(String value) {
     _debounce?.cancel();
+    _searchGeneration++;
     _debounce = Timer(const Duration(milliseconds: 450), () {
-      if (value.trim().length >= 2) {
-        _search(value.trim());
+      final q = _query(value);
+      if (q.length >= 2) {
+        _search(q);
       } else {
         setState(() {
           _results = null;
           _error = null;
+          _loading = false;
         });
       }
     });
   }
 
   Future<void> _search(String q) async {
+    final generation = ++_searchGeneration;
     setState(() {
       _loading = true;
       _error = null;
@@ -101,14 +110,13 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
     try {
       final data =
           await _service.globalSearch(q, type: _type == 'ALL' ? null : _type);
-      await _persistRecent(q);
-      if (!mounted) return;
+      if (!mounted || generation != _searchGeneration) return;
       setState(() {
         _results = data;
         _loading = false;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _searchGeneration) return;
       setState(() {
         _error = 'No pudimos buscar ahora';
         _loading = false;
@@ -147,7 +155,11 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
               ),
               onChanged: _onQueryChanged,
               onSubmitted: (v) {
-                if (v.trim().length >= 2) _search(v.trim());
+                final q = _query(v);
+                if (q.length >= 2) {
+                  _persistRecent(q);
+                  _search(q);
+                }
               },
             ),
           ),
@@ -165,7 +177,7 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
                         selected: _type == c.$1,
                         onSelected: (_) {
                           setState(() => _type = c.$1);
-                          final q = _controller.text.trim();
+                          final q = _query(_controller.text);
                           if (q.length >= 2) _search(q);
                         },
                       ),
@@ -187,10 +199,17 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
     if (_error != null) {
       return GarraErrorState(
         message: _error!,
-        onRetry: () => _search(_controller.text.trim()),
+        onRetry: () => _search(_query(_controller.text)),
       );
     }
     if (_results == null) {
+      if (_controller.text.trim().startsWith('@') &&
+          _query(_controller.text).length < 2) {
+        return const GarraEmptyState(
+          title: 'Busca una persona',
+          message: 'Escribe al menos 2 letras después de @.',
+        );
+      }
       if (_recent.isEmpty) {
         return const GarraEmptyState(
           title: 'Busca en Garra',
@@ -255,6 +274,7 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
                   children: [
                     GarraAvatar(
                       displayName: name.isEmpty ? username : name,
+                      avatarUrl: e['avatarUrl']?.toString(),
                       size: 40,
                     ),
                     const SizedBox(width: 10),

@@ -539,6 +539,7 @@ List<RouteBase> _buildRoutes() => [
       final extra = state.extra;
       return PostDetailScreen(
         postId: postId,
+        initialCommentId: state.uri.queryParameters['commentId'],
         moderation: extra is PostDetailModeration ? extra : null,
       );
     },

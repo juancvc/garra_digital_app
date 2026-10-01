@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:garra_digital_app/core/auth/current_fan_provider.dart';
 import 'package:garra_digital_app/features/auth/data/auth_user.dart';
 import 'package:garra_digital_app/features/community/data/community_service.dart';
+import 'package:garra_digital_app/features/community/data/reaction_result.dart';
 import 'package:garra_digital_app/features/community/data/wall_post_model.dart';
 import 'package:garra_digital_app/features/community/presentation/providers/community_provider.dart';
 import 'package:garra_digital_app/features/community/presentation/widgets/garra_share_sheet.dart';
@@ -37,14 +38,25 @@ class _ShareService extends CommunityService {
   _ShareService() : super(dio: Dio());
   int shareCalls = 0;
   int undoCalls = 0;
+  String? lastCaption;
+  int reactionCalls = 0;
+  Completer<ReactionResult>? pendingReaction;
   Completer<WallActionResult>? pending;
   @override
-  Future<WallActionResult> shareGlobalPost(String postId) {
+  Future<WallActionResult> shareGlobalPost(String postId, {String? caption}) {
     shareCalls++;
+    lastCaption = caption;
     return pending?.future ?? Future.value(WallActionResult.success(message: 'ok', post: _share));
   }
   @override
   Future<int?> undoGlobalShare(String postId) async { undoCalls++; return 0; }
+  @override
+  Future<ReactionResult> upsertReaction({required String postId, required String type}) {
+    reactionCalls++;
+    return pendingReaction?.future ?? Future.value(ReactionResult.success(
+      message: 'ok', myReaction: type,
+      reactionSummary: {'FIRE': 3}, reactionCount: 3));
+  }
   @override
   Future<List<WallPostModel>> getGlobalFeed({String mode = 'RECENT'}) async => [_original];
 }
@@ -128,6 +140,62 @@ void main() {
     expect(result?.sharedPost?.id, 'share');
   });
 
+  testWidgets('share caption is trimmed and shown above original card', (tester) async {
+    final service = _ShareService();
+    GarraShareOutcome? result;
+    await _pumpSheet(tester, service, _original, (value) => result = value);
+    await tester.enterText(find.byType(TextFormField), '  Vamos juntos  ');
+    await tester.tap(find.text('Compartir en Garra'));
+    await tester.pumpAndSettle();
+    expect(service.lastCaption, 'Vamos juntos');
+    expect(result?.sharedPost, isNotNull);
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: SingleChildScrollView(
+      child: GarraSocialPostCard(
+        post: _share.copyWith(content: 'Vamos juntos'), onOpen: () {})))));
+    expect(find.text('Vamos juntos'), findsOneWidget);
+    expect(find.text('Vamos la U'), findsOneWidget);
+  });
+
+  testWidgets('back asks before discarding share caption', (tester) async {
+    final service = _ShareService();
+    await _pumpSheet(tester, service, _original, (_) {});
+    await tester.enterText(find.byType(TextFormField), 'Borrador');
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('¿Descartar borrador?'), findsOneWidget);
+    await tester.tap(find.text('Seguir editando'));
+    await tester.pumpAndSettle();
+    expect(find.text('Borrador'), findsOneWidget);
+    expect(service.shareCalls, 0);
+  });
+
+  testWidgets('external share asks before discarding internal caption', (tester) async {
+    final service = _ShareService();
+    GarraShareOutcome? result;
+    await _pumpSheet(tester, service, _original, (value) => result = value);
+    await tester.enterText(find.byType(TextFormField), 'Mi borrador');
+    await tester.tap(find.text('Compartir en otras apps'));
+    await tester.pumpAndSettle();
+    expect(find.text('¿Descartar borrador?'), findsOneWidget);
+    await tester.tap(find.text('Seguir editando'));
+    await tester.pumpAndSettle();
+    expect(find.text('Mi borrador'), findsOneWidget);
+    expect(result, isNull);
+  });
+
+  testWidgets('close action preserves caption until discard is confirmed', (tester) async {
+    final service = _ShareService();
+    await _pumpSheet(tester, service, _original, (_) {});
+    await tester.enterText(find.byType(TextFormField), 'Texto preparado');
+    await tester.tap(find.byTooltip('Cerrar'));
+    await tester.pumpAndSettle();
+    expect(find.text('¿Descartar borrador?'), findsOneWidget);
+    await tester.tap(find.text('Seguir editando'));
+    await tester.pumpAndSettle();
+    expect(find.text('Texto preparado'), findsOneWidget);
+  });
+
   testWidgets('share error keeps sheet and external option available', (tester) async {
     final service = _ShareService()..pending = Completer<WallActionResult>();
     GarraShareOutcome? result;
@@ -176,5 +244,27 @@ void main() {
     expect(tester.widgetList<Text>(find.byType(Text)).map((t) => t.data)
         .where((t) => t?.contains('compartid') == true).toList(),
         contains('· 1 compartido'));
+  });
+
+  testWidgets('feed reaction is immediate, blocks duplicate and rolls back', (tester) async {
+    final service = _ShareService()..pendingReaction = Completer<ReactionResult>();
+    final container = ProviderContainer(overrides: [
+      communityServiceProvider.overrideWithValue(service),
+      currentFanProvider.overrideWith(_NoFan.new),
+    ]);
+    addTearDown(container.dispose);
+    await tester.pumpWidget(UncontrolledProviderScope(container: container,
+      child: const MaterialApp(home: Scaffold(body: SocialFeedTab(mode: 'RECENT')))));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('reaction_cta')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('reaction_option_FIRE')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('post_my_reaction')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('reaction_cta')));
+    expect(service.reactionCalls, 1);
+    service.pendingReaction!.complete(ReactionResult.failure('network'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('post_my_reaction')), findsNothing);
   });
 }

@@ -247,9 +247,10 @@ class CommunityService {
     }
   }
 
-  Future<WallActionResult> shareGlobalPost(String postId) async {
+  Future<WallActionResult> shareGlobalPost(String postId, {String? caption}) async {
     try {
-      final response = await _dio.post('/community/posts/$postId/share');
+      final response = await _dio.post('/community/posts/$postId/share',
+          data: {'caption': caption?.trim() ?? ''});
       final data = response.data['data'];
       return WallActionResult.success(
         message: response.data['message']?.toString() ?? 'Compartido en Garra',
@@ -405,6 +406,15 @@ class CommunityService {
     return CommentsPageResult.fromJson(
       Map<String, dynamic>.from(payload as Map),
     );
+  }
+
+  Future<WallCommentModel> getContextComment({
+    required String postId,
+    required String commentId,
+  }) async {
+    final response = await _dio.get('/community/posts/$postId/comments/$commentId');
+    return WallCommentModel.fromJson(
+        Map<String, dynamic>.from(response.data['data'] as Map));
   }
 
   Future<CommentActionResult> createComment({

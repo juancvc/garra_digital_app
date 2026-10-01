@@ -178,6 +178,15 @@ class GarraSocialPostCard extends StatelessWidget {
               ),
               SizedBox(height: post.isShare ? 6 : 10),
               if (post.originalPost case final original?)
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                if (post.content.trim().isNotEmpty) ...[
+                  LinkedText(post.content, maxLines: 4,
+                      mentions: post.mentions,
+                      onOpenMention: (id) => context.push('/comunidad/u/$id'),
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium ?? const TextStyle()),
+                  const SizedBox(height: GarraSpacing.sm),
+                ],
                 InkWell(
                   onTap: onOpenOriginal ?? onOpen,
                   child: Container(
@@ -210,7 +219,7 @@ class GarraSocialPostCard extends StatelessWidget {
                       ],
                     ]),
                   ),
-                )
+                )])
               else ...[
                 LinkedText(post.content, maxLines: 4,
                     mentions: post.mentions,

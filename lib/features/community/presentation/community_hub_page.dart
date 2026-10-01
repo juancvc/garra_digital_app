@@ -14,12 +14,14 @@ import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/community_report.dart';
 import '../data/community_service.dart';
+import '../data/engagement_utils.dart';
 import '../data/garra_view_tracker.dart';
 import '../data/wall_post_model.dart';
 import 'providers/community_provider.dart';
 import 'widgets/garra_report_sheet.dart';
 import 'widgets/garra_social_post_card.dart';
 import 'widgets/garra_share_sheet.dart';
+import 'widgets/garra_reaction_actions.dart';
 import 'widgets/garra_viewport_tracker.dart';
 import '../../retention/data/retention_service.dart';
 
@@ -35,6 +37,7 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
   final _service = CommunityService();
   final _retention = RetentionService();
   List<WallPostModel> _posts = [];
+  final Set<String> _reactingPostIds = {};
   List<Map<String, dynamic>> _people = [];
   bool _loading = true;
   String? _error;
@@ -117,6 +120,53 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
                 p.id == post.id ? p.copyWith(savedByMe: post.savedByMe) : p)
             .toList();
       });
+    }
+  }
+
+  Future<void> _react(WallPostModel card, {bool change = false}) async {
+    final post = card.originalPost?.asPost() ?? card;
+    if (_reactingPostIds.contains(post.id)) return;
+    setState(() => _reactingPostIds.add(post.id));
+    final intent = await resolveReactionTap(context,
+        current: post.myReaction, forcePicker: change);
+    if (!mounted) return;
+    if (intent == null || !allowNetworkAction(context)) {
+      setState(() => _reactingPostIds.remove(post.id));
+      return;
+    }
+    final optimistic = applyOptimisticReaction(post, intent.apiValue);
+    void replace(WallPostModel value) {
+      _posts = _posts.map((item) {
+        if (item.id == value.id) return value;
+        if (item.originalPost?.id == value.id) {
+          return item.copyWith(originalPost: item.originalPost!.copyWith(
+            reactionSummary: value.reactionSummary,
+            reactionCount: value.reactionCount,
+            myReaction: value.myReaction,
+            clearMyReaction: value.myReaction == null,
+          ));
+        }
+        return item;
+      }).toList();
+    }
+    setState(() => replace(optimistic));
+    final result = intent.isRemove
+        ? await _service.removeReaction(post.id)
+        : await _service.upsertReaction(postId: post.id, type: intent.apiValue!);
+    if (!mounted) return;
+    setState(() {
+      _reactingPostIds.remove(post.id);
+      replace(!result.success ? post :
+          result.reactionSummary != null && result.reactionCount != null
+              ? applyReactionResponse(post: optimistic,
+                  myReaction: result.myReaction,
+                  reactionSummary: result.reactionSummary!,
+                  reactionCount: result.reactionCount!)
+              : optimistic);
+    });
+    if (!result.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(reactionErrorMessage(intent))));
     }
   }
 
@@ -411,7 +461,8 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
                                       ),
                               onShare: () => _share(post),
                               onComment: () => context.push('/muro-crema/posts/${post.originalPost?.id ?? post.id}'),
-                              onReact: () => context.push('/muro-crema/posts/${post.originalPost?.id ?? post.id}'),
+                              onReact: () => _react(post),
+                              onChangeReaction: () => _react(post, change: true),
                               onSave: () => _toggleSave(post),
                               onDelete: mine ? () => _deletePost(post.id) : null,
                             ),

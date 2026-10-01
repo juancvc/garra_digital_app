@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/network/offline_action_guard.dart';
+import '../../../../core/navigation/draft_exit_guard.dart';
 import '../../data/community_service.dart';
 import '../../data/wall_post_model.dart';
 
@@ -24,17 +25,59 @@ Future<GarraShareOutcome?> showGarraShareSheet(
   final original = post.originalPost;
   final postId = original?.id ?? post.id;
   final sharedByMe = post.sharedByMe;
+  var caption = '';
+  var permitExit = false;
   return showModalBottomSheet<GarraShareOutcome>(
     context: context,
+    isScrollControlled: true,
+    enableDrag: false,
+    isDismissible: false,
     builder: (sheetContext) {
       var busy = false;
       String? error;
-      return StatefulBuilder(builder: (context, setState) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
+      return StatefulBuilder(builder: (context, setState) => PopScope(
+        canPop: !busy && (caption.trim().isEmpty || permitExit),
+        onPopInvokedWithResult: (didPop, _) async {
+          if (didPop || busy) return;
+          if (await confirmDiscardDraft(context) && sheetContext.mounted) {
+            permitExit = true;
+            Navigator.pop(sheetContext);
+          }
+        },
+        child: SafeArea(
+        child: SingleChildScrollView(child: Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20,
+              MediaQuery.viewInsetsOf(context).bottom + 20),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Text('Compartir', style: Theme.of(context).textTheme.titleLarge),
+            Row(children: [
+              Expanded(child: Text('Compartir', style: Theme.of(context).textTheme.titleLarge)),
+              IconButton(
+                tooltip: 'Cerrar',
+                onPressed: busy ? null : () async {
+                  if (caption.trim().isNotEmpty &&
+                      !await confirmDiscardDraft(sheetContext)) {
+                    return;
+                  }
+                  if (!sheetContext.mounted) {
+                    return;
+                  }
+                  permitExit = true;
+                  Navigator.pop(sheetContext);
+                },
+                icon: const Icon(Icons.close),
+              ),
+            ]),
             const SizedBox(height: 16),
+            if (!sharedByMe) ...[
+              TextFormField(
+                maxLength: 220,
+                maxLines: 3,
+                minLines: 1,
+                onChanged: (value) => setState(() => caption = value),
+                decoration: const InputDecoration(hintText: 'Agrega un comentario (opcional)'),
+              ),
+              const SizedBox(height: 8),
+            ],
             FilledButton.icon(
               onPressed: busy ? null : () async {
                 if (busy) return;
@@ -44,9 +87,10 @@ Future<GarraShareOutcome?> showGarraShareSheet(
                   if (sharedByMe) {
                     final count = await service.undoGlobalShare(postId);
                     if (count == null) throw StateError('Respuesta de share inválida');
-                    if (sheetContext.mounted) Navigator.pop(sheetContext, GarraShareOutcome(undoCount: count));
+                    if (sheetContext.mounted) { permitExit = true; Navigator.pop(sheetContext, GarraShareOutcome(undoCount: count)); }
                   } else {
-                    final result = await service.shareGlobalPost(postId);
+                    final result = await service.shareGlobalPost(postId,
+                        caption: caption.trim());
                     if (!result.success || result.post == null) {
                       if (sheetContext.mounted) {
                         setState(() => error = result.message.isEmpty
@@ -55,7 +99,7 @@ Future<GarraShareOutcome?> showGarraShareSheet(
                       }
                       return;
                     }
-                    if (sheetContext.mounted) Navigator.pop(sheetContext, GarraShareOutcome(sharedPost: result.post));
+                    if (sheetContext.mounted) { permitExit = true; Navigator.pop(sheetContext, GarraShareOutcome(sharedPost: result.post)); }
                   }
                 } catch (_) {
                   if (sheetContext.mounted) setState(() => error = 'No pudimos actualizar el compartido. Reintenta.');
@@ -68,7 +112,17 @@ Future<GarraShareOutcome?> showGarraShareSheet(
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
-              onPressed: busy ? null : () => Navigator.pop(sheetContext, const GarraShareOutcome(external: true)),
+              onPressed: busy ? null : () async {
+                if (caption.trim().isNotEmpty &&
+                    !await confirmDiscardDraft(sheetContext)) {
+                  return;
+                }
+                if (!sheetContext.mounted) {
+                  return;
+                }
+                permitExit = true;
+                Navigator.pop(sheetContext, const GarraShareOutcome(external: true));
+              },
               icon: const Icon(Icons.ios_share_rounded),
               label: const Text('Compartir en otras apps'),
             ),
@@ -78,7 +132,7 @@ Future<GarraShareOutcome?> showGarraShareSheet(
             ),
           ]),
         ),
-      ));
+      ))));
     },
   );
 }

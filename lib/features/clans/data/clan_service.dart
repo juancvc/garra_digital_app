@@ -89,6 +89,11 @@ class ClanService {
     return getClan(slug);
   }
 
+  Future<ClanModel> cancelJoinRequest(String slug) async {
+    final response = await _dio.delete('/clans/$slug/join-requests/me');
+    return ClanModel.fromJson(Map<String, dynamic>.from(response.data['data'] as Map));
+  }
+
   Future<void> leaveClan(String slug) async {
     try {
       await _dio.delete('/clans/$slug/membership');

@@ -50,9 +50,10 @@ class PostDetailModeration {
 }
 
 class PostDetailScreen extends ConsumerStatefulWidget {
-  const PostDetailScreen({super.key, required this.postId, this.moderation});
+  const PostDetailScreen({super.key, required this.postId, this.initialCommentId, this.moderation});
 
   final String postId;
+  final String? initialCommentId;
 
   /// Enables "Ocultar publicación" / "Ocultar comentario" for clan posts.
   final PostDetailModeration? moderation;
@@ -72,6 +73,10 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   bool _loadingComments = true;
   bool _loadingMore = false;
   Object? _commentsError;
+  WallCommentModel? _targetComment;
+  final GlobalKey _targetCommentKey = GlobalKey();
+  bool _targetCommentUnavailable = false;
+  bool _targetCommentLoadError = false;
 
   final _commentController = TextEditingController();
   final _commentFocus = FocusNode();
@@ -117,7 +122,41 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   void _onDraftChanged() { if (mounted) setState(() {}); }
 
   Future<void> _loadAll() async {
-    await Future.wait([_loadPost(), _loadComments(reset: true)]);
+    await Future.wait([_loadPost(), _loadComments(reset: true), _loadTargetComment()]);
+    if (mounted && _targetComment != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final targetContext = _targetCommentKey.currentContext;
+        if (targetContext != null) {
+          Scrollable.ensureVisible(targetContext,
+              duration: const Duration(milliseconds: 220), alignment: 0.2);
+        }
+      });
+    }
+  }
+
+  Future<void> _loadTargetComment() async {
+    final id = widget.initialCommentId;
+    if (id == null || id.isEmpty) return;
+    try {
+      final comment = await ref.read(communityServiceProvider).getContextComment(
+          postId: widget.postId, commentId: id);
+      if (mounted) {
+        setState(() {
+          _targetComment = comment;
+          _targetCommentUnavailable = false;
+          _targetCommentLoadError = false;
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _targetComment = null;
+          _targetCommentUnavailable = error is DioException &&
+              (error.response?.statusCode == 404 || error.response?.statusCode == 403);
+          _targetCommentLoadError = !_targetCommentUnavailable;
+        });
+      }
+    }
   }
 
   Future<void> _loadPost() async {
@@ -189,21 +228,24 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   Future<void> _onReact({bool change = false}) async {
     final post = _post;
     if (post == null || _reacting) return;
+    setState(() => _reacting = true);
 
     final intent = await resolveReactionTap(
       context,
       current: post.myReaction,
       forcePicker: change,
     );
-    if (intent == null || !mounted) return;
-    if (!allowNetworkAction(context)) return;
+    if (!mounted) return;
+    if (intent == null || !allowNetworkAction(context)) {
+      setState(() => _reacting = false);
+      return;
+    }
 
     final previous = post;
     final optimistic = applyOptimisticReaction(post, intent.apiValue);
 
     setState(() {
       _post = optimistic;
-      _reacting = true;
     });
 
     final service = ref.read(communityServiceProvider);
@@ -896,7 +938,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
 
     if (post.originalPost != null) {
       final originalId = post.originalPost!.id;
-      return SingleChildScrollView(child: GarraSocialPostCard(
+      return SingleChildScrollView(child: Column(children: [GarraSocialPostCard(
         post: post,
         onOpenProfile: post.authorId == null ? null :
             () => context.push('/comunidad/u/${post.authorId}'),
@@ -905,7 +947,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         onShare: () => _openShareSheet(post),
         onComment: () => context.push('/muro-crema/posts/$originalId'),
         onReact: () => context.push('/muro-crema/posts/$originalId'),
-      ));
+      ), if (widget.initialCommentId != null)
+        Padding(padding: const EdgeInsets.all(GarraSpacing.lg),
+          child: _buildCommentsSection())]));
     }
 
     return Column(
@@ -1008,7 +1052,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       );
     }
 
-    if (_commentsError != null) {
+    if (_commentsError != null && _targetComment == null) {
       return GarraErrorState(
         title: 'No pudimos cargar los comentarios',
         message: 'Inténtalo de nuevo.',
@@ -1016,7 +1060,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       );
     }
 
-    if (_comments.isEmpty) {
+    if (_comments.isEmpty && _targetComment == null &&
+        !_targetCommentUnavailable && !_targetCommentLoadError) {
       return const GarraEmptyState(
         title: 'Aún no hay comentarios',
         message: 'Sé el primero en comentar esta arenga.',
@@ -1025,8 +1070,26 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
 
     return Column(
       children: [
+        if (_targetCommentUnavailable)
+          const GarraEmptyState(title: 'Comentario no disponible',
+              message: 'Puede haberse eliminado o ya no ser accesible.'),
+        if (_targetCommentLoadError)
+          GarraErrorState(title: 'No pudimos abrir el comentario',
+              onRetry: _loadTargetComment),
+        if (_targetComment case final target?) ...[
+          Column(key: _targetCommentKey,
+            crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Comentario mencionado', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: GarraSpacing.sm),
+              _buildCommentTile(target),
+            ]),
+          const SizedBox(height: GarraSpacing.md),
+        ],
+        if (_commentsError != null)
+          GarraErrorState(title: 'No pudimos cargar otros comentarios',
+              onRetry: () => _loadComments(reset: true)),
         ..._comments.map(
-          (comment) => Padding(
+          (comment) => comment.id == _targetComment?.id ? const SizedBox.shrink() : Padding(
             padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

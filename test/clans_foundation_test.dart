@@ -161,6 +161,7 @@ class FakeClanService extends ClanService {
   String? lastAcceptedInvitationId;
   String? lastDeclinedInvitationId;
   int joinCalls = 0;
+  int cancelCalls = 0;
 
   @override
   Future<ClanPage<ClanModel>> discoverClans({
@@ -233,6 +234,16 @@ class FakeClanService extends ClanService {
         status: 'ACTIVE',
       ),
     );
+    return detail!;
+  }
+
+  @override
+  Future<ClanModel> cancelJoinRequest(String slug) async {
+    cancelCalls++;
+    final current = await getClan(slug);
+    detail = ClanModel(id: current.id, slug: current.slug, name: current.name,
+      visibility: current.visibility, joinPolicy: current.joinPolicy,
+      status: current.status, memberCount: current.memberCount);
     return detail!;
   }
 
@@ -437,6 +448,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Solicitud pendiente'), findsOneWidget);
     expect(find.text('Unirme'), findsNothing);
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(service.cancelCalls, 1);
+    expect(find.text('Solicitud pendiente'), findsNothing);
+    expect(find.text('Solicitar ingreso'), findsOneWidget);
   });
 
   testWidgets('MY_CLANS_RENDER', (tester) async {

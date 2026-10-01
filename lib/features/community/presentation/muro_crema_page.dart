@@ -830,21 +830,24 @@ class _WallPostCardState extends ConsumerState<_WallPostCard> {
 
   Future<void> _react({bool change = false}) async {
     if (_reacting) return;
+    setState(() => _reacting = true);
 
     final intent = await resolveReactionTap(
       context,
       current: _post.myReaction,
       forcePicker: change,
     );
-    if (intent == null || !mounted) return;
-    if (!allowNetworkAction(context)) return;
+    if (!mounted) return;
+    if (intent == null || !allowNetworkAction(context)) {
+      setState(() => _reacting = false);
+      return;
+    }
 
     final previous = _post;
     final optimistic = applyOptimisticReaction(_post, intent.apiValue);
 
     setState(() {
       _post = optimistic;
-      _reacting = true;
     });
 
     final service = ref.read(communityServiceProvider);

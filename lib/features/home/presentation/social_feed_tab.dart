@@ -167,18 +167,21 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
 
   Future<void> _react(WallPostModel post, {bool change = false}) async {
     if (_reactingPostIds.contains(post.id)) return;
+    setState(() => _reactingPostIds.add(post.id));
 
     final intent = await resolveReactionTap(
       context,
       current: post.myReaction,
       forcePicker: change,
     );
-    if (intent == null || !mounted) return;
-    if (!allowNetworkAction(context)) return;
+    if (!mounted) return;
+    if (intent == null || !allowNetworkAction(context)) {
+      setState(() => _reactingPostIds.remove(post.id));
+      return;
+    }
 
     final optimistic = applyOptimisticReaction(post, intent.apiValue);
     setState(() {
-      _reactingPostIds.add(post.id);
       _replacePost(optimistic);
     });
 

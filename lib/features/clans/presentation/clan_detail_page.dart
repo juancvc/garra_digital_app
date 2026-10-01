@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/network/garra_error.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/utils/country_labels.dart';
 import '../../../core/widgets/garra_avatar.dart';
@@ -65,6 +66,7 @@ class _ClanDetailPageState extends ConsumerState<ClanDetailPage>
   }
 
   Future<void> _join() async {
+    if (_joining || !allowNetworkAction(context)) return;
     setState(() => _joining = true);
     try {
       await ref.read(clanServiceProvider).joinClan(widget.slug);
@@ -82,6 +84,26 @@ class _ClanDetailPageState extends ConsumerState<ClanDetailPage>
             content: Text('No pudimos completar la acción. Inténtalo de nuevo.'),
           ),
         );
+      }
+    } finally {
+      if (mounted) setState(() => _joining = false);
+    }
+  }
+
+  Future<void> _cancelJoinRequest() async {
+    if (_joining || !allowNetworkAction(context)) return;
+    setState(() => _joining = true);
+    try {
+      await ref.read(clanServiceProvider).cancelJoinRequest(widget.slug);
+      ref.invalidate(clanDetailProvider(widget.slug));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Solicitud cancelada')));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No pudimos cancelar la solicitud. Reintenta.')));
       }
     } finally {
       if (mounted) setState(() => _joining = false);
@@ -202,6 +224,7 @@ class _ClanDetailPageState extends ConsumerState<ClanDetailPage>
               joining: _joining,
               leaving: _leaving,
               onJoin: _join,
+              onCancelJoinRequest: _cancelJoinRequest,
               onLeave: () => _leave(clan),
             ),
             if (clan.canManage)
@@ -282,6 +305,7 @@ class _GroupHeader extends StatelessWidget {
     required this.joining,
     required this.leaving,
     required this.onJoin,
+    required this.onCancelJoinRequest,
     required this.onLeave,
   });
 
@@ -289,6 +313,7 @@ class _GroupHeader extends StatelessWidget {
   final bool joining;
   final bool leaving;
   final VoidCallback onJoin;
+  final VoidCallback onCancelJoinRequest;
   final VoidCallback onLeave;
 
   @override
@@ -365,7 +390,14 @@ class _GroupHeader extends StatelessWidget {
                           child: Text(leaving ? 'Saliendo…' : 'Unido ✓'),
                         )
                       else if (clan.hasPendingRequest)
-                        const Text('Solicitud pendiente')
+                        Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Text('Solicitud pendiente'),
+                          const SizedBox(width: 6),
+                          TextButton(
+                            onPressed: joining ? null : onCancelJoinRequest,
+                            child: Text(joining ? 'Procesando…' : 'Cancelar'),
+                          ),
+                        ])
                       else if (clan.joinPolicy.toUpperCase() == 'INVITE_ONLY' ||
                           clan.isSuspended)
                         Text(
