@@ -6,6 +6,7 @@ import '../../../core/design/garra_spacing.dart';
 import '../data/crema_point_model.dart';
 import '../data/location_service.dart';
 import '../data/business_social_links.dart';
+import '../data/business_map_links.dart';
 import '../../marketplace/data/marketplace_url_launcher.dart';
 
 /// Registered crema businesses. Separate from Marketplace listings and from
@@ -280,7 +281,7 @@ class _BusinessCard extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 4),
-              Text(point.address),
+              Text(publicBusinessArea(point.address)),
               if (copy.description.isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Text(copy.description),
@@ -418,7 +419,7 @@ class _NegocioCremaDetailPageState extends State<NegocioCremaDetailPage> {
                   children: [
                     const Icon(Icons.place_outlined, size: 18),
                     const SizedBox(width: 6),
-                    Expanded(child: Text(point.address)),
+                    Expanded(child: Text(publicBusinessArea(point.address))),
                   ],
                 ),
                 if ((point.category ?? '').isNotEmpty) ...[
@@ -506,6 +507,13 @@ class _NegocioCremaDetailPageState extends State<NegocioCremaDetailPage> {
                   ),
                 ],
                 const SizedBox(height: 24),
+                OutlinedButton.icon(
+                  onPressed: () => _openLink(
+                    businessDirectionsUri(point.latitude, point.longitude)),
+                  icon: const Icon(Icons.directions_outlined),
+                  label: const Text('Cómo llegar'),
+                ),
+                const SizedBox(height: 8),
                 FilledButton(
                   onPressed: () =>
                       context.push('/negocios/mapa?pointId=${point.id}'),

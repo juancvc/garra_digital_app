@@ -42,6 +42,54 @@ class NotificationItem {
   }
 }
 
+class ActivityItem {
+  const ActivityItem(this.latest, this.count, this.unreadCount);
+
+  final NotificationItem latest;
+  final int count;
+  final int unreadCount;
+
+  bool get read => unreadCount == 0;
+  bool get isChatGroup => latest.type.toUpperCase() == 'CHAT' &&
+      latest.referenceType?.toUpperCase() == 'CHAT_CONVERSATION' &&
+      latest.referenceId != null;
+
+  String get title {
+    if (!isChatGroup || count == 1) return latest.title;
+    final sender = latest.message.replaceFirst(RegExp(r'^Nuevo mensaje de '), '');
+    final quantity = unreadCount > 0 ? unreadCount : count;
+    final noun = quantity == 1 ? 'mensaje' : 'mensajes';
+    final qualifier = unreadCount == 0 ? '' : quantity == 1 ? ' nuevo' : ' nuevos';
+    return '$sender · $quantity $noun$qualifier';
+  }
+}
+
+/// Only direct-chat events with the same conversation are grouped.
+List<ActivityItem> groupActivityItems(List<NotificationItem> items) {
+  final result = <ActivityItem>[];
+  final chatIndexes = <String, int>{};
+  for (final item in items) {
+    final isChat = item.type.toUpperCase() == 'CHAT' &&
+        item.referenceType?.toUpperCase() == 'CHAT_CONVERSATION' &&
+        item.referenceId != null;
+    if (!isChat) {
+      result.add(ActivityItem(item, 1, item.read ? 0 : 1));
+      continue;
+    }
+    final key = item.referenceId!;
+    final existing = chatIndexes[key];
+    if (existing == null) {
+      chatIndexes[key] = result.length;
+      result.add(ActivityItem(item, 1, item.read ? 0 : 1));
+    } else {
+      final group = result[existing];
+      result[existing] = ActivityItem(group.latest, group.count + 1,
+          group.unreadCount + (item.read ? 0 : 1));
+    }
+  }
+  return result;
+}
+
 class NotificationService {
   NotificationService({Dio? dio}) : _dio = dio ?? DioClient.instance;
 

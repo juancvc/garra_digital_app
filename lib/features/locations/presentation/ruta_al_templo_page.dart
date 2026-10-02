@@ -538,10 +538,13 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
     if (!mounted) return;
     final ratingController = TextEditingController();
     final commentController = TextEditingController();
+    var checkingPresence = false;
+    String? presenceMessage;
+    var canReview = false;
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) {
+      builder: (ctx) => StatefulBuilder(builder: (ctx, updateSheet) {
         return Padding(
           padding: EdgeInsets.only(
             left: 16,
@@ -573,27 +576,58 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
                       ),
                     ),
                 const SizedBox(height: 12),
-                TextField(
+                if (!canReview) OutlinedButton.icon(
+                  onPressed: checkingPresence ? null : () async {
+                    updateSheet(() {
+                      checkingPresence = true;
+                      presenceMessage = null;
+                    });
+                    final location = await AppLocationService().getCurrentLocation();
+                    if (!ctx.mounted) return;
+                    final distance = location.latitude == null || location.longitude == null
+                        ? null : Geolocator.distanceBetween(
+                            location.latitude!, location.longitude!,
+                            widget.point.latitude, widget.point.longitude);
+                    updateSheet(() {
+                      checkingPresence = false;
+                      canReview = distance != null &&
+                          distance <= widget.point.checkinRadiusMeters;
+                      presenceMessage = canReview ? null :
+                          distance == null ? location.message :
+                          'Debes estar cerca del negocio para opinar.';
+                    });
+                  },
+                  icon: const Icon(Icons.location_on_outlined),
+                  label: Text(checkingPresence ? 'Comprobando ubicación...' : 'Opinar aquí'),
+                ),
+                if (presenceMessage != null) Text(presenceMessage!),
+                if (canReview) TextField(
                   controller: ratingController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(labelText: 'Tu nota (1-5)'),
                 ),
-                TextField(
+                if (canReview) TextField(
                   controller: commentController,
                   decoration: const InputDecoration(
                     labelText: 'Comentario (opcional)',
                   ),
                 ),
                 const SizedBox(height: 12),
-                FilledButton(
+                if (canReview) FilledButton(
                   onPressed: () async {
                     final rating = int.tryParse(ratingController.text.trim());
                     if (rating == null || rating < 1 || rating > 5) return;
                     try {
+                      final location = await AppLocationService().getCurrentLocation();
+                      if (location.latitude == null || location.longitude == null) {
+                        throw StateError('Location unavailable');
+                      }
                       await service.upsertBusinessReview(
                         pointId,
                         rating: rating,
                         comment: commentController.text,
+                        latitude: location.latitude!,
+                        longitude: location.longitude!,
                       );
                       if (ctx.mounted) Navigator.pop(ctx);
                       if (mounted) {
@@ -606,7 +640,7 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
-                              'Necesitas check-in o seguir el negocio para opinar',
+                              'Debes estar cerca del negocio para opinar',
                             ),
                           ),
                         );
@@ -619,8 +653,10 @@ class _CremaPointCardState extends ConsumerState<_CremaPointCard> {
             ),
           ),
         );
-      },
+      }),
     );
+    ratingController.dispose();
+    commentController.dispose();
   }
 }
 

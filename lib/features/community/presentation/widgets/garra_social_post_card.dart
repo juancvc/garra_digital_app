@@ -384,20 +384,28 @@ class _PostAction extends StatelessWidget {
             : null,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 44),
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          IconTheme(data: IconThemeData(size: 19, color: selected
-              ? context.garraColors.brandPrestige
-              : context.garraColors.textSecondary), child: icon),
-          const SizedBox(width: 6),
-          Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: selected ? context.garraColors.brandPrestige : null,
-              fontWeight: selected ? FontWeight.w800 : null,
-            ))),
-        ]),
-      ),
+      child: LayoutBuilder(builder: (context, constraints) {
+        final compact = constraints.maxWidth < 150 ||
+            MediaQuery.textScalerOf(context).scale(12) > 15;
+        final glyph = IconTheme(data: IconThemeData(size: 19, color: selected
+            ? context.garraColors.brandPrestige
+            : context.garraColors.textSecondary), child: icon);
+        final caption = Text(label, maxLines: compact ? null : 1,
+          textAlign: TextAlign.center,
+          overflow: compact ? TextOverflow.visible : TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: selected ? context.garraColors.brandPrestige : null,
+            fontWeight: selected ? FontWeight.w800 : null,
+          ));
+        return ConstrainedBox(
+          constraints: BoxConstraints(minHeight: compact ? 62 : 44),
+          child: compact
+              ? Column(mainAxisAlignment: MainAxisAlignment.center,
+                  children: [glyph, const SizedBox(height: 3), caption])
+              : Row(mainAxisAlignment: MainAxisAlignment.center,
+                  children: [glyph, const SizedBox(width: 6), Flexible(child: caption)]),
+        );
+      }),
     ),
   );
 }

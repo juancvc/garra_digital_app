@@ -1394,27 +1394,23 @@ class _PostActionButton extends StatelessWidget {
                 onLongPress!();
               },
         borderRadius: BorderRadius.circular(12),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 44),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              icon,
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        child: LayoutBuilder(builder: (context, constraints) {
+          final compact = constraints.maxWidth < 150 ||
+              MediaQuery.textScalerOf(context).scale(14) > 17;
+          final caption = Text(label, maxLines: compact ? null : 1,
+            textAlign: TextAlign.center,
+            overflow: compact ? TextOverflow.visible : TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: color, fontWeight: FontWeight.w700));
+          return ConstrainedBox(
+            constraints: BoxConstraints(minHeight: compact ? 64 : 44),
+            child: compact
+                ? Column(mainAxisAlignment: MainAxisAlignment.center,
+                    children: [icon, const SizedBox(height: 3), caption])
+                : Row(mainAxisAlignment: MainAxisAlignment.center,
+                    children: [icon, const SizedBox(width: 6), Flexible(child: caption)]),
+          );
+        }),
       ),
     );
   }

@@ -50,15 +50,18 @@ class NotificationsScreen extends ConsumerWidget {
 
   /// Opening an item marks it read (PATCH /notifications/{id}/read) without
   /// delaying navigation.
-  void _open(BuildContext context, NotificationItem item, String? route) {
+  void _open(BuildContext context, ActivityItem activity, String? route) {
+    final item = activity.latest;
     final container = ProviderScope.containerOf(context, listen: false);
-    if (!item.read) {
+    if (!activity.isChatGroup && !item.read) {
       container
           .read(notificationServiceProvider)
           .markRead(item.id)
           .then((_) => _refreshUnread(container), onError: (_) {});
     }
-    if (route != null) context.push(route);
+    if (route != null) {
+      context.push(route).then((_) => _refreshUnread(container));
+    }
   }
 
   @override
@@ -100,16 +103,18 @@ class NotificationsScreen extends ConsumerWidget {
               message: 'Cuando haya novedades de la hinchada, aparecerán aquí.',
             );
           }
+          final activity = groupActivityItems(items);
           return RefreshIndicator(
             color: const Color(GarraColors.gold),
             onRefresh: () async => ref.invalidate(myNotificationsProvider),
             child: ListView.separated(
               padding: const EdgeInsets.all(GarraSpacing.lg),
-              itemCount: items.length,
+              itemCount: activity.length,
               separatorBuilder: (context, index) =>
                   const SizedBox(height: GarraSpacing.sm),
               itemBuilder: (context, index) {
-                final item = items[index];
+                final group = activity[index];
+                final item = group.latest;
                 final when = DateFormat('d MMM · HH:mm').format(
                   item.createdAt.toLocal(),
                 );
@@ -122,8 +127,8 @@ class NotificationsScreen extends ConsumerWidget {
                 final tappable = route != '/notifications';
                 return GarraCard(
                   key: ValueKey('notification_item_${item.id}'),
-                  onTap: tappable || !item.read
-                      ? () => _open(context, item, tappable ? route : null)
+                  onTap: tappable || !group.read
+                      ? () => _open(context, group, tappable ? route : null)
                       : null,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -138,18 +143,18 @@ class NotificationsScreen extends ConsumerWidget {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              item.title,
+                              group.title,
                               style: Theme.of(context)
                                   .textTheme
                                   .titleMedium
                                   ?.copyWith(
-                                    fontWeight: item.read
+                                    fontWeight: group.read
                                         ? FontWeight.w600
                                         : FontWeight.w800,
                                   ),
                             ),
                           ),
-                          if (!item.read)
+                          if (!group.read)
                             Container(
                               width: 8,
                               height: 8,
@@ -162,7 +167,9 @@ class NotificationsScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: GarraSpacing.xs),
                       Text(
-                        item.message,
+                        group.isChatGroup && group.count > 1
+                            ? 'Abre la conversación para leerlos'
+                            : item.message,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                       const SizedBox(height: GarraSpacing.sm),

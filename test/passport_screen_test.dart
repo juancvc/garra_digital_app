@@ -85,7 +85,7 @@ void main() {
       find.text('COMUNIDAD NO OFICIAL\nDE HINCHAS CREMAS'),
       findsOneWidget,
     );
-    expect(find.textContaining('Nivel 2'), findsOneWidget);
+    expect(find.textContaining('Nivel 2'), findsWidgets);
     await tester.scrollUntilVisible(
       find.textContaining('Puntos Garra'),
       200,

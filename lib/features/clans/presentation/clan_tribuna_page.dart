@@ -224,7 +224,9 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage>
   Widget build(BuildContext context) {
     super.build(context);
     final clanAsync = ref.watch(clanDetailProvider(widget.slug));
-    final feedAsync = ref.watch(clanFeedProvider(widget.slug));
+    final feedAsync = clanAsync.asData?.value.isMember == true
+        ? ref.watch(clanFeedProvider(widget.slug))
+        : null;
 
     final body = clanAsync.when(
       loading: () => Center(
@@ -272,7 +274,7 @@ class _ClanTribunaPageState extends ConsumerState<ClanTribunaPage>
                 onAddPhoto: _addPhoto,
               ),
               const SizedBox(height: GarraSpacing.lg),
-              feedAsync.when(
+              feedAsync!.when(
                 loading: () => Padding(
                   padding: const EdgeInsets.only(top: 32),
                   child: Center(

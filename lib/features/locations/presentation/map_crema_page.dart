@@ -9,6 +9,7 @@ import '../../../core/location/location_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../data/checkin_model.dart';
+import '../data/business_map_links.dart';
 import '../data/crema_business_engagement_service.dart';
 import '../data/crema_point_model.dart';
 import '../data/create_checkin_request.dart';
@@ -87,7 +88,7 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
     super.dispose();
   }
 
-  Future<void> _loadCurrentLocation() async {
+  Future<void> _loadCurrentLocation({bool recenter = true}) async {
     final gpsResult = await AppLocationService().getCurrentLocation();
 
     if (!mounted) return;
@@ -101,14 +102,16 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
 
     setState(() => _currentLatLng = current);
 
-    await _mapController?.animateCamera(
-      CameraUpdate.newCameraPosition(CameraPosition(target: current, zoom: 15)),
-    );
+    if (recenter && shouldLoadMapCurrentLocation(widget.focusPointId)) {
+      await _mapController?.animateCamera(
+        CameraUpdate.newCameraPosition(CameraPosition(target: current, zoom: 15)),
+      );
+    }
   }
 
   Future<void> _moveToCurrentLocation() async {
     if (_currentLatLng == null) {
-      await _loadCurrentLocation();
+      await _loadCurrentLocation(recenter: false);
     }
 
     final target = _currentLatLng ?? _limaLatLng;
@@ -134,11 +137,7 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
   }
 
   Future<void> _openGoogleMaps(CremaPointModel point) async {
-    final uri = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1'
-      '&destination=${point.latitude},${point.longitude}'
-      '&travelmode=driving',
-    );
+    final uri = businessDirectionsUri(point.latitude, point.longitude);
 
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
 
@@ -371,7 +370,8 @@ class _MapCremaPageState extends ConsumerState<MapCremaPage> {
                   onMapCreated: (controller) {
                     _mapController = controller;
 
-                    if (_currentLatLng != null) {
+                    if (_currentLatLng != null &&
+                        shouldLoadMapCurrentLocation(widget.focusPointId)) {
                       _moveToCurrentLocation();
                     }
                   },

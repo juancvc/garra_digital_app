@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garra_digital_app/core/theme/app_theme.dart';
 import 'package:garra_digital_app/core/widgets/garra_states.dart';
@@ -76,5 +77,23 @@ void main() {
     ));
     expect(tester.takeException(), isNull);
     expect(find.text('Compartir'), findsOneWidget);
+  });
+
+  testWidgets('selected long reaction label remains fully visible on narrow screens',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(theme: AppTheme.darkTheme,
+      home: Scaffold(body: MediaQuery(
+        data: const MediaQueryData(textScaler: TextScaler.linear(1.4)),
+        child: SizedBox(width: 300, child: GarraSocialPostCard(
+          post: _post('FIRE'), onOpen: () {}, onReact: () {},
+          onComment: () {}, onShare: () {},
+        )),
+      )),
+    ));
+    final label = find.text('Está que arde');
+    expect(label, findsOneWidget);
+    final paragraph = tester.renderObject<RenderParagraph>(label);
+    expect(paragraph.didExceedMaxLines, isFalse);
+    expect(tester.takeException(), isNull);
   });
 }

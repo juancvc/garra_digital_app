@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garra_digital_app/core/theme/app_theme.dart';
+import 'package:garra_digital_app/core/auth/current_fan_provider.dart';
+import 'package:garra_digital_app/features/auth/data/auth_user.dart';
 import 'package:garra_digital_app/core/widgets/garra_states.dart';
 import 'package:garra_digital_app/core/widgets/garra_ui.dart';
 import 'package:garra_digital_app/features/home/data/home_models.dart';
@@ -22,6 +24,11 @@ import 'package:garra_digital_app/features/passport/data/passport_models.dart';
 import 'package:garra_digital_app/features/passport/presentation/passport_screen.dart';
 import 'package:garra_digital_app/features/passport/presentation/providers/passport_provider.dart';
 import 'package:go_router/go_router.dart';
+
+class _NoCurrentFan extends CurrentFanNotifier {
+  @override
+  Future<AuthUser?> build() async => null;
+}
 
 /// API-shaped mission fixture (not a production seed).
 MissionModel sampleMission({
@@ -471,6 +478,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          currentFanProvider.overrideWith(_NoCurrentFan.new),
+          passportSeasonProgressProvider.overrideWith((ref) async => null),
           myPassportProvider.overrideWith(
             (ref) async => samplePassportWithStreak(),
           ),

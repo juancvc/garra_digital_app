@@ -121,6 +121,7 @@ class FakeClanFeedService extends ClanService {
   bool throwMembershipLostOnFeed;
   bool throwMembershipLostOnPolla;
   int createPostCalls = 0;
+  int getPostsCalls = 0;
   String? lastCreatedContent;
 
   @override
@@ -132,6 +133,7 @@ class FakeClanFeedService extends ClanService {
     String? cursor,
     int size = 20,
   }) async {
+    getPostsCalls++;
     if (throwMembershipLostOnFeed) throw ClanMembershipLostException();
     return ClanPage(items: posts);
   }
@@ -283,6 +285,19 @@ Widget pumpPolla(
 }
 
 void main() {
+  testWidgets('nonmember clan does not request protected feed', (tester) async {
+    final service = FakeClanFeedService(
+      detail: const ClanModel(
+        id: 'clan-1', slug: 'garra-surco', name: 'Garra Surco',
+        visibility: 'PUBLIC', joinPolicy: 'OPEN', status: 'ACTIVE',
+        memberCount: 120,
+      ),
+    );
+    await tester.pumpWidget(pumpTribuna(service));
+    await tester.pumpAndSettle();
+    expect(service.getPostsCalls, 0);
+  });
+
   testWidgets('CLAN_FEED_RENDER', (tester) async {
     final service = FakeClanFeedService(posts: [sampleClanPost()]);
     await tester.pumpWidget(pumpTribuna(service));

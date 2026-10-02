@@ -387,7 +387,7 @@ class _ProfileHero extends StatelessWidget {
           alignment: Alignment.topCenter,
           children: [
             GarraAtmosphericHero(
-              height: 218,
+              height: 164,
               assetPath: 'assets/visual/garra_match_hero.png',
               alignment: Alignment.topCenter,
               child: const Row(
@@ -411,7 +411,7 @@ class _ProfileHero extends StatelessWidget {
               ),
             ),
             Positioned(
-              bottom: -52,
+              bottom: -48,
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
@@ -428,13 +428,13 @@ class _ProfileHero extends StatelessWidget {
                 child: GarraAvatar(
                   displayName: identity.displayName,
                   avatarUrl: identity.avatarUrl,
-                  size: 104,
+                  size: 96,
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 66),
+        const SizedBox(height: 58),
         Text(
           identity.displayName,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -450,10 +450,10 @@ class _ProfileHero extends StatelessWidget {
             context,
           ).textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
         ),
-        const SizedBox(height: GarraSpacing.md),
+        const SizedBox(height: GarraSpacing.sm),
         GarraLevelBadge(levelNumber: level.number, levelName: level.name),
         if (location != null || identity.supporterSinceYear != null) ...[
-          const SizedBox(height: GarraSpacing.md),
+          const SizedBox(height: GarraSpacing.sm),
           Wrap(
             alignment: WrapAlignment.center,
             spacing: GarraSpacing.md,
@@ -470,7 +470,7 @@ class _ProfileHero extends StatelessWidget {
           ),
         ],
         if (identity.bio != null && identity.bio!.trim().isNotEmpty) ...[
-          const SizedBox(height: GarraSpacing.md),
+          const SizedBox(height: GarraSpacing.sm),
           Text(
             identity.bio!,
             style: Theme.of(context).textTheme.bodyMedium,
@@ -482,7 +482,7 @@ class _ProfileHero extends StatelessWidget {
           tiktokUrl: identity.tiktokUrl,
           youtubeUrl: identity.youtubeUrl,
         ),
-        const SizedBox(height: GarraSpacing.lg),
+        const SizedBox(height: GarraSpacing.md),
         GarraSectionAtmosphere(
           padding: const EdgeInsets.symmetric(
             horizontal: GarraSpacing.sm,
@@ -704,33 +704,16 @@ class _PassportClanSection extends StatelessWidget {
   }
 }
 
-class _PassportSeasonSection extends StatefulWidget {
+final passportSeasonProgressProvider =
+    FutureProvider.autoDispose<SeasonProgressModel?>((ref) =>
+        RetentionService().mySeasonProgress());
+
+class _PassportSeasonSection extends ConsumerWidget {
   const _PassportSeasonSection();
 
   @override
-  State<_PassportSeasonSection> createState() => _PassportSeasonSectionState();
-}
-
-class _PassportSeasonSectionState extends State<_PassportSeasonSection> {
-  SeasonProgressModel? _progress;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final progress = await RetentionService().mySeasonProgress();
-      if (!mounted) return;
-      setState(() => _progress = progress);
-    } catch (_) {}
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final progress = _progress;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progress = ref.watch(passportSeasonProgressProvider).asData?.value;
     if (progress == null) return const SizedBox.shrink();
     return SeasonHeroCard(
       progress: progress,

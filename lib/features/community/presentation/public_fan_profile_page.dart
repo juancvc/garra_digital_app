@@ -329,7 +329,7 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
           levelName: level,
           sinceYear: sinceYear,
         ),
-        const SizedBox(height: GarraSpacing.lg),
+        const SizedBox(height: GarraSpacing.md),
         if (!privateVisitor && p['primaryClanName'] != null)
           Text('Comunidad: ${p['primaryClanName']}', textAlign: TextAlign.center),
         if (!privateVisitor && (p['bio']?.toString().isNotEmpty ?? false))
@@ -425,7 +425,7 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
                     ],
                   ),
           ),
-        const SizedBox(height: GarraSpacing.lg),
+        const SizedBox(height: GarraSpacing.md),
         if (!privateVisitor) const GarraSectionHeader(title: 'Publicaciones'),
         if (!privateVisitor) const SizedBox(height: GarraSpacing.md),
         if (!privateVisitor && posts.isEmpty)
@@ -511,16 +511,16 @@ class _ProfileHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.garraColors;
     final textTheme = Theme.of(context).textTheme;
-    const avatarSize = 96.0;
+    const avatarSize = 88.0;
     return Column(
       children: [
         SizedBox(
-          height: 96 + avatarSize / 2,
+          height: 80 + avatarSize / 2,
           child: Stack(
             alignment: Alignment.topCenter,
             children: [
               Container(
-                height: 96,
+                height: 80,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(GarraRadius.md),
                   gradient: LinearGradient(

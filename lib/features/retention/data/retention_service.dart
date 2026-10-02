@@ -134,12 +134,16 @@ class RetentionService {
   Future<void> upsertBusinessReview(
     String pointId, {
     required int rating,
+    required double latitude,
+    required double longitude,
     String? comment,
   }) async {
     await _dio.put(
       '/locations/points/$pointId/reviews/me',
       data: {
         'rating': rating,
+        'latitude': latitude,
+        'longitude': longitude,
         if (comment != null && comment.trim().isNotEmpty) 'comment': comment.trim(),
       },
     );

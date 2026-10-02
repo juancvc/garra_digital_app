@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:garra_digital_app/features/locations/data/business_social_links.dart';
+import 'package:garra_digital_app/features/locations/data/business_map_links.dart';
 import 'package:garra_digital_app/features/locations/data/crema_point_model.dart';
 import 'package:garra_digital_app/features/locations/data/crema_business_application_service.dart';
 import 'package:garra_digital_app/features/locations/data/location_service.dart';
@@ -48,6 +49,15 @@ const _point = CremaPointModel(
 );
 
 void main() {
+  test('directions use stored business coordinates and hide raw coordinate labels', () {
+    final uri = businessDirectionsUri(_point.latitude, _point.longitude);
+    expect(uri.host, 'www.google.com');
+    expect(uri.queryParameters['destination'], '-12.08,-77.09');
+    expect(publicBusinessArea('-12.0800, -77.0900'),
+        'Ubicación disponible en el mapa');
+    expect(publicBusinessArea('San Miguel'), 'San Miguel');
+  });
+
   test('social links accept handles and only official HTTPS profile URLs', () {
     expect(
       businessSocialUri(BusinessSocialNetwork.instagram, '@crema').toString(),
