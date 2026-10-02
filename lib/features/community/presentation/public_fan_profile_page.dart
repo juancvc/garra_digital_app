@@ -289,7 +289,7 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const GarraPassportSkeleton()
           : _error != null
           ? GarraErrorState(message: _error!, onRetry: _load)
           : _buildBody(),
@@ -635,23 +635,29 @@ class _Stat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: InkWell(onTap: onTap, child: Column(
-        children: [
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: context.garraColors.textPrimary,
-              fontWeight: FontWeight.w800,
-            ),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: GarraSpacing.sm),
+          child: Column(
+            children: [
+              Text(
+                value,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: context.garraColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.garraColors.textSecondary,
+                ),
+              ),
+            ],
           ),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: context.garraColors.textSecondary,
-            ),
-          ),
-        ],
-      )),
+        ),
+      ),
     );
   }
 }

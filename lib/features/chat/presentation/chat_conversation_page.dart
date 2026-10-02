@@ -1132,7 +1132,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
   }
 
   Widget _transcript() {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return const GarraConversationSkeleton();
     if (_error != null) {
       return GarraErrorState(message: _error!, onRetry: _load);
     }

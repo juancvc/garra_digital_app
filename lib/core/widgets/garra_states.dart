@@ -71,6 +71,28 @@ class GarraPassportSkeleton extends StatelessWidget {
   }
 }
 
+class GarraConversationSkeleton extends StatelessWidget {
+  const GarraConversationSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(GarraSpacing.lg),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: const [
+        Align(alignment: Alignment.centerLeft,
+            child: GarraSkeleton(height: 54, width: 220)),
+        SizedBox(height: GarraSpacing.md),
+        Align(alignment: Alignment.centerRight,
+            child: GarraSkeleton(height: 72, width: 240)),
+        SizedBox(height: GarraSpacing.md),
+        Align(alignment: Alignment.centerLeft,
+            child: GarraSkeleton(height: 48, width: 180)),
+      ],
+    ),
+  );
+}
+
 class GarraEmptyState extends StatelessWidget {
   const GarraEmptyState({
     super.key,
@@ -88,19 +110,25 @@ class GarraEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(GarraSpacing.xxl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
-            const SizedBox(height: GarraSpacing.sm),
-            Text(message, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
-            if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: GarraSpacing.xl),
-              GarraSecondaryButton(label: actionLabel!, onPressed: onAction),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Padding(
+          padding: const EdgeInsets.all(GarraSpacing.xxl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.auto_awesome_outlined, size: 32,
+                  color: context.garraColors.brandPrestige),
+              const SizedBox(height: GarraSpacing.md),
+              Text(title, style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
+              const SizedBox(height: GarraSpacing.sm),
+              Text(message, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
+              if (actionLabel != null && onAction != null) ...[
+                const SizedBox(height: GarraSpacing.xl),
+                GarraSecondaryButton(label: actionLabel!, onPressed: onAction),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -122,19 +150,22 @@ class GarraErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(GarraSpacing.xxl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.wifi_off_rounded, color: context.garraColors.brandPrestige, size: 40),
-            const SizedBox(height: GarraSpacing.lg),
-            Text(title, style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
-            const SizedBox(height: GarraSpacing.sm),
-            Text(message, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
-            const SizedBox(height: GarraSpacing.xl),
-            GarraPrimaryButton(label: 'Reintentar', onPressed: onRetry),
-          ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Padding(
+          padding: const EdgeInsets.all(GarraSpacing.xxl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline_rounded, color: context.garraColors.brandPrestige, size: 40),
+              const SizedBox(height: GarraSpacing.lg),
+              Text(title, style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
+              const SizedBox(height: GarraSpacing.sm),
+              Text(message, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
+              const SizedBox(height: GarraSpacing.xl),
+              GarraPrimaryButton(label: 'Reintentar', onPressed: onRetry),
+            ],
+          ),
         ),
       ),
     );

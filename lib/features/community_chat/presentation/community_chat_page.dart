@@ -1074,7 +1074,7 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
 
   Widget _transcript() {
     if (_loading && _info == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const GarraConversationSkeleton();
     }
     if (_errorMessage != null) {
       return GarraErrorState(

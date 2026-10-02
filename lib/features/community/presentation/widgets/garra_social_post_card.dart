@@ -282,6 +282,7 @@ class GarraSocialPostCard extends StatelessWidget {
                   onTap: onReact,
                   onLongPress: onChangeReaction,
                   reactionAnchor: true,
+                  selected: engagement.myReaction != null,
                 )),
                 Expanded(child: _PostAction(
                   icon: const Icon(Icons.chat_bubble_outline_rounded),
@@ -355,16 +356,19 @@ class _PostEngagementSummary extends StatelessWidget {
 
 class _PostAction extends StatelessWidget {
   const _PostAction({super.key, required this.icon, required this.label,
-    this.onTap, this.onLongPress, this.reactionAnchor = false});
+    this.onTap, this.onLongPress, this.reactionAnchor = false,
+    this.selected = false});
 
   final Widget icon;
   final String label;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
   final bool reactionAnchor;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) => InkWell(
+    borderRadius: BorderRadius.circular(12),
     onTap: onTap == null ? null : () {
       if (reactionAnchor) GarraReactionAnchor.remember(context);
       onTap!();
@@ -373,14 +377,27 @@ class _PostAction extends StatelessWidget {
       if (reactionAnchor) GarraReactionAnchor.remember(context);
       onLongPress!();
     },
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        IconTheme(data: IconThemeData(size: 19, color: context.garraColors.textSecondary), child: icon),
-        const SizedBox(height: 3),
-        Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.labelSmall),
-      ]),
+    child: Container(
+      decoration: BoxDecoration(
+        color: selected
+            ? context.garraColors.brandPrestige.withValues(alpha: 0.12)
+            : null,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 44),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          IconTheme(data: IconThemeData(size: 19, color: selected
+              ? context.garraColors.brandPrestige
+              : context.garraColors.textSecondary), child: icon),
+          const SizedBox(width: 6),
+          Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: selected ? context.garraColors.brandPrestige : null,
+              fontWeight: selected ? FontWeight.w800 : null,
+            ))),
+        ]),
+      ),
     ),
   );
 }
