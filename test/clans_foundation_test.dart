@@ -335,6 +335,34 @@ Widget pumpClanDetail(FakeClanService service, String slug) {
 }
 
 void main() {
+  testWidgets('COMMUNITY_SHARE_VISIBLE_WITHOUT_AUTO_JOIN', (tester) async {
+    final service = FakeClanService(detail: sampleClan());
+    await tester.pumpWidget(pumpClanDetail(service, 'garra-surco'));
+    await tester.pumpAndSettle();
+    expect(find.text('Compartir comunidad'), findsOneWidget);
+    expect(service.joinCalls, 0);
+  });
+
+  testWidgets('PRIVATE_COMMUNITY_DOES_NOT_EXPOSE_PUBLIC_SHARE', (tester) async {
+    final service = FakeClanService(detail: sampleClan(visibility: 'PRIVATE'));
+    await tester.pumpWidget(pumpClanDetail(service, 'garra-surco'));
+    await tester.pumpAndSettle();
+    expect(find.text('Compartir comunidad'), findsNothing);
+  });
+
+  testWidgets('EXISTING_INVITATION_CAN_BE_ACCEPTED_FROM_COMMUNITY', (tester) async {
+    final service = FakeClanService(
+      detail: sampleClan(joinPolicy: 'INVITE_ONLY'),
+      invitations: [sampleInvitation(clan: sampleClan())],
+    );
+    await tester.pumpWidget(pumpClanDetail(service, 'garra-surco'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Aceptar invitación'));
+    await tester.pumpAndSettle();
+    expect(service.lastAcceptedInvitationId, 'inv-1');
+    expect(service.joinCalls, 0);
+  });
+
   testWidgets('CLAN_DISCOVERY_RENDER', (tester) async {
     final service = FakeClanService(
       discover: [

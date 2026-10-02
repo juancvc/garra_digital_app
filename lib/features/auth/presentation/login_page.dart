@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/config/community_link_config.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/theme/app_theme.dart';
@@ -36,7 +37,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (result.success) {
       await pushSessionCoordinator.afterAuthenticated();
       if (!mounted) return;
-      context.go('/home');
+      context.go(_destinationAfterLogin());
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -72,9 +73,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     } else {
       await pushSessionCoordinator.afterAuthenticated();
       if (!mounted) return;
-      context.go('/home');
+      context.go(_destinationAfterLogin());
     }
   }
+
+  String _destinationAfterLogin() =>
+      CommunityLinkConfig.safeDestination(
+        GoRouterState.of(context).uri.queryParameters['next'],
+      ) ?? '/home';
 
   @override
   Widget build(BuildContext context) {

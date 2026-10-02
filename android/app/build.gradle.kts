@@ -54,6 +54,9 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = googleMapsApiKey
+        // Set to the same verified host as GARRA_PUBLIC_BASE_URL for App Links.
+        manifestPlaceholders["GARRA_PUBLIC_HOST"] =
+            providers.gradleProperty("GARRA_PUBLIC_HOST").orElse("localhost").get()
     }
 
     signingConfigs {

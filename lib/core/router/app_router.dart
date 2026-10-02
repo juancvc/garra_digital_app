@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:garra_digital_app/core/config/community_link_config.dart';
 import 'package:garra_digital_app/features/auth/presentation/complete_profile_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/clan_detail_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/clan_invitations_page.dart';
@@ -114,17 +115,25 @@ Future<String?> _authRedirect(BuildContext context, GoRouterState state) async {
   }
 
   if (!hasToken && !isLogin && !isRegister) {
-    return '/login';
+    final destination = CommunityLinkConfig.safeDestination(currentPath);
+    return destination == null
+        ? '/login'
+        : Uri(path: '/login', queryParameters: {'next': destination}).toString();
   }
 
   if (hasToken && (isLogin || isRegister)) {
-    return '/home';
+    return CommunityLinkConfig.safeDestination(state.uri.queryParameters['next']) ?? '/home';
   }
 
   return null;
 }
 
 List<RouteBase> _buildRoutes() => [
+  GoRoute(
+    path: '/comunidades/:slug',
+    redirect: (context, state) =>
+        CommunityLinkConfig.safeDestination(state.uri.path) ?? '/clans',
+  ),
   GoRoute(
     path: '/splash',
     name: 'splash',

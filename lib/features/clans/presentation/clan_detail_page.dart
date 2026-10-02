@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import 'package:share_plus/share_plus.dart';
+import '../../../core/config/community_link_config.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/network/garra_error.dart';
@@ -87,6 +88,55 @@ class _ClanDetailPageState extends ConsumerState<ClanDetailPage>
       }
     } finally {
       if (mounted) setState(() => _joining = false);
+    }
+  }
+
+  Future<void> _acceptInvitation(ClanInvitationModel invitation) async {
+    if (_joining || !allowNetworkAction(context)) return;
+    setState(() => _joining = true);
+    try {
+      await ref.read(clanServiceProvider).acceptInvitation(invitation.id);
+      ref.invalidate(myClanInvitationsProvider);
+      ref.invalidate(clanDetailProvider(widget.slug));
+      ref.invalidate(myClansProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Te uniste a la comunidad')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No pudimos aceptar la invitación. Reintenta.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _joining = false);
+    }
+  }
+
+  Future<void> _shareCommunity(ClanModel clan) async {
+    final text = CommunityLinkConfig.shareText(clan.name, clan.slug);
+    if (text == null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          content: Text('Enlace de comunidad no disponible'),
+        ));
+      return;
+    }
+    try {
+      await SharePlus.instance.share(ShareParams(
+        text: text,
+      ));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(
+            content: Text('No pudimos compartir la comunidad'),
+          ));
+      }
     }
   }
 
@@ -190,6 +240,9 @@ class _ClanDetailPageState extends ConsumerState<ClanDetailPage>
   @override
   Widget build(BuildContext context) {
     final clanAsync = ref.watch(clanDetailProvider(widget.slug));
+    final invitation = ref.watch(myClanInvitationsProvider).asData?.value
+        .where((item) => item.isPending && item.clan.slug == widget.slug)
+        .firstOrNull;
 
     return Scaffold(
       backgroundColor: context.garraColors.background,
@@ -198,7 +251,7 @@ class _ClanDetailPageState extends ConsumerState<ClanDetailPage>
         actions: [
           if (clanAsync.asData?.value.canManage == true) ...[
             IconButton(
-              tooltip: 'Invitar',
+              tooltip: 'Invitar hincha',
               onPressed: () => _showInviteDialog(context, widget.slug),
               icon: const Icon(Icons.person_add_alt_1_outlined),
             ),
@@ -224,6 +277,11 @@ class _ClanDetailPageState extends ConsumerState<ClanDetailPage>
               joining: _joining,
               leaving: _leaving,
               onJoin: _join,
+              invitation: invitation,
+              onAcceptInvitation: invitation == null
+                  ? null
+                  : () => _acceptInvitation(invitation),
+              onShare: () => _shareCommunity(clan),
               onCancelJoinRequest: _cancelJoinRequest,
               onLeave: () => _leave(clan),
             ),
@@ -281,14 +339,15 @@ class _ClanDetailPageState extends ConsumerState<ClanDetailPage>
     final username = usernameCtrl.text.trim();
     usernameCtrl.dispose();
     if (sent != true || username.isEmpty) return;
+    if (!context.mounted || !allowNetworkAction(context)) return;
     try {
       await ref.read(clanServiceProvider).inviteMember(slug, username);
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invitación enviada')),
       );
     } catch (_) {
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('No pudimos enviar la invitación. Revisa el username.'),
@@ -305,6 +364,9 @@ class _GroupHeader extends StatelessWidget {
     required this.joining,
     required this.leaving,
     required this.onJoin,
+    required this.invitation,
+    required this.onAcceptInvitation,
+    required this.onShare,
     required this.onCancelJoinRequest,
     required this.onLeave,
   });
@@ -313,6 +375,9 @@ class _GroupHeader extends StatelessWidget {
   final bool joining;
   final bool leaving;
   final VoidCallback onJoin;
+  final ClanInvitationModel? invitation;
+  final VoidCallback? onAcceptInvitation;
+  final VoidCallback onShare;
   final VoidCallback onCancelJoinRequest;
   final VoidCallback onLeave;
 
@@ -389,6 +454,16 @@ class _GroupHeader extends StatelessWidget {
                           ),
                           child: Text(leaving ? 'Saliendo…' : 'Unido ✓'),
                         )
+                      else if (invitation != null)
+                        FilledButton(
+                          onPressed: joining ? null : onAcceptInvitation,
+                          style: FilledButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            minimumSize: const Size(72, 36),
+                          ),
+                          child: Text(joining ? 'Procesando…' : 'Aceptar invitación'),
+                        )
                       else if (clan.hasPendingRequest)
                         Row(mainAxisSize: MainAxisSize.min, children: [
                           const Text('Solicitud pendiente'),
@@ -442,18 +517,15 @@ class _GroupHeader extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                     ],
-                    OutlinedButton(
-                      onPressed: () {
-                        SharePlus.instance.share(
-                          ShareParams(text: '${clan.name} en Garra Digital'),
-                        );
-                      },
+                    if (clan.visibility.toUpperCase() != 'PRIVATE') OutlinedButton.icon(
+                      onPressed: onShare,
                       style: OutlinedButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         minimumSize: const Size(72, 36),
                       ),
-                      child: const Text('Compartir'),
+                      icon: const Icon(Icons.share_outlined, size: 18),
+                      label: const Text('Compartir comunidad'),
                     ),
                   ],
                   ),
