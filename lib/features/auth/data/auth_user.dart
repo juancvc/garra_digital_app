@@ -6,6 +6,7 @@ class AuthUser {
     required this.fullName,
     required this.status,
     this.role = 'USER',
+    this.accountType = 'STANDARD',
   });
 
   final String userId;
@@ -14,6 +15,11 @@ class AuthUser {
   final String fullName;
   final String status;
   final String role;
+
+  /// Backend account kind: STANDARD | PLATFORM_OFFICIAL (never derived from name/email).
+  final String accountType;
+
+  bool get isPlatformOfficial => accountType == 'PLATFORM_OFFICIAL';
 
   String get id => userId;
 
@@ -33,6 +39,7 @@ class AuthUser {
       fullName: json['fullName']?.toString() ?? '',
       status: json['status']?.toString() ?? '',
       role: (json['role'] ?? json['platformRole'] ?? 'USER').toString(),
+      accountType: json['accountType']?.toString() ?? 'STANDARD',
     );
   }
 }

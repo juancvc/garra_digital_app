@@ -1,5 +1,6 @@
 import 'reaction_type.dart';
 import 'post_location.dart';
+import '../../../core/widgets/garra_official_badge.dart';
 import '../../../core/widgets/mention_span.dart';
 
 class WallPostModel {
@@ -33,6 +34,7 @@ class WallPostModel {
     this.mentions = const [],
     this.visibility = 'PUBLIC',
     this.avatarUrl,
+    this.accountType = 'STANDARD',
   });
 
   final String id;
@@ -66,6 +68,11 @@ class WallPostModel {
   final List<MentionSpan> mentions;
   final String visibility;
   final String? avatarUrl;
+
+  /// Backend account kind of the author: STANDARD | PLATFORM_OFFICIAL.
+  final String accountType;
+
+  bool get isOfficial => isPlatformOfficialAccount(accountType);
 
   bool get isFollowersOnly => visibility == 'FOLLOWERS';
 
@@ -125,6 +132,7 @@ class WallPostModel {
       mentions: parseMentionSpans(json['mentions']),
       visibility: json['visibility']?.toString() ?? 'PUBLIC',
       avatarUrl: json['avatarUrl']?.toString(),
+      accountType: json['accountType']?.toString() ?? 'STANDARD',
     );
   }
 
@@ -159,6 +167,7 @@ class WallPostModel {
     List<MentionSpan>? mentions,
     String? visibility,
     String? avatarUrl,
+    String? accountType,
   }) {
     return WallPostModel(
       id: id ?? this.id,
@@ -190,6 +199,7 @@ class WallPostModel {
       mentions: mentions ?? this.mentions,
       visibility: visibility ?? this.visibility,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      accountType: accountType ?? this.accountType,
     );
   }
 }
@@ -201,7 +211,7 @@ class SharedOriginalPostModel {
     this.createdAt = '', this.reactionSummary = const {}, this.reactionCount = 0,
     this.commentCount = 0, this.myReaction, this.viewCount = 0,
     this.sharedByMe = false, this.postLocation, this.mentions = const [],
-    this.avatarUrl});
+    this.avatarUrl, this.accountType = 'STANDARD'});
 
   final String id;
   final String authorId;
@@ -221,6 +231,9 @@ class SharedOriginalPostModel {
   final PostLocation? postLocation;
   final List<MentionSpan> mentions;
   final String? avatarUrl;
+  final String accountType;
+
+  bool get isOfficial => isPlatformOfficialAccount(accountType);
 
   WallPostModel asPost() => WallPostModel(
     id: id, username: username, fullName: fullName, content: content,
@@ -232,6 +245,7 @@ class SharedOriginalPostModel {
     postLocation: postLocation,
     mentions: mentions,
     avatarUrl: avatarUrl,
+    accountType: accountType,
   );
 
   factory SharedOriginalPostModel.fromJson(Map<String, dynamic> json) =>
@@ -259,6 +273,7 @@ class SharedOriginalPostModel {
             : null,
         mentions: parseMentionSpans(json['mentions']),
         avatarUrl: json['avatarUrl']?.toString(),
+        accountType: json['accountType']?.toString() ?? 'STANDARD',
       );
 
   SharedOriginalPostModel copyWith({int? shareCount, bool? sharedByMe,
@@ -277,6 +292,7 @@ class SharedOriginalPostModel {
       postLocation: postLocation,
       mentions: mentions,
       avatarUrl: avatarUrl,
+      accountType: accountType,
     );
 }
 

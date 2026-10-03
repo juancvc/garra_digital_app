@@ -8,6 +8,7 @@ export '../../../../core/utils/date_utils.dart' show formatGarraRelativeTime;
 import '../../../../core/design/garra_spacing.dart';
 import '../../../../core/theme/garra_semantic_colors.dart';
 import '../../../../core/widgets/garra_avatar.dart';
+import '../../../../core/widgets/garra_official_badge.dart';
 import '../../data/wall_post_model.dart';
 import '../../data/reaction_type.dart';
 import 'garra_comment_reactions.dart';
@@ -87,15 +88,23 @@ class GarraSocialPostCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            post.isShare ? '${post.fullName} compartió' : post.fullName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: context.garraColors.textPrimary,
+                          Row(children: [
+                            Flexible(
+                              child: Text(
+                                post.isShare ? '${post.fullName} compartió' : post.fullName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: context.garraColors.textPrimary,
+                                ),
+                              ),
                             ),
-                          ),
+                            if (post.isOfficial) ...[
+                              const SizedBox(width: 6),
+                              const Flexible(child: GarraOfficialBadge()),
+                            ],
+                          ]),
                           Row(
                             children: [
                               Flexible(
@@ -214,10 +223,16 @@ class GarraSocialPostCard extends StatelessWidget {
                         Expanded(child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(original.fullName, maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w800)),
+                            Row(children: [
+                              Flexible(child: Text(original.fullName, maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w800))),
+                              if (original.isOfficial) ...[
+                                const SizedBox(width: 6),
+                                const Flexible(child: GarraOfficialBadge()),
+                              ],
+                            ]),
                             Text('@${original.username}', maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(

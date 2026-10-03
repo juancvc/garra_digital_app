@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../../../core/widgets/garra_stickers.dart';
 import '../../../core/widgets/garra_avatar.dart';
+import '../../../core/widgets/garra_official_badge.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -838,7 +839,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   Future<void> _openShareSheet(WallPostModel post) async {
     final target = post.originalPost?.asPost() ?? post;
     final outcome = await showGarraShareSheet(
-      context, post: target, service: ref.read(communityServiceProvider));
+      context, post: target, service: ref.read(communityServiceProvider),
+      allowInternalRepost: !post.isShare);
     if (!mounted || outcome == null) return;
     if (outcome.sharedPost case final share?) {
       final count = share.originalPost?.shareCount ?? target.shareCount;
@@ -1260,12 +1262,21 @@ class _PostHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                post.fullName,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
-              ),
+              Row(children: [
+                Flexible(
+                  child: Text(
+                    post.fullName,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w900),
+                  ),
+                ),
+                if (post.isOfficial) ...[
+                  const SizedBox(width: 6),
+                  const Flexible(child: GarraOfficialBadge()),
+                ],
+              ]),
               Text(
                 '@${post.username}',
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(

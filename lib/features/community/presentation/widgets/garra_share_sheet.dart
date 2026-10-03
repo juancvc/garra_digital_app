@@ -14,10 +14,16 @@ class GarraShareOutcome {
 }
 
 /// Entry point shared by feed and detail. The caller owns local reconciliation.
+///
+/// [allowInternalRepost] is false when the card being shared is itself a repost:
+/// the in-app repost action is then hidden (the backend also normalises any
+/// share to the original). External sharing is always available and always
+/// refers to the original ([post] is already the resolved original).
 Future<GarraShareOutcome?> showGarraShareSheet(
   BuildContext context, {
   required WallPostModel post,
   required CommunityService service,
+  bool allowInternalRepost = true,
 }) {
   if ((post.originalPost?.asPost() ?? post).isFollowersOnly) {
     return Future.value(null);
@@ -68,7 +74,7 @@ Future<GarraShareOutcome?> showGarraShareSheet(
               ),
             ]),
             const SizedBox(height: 16),
-            if (!sharedByMe) ...[
+            if (!sharedByMe && allowInternalRepost) ...[
               TextFormField(
                 maxLength: 220,
                 maxLines: 3,
@@ -78,6 +84,7 @@ Future<GarraShareOutcome?> showGarraShareSheet(
               ),
               const SizedBox(height: 8),
             ],
+            if (allowInternalRepost || sharedByMe) ...[
             FilledButton.icon(
               onPressed: busy ? null : () async {
                 if (busy) return;
@@ -111,6 +118,7 @@ Future<GarraShareOutcome?> showGarraShareSheet(
               label: Text(busy ? 'Procesando...' : sharedByMe ? 'Deshacer compartido' : 'Compartir en Garra'),
             ),
             const SizedBox(height: 8),
+            ],
             OutlinedButton.icon(
               onPressed: busy ? null : () async {
                 if (caption.trim().isNotEmpty &&

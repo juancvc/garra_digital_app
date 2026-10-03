@@ -7,6 +7,7 @@ import '../../../../core/design/garra_spacing.dart';
 import '../../../../core/theme/garra_semantic_colors.dart';
 import '../../../../core/utils/date_utils.dart';
 import '../../../../core/widgets/garra_avatar.dart';
+import '../../../../core/widgets/garra_official_badge.dart';
 import '../../../../core/widgets/garra_sheet.dart';
 import '../../../../core/widgets/linked_text.dart';
 import '../../../../core/widgets/mention_autocomplete.dart';
@@ -112,6 +113,10 @@ class GarraCommentTile extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (comment.isOfficial) ...[
+                      const SizedBox(width: 4),
+                      const GarraOfficialBadge(compact: true),
+                    ],
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(

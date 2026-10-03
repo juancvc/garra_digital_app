@@ -1,4 +1,5 @@
 import 'reaction_type.dart';
+import '../../../core/widgets/garra_official_badge.dart';
 import '../../../core/widgets/mention_span.dart';
 
 class WallCommentModel {
@@ -21,6 +22,7 @@ class WallCommentModel {
     this.replyCount = 0,
     this.replyToUsername,
     this.mentions = const [],
+    this.accountType = 'STANDARD',
   });
 
   final String id;
@@ -51,6 +53,9 @@ class WallCommentModel {
   /// never part of [content]).
   final String? replyToUsername;
   final List<MentionSpan> mentions;
+  final String accountType;
+
+  bool get isOfficial => isPlatformOfficialAccount(accountType);
 
   bool get isEdited => editedAt != null && editedAt!.isNotEmpty;
 
@@ -88,6 +93,7 @@ class WallCommentModel {
       replyCount: (json['replyCount'] as num?)?.toInt() ?? 0,
       replyToUsername: _nonEmpty(json['replyToUsername']),
       mentions: parseMentionSpans(json['mentions']),
+      accountType: json['accountType']?.toString() ?? 'STANDARD',
     );
   }
 
@@ -129,6 +135,7 @@ class WallCommentModel {
       replyCount: replyCount ?? this.replyCount,
       replyToUsername: replyToUsername,
       mentions: mentions ?? this.mentions,
+      accountType: accountType,
     );
   }
 }

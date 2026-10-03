@@ -7,6 +7,7 @@ import '../../../core/design/garra_spacing.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/utils/garra_count_format.dart';
 import '../../../core/widgets/garra_avatar.dart';
+import '../../../core/widgets/garra_official_badge.dart';
 import '../../../core/widgets/garra_cached_network_image.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
@@ -328,6 +329,7 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
           levelNumber: levelNumber,
           levelName: level,
           sinceYear: sinceYear,
+          isOfficial: isPlatformOfficialAccount(p['accountType']?.toString()),
         ),
         const SizedBox(height: GarraSpacing.md),
         if (!privateVisitor && p['primaryClanName'] != null)
@@ -463,8 +465,10 @@ class _ProfileHero extends StatelessWidget {
     required this.levelNumber,
     required this.levelName,
     required this.sinceYear,
+    this.isOfficial = false,
   });
 
+  final bool isOfficial;
   final String displayName;
   final String username;
   final String? avatarUrl;
@@ -566,6 +570,10 @@ class _ProfileHero extends StatelessWidget {
           '@$username',
           style: textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
         ),
+        if (isOfficial) ...[
+          const SizedBox(height: GarraSpacing.xs),
+          const GarraOfficialBadge(),
+        ],
         const SizedBox(height: GarraSpacing.sm),
         Wrap(
           alignment: WrapAlignment.center,

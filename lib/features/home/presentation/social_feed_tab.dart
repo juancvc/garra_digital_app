@@ -234,7 +234,8 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
 
   Future<void> _share(WallPostModel post) async {
     final target = post.originalPost?.asPost() ?? post;
-    final outcome = await showGarraShareSheet(context, post: target, service: _service);
+    final outcome = await showGarraShareSheet(context, post: target, service: _service,
+        allowInternalRepost: !post.isShare);
     if (!mounted || outcome == null) return;
     if (outcome.external) {
       await SharePlus.instance.share(ShareParams(
