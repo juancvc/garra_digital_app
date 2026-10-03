@@ -1,22 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_card.dart';
+import '../../community/presentation/widgets/garra_discovery_section.dart';
 import '../data/retention_models.dart';
 import '../data/retention_service.dart';
 
 /// Short interest onboarding (3–4 steps). Skip allowed.
 class OnboardingInterestsPage extends StatefulWidget {
-  const OnboardingInterestsPage({super.key});
+  const OnboardingInterestsPage({super.key, this.service});
+
+  /// Test seam; defaults to the real [RetentionService].
+  final RetentionService? service;
 
   @override
   State<OnboardingInterestsPage> createState() => _OnboardingInterestsPageState();
 }
 
 class _OnboardingInterestsPageState extends State<OnboardingInterestsPage> {
-  final _service = RetentionService();
+  late final RetentionService _service = widget.service ?? RetentionService();
   final _city = TextEditingController();
   final _selected = <String>{};
   int _step = 0;
@@ -38,18 +42,19 @@ class _OnboardingInterestsPageState extends State<OnboardingInterestsPage> {
         onboardingCompleted: true,
       );
       if (!mounted) return;
-      context.go('/comunidad');
+      // Never block the feed: onboarding always ends at Home.
+      context.go('/home');
     } catch (_) {
       if (!mounted) return;
       setState(() => _busy = false);
-      context.go('/comunidad');
+      context.go('/home');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(
         title: const Text('Tu Garra'),
         actions: [
@@ -66,11 +71,15 @@ class _OnboardingInterestsPageState extends State<OnboardingInterestsPage> {
           children: [
             LinearProgressIndicator(
               value: (_step + 1) / 3,
-              color: const Color(GarraColors.gold),
-              backgroundColor: const Color(0xFF2A2A2A),
+              color: context.garraColors.brandPrestige,
+              backgroundColor: context.garraColors.surfaceMuted,
             ),
             const SizedBox(height: GarraSpacing.xl),
-            Expanded(child: _buildStep()),
+            Expanded(
+              child: _step == 2
+                  ? SingleChildScrollView(child: _buildStep())
+                  : _buildStep(),
+            ),
             FilledButton(
               onPressed: _busy
                   ? null
@@ -81,7 +90,7 @@ class _OnboardingInterestsPageState extends State<OnboardingInterestsPage> {
                         _finish(skip: false);
                       }
                     },
-              child: Text(_step < 2 ? 'Continuar' : 'Empezar'),
+              child: Text(_step < 2 ? 'Continuar' : 'Ir a mi inicio'),
             ),
           ],
         ),
@@ -147,18 +156,26 @@ class _OnboardingInterestsPageState extends State<OnboardingInterestsPage> {
                 style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: GarraSpacing.md),
             const GarraCard(
+              key: ValueKey('onboarding_explain'),
               child: Text(
-                'Te sugeriremos comunidades y momentos según lo que elegiste. '
-                'Siempre puedes omitir o editar tus intereses.',
+                'En Garra puedes seguir a otros hinchas, unirte a comunidades, '
+                'publicar, comentar y reaccionar, y conocer iniciativas de '
+                'Garra Solidaria. Todo es opcional: sigues a quien quieras, '
+                'cuando quieras.',
               ),
             ),
-            const SizedBox(height: GarraSpacing.md),
+            const SizedBox(height: GarraSpacing.sm),
+            // Suggestions are explicit taps only; nothing is followed or
+            // joined automatically and the user can continue without any.
+            const GarraDiscoverySection(
+              key: ValueKey('onboarding_discovery'),
+              compact: true,
+            ),
             TextButton(
               onPressed: () => context.push('/clans'),
-              child: const Text('Ver Comunidades Cremas'),
+              child: const Text('Ver todas las comunidades'),
             ),
           ],
-        );
-    }
+        );    }
   }
 }

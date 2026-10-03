@@ -20,6 +20,7 @@ import '../../community/data/garra_view_tracker.dart';
 import '../../community/data/wall_post_model.dart';
 import '../../community/presentation/providers/community_provider.dart';
 import '../../community/presentation/widgets/garra_reaction_actions.dart';
+import '../../community/presentation/widgets/garra_discovery_section.dart';
 import '../../community/presentation/widgets/garra_report_sheet.dart';
 import '../../community/presentation/widgets/garra_social_post_card.dart';
 import '../../community/presentation/widgets/garra_share_sheet.dart';
@@ -402,7 +403,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
                     ? 'Todavía no sigues a nadie'
                     : 'Sé el primero en publicar',
                 message: widget.mode == 'FOLLOWING'
-                    ? 'Descubre hinchas y empieza a seguir.'
+                    ? 'Descubre hinchas y comunidades, y empieza cuando quieras.'
                     : 'Comparte lo que vive la crema hoy.',
                 actionLabel: widget.mode == 'FOLLOWING'
                     ? 'Buscar personas'
@@ -425,6 +426,20 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
               ),
             ..._buildFeedItems(meId),
           ],
+          // GARRA38: "Descubre en Garra" closes the feed (and fills the empty
+          // state). Kept mounted (Offstage while the feed loads) so it
+          // fetches once and never refetches on rebuild.
+          Offstage(
+            key: const ValueKey('garra_discovery_slot'),
+            offstage: _loading && _posts.isEmpty,
+            child: GarraDiscoverySection(
+              key: const ValueKey('garra_discovery'),
+              excludePostIds: {
+                for (final p in _posts) ...[p.id, ?p.originalPost?.id],
+              },
+              onFollowed: widget.mode == 'FOLLOWING' ? _load : null,
+            ),
+          ),
         ],
       ),
     );

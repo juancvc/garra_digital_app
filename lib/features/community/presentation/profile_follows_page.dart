@@ -6,6 +6,7 @@ import '../../../core/auth/current_fan_provider.dart';
 import '../../../core/network/offline_action_guard.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_avatar.dart';
+import '../../../core/widgets/garra_states.dart';
 import '../data/community_service.dart';
 
 class ProfileFollowsPage extends ConsumerStatefulWidget {
@@ -72,7 +73,17 @@ class _ProfileFollowsPageState extends ConsumerState<ProfileFollowsPage> {
         }
         final people = _visiblePeople ??= snapshot.data!.map((person) =>
             Map<String, dynamic>.from(person)).toList();
-        if (people.isEmpty) return const Center(child: Text('Todavía no hay personas aquí'));
+        if (people.isEmpty) {
+          // GARRA38: no dead end - one clear way to find people.
+          return Center(
+            child: GarraEmptyState(
+              title: 'Todav\u00eda no hay personas aqu\u00ed',
+              message: 'Descubre hinchas de Garra y sigue a quien quieras.',
+              actionLabel: 'Descubrir personas',
+              onAction: () => context.push('/comunidad/buscar'),
+            ),
+          );
+        }
         return ListView.builder(
           itemCount: people.length,
           itemBuilder: (context, index) {

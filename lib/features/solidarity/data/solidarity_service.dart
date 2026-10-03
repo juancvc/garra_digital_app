@@ -2,6 +2,24 @@ import 'package:dio/dio.dart';
 
 import '../../../core/network/dio_client.dart';
 
+/// Human label (es) for a backend `SolidarityCampaignType` code.
+String solidarityTypeLabel(String type) {
+  switch (type.toUpperCase()) {
+    case 'BLOOD':
+      return 'Donaci\u00f3n de sangre';
+    case 'FOOD':
+      return 'Alimentos';
+    case 'SCHOOL_SUPPLIES':
+      return '\u00datiles escolares';
+    case 'VOLUNTEER':
+      return 'Voluntariado';
+    case 'EMERGENCY':
+      return 'Emergencia';
+    default:
+      return 'Otra causa';
+  }
+}
+
 class SolidarityCampaign {
   SolidarityCampaign({
     required this.id,

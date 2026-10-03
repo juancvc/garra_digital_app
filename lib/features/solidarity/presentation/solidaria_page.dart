@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/media/media_upload_service.dart';
 import '../../../core/network/offline_action_guard.dart';
@@ -61,18 +60,28 @@ class _SolidariaPageState extends State<SolidariaPage> {
     }
   }
 
+  Future<void> _propose() async {
+    final ok = await context.push<bool>('/solidaria/nueva');
+    if (ok != true || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Enviada a revisi\u00f3n. Se mostrar\u00e1 cuando Garra la verifique.',
+        ),
+      ),
+    );
+    _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Garra Solidaria')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final ok = await context.push<bool>('/solidaria/nueva');
-          if (ok == true) _load();
-        },
-        backgroundColor: const Color(GarraColors.gold),
-        foregroundColor: const Color(GarraColors.charcoal),
-        label: const Text('Crear solicitud'),
+        onPressed: _propose,
+        backgroundColor: context.garraColors.brandPrimary,
+        foregroundColor: context.garraColors.onBrand,
+        label: const Text('Proponer iniciativa'),
         icon: const Icon(Icons.add),
       ),
       body: Column(
@@ -98,6 +107,21 @@ class _SolidariaPageState extends State<SolidariaPage> {
               ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              GarraSpacing.lg,
+              0,
+              GarraSpacing.lg,
+              GarraSpacing.sm,
+            ),
+            child: Text(
+              'Iniciativas de hinchas para ayudar a otros, revisadas por Garra. '
+              'No procesamos dinero.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.garraColors.textSecondary,
+              ),
+            ),
+          ),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -105,11 +129,16 @@ class _SolidariaPageState extends State<SolidariaPage> {
                     onRefresh: _load,
                     child: _items.isEmpty
                         ? ListView(
-                            children: const [
+                            children: [
                               GarraEmptyState(
-                                title: 'Sin campañas activas',
+                                title:
+                                    'Todav\u00eda no hay iniciativas verificadas',
                                 message:
-                                    'Cuando Garra verifique una campaña, aparecerá aquí.',
+                                    'Garra Solidaria re\u00fane iniciativas de hinchas para ayudar a otros. '
+                                    'Cada una se revisa antes de mostrarse. '
+                                    '\u00bfConoces una causa? Prop\u00f3n la tuya.',
+                                actionLabel: 'Proponer iniciativa',
+                                onAction: _propose,
                               ),
                             ],
                           )
@@ -146,9 +175,9 @@ class _SolidariaPageState extends State<SolidariaPage> {
                                         const SizedBox(height: 8),
                                       ],
                                       Text(
-                                        c.type,
-                                        style: const TextStyle(
-                                          color: Color(GarraColors.gold),
+                                        solidarityTypeLabel(c.type),
+                                        style: TextStyle(
+                                          color: context.garraColors.brandPrestige,
                                           fontWeight: FontWeight.w700,
                                           fontSize: 12,
                                         ),
@@ -171,13 +200,7 @@ class _SolidariaPageState extends State<SolidariaPage> {
                                       ),
                                       if (c.isVerified) ...[
                                         const SizedBox(height: 8),
-                                        Text(
-                                          '✓ Verificado por Garra',
-                                          style: TextStyle(
-                                            color: context.garraColors.success,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
+                                        const _VerifiedInitiativeChip(),
                                       ],
                                     ],
                                   ),
@@ -264,15 +287,17 @@ class _SolidariaDetailPageState extends State<SolidariaDetailPage> {
               padding: const EdgeInsets.all(GarraSpacing.lg),
               children: [
                 if (c.isVerified)
-                  Text(
-                    '✓ Verificado por Garra',
-                    style: TextStyle(
-                      color: context.garraColors.success,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+                  const _VerifiedInitiativeChip(),
+                if (!c.isVerified) _ReviewStatusChip(c.verificationStatus),
                 const SizedBox(height: 8),
                 Text(c.title, style: Theme.of(context).textTheme.headlineSmall),
+                const SizedBox(height: 4),
+                Text(
+                  solidarityTypeLabel(c.type),
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: context.garraColors.brandPrestige,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Text(c.description),
                 const SizedBox(height: 12),
@@ -295,9 +320,17 @@ class _SolidariaDetailPageState extends State<SolidariaDetailPage> {
                 const SizedBox(height: 20),
                 if (c.contactWhatsapp != null && c.contactWhatsapp!.isNotEmpty)
                   GarraPrimaryButton(
-                    label: 'Contactar',
+                    label: 'Contactar por WhatsApp',
                     onPressed: _contact,
                   ),
+                const SizedBox(height: 12),
+                Text(
+                  'Garra no procesa dinero ni pagos. Coordina directamente con '
+                  'quien publica la iniciativa y cuida tus datos personales.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.garraColors.textSecondary,
+                  ),
+                ),
               ],
             ),
     );
@@ -467,6 +500,71 @@ class _SolidariaCreatePageState extends State<SolidariaCreatePage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// A Solidaria initiative reviewed and approved by Garra. Deliberately a
+/// different icon/colour/wording from the "Garra Oficial" account badge.
+class _VerifiedInitiativeChip extends StatelessWidget {
+  const _VerifiedInitiativeChip();
+
+  @override
+  Widget build(BuildContext context) {
+    final color = context.garraColors.success;
+    return Row(
+      key: const ValueKey('solidarity_verified_chip'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.volunteer_activism_outlined, size: 16, color: color),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            'Iniciativa verificada',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: color, fontWeight: FontWeight.w800),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Owner-only review state (the backend hides non-public initiatives from
+/// everyone else). PENDING never looks verified; REJECTED is explicit.
+class _ReviewStatusChip extends StatelessWidget {
+  const _ReviewStatusChip(this.verificationStatus);
+
+  final String verificationStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.garraColors;
+    final rejected = verificationStatus == 'REJECTED';
+    final color = rejected ? colors.danger : colors.warning;
+    final label = rejected
+        ? 'No aprobada'
+        : 'En revisi\u00f3n \u00b7 a\u00fan no es p\u00fablica';
+    return Row(
+      key: ValueKey('solidarity_review_${verificationStatus.toLowerCase()}'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          rejected ? Icons.block_outlined : Icons.hourglass_top_outlined,
+          size: 16,
+          color: color,
+        ),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: color, fontWeight: FontWeight.w800),
+          ),
+        ),
+      ],
     );
   }
 }

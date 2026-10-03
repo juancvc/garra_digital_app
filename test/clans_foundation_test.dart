@@ -407,6 +407,16 @@ void main() {
     expect(find.textContaining('Sin resultados'), findsOneWidget);
   });
 
+  testWidgets('CLAN_EMPTY_STATE_EXPLORE_CTA (GARRA38)', (tester) async {
+    final service = FakeClanService();
+    await tester.pumpWidget(pumpClans(service));
+    await tester.pumpAndSettle();
+    // No dead end: one clear action jumps to the "Descubrir" tab.
+    await tester.tap(find.text('Explorar comunidades'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Sin resultados'), findsOneWidget);
+  });
+
   testWidgets('CLAN_DETAIL_RENDER', (tester) async {
     final service = FakeClanService(
       detail: sampleClan(),

@@ -7,6 +7,7 @@ import 'package:garra_digital_app/features/ranking/presentation/providers/rankin
 import 'package:go_router/go_router.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../../notifications/data/push_session_coordinator.dart';
+import '../../retention/data/retention_service.dart';
 import '../data/google_auth_service.dart';
 
 class CompleteProfilePage extends ConsumerStatefulWidget {
@@ -83,7 +84,15 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
       if (mounted) {
         await pushSessionCoordinator.afterAuthenticated();
         if (!mounted) return;
-        context.go('/home');
+        // GARRA38: a brand-new account lands on the (skippable) social
+        // onboarding once; any failure just goes to Home.
+        var target = '/home';
+        try {
+          final prefs = await RetentionService().getInterests();
+          if (!prefs.onboardingCompleted) target = '/onboarding';
+        } catch (_) {}
+        if (!mounted) return;
+        context.go(target);
       }
     } catch (e) {
       _showSnack('Error al completar perfil');

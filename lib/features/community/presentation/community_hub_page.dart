@@ -8,16 +8,14 @@ import '../../../core/design/garra_colors.dart';
 import '../../../core/network/offline_action_guard.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_spacing.dart';
-import '../../../core/widgets/garra_avatar.dart';
-import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
-import '../../../core/widgets/garra_ui.dart';
 import '../data/community_report.dart';
 import '../data/community_service.dart';
 import '../data/engagement_utils.dart';
 import '../data/garra_view_tracker.dart';
 import '../data/wall_post_model.dart';
 import 'providers/community_provider.dart';
+import 'widgets/garra_discovery_section.dart';
 import 'widgets/garra_report_sheet.dart';
 import 'widgets/garra_social_post_card.dart';
 import 'widgets/garra_share_sheet.dart';
@@ -38,7 +36,6 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
   final _retention = RetentionService();
   List<WallPostModel> _posts = [];
   final Set<String> _reactingPostIds = {};
-  List<Map<String, dynamic>> _people = [];
   bool _loading = true;
   String? _error;
   String _mode = 'FOR_YOU';
@@ -73,14 +70,9 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
     });
     try {
       final posts = await _service.getGlobalFeed(mode: _mode);
-      List<Map<String, dynamic>> people = [];
-      try {
-        people = await _service.discoveryPeople();
-      } catch (_) {}
       if (!mounted) return;
       setState(() {
         _posts = posts;
-        _people = people;
         _loading = false;
         _error = null;
       });
@@ -334,75 +326,13 @@ class _CommunityHubPageState extends ConsumerState<CommunityHubPage> {
                               .toList(),
                         ),
                       ),
-                      if (_mode == 'FOLLOWING' && _people.isNotEmpty) ...[
-                        const SizedBox(height: GarraSpacing.lg),
-                        const GarraSectionHeader(title: 'Personas para seguir'),
-                        const SizedBox(height: 8),
-                        ..._people.take(5).map((p) {
-                          final id = p['userId']?.toString() ??
-                              p['id']?.toString() ??
-                              '';
-                          final name = p['displayName']?.toString() ??
-                              p['fullName']?.toString() ??
-                              '';
-                          final username = p['username']?.toString() ?? '';
-                          final reason = p['reason']?.toString();
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: GarraCard(
-                              onTap: id.isEmpty
-                                  ? null
-                                  : () => context.push('/comunidad/u/$id'),
-                              child: Row(
-                                children: [
-                                  GarraAvatar(
-                                    displayName:
-                                        name.isEmpty ? username : name,
-                                    size: 40,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          name,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .titleSmall,
-                                        ),
-                                        Text(
-                                          '@$username',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall,
-                                        ),
-                                        if (reason != null && reason.isNotEmpty)
-                                          Text(
-                                            reason,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall,
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                  TextButton(
-                                    onPressed: id.isEmpty
-                                        ? null
-                                        : () async {
-                                            await _service.followUser(id);
-                                            await _load();
-                                          },
-                                    child: const Text('Seguir'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }),
-                      ],
+                      // GARRA38: one composite discovery section replaces the old raw
+                      // 'Personas para seguir' list (people + communities + content).
+                      if (_mode == 'FOLLOWING' && _posts.isEmpty)
+                        GarraDiscoverySection(
+                          key: const ValueKey('hub_discovery'),
+                          onFollowed: _load,
+                        ),
                       const SizedBox(height: GarraSpacing.lg),
                       if (_posts.isEmpty)
                         GarraEmptyState(

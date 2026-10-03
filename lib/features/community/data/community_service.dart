@@ -5,6 +5,7 @@ import '../../../core/network/dio_client.dart';
 import '../../../core/network/garra_error.dart';
 import 'community_report.dart';
 import 'create_wall_post_request.dart';
+import 'discovery_models.dart';
 import 'reaction_result.dart';
 import 'reactor_model.dart';
 import 'report_wall_post_request.dart';
@@ -190,6 +191,15 @@ class CommunityService {
     final response = await _dio.get('/community/discovery/people');
     final List data = response.data['data'] ?? [];
     return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  /// GARRA38: one bounded call with people, communities, posts and verified
+  /// Solidaria highlights. Every item is already filtered server-side.
+  Future<DiscoveryBundle> getDiscovery() async {
+    final response = await _dio.get('/community/discovery');
+    final data = response.data['data'];
+    if (data is! Map) return const DiscoveryBundle();
+    return DiscoveryBundle.fromJson(Map<String, dynamic>.from(data));
   }
 
   Future<void> deleteOwnPost(String postId) async {

@@ -161,6 +161,7 @@ class _ClansPageState extends ConsumerState<ClansPage>
                           ),
                           data: (memberships) => _MyCommunitiesTab(
                             memberships: memberships,
+                            onExplore: () => _tabController.animateTo(1),
                             onSetPrimary: (slug) async {
                               await ref
                                   .read(clanServiceProvider)
@@ -318,10 +319,14 @@ class _MyCommunitiesTab extends StatelessWidget {
   const _MyCommunitiesTab({
     required this.memberships,
     required this.onSetPrimary,
+    required this.onExplore,
   });
 
   final List<MyClanMembership> memberships;
   final Future<void> Function(String slug) onSetPrimary;
+
+  /// Empty state primary action: jump to the "Descubrir" tab.
+  final VoidCallback onExplore;
 
   @override
   Widget build(BuildContext context) {
@@ -329,8 +334,10 @@ class _MyCommunitiesTab extends StatelessWidget {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(GarraSpacing.lg),
-        children: const [
+        children: [
           GarraEmptyState(
+            actionLabel: 'Explorar comunidades',
+            onAction: onExplore,
             title: 'Aún no tienes comunidad',
             message:
                 'Únete a una comunidad crema o crea la tuya para compartir la tribuna.',
