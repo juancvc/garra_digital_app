@@ -5,6 +5,19 @@ import 'package:garra_digital_app/core/navigation/main_shell.dart';
 import 'package:garra_digital_app/core/router/app_router.dart';
 import 'package:garra_digital_app/features/explore/presentation/explore_page.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
+import 'package:garra_digital_app/features/football/data/garra_football_models.dart';
+import 'package:garra_digital_app/features/football/data/garra_football_service.dart';
+import 'package:garra_digital_app/features/football/presentation/centro_garra_page.dart';
+
+class _EmptyFootball extends GarraFootballService {
+  _EmptyFootball() : super(dio: Dio());
+  @override
+  Future<List<FootballCompetition>> competitions() async => const [];
+  @override
+  Future<FootballPage<FootballMatch>> matches(FootballView view, {String? competition}) async =>
+      const FootballPage(items: [], stale: false, unavailable: true, partial: false);
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -31,7 +44,9 @@ void main() {
 
   Future<void> pumpShell(WidgetTester tester) async {
     await tester.pumpWidget(
-      ProviderScope(child: MaterialApp.router(routerConfig: router)),
+      ProviderScope(overrides: [
+        garraFootballServiceProvider.overrideWithValue(_EmptyFootball()),
+      ], child: MaterialApp.router(routerConfig: router)),
     );
     await settle(tester);
   }
@@ -40,7 +55,7 @@ void main() {
     expect(find.byType(NavigationBar).hitTestable(), findsOneWidget);
     expect(
       tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
-      3,
+      4,
     );
     expect(find.byType(MainShell, skipOffstage: false), findsOneWidget);
   }
@@ -171,8 +186,9 @@ void main() {
 
   for (final root in <(String, int)>[
     ('/comunidad', 1),
-    ('/explorar', 3),
-    ('/passport', 4),
+    ('/centro-garra', 3),
+    ('/explorar', 4),
+    ('/passport', 5),
   ]) {
     testWidgets('Back from ${root.$1} root selects Home', (tester) async {
       await pumpShell(tester);

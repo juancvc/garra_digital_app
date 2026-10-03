@@ -49,6 +49,7 @@ GoRouter _router() => GoRouter(
       branches: [
         StatefulShellBranch(routes: [GoRoute(path: '/home', builder: (_, _) => const HomePage())]),
         StatefulShellBranch(routes: [GoRoute(path: '/comunidad', builder: (_, _) => const Scaffold(body: Text('COMUNIDAD')))]),
+        StatefulShellBranch(routes: [GoRoute(path: '/centro-garra', builder: (_, _) => const Scaffold(body: Text('CENTRO')))]),
         StatefulShellBranch(routes: [GoRoute(path: '/explorar', builder: (_, _) => const Scaffold(body: Text('EXPLORAR')))]),
         StatefulShellBranch(routes: [GoRoute(path: '/passport', builder: (_, _) => const Scaffold(body: Text('PERFIL')))]),
       ],

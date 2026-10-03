@@ -18,7 +18,7 @@ class _UnreadChat extends ChatService {
 }
 
 void main() {
-  testWidgets('main shell exposes five destinations including Crear', (
+  testWidgets('main shell exposes Centro Garra and Crear', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(400, 800));
@@ -46,6 +46,15 @@ void main() {
                   path: '/comunidad',
                   builder: (context, state) =>
                       const Scaffold(body: Text('COM')),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/centro-garra',
+                  builder: (context, state) =>
+                      const Scaffold(body: Text('CENTRO')),
                 ),
               ],
             ),
@@ -99,6 +108,7 @@ void main() {
     expect(find.byIcon(Icons.home_rounded), findsOneWidget);
     expect(find.byIcon(Icons.forum_outlined), findsOneWidget);
     expect(find.byIcon(Icons.add_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.sports_soccer_outlined), findsOneWidget);
     expect(find.byIcon(Icons.explore_outlined), findsOneWidget);
     expect(find.byIcon(Icons.person_outline), findsOneWidget);
 

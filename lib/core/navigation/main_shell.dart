@@ -9,15 +9,15 @@ import 'home_back_scroll.dart';
 import '../design/garra_colors.dart';
 import '../theme/garra_semantic_colors.dart';
 
-/// V1 shell — Inicio / Comunidad / Crear / Explorar / Perfil
+/// Main shell — Inicio / Comunidad / Crear / Centro Garra / Explorar / Perfil
 class MainShell extends ConsumerWidget {
   const MainShell({required this.navigationShell, super.key});
 
   final StatefulNavigationShell navigationShell;
 
   int get _navIndex {
-    // Branches: 0 home, 1 comunidad, 2 explorar, 3 passport
-    // Nav slots: 0 home, 1 comunidad, 2 crear, 3 explorar, 4 perfil
+    // Branches: 0 home, 1 comunidad, 2 centro, 3 explorar, 4 passport
+    // Nav slots: 0 home, 1 comunidad, 2 crear, 3 centro, 4 explorar, 5 perfil
     final b = navigationShell.currentIndex;
     if (b >= 2) return b + 1;
     return b;
@@ -94,6 +94,11 @@ class MainShell extends ConsumerWidget {
                 icon: _CreateDestinationIcon(),
                 selectedIcon: _CreateDestinationIcon(selected: true),
                 label: 'Crear',
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.sports_soccer_outlined),
+                selectedIcon: Icon(Icons.sports_soccer),
+                label: 'Centro',
               ),
               const NavigationDestination(
                 icon: Icon(Icons.explore_outlined),

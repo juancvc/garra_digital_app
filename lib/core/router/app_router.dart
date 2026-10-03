@@ -13,6 +13,8 @@ import 'package:garra_digital_app/features/admin/presentation/admin_center_page.
 import 'package:garra_digital_app/features/admin/presentation/admin_communities_page.dart';
 import 'package:garra_digital_app/features/admin/presentation/admin_platform_users_page.dart';
 import 'package:garra_digital_app/features/explore/presentation/explore_page.dart';
+import 'package:garra_digital_app/features/football/presentation/centro_garra_page.dart';
+import 'package:garra_digital_app/features/football/data/garra_football_models.dart';
 import 'package:garra_digital_app/features/settings/presentation/appearance_settings_page.dart';
 import 'package:garra_digital_app/features/settings/presentation/settings_pages.dart';
 import 'package:garra_digital_app/core/config/app_config_service.dart';
@@ -277,6 +279,31 @@ List<RouteBase> _buildRoutes() => [
               'community',
               CommunitySocialPage(chatService: ChatService()),
             ),
+          ),
+        ],
+      ),
+      StatefulShellBranch(
+        routes: [
+          GoRoute(
+            path: '/centro-garra',
+            name: 'centro-garra',
+            builder: (context, state) => const CentroGarraPage(),
+            routes: [
+              GoRoute(
+                path: 'partido/:fixtureId',
+                name: 'centro-garra-partido',
+                builder: (context, state) {
+                  final fixture = state.extra;
+                  final match = fixture is FootballMatch ? fixture : FootballMatch(
+                    id: int.tryParse(state.pathParameters['fixtureId'] ?? '') ?? 0,
+                    competitionId: state.uri.queryParameters['competition'] ?? '',
+                    competition: '', home: 'Por confirmar', away: 'Por confirmar',
+                    status: 'UNKNOWN',
+                  );
+                  return CentroGarraMatchDetailPage(match: match);
+                },
+              ),
+            ],
           ),
         ],
       ),
