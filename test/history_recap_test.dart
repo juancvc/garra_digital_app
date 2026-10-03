@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garra_digital_app/core/theme/app_theme.dart';
+import 'package:garra_digital_app/core/auth/current_fan_provider.dart';
+import 'package:garra_digital_app/features/auth/data/auth_user.dart';
 import 'package:garra_digital_app/core/widgets/garra_states.dart';
 import 'package:garra_digital_app/features/history/data/history_models.dart';
 import 'package:garra_digital_app/features/history/data/history_service.dart';
@@ -204,6 +206,11 @@ class FakeHistoryService extends HistoryService {
     }
     return recap;
   }
+}
+
+class _Fan extends CurrentFanNotifier {
+  @override
+  Future<AuthUser?> build() async => null;
 }
 
 void main() {
@@ -592,6 +599,8 @@ void main() {
             (ref) async => samplePassportWithHistory(),
           ),
           historyServiceProvider.overrideWithValue(FakeHistoryService()),
+          passportSeasonProgressProvider.overrideWith((ref) async => null),
+          currentFanProvider.overrideWith(_Fan.new),
         ],
         child: MaterialApp.router(
           theme: AppTheme.darkTheme,
@@ -602,12 +611,12 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(
-      find.text('Mi Historia Crema'),
-      200,
+      find.text('Mi Año Crema 2026'),
+      100,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.text('Mi Historia Crema'), findsOneWidget);
     expect(find.text('Mi Año Crema 2026'), findsOneWidget);
+    expect(find.text('Mi Historia Crema'), findsOneWidget);
   });
 
   test('history models parse cursor page and year recap', () {

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../data/history_models.dart';
 
@@ -17,7 +18,7 @@ class GarraHistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = _variantStyle(entry.variant);
+    final style = _variantStyle(entry.variant, context);
     final when = DateFormat('d MMM · HH:mm').format(entry.occurredAt.toLocal());
 
     return GarraCard(
@@ -71,7 +72,8 @@ class GarraHistoryCard extends StatelessWidget {
     );
   }
 
-  static _HistoryVariantStyle _variantStyle(HistoryCardVariant variant) {
+  static _HistoryVariantStyle _variantStyle(
+      HistoryCardVariant variant, BuildContext context) {
     switch (variant) {
       case HistoryCardVariant.prediction:
         return const _HistoryVariantStyle(
@@ -80,10 +82,10 @@ class GarraHistoryCard extends StatelessWidget {
           accent: Color(GarraColors.gold),
         );
       case HistoryCardVariant.checkin:
-        return const _HistoryVariantStyle(
+        return _HistoryVariantStyle(
           label: 'Check-in',
           icon: Icons.location_on_rounded,
-          accent: Color(GarraColors.cream),
+          accent: context.garraColors.brandPrimary,
         );
       case HistoryCardVariant.mission:
         return const _HistoryVariantStyle(
@@ -98,10 +100,10 @@ class GarraHistoryCard extends StatelessWidget {
           accent: Color(GarraColors.warning),
         );
       case HistoryCardVariant.community:
-        return const _HistoryVariantStyle(
+        return _HistoryVariantStyle(
           label: 'Comunidad',
           icon: Icons.forum_rounded,
-          accent: Color(GarraColors.creamMuted),
+          accent: context.garraColors.brandPrimary,
         );
       case HistoryCardVariant.clan:
         return const _HistoryVariantStyle(

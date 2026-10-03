@@ -21,7 +21,7 @@ void main() {
   testWidgets('main shell exposes Centro Garra and Crear', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(400, 800));
+    await tester.binding.setSurfaceSize(const Size(320, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final router = GoRouter(
@@ -98,6 +98,7 @@ void main() {
 
     final communityDestination = find.byWidgetPredicate((widget) =>
       widget is NavigationDestination && widget.label == 'Comunidad');
+    expect(tester.getSize(find.text('Comunidad')).height, lessThan(25));
     expect(tester.widget<Badge>(find.descendant(
       of: communityDestination, matching: find.byType(Badge)).first).isLabelVisible, isFalse);
     chat.count = 120;

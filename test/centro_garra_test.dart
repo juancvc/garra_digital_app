@@ -60,6 +60,14 @@ class _Football extends GarraFootballService {
   }
 }
 
+class _UnconfiguredFootball extends _Football {
+  @override
+  Future<List<FootballCompetition>> competitions() async => const [
+    FootballCompetition(id: 'LIGA_1', name: 'Liga 1 Perú', available: false),
+    FootballCompetition(id: 'LIGA_2', name: 'Liga 2 Perú', available: false),
+  ];
+}
+
 GoRouter _router(FootballMatch match) => GoRouter(initialLocation: '/centro-garra', routes: [
   GoRoute(path: '/centro-garra', builder: (_, _) => const CentroGarraPage(), routes: [
     GoRoute(path: 'partido/:fixtureId', builder: (_, _) => CentroGarraMatchDetailPage(match: match)),
@@ -128,6 +136,25 @@ void main() {
     await tester.pumpAndSettle();
     expect(service.calls, 1);
     expect(find.text('Sin conexión'), findsWidgets);
+  });
+
+  testWidgets('unconfigured competitions show one compact notice and no futile retry', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final service = _UnconfiguredFootball();
+    final router = _router(match);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(ProviderScope(overrides: [
+      garraFootballServiceProvider.overrideWithValue(service),
+      connectivityStatusProvider.overrideWith(_Network.new),
+    ], child: MaterialApp.router(routerConfig: router)));
+    await tester.pumpAndSettle();
+    expect(find.text('Competiciones por activar'), findsOneWidget);
+    expect(find.text('Reintentar'), findsNothing);
+    expect(service.calls, 0);
+    await tester.drag(find.byType(Scrollbar).first, const Offset(-280, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('Resultados').hitTestable(), findsOneWidget);
   });
 
   testWidgets('detail stays useful without lineups or statistics and links Tribuna', (tester) async {

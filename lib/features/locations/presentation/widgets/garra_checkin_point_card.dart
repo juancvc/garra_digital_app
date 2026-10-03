@@ -47,7 +47,7 @@ class GarraCheckInPointCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               distanceMeters == null
-                  ? 'Ubicación no disponible'
+                  ? 'Distancia desde tu ubicación no disponible'
                   : 'Estás a ${distanceMeters!.round()} m',
               style: const TextStyle(color: Colors.white70),
             ),

@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_motion.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../data/retention_models.dart';
@@ -60,7 +61,7 @@ class _AchievementsPageState extends State<AchievementsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(title: const Text('Mis Logros')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -169,7 +170,7 @@ class _AchievementCard extends StatelessWidget {
       case 'EPIC':
         return const Color(GarraColors.gold);
       default:
-        return const Color(GarraColors.creamMuted);
+        return const Color(GarraColors.burgundy);
     }
   }
 
@@ -188,7 +189,7 @@ class _AchievementCard extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: const Color(0xFF2A2A2A),
+                color: context.garraColors.surfaceMuted,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: _rarityColor, width: 1.4),
               ),
@@ -213,7 +214,7 @@ class _AchievementCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     LinearProgressIndicator(
                       value: (a.progress! / a.target!).clamp(0.0, 1.0),
-                      backgroundColor: const Color(0xFF2A2A2A),
+                      backgroundColor: context.garraColors.surfaceMuted,
                       color: _rarityColor,
                     ),
                     const SizedBox(height: 4),

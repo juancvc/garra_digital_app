@@ -44,7 +44,21 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
   final Map<String, FootballPage<Map<String, dynamic>>> _tables = {};
   bool _loading = false;
   bool _failed = false;
+  final _sectionScroll = ScrollController();
+  final _competitionScroll = ScrollController();
   String get _pageKey => '${_section.name}:${_competition ?? 'ALL'}';
+
+  bool get _nothingConfigured => _competitions.isNotEmpty &&
+      !_competitions.any((competition) => competition.available);
+  bool get _selectedUnconfigured => _competition != null &&
+      !_competitions.any((c) => c.id == _competition && c.available);
+
+  @override
+  void dispose() {
+    _sectionScroll.dispose();
+    _competitionScroll.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -66,6 +80,14 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
       final service = ref.read(garraFootballServiceProvider);
       if (_competitions.isEmpty) _competitions = await service.competitions();
       if (!mounted) return;
+      if (_nothingConfigured || _selectedUnconfigured) {
+        if (section != _Section.standings) {
+          _pages[requestedKey] = const FootballPage<FootballMatch>(
+            items: [], stale: false, unavailable: true, partial: false);
+        }
+        setState(() {});
+        return;
+      }
       if (section == _Section.standings) {
         final id = competition ?? _competitions.where((c) => c.available).firstOrNull?.id;
         if (id != null) _tables[id] = await service.standings(id);
@@ -106,26 +128,31 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Centro Garra')),
       body: Column(children: [
-        SizedBox(height: 52, child: ListView(
+        SizedBox(height: 54, child: Scrollbar(controller: _sectionScroll,
+          thumbVisibility: true, child: ListView(
+          controller: _sectionScroll,
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.fromLTRB(12, 0, 28, 3),
           children: _Section.values.map((section) => Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ChoiceChip(label: Text(section.label),
               selected: _section == section, onSelected: (_) => _choose(section)),
           )).toList(),
-        )),
+        ))),
         if (_competitions.isNotEmpty)
-          SizedBox(height: 48, child: ListView(scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12), children: [
+          SizedBox(height: 50, child: Scrollbar(controller: _competitionScroll,
+            thumbVisibility: true, child: ListView(controller: _competitionScroll,
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(12, 0, 28, 3), children: [
               Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(
                 label: const Text('Todas'), selected: _competition == null,
                 onSelected: (_) { setState(() => _competition = null); _load(); })),
               ..._competitions.map((c) => Padding(padding: const EdgeInsets.only(right: 8),
                 child: ChoiceChip(label: Text(c.name), selected: _competition == c.id,
                   onSelected: (_) { setState(() => _competition = c.id); _load(); }))),
-            ])),
-        if (offline || stale || partial || unavailable || (_failed && _hasCurrentContent))
+            ]))),
+        if ((page?.items.isNotEmpty == true || table?.items.isNotEmpty == true) &&
+            (offline || stale || partial || unavailable || _failed))
           Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
             child: Text(offline ? 'Sin conexión · mostrando lo disponible' : _failed && _hasCurrentContent
               ? 'No pudimos actualizar · mostramos lo anterior' : stale
@@ -139,19 +166,23 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
 
   Widget _body(FootballPage<FootballMatch>? page,
       FootballPage<Map<String, dynamic>>? table, bool offline) {
-    if (_loading && !_hasCurrentContent) return const GarraHomeSkeleton();
+    if (_loading && !_hasCurrentContent) {
+      return const GarraHomeSkeleton();
+    }
     if (_failed && !_hasCurrentContent) {
-      return GarraErrorState(
-      title: offline ? 'Sin conexión' : 'No pudimos cargar el fútbol',
-      message: offline ? 'Conéctate para consultar los partidos.' : 'Inténtalo de nuevo más tarde.',
-      onRetry: _load);
+      return _notice(
+        offline ? 'Sin conexión' : 'No pudimos cargar el fútbol',
+        offline ? 'Conéctate para consultar los partidos.' : 'Inténtalo de nuevo más tarde.',
+        retry: !offline);
     }
     if (_section == _Section.standings) {
       if (table == null || table.items.isEmpty) {
-        return GarraEmptyState(
-        title: 'Tabla no disponible',
-        message: 'Selecciona una competición disponible o vuelve a intentar más tarde.',
-        actionLabel: offline ? null : 'Reintentar', onAction: offline ? null : _load);
+        return _notice(
+          _nothingConfigured || _selectedUnconfigured ? 'Competiciones por activar' : 'Tabla no disponible',
+          _nothingConfigured || _selectedUnconfigured
+              ? 'Las tablas estarán aquí cuando las competiciones estén disponibles.'
+              : 'Selecciona otra competición o vuelve más tarde.',
+          retry: !offline && !_nothingConfigured && !_selectedUnconfigured && table?.unavailable == true);
       }
       return RefreshIndicator(onRefresh: () => _load(refresh: true), child: ListView.builder(
         itemCount: table.items.length, itemBuilder: (context, index) {
@@ -163,11 +194,14 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
         }));
     }
     if (page == null || page.items.isEmpty) {
-      return GarraEmptyState(
-      title: page?.unavailable == true ? 'Fútbol temporalmente no disponible' : 'No hay partidos aquí',
-      message: offline ? 'Conéctate para consultar nuevos partidos.'
-          : 'Prueba otra sección o competición.',
-      actionLabel: offline ? null : 'Reintentar', onAction: offline ? null : _load);
+      return _notice(
+        _nothingConfigured || _selectedUnconfigured ? 'Competiciones por activar'
+            : page?.unavailable == true ? 'Fútbol temporalmente no disponible' : 'No hay partidos aquí',
+        offline ? 'Conéctate para consultar nuevos partidos.'
+            : _nothingConfigured || _selectedUnconfigured
+                ? 'Los partidos aparecerán cuando las competiciones estén disponibles.'
+                : 'Prueba otra sección o competición.',
+        retry: !offline && !_nothingConfigured && !_selectedUnconfigured && page?.unavailable == true);
     }
     return RefreshIndicator(onRefresh: () => _load(refresh: true), child: ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(), itemCount: page.items.length,
@@ -176,6 +210,17 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
           extra: page.items[index])),
     ));
   }
+
+  Widget _notice(String title, String message, {required bool retry}) =>
+      ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 24), children: [
+        Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 6),
+            Text(message, style: Theme.of(context).textTheme.bodyMedium),
+            if (retry) TextButton(onPressed: _load, child: const Text('Reintentar')),
+          ]))),
+      ]);
 }
 
 class FootballMatchCard extends StatelessWidget {

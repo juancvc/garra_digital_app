@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:garra_digital_app/core/theme/app_theme.dart';
+import 'package:garra_digital_app/core/auth/current_fan_provider.dart';
+import 'package:garra_digital_app/features/auth/data/auth_user.dart';
 import 'package:garra_digital_app/core/widgets/garra_states.dart';
 import 'package:garra_digital_app/core/widgets/garra_ui.dart';
 import 'package:garra_digital_app/features/passport/data/passport_models.dart';
@@ -47,6 +49,11 @@ PassportModel samplePassport() {
   );
 }
 
+class _Fan extends CurrentFanNotifier {
+  @override
+  Future<AuthUser?> build() async => null;
+}
+
 void main() {
   testWidgets('PASSPORT_LOADING_STATE', (tester) async {
     final completer = Completer<PassportModel>();
@@ -70,6 +77,7 @@ void main() {
       ProviderScope(
         overrides: [
           myPassportProvider.overrideWith((ref) async => samplePassport()),
+          currentFanProvider.overrideWith(_Fan.new),
         ],
         child: MaterialApp(
           theme: AppTheme.darkTheme,
@@ -82,7 +90,7 @@ void main() {
     expect(find.text('Hincha Crema'), findsOneWidget);
     expect(find.text('@cremafan'), findsOneWidget);
     expect(
-      find.text('COMUNIDAD NO OFICIAL\nDE HINCHAS CREMAS'),
+      find.text('GARRA DIGITAL\nCOMUNIDAD CREMA'),
       findsOneWidget,
     );
     expect(find.textContaining('Nivel 2'), findsWidgets);
@@ -106,16 +114,16 @@ void main() {
     );
     expect(find.text('Cerrar sesión'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.textContaining('Hecho por hinchas, para hinchas'),
+      find.textContaining('Hecho por hinchas cremas, para hinchas cremas.'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
     expect(
-      find.textContaining('Comunidad no oficial de hinchas cremas'),
+      find.textContaining('Comunidad de hinchas de Universitario de Deportes.'),
       findsOneWidget,
     );
     expect(
-      find.textContaining('Hecho por hinchas, para hinchas'),
+      find.textContaining('Garra Digital es una comunidad independiente'),
       findsOneWidget,
     );
   });

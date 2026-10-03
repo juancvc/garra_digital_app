@@ -602,6 +602,7 @@ class _SelectedPointCard extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
+                    flex: 3,
                     child: SizedBox(
                       height: 44,
                       child: OutlinedButton.icon(
@@ -616,16 +617,13 @@ class _SelectedPointCard extends StatelessWidget {
                           ),
                         ),
                         icon: const Icon(Icons.directions_rounded, size: 18),
-                        label: const Text(
-                          'Cómo llegar',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        label: const Text('Cómo llegar', maxLines: 1),
                       ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
+                    flex: 2,
                     child: SizedBox(
                       height: 44,
                       child: FilledButton.icon(
@@ -682,7 +680,7 @@ class _SelectedPointCard extends StatelessWidget {
 
   static String _formatDistance(double? meters) {
     if (meters == null) {
-      return 'Ubicación no disponible';
+      return 'Distancia desde tu ubicación no disponible';
     }
 
     if (meters < 1000) {

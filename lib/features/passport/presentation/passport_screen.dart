@@ -98,7 +98,23 @@ class _PassportBody extends StatelessWidget {
             numberFormat: numberFormat,
           ),
         ),
-        const SizedBox(height: GarraSpacing.xxl),
+        const SizedBox(height: GarraSpacing.md),
+        Wrap(spacing: GarraSpacing.sm, runSpacing: GarraSpacing.xs,
+          alignment: WrapAlignment.center, children: [
+            FilledButton.icon(
+              onPressed: () => context.push('/passport/edit'),
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Editar perfil')),
+            Consumer(builder: (context, ref, _) {
+              final meId = currentFanIdOf(ref)?.trim() ?? '';
+              if (meId.isEmpty) return const SizedBox.shrink();
+              return OutlinedButton.icon(
+                onPressed: () => context.push('/comunidad/u/$meId'),
+                icon: const Icon(Icons.person_outline, size: 18),
+                label: const Text('Perfil en comunidad'));
+            }),
+          ]),
+        const SizedBox(height: GarraSpacing.lg),
         GarraCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -130,6 +146,19 @@ class _PassportBody extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: GarraSpacing.sm),
+        Wrap(spacing: GarraSpacing.sm, runSpacing: GarraSpacing.xs,
+          children: [
+            ActionChip(avatar: const Icon(Icons.emoji_events_outlined, size: 18),
+              label: const Text('Mis logros'), onPressed: () => context.push('/logros')),
+            ActionChip(avatar: const Icon(Icons.auto_stories_outlined, size: 18),
+              label: const Text('Mi Historia Crema'), onPressed: () => context.push('/history')),
+          ]),
+        if (passport.currentYearSummary != null)
+          Padding(padding: const EdgeInsets.only(top: GarraSpacing.xs),
+            child: Text('Mi Año Crema ${passport.currentYearSummary!.year}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.garraColors.textSecondary))),
         const SizedBox(height: GarraSpacing.lg),
         GarraCard(
           child: Column(
@@ -202,28 +231,11 @@ class _PassportBody extends StatelessWidget {
         const SizedBox(height: GarraSpacing.lg),
         _PassportClanSection(clan: passport.primaryClan),
         const SizedBox(height: GarraSpacing.lg),
+        const GarraSectionHeader(title: 'Tu comunidad'),
+        const SizedBox(height: GarraSpacing.sm),
         GarraCard(
           child: Column(
             children: [
-              Consumer(
-                builder: (context, ref, _) {
-                  final meId = currentFanIdOf(ref)?.trim() ?? '';
-                  if (meId.isEmpty) return const SizedBox.shrink();
-                  return _ProfileMenuTile(
-                    key: const Key('passport-community-profile'),
-                    icon: Icons.groups_2_outlined,
-                    title: 'Mi perfil en la comunidad',
-                    subtitle: 'Seguidores, seguidos y publicaciones',
-                    onTap: () => context.push('/comunidad/u/$meId'),
-                  );
-                },
-              ),
-              _ProfileMenuTile(
-                icon: Icons.auto_stories_outlined,
-                title: 'Mi contenido',
-                subtitle: 'Tu línea de tiempo crema',
-                onTap: () => context.push('/history'),
-              ),
               _ProfileMenuTile(
                 icon: Icons.bookmark_outline,
                 title: 'Guardados',
@@ -250,43 +262,15 @@ class _PassportBody extends StatelessWidget {
               ),
               _ProfileMenuTile(
                 icon: Icons.card_giftcard_outlined,
-                title: 'Mis puntos Garra',
-                subtitle: 'Canjea beneficios',
+                title: 'Canjear Puntos Garra',
+                subtitle: 'Beneficios disponibles',
                 onTap: () => context.push('/rewards'),
-              ),
-              _ProfileMenuTile(
-                icon: Icons.emoji_events_outlined,
-                title: 'Mis logros',
-                subtitle: 'Hitos desbloqueados',
-                onTap: () => context.push('/logros'),
                 showDivider: false,
               ),
             ],
           ),
         ),
         const SizedBox(height: GarraSpacing.lg),
-        if (passport.currentYearSummary != null) ...[
-          GarraCard(
-            onTap: () => context.push('/history'),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Mi Historia Crema',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: GarraSpacing.xs),
-                Text(
-                  'Mi Año Crema ${passport.currentYearSummary!.year}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.garraColors.brandPrestige,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: GarraSpacing.lg),
-        ],
         const _AdminCenterEntry(),
         const SizedBox(height: GarraSpacing.lg),
         GarraCard(
@@ -300,17 +284,16 @@ class _PassportBody extends StatelessWidget {
           ),
         ),
         const SizedBox(height: GarraSpacing.lg),
-        GarraSecondaryButton(
-          label: 'Cerrar sesión',
+        Center(child: TextButton.icon(
           onPressed: () => _confirmLogout(context),
-          foregroundColor: context.garraColors.brandPrimary,
-          borderColor: context.garraColors.brandPrimary,
-        ),
+          icon: const Icon(Icons.logout, size: 18),
+          label: const Text('Cerrar sesión'))),
         const SizedBox(height: GarraSpacing.xxl),
         Text(
-          'Comunidad no oficial de hinchas cremas\n'
-          'Hecho por hinchas, para hinchas\n\n'
-          'Garra Digital es una comunidad independiente y no representa una aplicación oficial del club.',
+          'Comunidad de hinchas de Universitario de Deportes.\n'
+          'Hecho por hinchas cremas, para hinchas cremas.\n\n'
+          'Garra Digital es una comunidad independiente y no representa al '
+          'Club Universitario de Deportes.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: context.garraColors.textSecondary,
@@ -397,7 +380,7 @@ class _ProfileHero extends StatelessWidget {
                   SizedBox(width: GarraSpacing.sm),
                   Expanded(
                     child: Text(
-                      'COMUNIDAD NO OFICIAL\nDE HINCHAS CREMAS',
+                      'GARRA DIGITAL\nCOMUNIDAD CREMA',
                       style: TextStyle(
                         color: Color(GarraColors.cream),
                         fontSize: 11,
@@ -584,7 +567,6 @@ class _HeroStatDivider extends StatelessWidget {
 
 class _ProfileMenuTile extends StatelessWidget {
   const _ProfileMenuTile({
-    super.key,
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -722,33 +704,14 @@ class _PassportSeasonSection extends ConsumerWidget {
   }
 }
 
-class _AdminCenterEntry extends StatefulWidget {
+class _AdminCenterEntry extends ConsumerWidget {
   const _AdminCenterEntry();
 
   @override
-  State<_AdminCenterEntry> createState() => _AdminCenterEntryState();
-}
-
-class _AdminCenterEntryState extends State<_AdminCenterEntry> {
-  bool _show = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _check();
-  }
-
-  Future<void> _check() async {
-    try {
-      final me = await AuthService().me();
-      if (!mounted) return;
-      setState(() => _show = me?.isAdmin == true);
-    } catch (_) {}
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_show) return const SizedBox.shrink();
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (ref.watch(currentFanProvider).asData?.value?.isAdmin != true) {
+      return const SizedBox.shrink();
+    }
     return GarraCard(
       onTap: () => context.push('/admin'),
       child: Row(

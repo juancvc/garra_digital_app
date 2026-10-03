@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../data/history_models.dart';
 import '../widgets/garra_history_card.dart';
@@ -117,7 +118,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
     final yearsAsync = ref.watch(historyYearsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(GarraColors.charcoal),
+      backgroundColor: context.garraColors.background,
       appBar: AppBar(
         title: const Text('Mi Historia Crema'),
       ),
@@ -307,18 +308,18 @@ class _FilterChips extends StatelessWidget {
             label: Text(filter.label),
             selected: isSelected,
             onSelected: (_) => onSelected(filter),
-            selectedColor: const Color(GarraColors.garnet),
-            backgroundColor: const Color(GarraColors.surface),
+            selectedColor: context.garraColors.brandPrimary,
+            backgroundColor: context.garraColors.surface,
             labelStyle: TextStyle(
               color: isSelected
-                  ? const Color(GarraColors.cream)
-                  : const Color(GarraColors.textSecondary),
+                  ? context.garraColors.onBrand
+                  : context.garraColors.textSecondary,
               fontWeight: FontWeight.w700,
             ),
             side: BorderSide(
               color: isSelected
-                  ? const Color(GarraColors.gold)
-                  : const Color(GarraColors.borderSubtle),
+                  ? context.garraColors.brandPrestige
+                  : context.garraColors.border,
             ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(GarraRadius.pill),
@@ -353,12 +354,12 @@ class _YearShortcuts extends StatelessWidget {
               child: ActionChip(
                 label: Text('Mi Año Crema $year'),
                 onPressed: () => context.push('/history/year/$year'),
-                backgroundColor: const Color(GarraColors.surfaceRaised),
-                labelStyle: const TextStyle(
-                  color: Color(GarraColors.cream),
+                backgroundColor: context.garraColors.surfaceRaised,
+                labelStyle: TextStyle(
+                  color: context.garraColors.textPrimary,
                   fontWeight: FontWeight.w700,
                 ),
-                side: const BorderSide(color: Color(GarraColors.gold)),
+                side: BorderSide(color: context.garraColors.brandPrestige),
               ),
             );
           }).toList(),

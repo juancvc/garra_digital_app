@@ -61,7 +61,16 @@ class MainShell extends ConsumerWidget {
         ),
         child: SafeArea(
           top: false,
-          child: NavigationBar(
+          child: NavigationBarTheme(
+            data: const NavigationBarThemeData(
+              labelTextStyle: WidgetStatePropertyAll(TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -1.0,
+                height: 1.0,
+              )),
+            ),
+            child: NavigationBar(
             height: 66,
             backgroundColor: colors.surface,
             surfaceTintColor: Colors.transparent,
@@ -111,6 +120,7 @@ class MainShell extends ConsumerWidget {
                 label: 'Perfil',
               ),
             ],
+            ),
           ),
         ),
       ),
