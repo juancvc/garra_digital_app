@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/network/offline_action_guard.dart';
 import '../data/register_request.dart';
+import 'providers/auth_flow_providers.dart';
 import 'providers/auth_provider.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
@@ -39,7 +41,16 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     super.dispose();
   }
 
+  /// REGISTER FORM -> REGISTER REQUEST -> CHECK YOUR EMAIL.
+  ///
+  /// Lifecycle contract (GARRA39 crash fix): nothing that depends on this
+  /// State's [BuildContext] runs after the `await`. The messenger and router
+  /// are captured while the widget is surely active, `mounted` is checked right
+  /// after the gap, and when the page is already gone it neither shows a
+  /// snackbar nor navigates (the user left on purpose).
   Future<void> _register() async {
+    if (_loading) return;
+
     final valid = _formKey.currentState?.validate() ?? false;
 
     if (!valid) {
@@ -47,6 +58,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     }
 
     if (_favoriteStand == null) {
+      // Synchronous path (no async gap yet): the context is active here.
       _showSnackBar(
         message: 'Selecciona tu tribuna favorita',
         backgroundColor: Colors.orange,
@@ -54,13 +66,18 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       return;
     }
 
-    setState(() => _loading = true);
+    if (!allowNetworkAction(context)) return;
 
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
     final authService = ref.read(authServiceProvider);
+    final email = _emailController.text.trim().toLowerCase();
+
+    setState(() => _loading = true);
 
     final result = await authService.register(
       RegisterRequest(
-        email: _emailController.text.trim().toLowerCase(),
+        email: email,
         username: _usernameController.text.trim(),
         password: _passwordController.text,
         fullName: _fullNameController.text.trim(),
@@ -68,38 +85,63 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       ),
     );
 
+    // The page may have been removed while the request was in flight.
     if (!mounted) return;
 
     setState(() => _loading = false);
 
-    if (result.success) {
-      _showSnackBar(
-        message: 'Cuenta creada correctamente',
-        backgroundColor: Colors.green,
+    final outcome = result.data;
+    if (result.success && outcome != null && outcome.verificationRequired) {
+      // The password never travels past this point.
+      _passwordController.clear();
+      _confirmPasswordController.clear();
+      router.go(
+        '/verify-email',
+        extra: VerifyEmailArgs(
+          email: outcome.email,
+          resendAvailableInSeconds: outcome.resendAvailableInSeconds,
+        ),
       );
-
-      context.go('/login');
-    } else {
-      _showSnackBar(
-        message: result.message,
-        backgroundColor: Colors.orange,
-      );
+      return;
     }
+
+    if (result.success) {
+      // Legacy server (verification switched off): the account is usable.
+      messenger.showSnackBar(
+        _snackBar(
+          message: 'Cuenta creada correctamente',
+          backgroundColor: Colors.green,
+        ),
+      );
+      router.go('/login');
+      return;
+    }
+
+    messenger.showSnackBar(
+      _snackBar(message: result.message, backgroundColor: Colors.orange),
+    );
   }
 
+  SnackBar _snackBar({
+    required String message,
+    required Color backgroundColor,
+  }) {
+    return SnackBar(
+      content: Text(message),
+      backgroundColor: backgroundColor,
+      behavior: SnackBarBehavior.floating,
+    );
+  }
+
+  /// Only for synchronous callers (before any `await`).
   void _showSnackBar({
     required String message,
     required Color backgroundColor,
   }) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: backgroundColor,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(_snackBar(message: message, backgroundColor: backgroundColor));
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -241,6 +283,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                                 ),
                                 validator: (value) {
                                   final text = value ?? '';
+
+                                  if (text.length > 120) {
+                                    return 'La contrase\u00f1a no puede superar 120 caracteres';
+                                  }
 
                                   if (text.length < 8) {
                                     return 'La contraseña debe tener mínimo 8 caracteres';

@@ -104,6 +104,8 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
   }
 
   void _showSnack(String message) {
+    // Async callers reach this after an await: never touch a dead context.
+    if (!mounted) return;
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));

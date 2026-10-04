@@ -110,6 +110,8 @@ class DioClient {
         normalized.contains('/auth/register') ||
         normalized.contains('/auth/google') ||
         normalized.contains('/auth/refresh') ||
+        normalized.contains('/auth/email-verification') ||
+        normalized.contains('/auth/password/') ||
         normalized.contains('/auth/logout');
   }
 

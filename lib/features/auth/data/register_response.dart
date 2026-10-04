@@ -1,28 +1,33 @@
+import 'auth_flow_models.dart';
+
+/// Body of POST /auth/register (`data`). The tokens are intentionally not
+/// modelled: while [verificationRequired] is true the server issues none.
 class RegisterResponse {
   const RegisterResponse({
-    required this.id,
+    required this.verificationRequired,
     required this.email,
-    required this.username,
-    required this.fullName,
-    required this.favoriteStand,
-    required this.status,
+    required this.emailMasked,
+    required this.resendAvailableInSeconds,
+    required this.codeExpiresInSeconds,
   });
 
-  final String id;
+  final bool verificationRequired;
   final String email;
-  final String username;
-  final String fullName;
-  final String favoriteStand;
-  final String status;
+  final String emailMasked;
+  final int resendAvailableInSeconds;
+  final int codeExpiresInSeconds;
 
   factory RegisterResponse.fromJson(Map<String, dynamic> json) {
+    final email = json['email']?.toString() ?? '';
     return RegisterResponse(
-      id: json['id']?.toString() ?? '',
-      email: json['email']?.toString() ?? '',
-      username: json['username']?.toString() ?? '',
-      fullName: json['fullName']?.toString() ?? '',
-      favoriteStand: json['favoriteStand']?.toString() ?? '',
-      status: json['status']?.toString() ?? '',
+      // Typed flag; a legacy response without it carries a session instead.
+      verificationRequired: json['verificationRequired'] == true,
+      email: email,
+      emailMasked: json['emailMasked']?.toString() ?? maskEmail(email),
+      resendAvailableInSeconds: resendSecondsFrom(
+        json['resendAvailableInSeconds'],
+      ),
+      codeExpiresInSeconds: codeSecondsFrom(json['codeExpiresInSeconds']),
     );
   }
 }

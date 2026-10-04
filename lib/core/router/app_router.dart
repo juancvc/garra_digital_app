@@ -68,6 +68,10 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/splash/presentation/garra_primordial_intro_page.dart';
 import '../../features/auth/presentation/register_page.dart';
+import '../../features/auth/presentation/forgot_password_page.dart';
+import '../../features/auth/presentation/providers/auth_flow_providers.dart';
+import '../../features/auth/presentation/reset_password_page.dart';
+import '../../features/auth/presentation/verify_email_page.dart';
 import '../../features/home/presentation/home_page.dart';
 import '../../features/locations/presentation/ruta_al_templo_page.dart';
 import '../../features/polla/presentation/matchday_polls_page.dart';
@@ -111,19 +115,23 @@ Future<String?> _authRedirect(BuildContext context, GoRouterState state) async {
   final isSplash = currentPath == '/splash';
   final isIntro = currentPath == '/intro';
   final isRegister = currentPath == '/register';
+  // GARRA39 account flows are reachable without a session.
+  final isAccountFlow = currentPath == '/verify-email' ||
+      currentPath == '/forgot-password' ||
+      currentPath == '/reset-password';
 
   if (isSplash || isIntro) {
     return null;
   }
 
-  if (!hasToken && !isLogin && !isRegister) {
+  if (!hasToken && !isLogin && !isRegister && !isAccountFlow) {
     final destination = CommunityLinkConfig.safeDestination(currentPath);
     return destination == null
         ? '/login'
         : Uri(path: '/login', queryParameters: {'next': destination}).toString();
   }
 
-  if (hasToken && (isLogin || isRegister)) {
+  if (hasToken && (isLogin || isRegister || isAccountFlow)) {
     return CommunityLinkConfig.safeDestination(state.uri.queryParameters['next']) ?? '/home';
   }
 
@@ -162,6 +170,38 @@ List<RouteBase> _buildRoutes() => [
     path: '/register',
     name: 'register',
     builder: (context, state) => const RegisterPage(),
+  ),
+  GoRoute(
+    path: '/verify-email',
+    name: 'verify-email',
+    builder: (context, state) {
+      final extra = state.extra;
+      if (extra is! VerifyEmailArgs) {
+        // Opened without its context (e.g. process restart): the e-mail is
+        // never persisted, so start again from the login.
+        return const _RedirectToLogin();
+      }
+      return VerifyEmailPage(args: extra);
+    },
+  ),
+  GoRoute(
+    path: '/forgot-password',
+    name: 'forgot-password',
+    builder: (context, state) {
+      final extra = state.extra;
+      return ForgotPasswordPage(initialEmail: extra is String ? extra : '');
+    },
+  ),
+  GoRoute(
+    path: '/reset-password',
+    name: 'reset-password',
+    builder: (context, state) {
+      final extra = state.extra;
+      if (extra is! ResetPasswordArgs) {
+        return const ForgotPasswordPage();
+      }
+      return ResetPasswordPage(args: extra);
+    },
   ),
   GoRoute(
     path: '/complete-profile',
@@ -817,6 +857,27 @@ List<RouteBase> _exploreOwnedRoutes() => [
     ],
   ),
 ];
+
+/// Landing for /verify-email opened without its in-memory arguments.
+class _RedirectToLogin extends StatefulWidget {
+  const _RedirectToLogin();
+
+  @override
+  State<_RedirectToLogin> createState() => _RedirectToLoginState();
+}
+
+class _RedirectToLoginState extends State<_RedirectToLogin> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.go('/login');
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const Scaffold(body: SizedBox.shrink());
+}
 
 Widget _featureOrDisabled(String flagKey, Widget child) {
   if (appConfigService.current.feature(flagKey)) return child;

@@ -7,6 +7,8 @@ import '../../../core/design/garra_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/garra_puma_crest.dart';
 import '../../notifications/data/push_session_coordinator.dart';
+import '../../../core/network/offline_action_guard.dart';
+import 'providers/auth_flow_providers.dart';
 import 'providers/auth_provider.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -22,66 +24,90 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   bool _loading = false;
 
-  Future<void> _login() async {
-    setState(() => _loading = true);
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
+  SnackBar _errorSnackBar(String message) => SnackBar(
+    content: Text(message),
+    backgroundColor: const Color(0xFFB33A3A),
+  );
+
+  /// Lifecycle contract (GARRA39): the messenger, router and `next` target are
+  /// captured before the `await`; after it only `mounted` and those captured
+  /// objects are used, never a fresh lookup through this State's context.
+  Future<void> _login() async {
+    if (_loading) return;
+    if (!allowNetworkAction(context)) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    final next = GoRouterState.of(context).uri.queryParameters['next'];
     final authService = ref.read(authServiceProvider);
+    final email = _emailController.text.trim();
+
+    setState(() => _loading = true);
 
     final result = await authService.login(
       email: _emailController.text,
       password: _passwordController.text,
     );
 
+    if (!mounted) return;
     setState(() => _loading = false);
 
     if (result.success) {
       await pushSessionCoordinator.afterAuthenticated();
       if (!mounted) return;
-      context.go(_destinationAfterLogin());
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.message),
-          backgroundColor: const Color(0xFFB33A3A),
-        ),
+      router.go(_destinationAfterLogin(next));
+    } else if (result.requiresEmailVerification) {
+      // Typed state from the server (never inferred from the message).
+      _passwordController.clear();
+      router.go(
+        '/verify-email',
+        extra: VerifyEmailArgs(email: email, fromLogin: true),
       );
+    } else {
+      messenger.showSnackBar(_errorSnackBar(result.message));
     }
   }
 
   Future<void> _loginWithGoogle() async {
+    if (_loading) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    final next = GoRouterState.of(context).uri.queryParameters['next'];
+    final authService = ref.read(authServiceProvider);
+
     setState(() => _loading = true);
 
-    final authService = ref.read(authServiceProvider);
     final result = await authService.loginWithGoogle();
 
+    if (!mounted) return;
     setState(() => _loading = false);
 
     if (!result.success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.message),
-          backgroundColor: const Color(0xFFB33A3A),
-        ),
-      );
+      messenger.showSnackBar(_errorSnackBar(result.message));
       return;
     }
 
     final status = result.user?.status;
 
     if (status == 'PENDING_PROFILE') {
-      context.go('/complete-profile');
+      router.go('/complete-profile');
     } else {
       await pushSessionCoordinator.afterAuthenticated();
       if (!mounted) return;
-      context.go(_destinationAfterLogin());
+      router.go(_destinationAfterLogin(next));
     }
   }
 
-  String _destinationAfterLogin() =>
-      CommunityLinkConfig.safeDestination(
-        GoRouterState.of(context).uri.queryParameters['next'],
-      ) ?? '/home';
-
+  String _destinationAfterLogin(String? next) =>
+      CommunityLinkConfig.safeDestination(next) ?? '/home';
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -247,6 +273,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                           ? null
                                           : _loginWithGoogle,
                                       child: const Text('Continuar con Google'),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    key: const ValueKey('forgot-password-link'),
+                                    onPressed: _loading
+                                        ? null
+                                        : () => context.go(
+                                            '/forgot-password',
+                                            extra: _emailController.text.trim(),
+                                          ),
+                                    child: const Text(
+                                      '\u00bfOlvidaste tu contrase\u00f1a?',
+                                      style: TextStyle(color: AppTheme.gold),
                                     ),
                                   ),
                                   TextButton(
