@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/network/offline_action_guard.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -22,6 +23,7 @@ import '../data/wall_post_model.dart';
 import 'widgets/garra_report_sheet.dart';
 import 'widgets/garra_social_post_card.dart';
 import 'profile_follows_page.dart';
+import 'providers/community_provider.dart';
 import '../../passport/presentation/social_profile_links.dart';
 
 class PublicFanProfilePage extends StatefulWidget {
@@ -62,7 +64,8 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
 
   Future<void> _load() async {
     setState(() {
-      _loading = true;
+      // Reloading after an action keeps the profile on screen (no spinner flash).
+      _loading = _profile == null;
       _error = null;
     });
     try {
@@ -147,6 +150,8 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
   Future<void> _toggleFollow() async {
     final p = _profile;
     if (p == null || _busy) return;
+    if (!allowNetworkAction(context)) return;
+    final messenger = ScaffoldMessenger.of(context);
     setState(() => _busy = true);
     try {
       final followed = p['isFollowedByMe'] == true;
@@ -155,7 +160,13 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
       } else {
         await _service.followUser(widget.userId);
       }
+      if (mounted) reportFollowState(context, widget.userId, !followed);
       await _load();
+    } catch (_) {
+      // The action did not persist: say so instead of failing silently.
+      messenger.showSnackBar(
+        const SnackBar(content: Text('No se pudo actualizar el seguimiento')),
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }

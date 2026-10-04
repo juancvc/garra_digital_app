@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -51,6 +52,12 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
   String? _error;
   int _loadGeneration = 0;
 
+  /// GARRA40: cursor pagination. `_nextCursor` is opaque (backend-owned).
+  String? _nextCursor;
+  bool _hasMore = false;
+  bool _loadingMore = false;
+  bool _moreFailed = false;
+
   CommunityService get _service => ref.read(communityServiceProvider);
 
   @override
@@ -60,11 +67,13 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
       _homeBackScroll = ref.read(homeBackScrollProvider.notifier);
       _homeBackScroll!.attach(_scrollController);
     }
+    _scrollController.addListener(_onScroll);
     _load();
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
     _homeBackScroll?.detach(_scrollController);
     _scrollController.dispose();
     super.dispose();
@@ -91,15 +100,20 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
     setState(() {
       if (!hadContent) _loading = true;
       _error = null;
+      _loadingMore = false;
+      _moreFailed = false;
     });
     try {
-      final posts = await _service.getGlobalFeed(mode: widget.mode);
+      final page = await _service.getFeedPage(mode: widget.mode);
       if (!mounted || generation != _loadGeneration) return;
       setState(() {
-        _posts = posts;
+        _posts = page.posts;
+        _nextCursor = page.nextCursor;
+        _hasMore = page.hasNext && page.posts.isNotEmpty;
         _loading = false;
         _error = null;
       });
+      _scheduleFillCheck();
     } catch (_) {
       if (!mounted || generation != _loadGeneration) return;
       setState(() {
@@ -110,6 +124,92 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
         }
         _loading = false;
       });
+    }
+  }
+
+  void _onScroll() {
+    // After a failure the user decides ("Reintentar"): scrolling never re-fires it.
+    if (!_scrollController.hasClients || _moreFailed) return;
+    if (_scrollController.position.extentAfter < 900) _loadMore();
+  }
+
+  /// A short first page (or a tall screen) must still be able to continue.
+  void _scheduleFillCheck() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _onScroll();
+    });
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || _loading || !_hasMore || _nextCursor == null) return;
+    final generation = _loadGeneration;
+    setState(() {
+      _loadingMore = true;
+      _moreFailed = false;
+    });
+    try {
+      final page = await _service.getFeedPage(
+        mode: widget.mode,
+        cursor: _nextCursor,
+      );
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        final known = {for (final p in _posts) p.id};
+        _posts = [..._posts, ...page.posts.where((p) => known.add(p.id))];
+        _nextCursor = page.nextCursor;
+        _hasMore = page.hasNext && page.posts.isNotEmpty;
+        _loadingMore = false;
+      });
+      if (_hasMore) _scheduleFillCheck();
+    } catch (_) {
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _loadingMore = false;
+        _moreFailed = true;
+      });
+    }
+  }
+
+  /// Coming back from the post detail only re-reads that post (counts,
+  /// reaction, deletion) so the loaded pages and the scroll position survive.
+  Future<void> _refreshPost(String postId) async {
+    if (!mounted) return;
+    try {
+      final fresh = await _service.getPost(postId);
+      if (!mounted) return;
+      setState(() {
+        _posts = _posts.map((p) {
+          if (p.id == postId) return fresh;
+          final original = p.originalPost;
+          if (original?.id == postId) {
+            return p.copyWith(
+              originalPost: original!.copyWith(
+                reactionSummary: fresh.reactionSummary,
+                reactionCount: fresh.reactionCount,
+                commentCount: fresh.commentCount,
+                myReaction: fresh.myReaction,
+                clearMyReaction: fresh.myReaction == null,
+                shareCount: fresh.shareCount,
+                sharedByMe: fresh.sharedByMe,
+              ),
+            );
+          }
+          return p;
+        }).toList();
+      });
+    } on DioException catch (e) {
+      final code = e.response?.statusCode;
+      if (!mounted) return;
+      // Deleted / no longer visible: drop it instead of leaving a dead card.
+      if (code == 404 || code == 403) {
+        setState(() {
+          _posts = _posts
+              .where((p) => p.id != postId && p.originalPost?.id != postId)
+              .toList();
+        });
+      }
+    } catch (_) {
+      // Offline or transient: keep what is on screen.
     }
   }
 
@@ -293,13 +393,26 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
         ],
       ),
     );
-    if (ok != true) return;
-    await _service.blockUser(userId);
+    if (ok != true || !mounted) return;
+    if (!allowNetworkAction(context)) return;
+    try {
+      await _service.blockUser(userId);
+    } catch (_) {
+      if (!mounted) return;
+      _showError('No pudimos bloquear ahora. Int\u00e9ntalo de nuevo.');
+      return;
+    }
     if (!mounted) return;
+    // The author disappears right away (also from wrappers of their posts);
+    // no full reload, so the loaded pages and scroll position survive.
+    setState(() {
+      _posts = _posts
+          .where((p) => p.authorId != userId && p.originalPost?.authorId != userId)
+          .toList();
+    });
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Usuario bloqueado')));
-    _load();
   }
 
   void _reconcilePublishedPost(WallPostModel post) {
@@ -400,10 +513,10 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
               padding: const EdgeInsets.symmetric(horizontal: GarraSpacing.lg),
               child: GarraEmptyState(
                 title: widget.mode == 'FOLLOWING'
-                    ? 'Todavía no sigues a nadie'
+                    ? 'Tu Garra empieza aqu\u00ed.'
                     : 'Sé el primero en publicar',
                 message: widget.mode == 'FOLLOWING'
-                    ? 'Descubre hinchas y comunidades, y empieza cuando quieras.'
+                    ? 'Descubre hinchas para llenar tu inicio.'
                     : 'Comparte lo que vive la crema hoy.',
                 actionLabel: widget.mode == 'FOLLOWING'
                     ? 'Buscar personas'
@@ -425,6 +538,42 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
                 ),
               ),
             ..._buildFeedItems(meId),
+            if (_loadingMore)
+              const Padding(
+                key: ValueKey('feed_loading_more'),
+                padding: EdgeInsets.symmetric(vertical: GarraSpacing.lg),
+                child: Center(
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              )
+            else if (_moreFailed)
+              Padding(
+                key: const ValueKey('feed_more_error'),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: GarraSpacing.lg,
+                  vertical: GarraSpacing.sm,
+                ),
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      'No pudimos cargar m\u00e1s publicaciones.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.garraColors.textSecondary,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _loadMore,
+                      child: const Text('Reintentar'),
+                    ),
+                  ],
+                ),
+              ),
           ],
           // GARRA38: "Descubre en Garra" closes the feed (and fills the empty
           // state). Kept mounted (Offstage while the feed loads) so it
@@ -462,10 +611,10 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
           child: GarraSocialPostCard(
             post: view,
             onOpenOriginal: post.originalPost == null ? null :
-                () => context.push('/muro-crema/posts/${post.originalPost!.id}').then((_) => _load()),
+                () => context.push('/muro-crema/posts/${post.originalPost!.id}').then((_) => _refreshPost(post.originalPost!.id)),
             onOpen: () => context
                 .push('/muro-crema/posts/${post.originalPost?.id ?? post.id}')
-                .then((_) => _load()),
+                .then((_) => _refreshPost(post.originalPost?.id ?? post.id)),
             onOpenProfile:
                 post.authorId == null || post.authorId!.isEmpty
                 ? null
@@ -488,7 +637,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
             onChangeReaction: () => _react(post.originalPost?.asPost() ?? post, change: true),
             onComment: () => context
                 .push('/muro-crema/posts/${post.originalPost?.id ?? post.id}')
-                .then((_) => _load()),
+                .then((_) => _refreshPost(post.originalPost?.id ?? post.id)),
           ),
         ),
       );
@@ -517,9 +666,18 @@ class _EditorialFeedMarker extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const GarraEditorialEyebrow(
-            label: 'La tribuna crema',
-            icon: Icons.local_fire_department_outlined,
+          // Capped so the pill ellipsizes (instead of overflowing) on 220 px screens.
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: (MediaQuery.sizeOf(context).width -
+                      2 * GarraSpacing.lg -
+                      GarraSpacing.sm)
+                  .clamp(0.0, double.infinity),
+            ),
+            child: const GarraEditorialEyebrow(
+              label: 'La tribuna crema',
+              icon: Icons.local_fire_department_outlined,
+            ),
           ),
           const SizedBox(width: GarraSpacing.sm),
           Expanded(

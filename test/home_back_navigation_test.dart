@@ -25,6 +25,9 @@ class _Feed extends CommunityService {
   int calls = 0;
 
   @override
+  Future<FeedPage> getFeedPage({required String mode, String? cursor, int size = 20}) async => FeedPage(posts: await getGlobalFeed(mode: mode));
+
+  @override
   Future<List<WallPostModel>> getGlobalFeed({String mode = 'RECENT'}) async {
     calls++;
     return List.generate(20, (i) => WallPostModel(

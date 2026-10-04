@@ -69,7 +69,7 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
       final file = await _recentFile();
       if (!await file.exists()) return;
       final raw = jsonDecode(await file.readAsString());
-      if (raw is List) {
+      if (raw is List && mounted) {
         setState(() => _recent = raw.map((e) => e.toString()).toList());
       }
     } catch (_) {}
@@ -84,9 +84,22 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
     } catch (_) {}
   }
 
+  void _clearQuery() {
+    _debounce?.cancel();
+    _searchGeneration++;
+    _controller.clear();
+    setState(() {
+      _results = null;
+      _error = null;
+      _loading = false;
+    });
+  }
+
   void _onQueryChanged(String value) {
     _debounce?.cancel();
     _searchGeneration++;
+    // Shows / hides the clear button.
+    setState(() {});
     _debounce = Timer(const Duration(milliseconds: 450), () {
       final q = _query(value);
       if (q.length >= 2) {
@@ -146,6 +159,17 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
                 hintStyle: const TextStyle(color: Color(GarraColors.creamMuted)),
                 prefixIcon:
                     const Icon(Icons.search, color: Color(GarraColors.gold)),
+                suffixIcon: _controller.text.isEmpty
+                    ? null
+                    : IconButton(
+                        key: const ValueKey('search_clear'),
+                        tooltip: 'Borrar',
+                        icon: const Icon(
+                          Icons.close,
+                          color: Color(GarraColors.creamMuted),
+                        ),
+                        onPressed: _clearQuery,
+                      ),
                 filled: true,
                 fillColor: const Color(GarraColors.garnetDeep),
                 border: OutlineInputBorder(
@@ -248,8 +272,8 @@ class _GlobalSearchPageState extends State<GlobalSearchPage> {
         marketplace.isEmpty &&
         solidarity.isEmpty;
     if (empty) {
-      return const GarraEmptyState(
-        title: 'Sin resultados',
+      return GarraEmptyState(
+        title: 'No encontramos resultados para \u201c${_query(_controller.text)}\u201d',
         message: 'Prueba otro término o cambia el filtro.',
       );
     }

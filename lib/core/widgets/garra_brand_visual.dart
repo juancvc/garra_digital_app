@@ -202,12 +202,16 @@ class GarraEditorialEyebrow extends StatelessWidget {
             Icon(icon, size: 13, color: const Color(GarraColors.cream)),
             const SizedBox(width: 5),
           ],
-          Text(
-            label.toUpperCase(),
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: const Color(GarraColors.cream),
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.7,
+          Flexible(
+            child: Text(
+              label.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: const Color(GarraColors.cream),
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.7,
+              ),
             ),
           ),
         ],

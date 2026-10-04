@@ -116,7 +116,10 @@ class GarraSocialPostCard extends StatelessWidget {
                                     color: context.garraColors.textSecondary),
                                 ),
                               ),
-                              const Text(' · '),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 3),
+                                child: Text('\u00b7'),
+                              ),
                               Flexible(child: Text(
                                 formatGarraRelativeTime(post.createdAt),
                                 maxLines: 1,

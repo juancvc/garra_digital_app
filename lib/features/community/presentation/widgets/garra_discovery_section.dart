@@ -93,7 +93,8 @@ class _GarraDiscoverySectionState extends ConsumerState<GarraDiscoverySection>
 
   Future<void> _follow(DiscoveryPerson person) async {
     final id = person.userId;
-    if (_busy.contains(id) || _followed.contains(id)) return;
+    final known = ref.read(followStateProvider)[id] ?? _followed.contains(id);
+    if (_busy.contains(id) || known) return;
     setState(() => _busy.add(id));
     try {
       await ref.read(communityServiceProvider).followUser(id);
@@ -102,6 +103,7 @@ class _GarraDiscoverySectionState extends ConsumerState<GarraDiscoverySection>
         _busy.remove(id);
         _followed.add(id);
       });
+      ref.read(followStateProvider.notifier).report(id, true);
       widget.onFollowed?.call();
     } catch (_) {
       if (!mounted) return;
@@ -250,7 +252,9 @@ class _GarraDiscoverySectionState extends ConsumerState<GarraDiscoverySection>
                   final person = bundle.people[i];
                   return _PersonCard(
                     person: person,
-                    following: _followed.contains(person.userId),
+                    following:
+                    ref.watch(followStateProvider)[person.userId] ??
+                    _followed.contains(person.userId),
                     busy: _busy.contains(person.userId),
                     offline: offline,
                     onFollow: () => _follow(person),

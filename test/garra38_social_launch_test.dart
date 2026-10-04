@@ -114,6 +114,9 @@ class _FakeCommunity extends CommunityService {
   }
 
   @override
+  Future<FeedPage> getFeedPage({required String mode, String? cursor, int size = 20}) async => FeedPage(posts: await getGlobalFeed(mode: mode));
+
+  @override
   Future<List<WallPostModel>> getGlobalFeed({String mode = 'RECENT'}) async =>
       feed;
 
@@ -478,10 +481,7 @@ void main() {
         community: community,
       );
       expect(
-        find.text(
-          'Todav$_ok'
-          'a no sigues a nadie',
-        ),
+        find.text('Tu Garra empieza aqu$_ok.'),
         findsOneWidget,
       );
       expect(find.text('Buscar personas'), findsOneWidget);

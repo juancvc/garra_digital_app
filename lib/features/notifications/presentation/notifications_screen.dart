@@ -99,7 +99,7 @@ class NotificationsScreen extends ConsumerWidget {
         data: (items) {
           if (items.isEmpty) {
             return const GarraEmptyState(
-              title: 'Sin notificaciones',
+              title: 'Todo tranquilo por ahora.',
               message: 'Cuando haya novedades de la hinchada, aparecerán aquí.',
             );
           }

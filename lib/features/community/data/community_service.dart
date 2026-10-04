@@ -21,6 +21,15 @@ class PostViewResult {
   final int viewCount;
 }
 
+/// GARRA40: a page of a feed with its opaque continuation cursor.
+class FeedPage {
+  const FeedPage({required this.posts, this.nextCursor, this.hasNext = false});
+
+  final List<WallPostModel> posts;
+  final String? nextCursor;
+  final bool hasNext;
+}
+
 class CommunityService {
   CommunityService({Dio? dio}) : _dio = dio ?? DioClient.instance;
 
@@ -161,6 +170,37 @@ class CommunityService {
     return data
         .map((e) => WallPostModel.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// GARRA40: one cursor page of a feed mode (`FOR_YOU`, `FOLLOWING`, `RECENT`).
+  /// The first page (no cursor) is also the pull-to-refresh request.
+  Future<FeedPage> getFeedPage({
+    required String mode,
+    String? cursor,
+    int size = 20,
+  }) async {
+    final response = await _dio.get(
+      '/community/feed/page',
+      queryParameters: {
+        'mode': mode,
+        'size': size,
+        if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+      },
+    );
+    final data = response.data['data'];
+    final List items = data is Map ? (data['items'] as List? ?? const []) : const [];
+    final page = data is Map && data['page'] is Map
+        ? Map<String, dynamic>.from(data['page'] as Map)
+        : const <String, dynamic>{};
+    final hasNext = page['hasNext'] == true;
+    final next = page['nextCursor']?.toString();
+    return FeedPage(
+      posts: items
+          .map((e) => WallPostModel.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList(),
+      hasNext: hasNext && next != null && next.isNotEmpty,
+      nextCursor: next,
+    );
   }
 
   Future<void> followUser(String userId) async {

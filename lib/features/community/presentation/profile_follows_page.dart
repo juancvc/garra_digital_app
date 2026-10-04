@@ -8,6 +8,7 @@ import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../data/community_service.dart';
+import 'providers/community_provider.dart';
 
 class ProfileFollowsPage extends ConsumerStatefulWidget {
   const ProfileFollowsPage({super.key, required this.userId, required this.followers,
@@ -41,6 +42,7 @@ class _ProfileFollowsPageState extends ConsumerState<ProfileFollowsPage> {
         await _service.followUser(id);
       }
       if (!mounted) return;
+      ref.read(followStateProvider.notifier).report(id, !wasFollowing);
       final ownerIsMe = widget.ownerIsMe ??
           isSameFanId(currentFanIdOf(ref), widget.userId);
       setState(() {

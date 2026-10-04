@@ -59,6 +59,9 @@ class _FakeCommunityService extends CommunityService {
   final List<String> reactionCalls = [];
 
   @override
+  Future<FeedPage> getFeedPage({required String mode, String? cursor, int size = 20}) async => FeedPage(posts: await getGlobalFeed(mode: mode));
+
+  @override
   Future<List<WallPostModel>> getGlobalFeed({String mode = 'RECENT'}) async {
     return [post];
   }
@@ -84,6 +87,9 @@ class _FeedAfterComposeService extends CommunityService {
 
   List<WallPostModel> posts;
   int feedCalls = 0;
+
+  @override
+  Future<FeedPage> getFeedPage({required String mode, String? cursor, int size = 20}) async => FeedPage(posts: await getGlobalFeed(mode: mode));
 
   @override
   Future<List<WallPostModel>> getGlobalFeed({String mode = 'RECENT'}) async {
