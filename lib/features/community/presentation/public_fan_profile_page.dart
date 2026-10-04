@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../../../core/network/offline_action_guard.dart';
 import 'package:go_router/go_router.dart';
@@ -50,6 +51,7 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
   ChatRelationship _chatRelationship = ChatRelationship.none();
   bool _loading = true;
   String? _error;
+  bool _unavailable = false;
   bool _busy = false;
   List<WallPostModel> _posts = [];
   String? _postsCursor;
@@ -95,11 +97,21 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
       if (profile['isMe'] != true) {
         GarraViewTracker.instance.trackProfileView(_service, widget.userId);
       }
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
+      final status = e is DioException ? e.response?.statusCode : null;
+      final gone = status == 404 || status == 403;
       setState(() {
-        _error = 'No pudimos abrir este perfil';
         _loading = false;
+        // A reload that fails (offline after an action) keeps the profile that
+        // is already on screen instead of replacing it with an error.
+        if (_profile == null || gone) {
+          _profile = null;
+          _unavailable = gone;
+          _error = gone
+              ? 'Este perfil no est\u00e1 disponible'
+              : 'No pudimos abrir este perfil';
+        }
       });
     }
   }
@@ -303,7 +315,15 @@ class _PublicFanProfilePageState extends State<PublicFanProfilePage> {
       body: _loading
           ? const GarraPassportSkeleton()
           : _error != null
-          ? GarraErrorState(message: _error!, onRetry: _load)
+          ? (_unavailable
+              ? GarraEmptyState(
+                  title: _error!,
+                  message:
+                      'Puede que ya no exista o que no puedas verlo.',
+                  actionLabel: 'Volver',
+                  onAction: () => Navigator.of(context).maybePop(),
+                )
+              : GarraErrorState(message: _error!, onRetry: _load))
           : _buildBody(),
     );
   }
@@ -682,16 +702,20 @@ class _Stat extends StatelessWidget {
 }
 
 class BlockedUsersPage extends StatefulWidget {
-  const BlockedUsersPage({super.key});
+  const BlockedUsersPage({super.key, this.service});
+
+  final CommunityService? service;
 
   @override
   State<BlockedUsersPage> createState() => _BlockedUsersPageState();
 }
 
 class _BlockedUsersPageState extends State<BlockedUsersPage> {
-  final _service = CommunityService();
+  late final CommunityService _service = widget.service ?? CommunityService();
   List<Map<String, dynamic>> _blocks = [];
   bool _loading = true;
+  bool _error = false;
+  final Set<String> _unblocking = {};
 
   @override
   void initState() {
@@ -700,7 +724,11 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    // Reloading after an unblock keeps the list on screen (no spinner flash).
+    setState(() {
+      _loading = _blocks.isEmpty;
+      _error = false;
+    });
     try {
       final blocks = await _service.listBlocks();
       if (!mounted) return;
@@ -710,13 +738,35 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _loading = false);
+      // An error is not "nobody is blocked".
+      setState(() {
+        _loading = false;
+        _error = _blocks.isEmpty;
+      });
     }
   }
 
   Future<void> _unblock(String userId) async {
-    await _service.unblockUser(userId);
-    await _load();
+    if (_unblocking.contains(userId)) return;
+    if (!allowNetworkAction(context)) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _unblocking.add(userId));
+    try {
+      await _service.unblockUser(userId);
+      if (!mounted) return;
+      setState(() {
+        _blocks = [
+          for (final b in _blocks)
+            if (b['userId']?.toString() != userId) b,
+        ];
+      });
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('No se pudo desbloquear. Intenta de nuevo.')),
+      );
+    } finally {
+      if (mounted) setState(() => _unblocking.remove(userId));
+    }
   }
 
   @override
@@ -726,6 +776,8 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
       appBar: AppBar(title: const Text('Usuarios bloqueados')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
+          : _error
+          ? GarraErrorState(onRetry: _load)
           : _blocks.isEmpty
           ? const GarraEmptyState(
               title: 'Nadie bloqueado',
@@ -759,7 +811,9 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
                         ),
                       ),
                       TextButton(
-                        onPressed: id.isEmpty ? null : () => _unblock(id),
+                        onPressed: id.isEmpty || _unblocking.contains(id)
+                            ? null
+                            : () => _unblock(id),
                         child: const Text('Desbloquear'),
                       ),
                     ],

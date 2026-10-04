@@ -400,6 +400,7 @@ class _CreateCommunityPostPageState
                           child: d.state == MediaUploadState.failed
                               ? Center(
                                   child: IconButton(
+                                    tooltip: 'Reintentar subida',
                                     onPressed: () => _retry(d),
                                     icon: const Icon(Icons.refresh),
                                   ),

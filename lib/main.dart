@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import 'core/auth/session_scope.dart';
 import 'core/config/api_config.dart';
 import 'core/config/app_config_service.dart';
 import 'core/config/semver.dart';
@@ -191,9 +192,12 @@ class _GarraDigitalAppState extends ConsumerState<GarraDigitalApp> {
             ],
           );
         }
-        return GarraSystemOverlay(
-          child: StagingBanner(
-            child: ConnectivityBanner(status: connectivity, child: body),
+        return SessionScope(
+          router: appRouter,
+          child: GarraSystemOverlay(
+            child: StagingBanner(
+              child: ConnectivityBanner(status: connectivity, child: body),
+            ),
           ),
         );
       },

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../config/api_config.dart';
 import '../storage/secure_storage_service.dart';
+import 'session_events.dart';
 
 /// Single-flight refresh coordinator for Dio 401 recovery.
 ///
@@ -36,8 +37,7 @@ class AuthRefreshCoordinator {
   Future<bool> _doRefresh() async {
     final refreshToken = await _storage.getRefreshToken();
     if (refreshToken == null || refreshToken.isEmpty) {
-      await _storage.clearSessionTokens();
-      return false;
+      return await _endSession();
     }
 
     try {
@@ -49,15 +49,13 @@ class AuthRefreshCoordinator {
       final root = response.data;
       final data = root?['data'];
       if (data is! Map) {
-        await _storage.clearSessionTokens();
-        return false;
+        return await _endSession();
       }
 
       final access = data['token']?.toString();
       final nextRefresh = data['refreshToken']?.toString();
       if (access == null || access.isEmpty) {
-        await _storage.clearSessionTokens();
-        return false;
+        return await _endSession();
       }
 
       await _storage.saveToken(access);
@@ -65,12 +63,29 @@ class AuthRefreshCoordinator {
         await _storage.saveRefreshToken(nextRefresh);
       }
       return true;
-    } on DioException {
-      await _storage.clearSessionTokens();
+    } on DioException catch (e) {
+      // Only a definitive "this refresh token is not valid" ends the session.
+      // Offline, a timeout or a 5xx must keep the tokens: the user is still
+      // signed in and the next request can refresh normally.
+      if (rejectsRefreshToken(e)) return await _endSession();
       return false;
     } catch (_) {
-      await _storage.clearSessionTokens();
       return false;
     }
+  }
+
+  /// The refresh token was rejected (or there is none): clear it and tell the
+  /// app once, so it routes to sign-in instead of failing request by request.
+  Future<bool> _endSession() async {
+    final hadSession = await _storage.hasToken();
+    await _storage.clearSessionTokens();
+    if (hadSession) SessionEvents.emit(SessionEventKind.expired);
+    return false;
+  }
+
+  /// 400/401/403 from /auth/refresh = invalid, expired or revoked token.
+  static bool rejectsRefreshToken(DioException e) {
+    final status = e.response?.statusCode;
+    return status == 400 || status == 401 || status == 403;
   }
 }

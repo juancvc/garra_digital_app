@@ -150,6 +150,10 @@ Map<String, dynamic> _profileJson() => {
 class _Notifications extends NotificationService {
   _Notifications({this.failMarkAll = false}) : super(dio: Dio());
 
+  @override
+  Future<NotificationsPage> getNotificationsPage({String? cursor, int size = 30}) async =>
+      NotificationsPage(items: await getMyNotifications(size: size));
+
   final bool failMarkAll;
   final Set<String> readIds = {};
   final List<String> markReadCalls = [];
@@ -475,7 +479,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(service.markReadCalls, ['n1']);
-      expect(service.loads, 2);
+      // GARRA41: the row turns read locally; loaded pages are not discarded.
+      expect(service.loads, 1);
       expect(homeLoads(), 2);
 
       // Already read: no second PATCH.
@@ -492,7 +497,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('notifications_mark_all')));
       await tester.pumpAndSettle();
       expect(service.markAllCalls, 1);
-      expect(service.loads, 2);
+      expect(service.loads, 1);
       expect(homeLoads(), 2);
     });
 

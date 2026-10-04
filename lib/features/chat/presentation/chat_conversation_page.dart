@@ -216,8 +216,12 @@ class _ChatConversationPageState extends State<ChatConversationPage>
   /// receipts changed (false -> true): repaint, never scroll, never mark read.
   /// C: only reactions changed: repaint the bubbles, never scroll, no pill,
   /// never mark read (a reaction is not a new message).
+  var _refreshing = false;
+
   Future<void> _refresh() async {
-    if (!mounted || _sending) return;
+    // A slow network must not pile up one request pair per poll tick.
+    if (!mounted || _sending || _refreshing) return;
+    _refreshing = true;
     try {
       final conversation = await _chat.conversation(widget.conversationId);
       final messages = await _chat.messages(widget.conversationId);
@@ -253,6 +257,8 @@ class _ChatConversationPageState extends State<ChatConversationPage>
       }
     } catch (_) {
       // Keep the open transcript if a refresh fails.
+    } finally {
+      _refreshing = false;
     }
   }
 

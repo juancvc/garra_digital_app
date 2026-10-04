@@ -6,12 +6,11 @@ import 'package:garra_digital_app/features/predictions/presentation/providers/pr
 import 'package:garra_digital_app/features/ranking/presentation/providers/ranking_provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/design/garra_spacing.dart';
-import '../../../core/storage/secure_storage_service.dart';
+import '../../../core/legal/legal_links.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_form.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/auth_flow_models.dart';
-import '../data/google_auth_service.dart';
 import 'providers/auth_flow_providers.dart';
 import 'widgets/auth_flow_widgets.dart';
 
@@ -66,8 +65,9 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
 
   Future<void> _logout() async {
     final router = GoRouter.of(context);
-    await GoogleAuthService().signOut();
-    await SecureStorageService().clearAll();
+    // Same teardown as every other sign-out (push device, refresh token,
+    // user-scoped state), not a private copy of it.
+    await ref.read(authServiceProvider).logout();
     if (!mounted) return;
     router.go('/welcome');
   }
@@ -268,6 +268,26 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                             ? 'Marca esta casilla para continuar'
                             : null,
                         onChanged: (v) => setState(() => _guidelines = v),
+                      ),
+                      // Reading the rules is optional: it never gates the
+                      // checkbox or the onboarding.
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: TextButton.icon(
+                          key: const ValueKey('guidelines-link'),
+                          onPressed: () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            final opened = await openCommunityGuidelines();
+                            if (!opened) {
+                              messenger.showSnackBar(const SnackBar(
+                                content: Text(
+                                    'No pudimos abrir las normas ahora. Intenta de nuevo.'),
+                              ));
+                            }
+                          },
+                          icon: const Icon(Icons.open_in_new, size: 16),
+                          label: const Text('Leer las normas de comunidad'),
+                        ),
                       ),
                       const SizedBox(height: GarraSpacing.lg),
                       if (_error != null) AuthInlineError(message: _error!),

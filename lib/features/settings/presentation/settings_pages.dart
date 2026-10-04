@@ -14,6 +14,7 @@ import '../../../core/config/api_config.dart';
 import '../../../core/config/app_config_service.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/legal/legal_links.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/garra_error.dart';
 import '../../../core/telemetry/telemetry.dart';
@@ -45,6 +46,15 @@ class SettingsHubPage extends StatelessWidget {
             subtitle: 'Consentimientos y datos',
             icon: Icons.privacy_tip_outlined,
             route: '/settings/privacy',
+          ),
+          // The screen and route already existed but nothing linked to them, so a
+          // person could not review or undo a block.
+          _tile(
+            context,
+            title: 'Usuarios bloqueados',
+            subtitle: 'Revisa y desbloquea a quien bloqueaste',
+            icon: Icons.block_outlined,
+            route: '/comunidad/bloqueados',
           ),
           _tile(
             context,
@@ -216,7 +226,7 @@ class LegalSettingsPage extends StatelessWidget {
           ListTile(
             title: const Text('Normas de comunidad'),
             trailing: const Icon(Icons.open_in_new),
-            onTap: () => _open('/legal/community'),
+            onTap: () => openCommunityGuidelines(),
           ),
           ListTile(
             title: const Text('Eliminar cuenta'),

@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 
+import '../../../core/auth/session_events.dart';
 import '../../../core/network/dio_client.dart';
+import '../../notifications/data/push_device_service.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import 'auth_flow_models.dart';
 import 'auth_user.dart';
@@ -196,9 +198,33 @@ class AuthService {
     }
   }
 
+  /// Ends the session completely. Order matters: the server calls need the
+  /// access token, so they run (best effort, bounded) BEFORE local cleanup.
+  /// 1) the device stops receiving this user's pushes, 2) the refresh token is
+  /// revoked server-side, 3) both tokens are removed locally (a leftover
+  /// refresh token would let a late 401 silently sign the user back in),
+  /// 4) [SessionEvents] resets user-scoped providers.
   Future<void> logout() async {
-    await GoogleAuthService().signOut();
-    await _storage.clearToken();
+    const bound = Duration(seconds: 4);
+    try {
+      await PushDeviceService(dio: _dio).deactivateCurrent().timeout(bound);
+    } catch (_) {}
+    try {
+      final refresh = await _storage.getRefreshToken();
+      if (refresh != null && refresh.isNotEmpty) {
+        await _dio
+            .post('/auth/logout', data: {'refreshToken': refresh})
+            .timeout(bound);
+      }
+    } catch (_) {}
+    try {
+      await GoogleAuthService().signOut();
+    } catch (_) {}
+    await _storage.clearSessionTokens();
+    try {
+      await _storage.clearDevicePushKeys();
+    } catch (_) {}
+    SessionEvents.emit(SessionEventKind.ended);
   }
 
   Future<LoginResult> loginWithGoogle() async {

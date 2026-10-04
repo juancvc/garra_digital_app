@@ -25,6 +25,19 @@ class NotificationItem {
   final DateTime createdAt;
   final bool read;
 
+  /// Same notification, shown as read (local update after a successful PATCH).
+  NotificationItem asRead() => NotificationItem(
+        id: id,
+        type: type,
+        title: title,
+        message: message,
+        referenceType: referenceType,
+        referenceId: referenceId,
+        readAt: readAt ?? DateTime.now(),
+        createdAt: createdAt,
+        read: true,
+      );
+
   factory NotificationItem.fromJson(Map<String, dynamic> json) {
     return NotificationItem(
       id: json['id'].toString(),
@@ -90,21 +103,55 @@ List<ActivityItem> groupActivityItems(List<NotificationItem> items) {
   return result;
 }
 
+/// One cursor page of `GET /notifications/me` (items newest first).
+class NotificationsPage {
+  const NotificationsPage({
+    required this.items,
+    this.nextCursor,
+    this.hasNext = false,
+  });
+
+  final List<NotificationItem> items;
+  final String? nextCursor;
+  final bool hasNext;
+}
+
 class NotificationService {
   NotificationService({Dio? dio}) : _dio = dio ?? DioClient.instance;
 
   final Dio _dio;
 
   Future<List<NotificationItem>> getMyNotifications({int size = 30}) async {
+    return (await getNotificationsPage(size: size)).items;
+  }
+
+  /// The backend already paginates with a (createdAt, id) cursor; `page`
+  /// carries `hasNext` and `nextCursor`.
+  Future<NotificationsPage> getNotificationsPage({
+    String? cursor,
+    int size = 30,
+  }) async {
     final response = await _dio.get(
       '/notifications/me',
-      queryParameters: {'size': size},
+      queryParameters: {
+        'size': size,
+        if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+      },
     );
     final data = Map<String, dynamic>.from(response.data['data'] as Map);
     final items = data['items'] as List? ?? const [];
-    return items
-        .map((e) => NotificationItem.fromJson(Map<String, dynamic>.from(e as Map)))
-        .toList();
+    final page = data['page'] is Map
+        ? Map<String, dynamic>.from(data['page'] as Map)
+        : const <String, dynamic>{};
+    final next = page['nextCursor']?.toString();
+    return NotificationsPage(
+      items: items
+          .map((e) =>
+              NotificationItem.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList(),
+      nextCursor: next,
+      hasNext: page['hasNext'] == true && next != null && next.isNotEmpty,
+    );
   }
 
   Future<void> markAllRead() async {

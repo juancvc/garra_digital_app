@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../auth/auth_refresh_coordinator.dart';
+import '../auth/session_events.dart';
 import '../config/api_config.dart';
 import '../storage/secure_storage_service.dart';
 import 'package:uuid/uuid.dart';
@@ -63,6 +64,10 @@ class DioClient {
           return handler.next(response);
         },
         onError: (error, handler) async {
+          if (isMembershipRequired(error)) {
+            SessionEvents.emit(SessionEventKind.membershipRequired);
+            return handler.next(error);
+          }
           if (!_shouldAttemptRefresh(error)) {
             return handler.next(error);
           }
@@ -95,6 +100,20 @@ class DioClient {
   }
 
   static const _retriedExtraKey = 'garra_auth_retried';
+
+  /// HTTP 403 + `errors.code == MEMBERSHIP_REQUIRED` (GARRA39.1 gate). Other
+  /// 403s are left alone. Auth lifecycle paths are excluded so completing the
+  /// profile itself can never loop back here.
+  static bool isMembershipRequired(DioException error) {
+    if (error.response?.statusCode != 403) return false;
+    if (_isAuthLifecyclePath(error.requestOptions.path) ||
+        error.requestOptions.path.toLowerCase().contains('/auth/complete-profile')) {
+      return false;
+    }
+    final body = error.response?.data;
+    final errors = body is Map ? body['errors'] : null;
+    return errors is Map && errors['code']?.toString() == 'MEMBERSHIP_REQUIRED';
+  }
 
   static bool _shouldAttemptRefresh(DioException error) {
     if (error.response?.statusCode != 401) return false;

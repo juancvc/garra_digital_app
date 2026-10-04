@@ -122,6 +122,7 @@ class _SavedPostsPageState extends State<SavedPostsPage> {
                                   if (!post.isFollowersOnly) Align(
                                     alignment: Alignment.centerRight,
                                     child: IconButton(
+                                      tooltip: 'Compartir',
                                       onPressed: () => Share.share('${post.fullName}: ${post.content}'),
                                       icon: const Icon(Icons.ios_share_outlined, size: 20),
                                     ),

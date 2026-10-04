@@ -287,6 +287,10 @@ void main() {
 class _Notifications extends NotificationService {
   _Notifications() : super(dio: Dio());
 
+  @override
+  Future<NotificationsPage> getNotificationsPage({String? cursor, int size = 30}) async =>
+      NotificationsPage(items: await getMyNotifications(size: size));
+
   final List<String> markReadCalls = [];
 
   @override

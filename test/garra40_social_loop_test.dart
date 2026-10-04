@@ -530,6 +530,10 @@ class _EmptyNotifications extends NotificationService {
   _EmptyNotifications() : super(dio: Dio());
 
   @override
+  Future<NotificationsPage> getNotificationsPage({String? cursor, int size = 30}) async =>
+      NotificationsPage(items: await getMyNotifications(size: size));
+
+  @override
   Future<List<NotificationItem>> getMyNotifications({int size = 30}) async =>
       const [];
 }
