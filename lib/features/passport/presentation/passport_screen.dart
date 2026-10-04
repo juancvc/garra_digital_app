@@ -323,7 +323,7 @@ class _PassportBody extends StatelessWidget {
     );
     if (confirmed != true) return;
     await AuthService().logout();
-    if (context.mounted) context.go('/login');
+    if (context.mounted) context.go('/welcome');
   }
 
   static String? _locationLine(PassportIdentity identity) {

@@ -97,7 +97,7 @@ class _GarraPrimordialIntroPageState extends State<GarraPrimordialIntroPage>
     if (!mounted) return;
     final authed = await _session();
     if (!mounted) return;
-    context.go(authed ? '/home' : '/login');
+    context.go(authed ? '/home' : '/welcome');
   }
 
   Future<void> _closeAudio() async {

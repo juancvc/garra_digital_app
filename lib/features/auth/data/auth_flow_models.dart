@@ -24,6 +24,16 @@ const authServerMessage =
     'No pudimos completar la acci\u00f3n ahora. Int\u00e9ntalo de nuevo en unos minutos.';
 const authEmailUnavailableMessage =
     'El registro con correo a\u00fan no est\u00e1 disponible. Usa Google para entrar.';
+
+/// GARRA39.1: the stand/tribuna choices of the Garra profile. The backend stores the label as free text
+/// (there is no server catalog); this is the single client list, shared by every screen that asks for it.
+const garraStands = <String>['Norte', 'Oriente', 'Occidente', 'Sur'];
+
+/// Internal display name the backend gives a registration that has not chosen its Garra profile yet.
+const pendingFullNamePlaceholder = 'Hincha Garra';
+
+const authUsernameTakenMessage =
+    'Ese nombre de usuario ya est\u00e1 en uso. Prueba con otro.';
 const authUnknownMessage = 'Ocurri\u00f3 un error inesperado';
 const authNeutralAcceptedMessage =
     'Si existe una cuenta asociada, enviaremos las instrucciones.';

@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/config/community_link_config.dart';
 
 import '../../../core/design/garra_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/garra_puma_crest.dart';
-import '../../notifications/data/push_session_coordinator.dart';
 import '../../../core/network/offline_action_guard.dart';
 import 'providers/auth_flow_providers.dart';
 import 'providers/auth_provider.dart';
@@ -47,6 +45,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final router = GoRouter.of(context);
     final next = GoRouterState.of(context).uri.queryParameters['next'];
     final authService = ref.read(authServiceProvider);
+    final destinationFor = ref.read(postAuthDestinationProvider);
     final email = _emailController.text.trim();
 
     setState(() => _loading = true);
@@ -59,10 +58,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (!mounted) return;
     setState(() => _loading = false);
 
-    if (result.success) {
-      await pushSessionCoordinator.afterAuthenticated();
+    final user = result.user;
+    if (result.success && user != null) {
+      // One shared post-auth decision (profile pending -> Garra profile ->
+      // onboarding -> Home).
+      final route = await postAuthRoute(destinationFor, user, next: next);
       if (!mounted) return;
-      router.go(_destinationAfterLogin(next));
+      router.go(route);
     } else if (result.requiresEmailVerification) {
       // Typed state from the server (never inferred from the message).
       _passwordController.clear();
@@ -82,6 +84,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final router = GoRouter.of(context);
     final next = GoRouterState.of(context).uri.queryParameters['next'];
     final authService = ref.read(authServiceProvider);
+    final destinationFor = ref.read(postAuthDestinationProvider);
 
     setState(() => _loading = true);
 
@@ -90,24 +93,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (!mounted) return;
     setState(() => _loading = false);
 
-    if (!result.success) {
+    final user = result.user;
+    if (!result.success || user == null) {
       messenger.showSnackBar(_errorSnackBar(result.message));
       return;
     }
 
-    final status = result.user?.status;
-
-    if (status == 'PENDING_PROFILE') {
-      router.go('/complete-profile');
-    } else {
-      await pushSessionCoordinator.afterAuthenticated();
-      if (!mounted) return;
-      router.go(_destinationAfterLogin(next));
-    }
+    final route = await postAuthRoute(destinationFor, user, next: next);
+    if (!mounted) return;
+    router.go(route);
   }
 
-  String _destinationAfterLogin(String? next) =>
-      CommunityLinkConfig.safeDestination(next) ?? '/home';
   @override
   Widget build(BuildContext context) {
     return Scaffold(

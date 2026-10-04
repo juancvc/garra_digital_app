@@ -65,7 +65,7 @@ class SettingsHubPage extends StatelessWidget {
             label: 'Cerrar sesión',
             onPressed: () async {
               await AuthService().logout();
-              if (context.mounted) context.go('/login');
+              if (context.mounted) context.go('/welcome');
             },
           ),
         ],
@@ -256,7 +256,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
     try {
       await DioClient.instance.post('/me/account-deletion');
       await AuthService().logout();
-      if (mounted) context.go('/login');
+      if (mounted) context.go('/welcome');
     } catch (e) {
       final info = classifyDioError(e);
       setState(() => _error = info.message);

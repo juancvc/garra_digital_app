@@ -184,12 +184,10 @@ Future<void> _bigScreen(WidgetTester tester, {double width = 800}) async {
 
 Future<void> _fillRegisterForm(WidgetTester tester) async {
   final fields = find.byType(TextFormField);
-  await tester.enterText(fields.at(0), 'Juan Perez');
-  await tester.enterText(fields.at(1), 'juanp');
-  await tester.enterText(fields.at(2), ' Juan@Example.com ');
-  await tester.enterText(fields.at(3), 'Password-123');
-  await tester.enterText(fields.at(4), 'Password-123');
-  await tester.tap(find.text('Norte'));
+  // GARRA39.1: e-mail + password + confirmation only (the Garra profile comes later).
+  await tester.enterText(fields.at(0), ' Juan@Example.com ');
+  await tester.enterText(fields.at(1), 'Password-123');
+  await tester.enterText(fields.at(2), 'Password-123');
   await tester.pump();
 }
 
@@ -254,7 +252,7 @@ void main() {
         expect(find.text('Crear cuenta'), findsWidgets);
         expect(find.text('Revisa tu correo'), findsNothing);
         // The form still holds the data (nothing lost) and can retry.
-        expect(find.text('Juan Perez'), findsOneWidget);
+        expect(find.text(' Juan@Example.com '), findsOneWidget);
       },
     );
 
@@ -305,7 +303,7 @@ void main() {
 
         expect(find.text(authEmailUnavailableMessage), findsOneWidget);
         expect(find.text('Revisa tu correo'), findsNothing);
-        expect(find.text('Juan Perez'), findsOneWidget);
+        expect(find.text(' Juan@Example.com '), findsOneWidget);
       },
     );
 

@@ -11,11 +11,16 @@ class SplashPage extends StatefulWidget {
     super.key,
     this.intro,
     this.hasSession,
+    this.resolveDestination,
     this.settle = const Duration(milliseconds: 280),
   });
 
   final FirstLaunchExperienceService? intro;
   final Future<bool> Function()? hasSession;
+
+  /// GARRA39.1: with a stored session, where to go (Garra profile pending ->
+  /// /complete-profile, else /home). Not provided = plain Home.
+  final Future<String> Function()? resolveDestination;
   final Duration settle;
 
   @override
@@ -51,7 +56,22 @@ class _SplashPageState extends State<SplashPage> {
     if (!mounted) return;
     final authed = await _session();
     if (!mounted) return;
-    context.go(authed ? '/home' : '/login');
+    if (!authed) {
+      context.go('/welcome');
+      return;
+    }
+    final lookup = widget.resolveDestination;
+    final router = GoRouter.of(context);
+    var destination = '/home';
+    if (lookup != null) {
+      try {
+        destination = await lookup();
+      } catch (_) {
+        destination = '/home';
+      }
+      if (!mounted) return;
+    }
+    router.go(destination);
   }
 
   @override

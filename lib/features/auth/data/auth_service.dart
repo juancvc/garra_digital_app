@@ -10,11 +10,9 @@ import 'google_auth_service.dart';
 import 'package:flutter/foundation.dart';
 
 class AuthService {
-  AuthService({
-    Dio? dio,
-    SecureStorageService? storage,
-  })  : _dio = dio ?? DioClient.instance,
-        _storage = storage ?? SecureStorageService();
+  AuthService({Dio? dio, SecureStorageService? storage})
+    : _dio = dio ?? DioClient.instance,
+      _storage = storage ?? SecureStorageService();
 
   final Dio _dio;
   final SecureStorageService _storage;
@@ -26,10 +24,7 @@ class AuthService {
     try {
       final response = await _dio.post(
         '/auth/login',
-        data: {
-          'email': email.trim().toLowerCase(),
-          'password': password,
-        },
+        data: {'email': email.trim().toLowerCase(), 'password': password},
       );
 
       final data = response.data['data'] as Map<String, dynamic>;
@@ -37,9 +32,7 @@ class AuthService {
 
       await _storage.saveToken(token);
 
-      return LoginResult.success(
-        user: AuthUser.fromJson(data),
-      );
+      return LoginResult.success(user: AuthUser.fromJson(data));
     } on DioException catch (e) {
       final failure = authFailureFromDio<void>(
         e,
@@ -56,9 +49,7 @@ class AuthService {
       final message = e.response?.data is Map<String, dynamic>
           ? e.response?.data['message']?.toString()
           : null;
-      return LoginResult.failure(
-        message ?? 'No se pudo iniciar sesi\u00f3n',
-      );
+      return LoginResult.failure(message ?? 'No se pudo iniciar sesi\u00f3n');
     } catch (_) {
       return LoginResult.failure('Ocurrió un error inesperado');
     }
@@ -79,7 +70,8 @@ class AuthService {
           : null;
 
       return AuthFlowResult.success(
-        message: response.data['message']?.toString() ??
+        message:
+            response.data['message']?.toString() ??
             'Cuenta creada correctamente',
         data: RegisterOutcome(
           verificationRequired: parsed?.verificationRequired ?? false,
@@ -91,10 +83,7 @@ class AuthService {
         ),
       );
     } on DioException catch (e) {
-      return authFailureFromDio(
-        e,
-        fallback: 'No se pudo crear la cuenta',
-      );
+      return authFailureFromDio(e, fallback: 'No se pudo crear la cuenta');
     } catch (_) {
       return AuthFlowResult.failure(
         AuthFailureKind.unknown,
@@ -195,6 +184,7 @@ class AuthService {
       );
     }
   }
+
   Future<AuthUser?> me() async {
     try {
       final response = await _dio.get('/auth/me');
@@ -221,9 +211,7 @@ class AuthService {
 
       final response = await _dio.post(
         '/auth/google',
-        data: {
-          'idToken': firebaseIdToken,
-        },
+        data: {'idToken': firebaseIdToken},
       );
 
       final data = response.data['data'] as Map<String, dynamic>;
@@ -231,9 +219,7 @@ class AuthService {
 
       await _storage.saveToken(token);
 
-      return LoginResult.success(
-        user: AuthUser.fromJson(data),
-      );
+      return LoginResult.success(user: AuthUser.fromJson(data));
     } on DioException catch (e) {
       final message = e.response?.data is Map<String, dynamic>
           ? e.response?.data['message']?.toString()
@@ -248,38 +234,57 @@ class AuthService {
     }
   }
 
-  Future<AuthActionResult<void>> completeProfile({
+  /// GARRA39.1: completes the Garra profile (membership). The backend is the
+  /// authority: it rejects the call unless both acceptances are true.
+  Future<AuthActionResult<AuthUser>> completeProfile({
     required String username,
     required String favoriteStand,
+    String? fullName,
     String? favoritePlayer,
     required bool cremaDeclarationAccepted,
+    required bool communityGuidelinesAccepted,
   }) async {
     try {
       final response = await _dio.patch(
         '/auth/complete-profile',
         data: {
-          "username": username.trim(),
-          "favoriteStand": favoriteStand,
+          'username': username.trim(),
+          'favoriteStand': favoriteStand,
+          if (fullName != null && fullName.trim().isNotEmpty)
+            'fullName': fullName.trim(),
           if (favoritePlayer != null && favoritePlayer.trim().isNotEmpty)
-            "favoritePlayer": favoritePlayer.trim(),
-          "cremaDeclarationAccepted": cremaDeclarationAccepted,
+            'favoritePlayer': favoritePlayer.trim(),
+          'cremaDeclarationAccepted': cremaDeclarationAccepted,
+          'communityGuidelinesAccepted': communityGuidelinesAccepted,
         },
       );
 
       final data = response.data['data'] as Map<String, dynamic>;
       final token = data['token'] as String;
 
-      // 🔥 IMPORTANTE: guardar nuevo JWT
+      // The completed profile comes with a fresh JWT.
       await _storage.saveToken(token);
 
       return AuthActionResult.success(
         message: 'Perfil completado',
+        data: AuthUser.fromJson(data),
       );
     } on DioException catch (e) {
+      final failure = authFailureFromDio<void>(
+        e,
+        fallback: 'No se pudo completar el perfil',
+      );
+      if (failure.kind == AuthFailureKind.network ||
+          failure.kind == AuthFailureKind.rateLimited ||
+          failure.kind == AuthFailureKind.server) {
+        return AuthActionResult.failure(failure.message);
+      }
       final message = e.response?.data is Map<String, dynamic>
           ? e.response?.data['message']?.toString()
           : null;
-
+      if ((message ?? '').toLowerCase().contains('username already exists')) {
+        return AuthActionResult.failure(authUsernameTakenMessage);
+      }
       return AuthActionResult.failure(
         message ?? 'No se pudo completar el perfil',
       );
@@ -287,8 +292,6 @@ class AuthService {
       return AuthActionResult.failure('Error inesperado');
     }
   }
-
-
 }
 
 class LoginResult {
@@ -315,21 +318,12 @@ class LoginResult {
     );
   }
 
-  factory LoginResult.success({
-    required AuthUser user,
-  }) {
-    return LoginResult(
-      success: true,
-      message: 'Login exitoso',
-      user: user,
-    );
+  factory LoginResult.success({required AuthUser user}) {
+    return LoginResult(success: true, message: 'Login exitoso', user: user);
   }
 
   factory LoginResult.failure(String message) {
-    return LoginResult(
-      success: false,
-      message: message,
-    );
+    return LoginResult(success: false, message: message);
   }
 }
 
@@ -344,24 +338,11 @@ class AuthActionResult<T> {
   final String message;
   final T? data;
 
-  factory AuthActionResult.success({
-    required String message,
-    T? data,
-  }) {
-    return AuthActionResult(
-      success: true,
-      message: message,
-      data: data,
-    );
+  factory AuthActionResult.success({required String message, T? data}) {
+    return AuthActionResult(success: true, message: message, data: data);
   }
 
   factory AuthActionResult.failure(String message) {
-    return AuthActionResult(
-      success: false,
-      message: message,
-    );
+    return AuthActionResult(success: false, message: message);
   }
-
-
-
 }

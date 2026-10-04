@@ -65,6 +65,7 @@ import 'package:garra_digital_app/features/retention/presentation/onboarding_int
 import 'package:garra_digital_app/features/retention/presentation/season_progress_page.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/presentation/entry_page.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/splash/presentation/garra_primordial_intro_page.dart';
 import '../../features/auth/presentation/register_page.dart';
@@ -115,6 +116,7 @@ Future<String?> _authRedirect(BuildContext context, GoRouterState state) async {
   final isSplash = currentPath == '/splash';
   final isIntro = currentPath == '/intro';
   final isRegister = currentPath == '/register';
+  final isWelcome = currentPath == '/welcome';
   // GARRA39 account flows are reachable without a session.
   final isAccountFlow = currentPath == '/verify-email' ||
       currentPath == '/forgot-password' ||
@@ -124,14 +126,14 @@ Future<String?> _authRedirect(BuildContext context, GoRouterState state) async {
     return null;
   }
 
-  if (!hasToken && !isLogin && !isRegister && !isAccountFlow) {
+  if (!hasToken && !isLogin && !isRegister && !isWelcome && !isAccountFlow) {
     final destination = CommunityLinkConfig.safeDestination(currentPath);
     return destination == null
-        ? '/login'
-        : Uri(path: '/login', queryParameters: {'next': destination}).toString();
+        ? '/welcome'
+        : Uri(path: '/welcome', queryParameters: {'next': destination}).toString();
   }
 
-  if (hasToken && (isLogin || isRegister || isAccountFlow)) {
+  if (hasToken && (isLogin || isRegister || isWelcome || isAccountFlow)) {
     return CommunityLinkConfig.safeDestination(state.uri.queryParameters['next']) ?? '/home';
   }
 
@@ -147,12 +149,25 @@ List<RouteBase> _buildRoutes() => [
   GoRoute(
     path: '/splash',
     name: 'splash',
-    builder: (context, state) => const SplashPage(),
+    builder: (context, state) =>
+        const SplashPage(resolveDestination: resolveSessionDestination),
   ),
   GoRoute(
     path: '/intro',
     name: 'garra-intro',
     builder: (context, state) => const GarraPrimordialIntroPage(),
+  ),
+  GoRoute(
+    path: '/welcome',
+    name: 'welcome',
+    pageBuilder: (context, state) => CustomTransitionPage<void>(
+      key: state.pageKey,
+      transitionDuration: const Duration(milliseconds: 280),
+      child: const EntryPage(),
+      transitionsBuilder: (context, animation, _, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+    ),
   ),
   GoRoute(
     path: '/login',

@@ -365,6 +365,11 @@ Widget _flow({
         path: '/login',
         builder: (_, _) => const Scaffold(body: Text('LOGIN')),
       ),
+      // GARRA39.1: the unauthenticated landing is now /welcome.
+      GoRoute(
+        path: '/welcome',
+        builder: (_, _) => const Scaffold(body: Text('LOGIN')),
+      ),
       GoRoute(
         path: '/home',
         builder: (_, _) => const Scaffold(body: Text('HOME')),
