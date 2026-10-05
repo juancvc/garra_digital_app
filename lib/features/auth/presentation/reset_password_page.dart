@@ -63,7 +63,7 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (!allowNetworkAction(context)) return;
 
-    final messenger = ScaffoldMessenger.of(context);
+    // Capture before the await (same contract as login / verify-email).
     final router = GoRouter.of(context);
     final authService = ref.read(authServiceProvider);
 
@@ -88,16 +88,15 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
     _passwordController.clear();
     _confirmController.clear();
     _codeController.clear();
-    messenger
-      ..clearSnackBars()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Contrase\u00f1a actualizada. Inicia sesi\u00f3n con tu nueva contrase\u00f1a.',
-          ),
-        ),
-      );
-    router.go('/login');
+    // Server revoked refresh tokens: drop local leftovers before leaving.
+    await authService.discardLocalSession();
+    if (!mounted) return;
+    // Stop the spinner before navigating so a failed go never hangs forever.
+    setState(() => _submitting = false);
+    // Do NOT show a SnackBar on this Scaffold then pop it: the SnackBar
+    // animation would look up a deactivated ancestor (fatal). Success copy
+    // is shown by LoginPage after the destination mounts.
+    router.go('/login?passwordReset=1');
   }
 
   Future<void> _resend() async {

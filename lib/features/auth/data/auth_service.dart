@@ -187,6 +187,14 @@ class AuthService {
     }
   }
 
+  /// Drops local tokens after the server already revoked them (password reset).
+  /// No network calls: refresh tokens are dead server-side; leftover local
+  /// tokens would only produce 401 storms (e.g. unread-count).
+  Future<void> discardLocalSession() async {
+    await _storage.clearSessionTokens();
+    SessionEvents.emit(SessionEventKind.ended);
+  }
+
   Future<AuthUser?> me() async {
     try {
       final response = await _dio.get('/auth/me');

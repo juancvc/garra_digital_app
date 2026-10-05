@@ -97,6 +97,9 @@ class _FakeAuth extends AuthService {
   }
 
   @override
+  Future<void> discardLocalSession() async {}
+
+  @override
   Future<LoginResult> login({
     required String email,
     required String password,
@@ -840,6 +843,49 @@ void main() {
       );
       expect(
         find.textContaining('Contrase\u00f1a actualizada'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('reset success does not hang if the route is left mid-await', (
+      tester,
+    ) async {
+      await _bigScreen(tester);
+      final gate = Completer<AuthFlowResult<void>>();
+      final auth = _FakeAuth()..onReset = (_, _, _) => gate.future;
+      final h = _Harness(auth, initial: '/other');
+      addTearDown(h.source.dispose);
+      await tester.pumpWidget(h.app());
+      await tester.pumpAndSettle();
+      h.router.go(
+        '/reset-password',
+        extra: const ResetPasswordArgs(email: 'juan@example.com'),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byKey(const ValueKey('otp-field')), '654321');
+      await tester.enterText(
+        find.byKey(const ValueKey('reset-password')),
+        'Brand-New-Pass-9',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('reset-confirm')),
+        'Brand-New-Pass-9',
+      );
+      await tester.ensureVisible(_primary('Cambiar contrase\u00f1a'));
+      await tester.tap(_primary('Cambiar contrase\u00f1a'));
+      await tester.pump();
+
+      // Leave while the request is still in flight.
+      h.router.go('/login');
+      await tester.pumpAndSettle();
+      gate.complete(AuthFlowResult.success());
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(
+        find.widgetWithText(FilledButton, 'Iniciar sesi\u00f3n'),
         findsOneWidget,
       );
     });

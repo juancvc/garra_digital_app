@@ -21,6 +21,29 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _passwordController = TextEditingController();
 
   bool _loading = false;
+  bool _passwordResetNoticeShown = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Success flash from password reset: shown here so the SnackBar binds to
+    // the login Scaffold, never to a page that is about to be disposed.
+    if (_passwordResetNoticeShown) return;
+    if (GoRouterState.of(context).uri.queryParameters['passwordReset'] != '1') {
+      return;
+    }
+    _passwordResetNoticeShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Contrase\u00f1a actualizada. Inicia sesi\u00f3n con tu nueva contrase\u00f1a.',
+          ),
+        ),
+      );
+    });
+  }
 
   @override
   void dispose() {
