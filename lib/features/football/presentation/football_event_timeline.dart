@@ -74,8 +74,14 @@ class _EventRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: FootballEventIcon(kind: kind),
     );
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+    final goal = kind == FootballEventKind.goal || kind == FootballEventKind.penaltyGoal
+        || kind == FootballEventKind.ownGoal;
+    // SONIC_05: goals stand out with a tinted row; other events stay on the plain surface.
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      decoration: goal ? BoxDecoration(borderRadius: BorderRadius.circular(12),
+          color: footballEventColor(context, kind).withValues(alpha: 0.10)) : null,
       child: Row(children: away ? [content, icon, minute] : [minute, icon, content]),
     );
   }
@@ -94,14 +100,30 @@ class _EventRow extends StatelessWidget {
   }
 }
 
-/// Semantic icon + color per event kind (cards drawn as cards, not glyphs).
+/// SONIC_05: strong semantic color per event kind (goal green, cards yellow / red, sub blue,
+/// VAR violet) — distinct at a glance in light and dark themes.
+Color footballEventColor(BuildContext context, FootballEventKind kind) {
+  final garra = garraColors(context);
+  return switch (kind) {
+    FootballEventKind.goal || FootballEventKind.penaltyGoal => const Color(0xFF1E9E4A),
+    FootballEventKind.ownGoal => garra.danger,
+    FootballEventKind.missedPenalty => garra.textSecondary,
+    FootballEventKind.yellow => const Color(0xFFF2C230),
+    FootballEventKind.secondYellow || FootballEventKind.red => const Color(0xFFD32F2F),
+    FootballEventKind.substitution => const Color(0xFF1E88E5),
+    FootballEventKind.videoReview => const Color(0xFF7E57C2),
+    FootballEventKind.other => garra.textSecondary,
+  };
+}
+
+/// Semantic icon + color per event kind (cards drawn as cards, not glyphs), on a tinted disc.
 class FootballEventIcon extends StatelessWidget {
   const FootballEventIcon({super.key, required this.kind});
   final FootballEventKind kind;
 
   @override
   Widget build(BuildContext context) {
-    final garra = garraColors(context);
+    final color = footballEventColor(context, kind);
     Widget card(Color color, {Color? behind}) => SizedBox(
       width: 22, height: 22,
       child: Stack(alignment: Alignment.center, children: [
@@ -112,18 +134,26 @@ class FootballEventIcon extends StatelessWidget {
       ]),
     );
     final (Widget child, String semantics) = switch (kind) {
-      FootballEventKind.goal => (Icon(Icons.sports_soccer, size: 22, color: garra.success), 'Gol'),
-      FootballEventKind.penaltyGoal => (Icon(Icons.sports_soccer, size: 22, color: garra.success), 'Gol de penal'),
-      FootballEventKind.ownGoal => (Icon(Icons.sports_soccer, size: 22, color: garra.danger), 'Autogol'),
-      FootballEventKind.missedPenalty => (Icon(Icons.block, size: 22, color: garra.textSecondary), 'Penal fallado'),
+      FootballEventKind.goal => (Icon(Icons.sports_soccer, size: 20, color: color), 'Gol'),
+      FootballEventKind.penaltyGoal => (Icon(Icons.sports_soccer, size: 20, color: color), 'Gol de penal'),
+      FootballEventKind.ownGoal => (Icon(Icons.sports_soccer, size: 20, color: color), 'Autogol'),
+      FootballEventKind.missedPenalty => (Icon(Icons.block, size: 20, color: color), 'Penal fallado'),
       FootballEventKind.yellow => (card(const Color(0xFFF2C230)), 'Tarjeta amarilla'),
-      FootballEventKind.secondYellow => (card(const Color(0xFFC62828), behind: const Color(0xFFF2C230)), 'Doble amarilla'),
-      FootballEventKind.red => (card(const Color(0xFFC62828)), 'Tarjeta roja'),
-      FootballEventKind.substitution => (Icon(Icons.swap_vert_rounded, size: 22, color: garra.brandPrestige), 'Cambio'),
-      FootballEventKind.videoReview => (Icon(Icons.videocam_outlined, size: 22, color: garra.textSecondary), 'VAR'),
-      FootballEventKind.other => (Icon(Icons.info_outline, size: 20, color: garra.textSecondary), 'Incidencia'),
+      FootballEventKind.secondYellow => (card(const Color(0xFFD32F2F), behind: const Color(0xFFF2C230)), 'Doble amarilla'),
+      FootballEventKind.red => (card(const Color(0xFFD32F2F)), 'Tarjeta roja'),
+      FootballEventKind.substitution => (Icon(Icons.swap_vert_rounded, size: 20, color: color), 'Cambio'),
+      FootballEventKind.videoReview => (Text('VAR', style: TextStyle(color: color, fontSize: 9,
+          fontWeight: FontWeight.w900, letterSpacing: 0.2)), 'VAR'),
+      FootballEventKind.other => (Icon(Icons.info_outline, size: 18, color: color), 'Incidencia'),
     };
-    return Semantics(label: semantics, child: SizedBox(width: 24, height: 24, child: Center(child: child)));
+    return Semantics(label: semantics, child: Container(
+      key: ValueKey('event_icon_${kind.name}'),
+      width: 32, height: 32,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: 0.16),
+          border: Border.all(color: color.withValues(alpha: 0.55))),
+      child: child,
+    ));
   }
 
   Widget _card(Color color) => Container(

@@ -10,9 +10,13 @@ import '../data/football_diagnostics.dart';
 import '../data/garra_football_models.dart';
 import '../data/garra_football_service.dart';
 import 'football_event_timeline.dart';
+import 'football_featured_hero.dart';
+import 'football_lineup_view.dart';
 import 'football_match_card.dart';
 import 'football_standings_view.dart';
+import 'football_team_center.dart';
 import 'football_team_crest.dart';
+import 'football_upcoming_rounds.dart';
 import 'match_tribuna_section.dart';
 
 final garraFootballServiceProvider = Provider<GarraFootballService>((ref) => GarraFootballService());
@@ -114,6 +118,8 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
   FootballFailureLayer? _failureLayer;
   final Set<String> _collapsed = {};
   final Set<String> _expanded = {};
+  /// SONIC_05: round picked by the user per competition (PRÓXIMOS); survives detail / Team Center.
+  final Map<String, String> _rounds = {};
 
   String get _pageKey => '${_nav.section.name}:${_nav.competition ?? 'ALL'}';
 
@@ -406,17 +412,39 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
         retry: !offline && !unconfigured);
     }
     final items = _visibleMatches(page);
+    final notes = <Widget>[
+      if (page.partial) _compactBanner('Algunas competiciones no están disponibles',
+          key: const ValueKey('partial_notice')),
+      if (page.stale) _softNote('Datos guardados · pueden estar desactualizados',
+          key: const ValueKey('stale_notice')),
+    ];
+    // SONIC_05: PRÓXIMOS of one competition = round selector with complete rounds.
+    final competition = _nav.competition;
+    if (_nav.section == CentroSection.upcoming && competition != null && items.isNotEmpty) {
+      return RefreshIndicator(
+        onRefresh: () => _load(refresh: true),
+        child: FootballUpcomingRounds(
+          key: ValueKey('rounds_$competition'),
+          competitionName: _competitionName(competition),
+          matches: items,
+          selectedRound: _rounds[competition],
+          featuredNextId: _featured?.next?.id,
+          onRoundChanged: (round) => setState(() => _rounds[competition] = round),
+          onOpen: _openMatch,
+          onTeamTap: _openTeam,
+          header: notes,
+        ),
+      );
+    }
     final hero = _nav.hub == CentroHub.forYou && _nav.section == CentroSection.today
         ? _hero(page.items) : null;
     final others = items.where((m) => m.id != hero?.match.id).toList();
     final children = <Widget>[
-      if (page.partial) _softNote('Algunas competiciones no están disponibles',
-          key: const ValueKey('partial_notice')),
-      if (page.stale) _softNote('Datos guardados · pueden estar desactualizados',
-          key: const ValueKey('stale_notice')),
+      ...notes,
       if (hero != null)
-        _FeaturedHero(
+        FootballFeaturedHero(
           match: hero.match, kind: hero.kind, name: _featured?.displayName,
+          featuredTeamId: _featured?.teamId,
           secondary: [
             if (_featured != null && hero.kind == 'live' && _featured!.next != null)
               ('Próximo', _featured!.next!),
@@ -424,6 +452,7 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
               ('Último', _featured!.last!),
           ],
           onOpen: _openMatch,
+          onTeamTap: _openTeam,
         ),
     ];
     if (others.isEmpty) {
@@ -432,7 +461,9 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
             ? ('Nada destacado por ahora', 'Cuando tu equipo juegue o haya partidos en vivo, aparecerán aquí.')
             : switch (_nav.section) {
                 CentroSection.live => ('Ningún partido en vivo ahora', 'Cuando empiece un partido lo verás aquí.'),
-                CentroSection.upcoming => ('Sin partidos próximos', 'No hay partidos en los próximos 7 días.'),
+                CentroSection.upcoming => ('Sin partidos próximos', _nav.competition == null
+                    ? 'No hay partidos en los próximos 7 días.'
+                    : 'Esta competición no tiene fechas por jugar en el calendario guardado.'),
                 CentroSection.results => ('Sin resultados recientes', 'No hay resultados de los últimos 7 días.'),
                 _ => ('Sin partidos hoy', 'No hay partidos programados para hoy en estas competiciones.'),
               };
@@ -461,6 +492,12 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
 
   void _openMatch(FootballMatch match) => context.push(
       '/centro-garra/partido/${match.id}?competition=${match.competitionId}', extra: match);
+
+  /// SONIC_05: Team Center for any provider team id (sheet over the current tab; selection kept).
+  void _openTeam(int teamId, String name, String? crestUrl) => showFootballTeamCenter(context,
+      teamId: teamId, name: name, crestUrl: crestUrl,
+      load: () => ref.read(garraFootballServiceProvider).team(teamId),
+      onOpenMatch: _openMatch);
 
   /// Competition groups: featured first, then groups with live matches, then catalog order.
   List<Widget> _groups(List<FootballMatch> items) {
@@ -500,6 +537,7 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
           }),
           onShowAll: () => setState(() => _expanded.add('${_nav.section.name}:$id')),
           onOpen: _openMatch,
+          onTeamTap: _openTeam,
         ),
     ];
   }
@@ -540,6 +578,7 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
         selectedStage: stage,
         featuredTeamId: _featured?.teamId,
         onStageChanged: (name) => _setNav(_nav.copyWith(stage: () => name)),
+        onTeamTap: _openTeam,
         footer: table.stale
             ? _softNote('Datos guardados · pueden estar desactualizados')
             : null,
@@ -556,6 +595,27 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
       Expanded(child: Text(message, style: Theme.of(context).textTheme.bodySmall)),
     ]),
   );
+
+  /// SONIC_10: partial availability = one compact, non-invasive line (not a card, not a block).
+  Widget _compactBanner(String message, {Key? key}) {
+    final scheme = Theme.of(context).colorScheme;
+    return Align(
+      key: key,
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(999),
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.6)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.info_outline, size: 12, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 4),
+          Flexible(child: Text(message, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant))),
+        ]),
+      ),
+    );
+  }
 
   Widget _emptyCard(String title, String message) => Padding(
     padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -615,35 +675,76 @@ class _HubTabs extends StatelessWidget {
 }
 
 /// Hoy · En vivo · Próximos · Resultados · Tabla — text tabs like a sports app.
-class _SectionTabs extends StatelessWidget {
+/// SONIC_05: the active tab is always fully visible (on entry, on change and after coming back
+/// from a detail / Team Center): no "Hoy" cut at the edge.
+class _SectionTabs extends StatefulWidget {
   const _SectionTabs({required this.selected, required this.onSelected});
   final CentroSection selected;
   final ValueChanged<CentroSection> onSelected;
 
   @override
+  State<_SectionTabs> createState() => _SectionTabsState();
+}
+
+class _SectionTabsState extends State<_SectionTabs> {
+  final ScrollController _scroll = ScrollController();
+  final Map<CentroSection, GlobalKey> _keys = {for (final s in CentroSection.values) s: GlobalKey()};
+
+  @override
+  void initState() {
+    super.initState();
+    _reveal(animate: false);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SectionTabs oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selected != widget.selected) _reveal(animate: true);
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _reveal({required bool animate}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _keys[widget.selected]?.currentContext;
+      if (!mounted || ctx == null) return;
+      Scrollable.ensureVisible(ctx, alignment: 0.5,
+          duration: animate ? const Duration(milliseconds: 220) : Duration.zero, curve: Curves.easeOut);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final garra = garraColors(context);
     final text = Theme.of(context).textTheme;
+    final selected = widget.selected;
     // Five fixed tabs: a non-lazy Row keeps every tab built (a11y + tests) and still scrolls.
     return SizedBox(
       height: 40,
       child: SingleChildScrollView(
+        key: const ValueKey('section_tabs_scroll'),
+        controller: _scroll,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 6),
         child: Row(children: [
           for (final section in CentroSection.values)
             InkWell(
               key: ValueKey('section_${section.name}'),
               borderRadius: BorderRadius.circular(8),
-              onTap: () => onSelected(section),
+              onTap: () => widget.onSelected(section),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+                key: _keys[section],
+                padding: const EdgeInsets.symmetric(horizontal: 9),
                 child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Row(mainAxisSize: MainAxisSize.min, children: [
                     if (section == CentroSection.live)
                       Container(width: 6, height: 6, margin: const EdgeInsets.only(right: 5),
                           decoration: BoxDecoration(color: garra.danger, shape: BoxShape.circle)),
-                    Text(section.label, style: text.labelLarge?.copyWith(
+                    Text(section.label, maxLines: 1, softWrap: false, style: text.labelLarge?.copyWith(
                         fontWeight: section == selected ? FontWeight.w900 : FontWeight.w500,
                         color: section == selected ? null
                             : Theme.of(context).colorScheme.onSurfaceVariant)),
@@ -681,7 +782,7 @@ class _CompetitionBadge extends StatelessWidget {
 class _CompetitionGroup extends StatelessWidget {
   const _CompetitionGroup({super.key, required this.competitionId, required this.name,
     required this.matches, required this.collapsed, required this.expanded,
-    required this.onToggle, required this.onShowAll, required this.onOpen});
+    required this.onToggle, required this.onShowAll, required this.onOpen, this.onTeamTap});
   static const initialCount = 3;
   final String competitionId;
   final String name;
@@ -691,6 +792,7 @@ class _CompetitionGroup extends StatelessWidget {
   final VoidCallback onToggle;
   final VoidCallback onShowAll;
   final ValueChanged<FootballMatch> onOpen;
+  final FootballTeamTap? onTeamTap;
 
   @override
   Widget build(BuildContext context) {
@@ -727,7 +829,7 @@ class _CompetitionGroup extends StatelessWidget {
       if (!collapsed) ...[
         for (final m in visible)
           FootballMatchCard(key: ValueKey('match_${m.id}'), match: m, showCompetitionHeader: false,
-              onTap: () => onOpen(m)),
+              onTap: () => onOpen(m), onTeamTap: onTeamTap),
         if (!expanded && matches.length > initialCount)
           Align(
             alignment: Alignment.centerLeft,
@@ -742,80 +844,6 @@ class _CompetitionGroup extends StatelessWidget {
           ),
       ],
     ]);
-  }
-}
-
-/// PARA TI hero: "`NAME` EN VIVO" / "PRÓXIMO PARTIDO DE `NAME`" / "ÚLTIMO PARTIDO".
-/// NAME comes from config label or provider team name — never hardcoded.
-class _FeaturedHero extends StatelessWidget {
-  const _FeaturedHero({required this.match, required this.kind, required this.name,
-    required this.secondary, required this.onOpen});
-  final FootballMatch match;
-  final String kind;
-  final String? name;
-  final List<(String, FootballMatch)> secondary;
-  final ValueChanged<FootballMatch> onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final garra = garraColors(context);
-    final team = (name == null || name!.trim().isEmpty) ? 'TU EQUIPO' : name!.toUpperCase();
-    final title = switch (kind) {
-      'live' => '$team EN VIVO',
-      'next' => 'PRÓXIMO PARTIDO DE $team',
-      _ => 'ÚLTIMO PARTIDO',
-    };
-    return Container(
-      key: const ValueKey('featured_hero'),
-      margin: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-      padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
-            colors: [garra.brandPrimary, Color.lerp(garra.brandPrimary, Colors.black, 0.35)!]),
-        border: Border.all(color: garra.brandPrestige.withValues(alpha: 0.7)),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-          child: Row(children: [
-            if (kind == 'live')
-              Container(width: 8, height: 8, margin: const EdgeInsets.only(right: 8),
-                  decoration: const BoxDecoration(color: Color(0xFFFF5252), shape: BoxShape.circle))
-            else
-              Padding(padding: const EdgeInsets.only(right: 6),
-                  child: Icon(Icons.star_rounded, size: 18, color: garra.brandPrestige)),
-            Expanded(child: Text(title, key: const ValueKey('featured_hero_title'),
-                style: TextStyle(color: garra.onBrand, fontWeight: FontWeight.w900,
-                    letterSpacing: 0.6, fontSize: 13))),
-          ]),
-        ),
-        FootballMatchCard(match: match, onTap: () => onOpen(match),
-            margin: const EdgeInsets.symmetric(horizontal: 8)),
-        for (final (label, m) in secondary)
-          InkWell(
-            key: ValueKey('featured_secondary_$label'),
-            onTap: () => onOpen(m),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
-              child: Row(children: [
-                Text('$label · ', style: TextStyle(color: garra.brandPrestige, fontWeight: FontWeight.w800,
-                    fontSize: 12)),
-                Expanded(child: Text(_line(m), maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: garra.onBrand, fontSize: 12))),
-                Icon(Icons.chevron_right, size: 16, color: garra.onBrand),
-              ]),
-            ),
-          ),
-      ]),
-    );
-  }
-
-  String _line(FootballMatch m) {
-    if (m.isFinished) return '${m.home} ${m.homeScore ?? '–'} - ${m.awayScore ?? '–'} ${m.away} · FINAL';
-    final k = m.kickoff;
-    final when = k == null ? 'por confirmar' : '${footballDayLabel(k)} ${_footballFormat('HH:mm').format(k)}';
-    return '${m.home} vs ${m.away} · $when';
   }
 }
 
@@ -990,7 +1018,7 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
     return Scaffold(
       appBar: AppBar(title: Text(match.competition.isEmpty ? 'Partido' : match.competition)),
       body: Column(children: [
-        _DetailHeader(match: match, stateLine: _stateLine(match)),
+        _DetailHeader(match: match, stateLine: _stateLine(match), onTeamTap: _openTeam),
         if (match.isLive)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
@@ -1031,6 +1059,31 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
     );
   }
 
+  void _openTeam(int teamId, String name, String? crestUrl) => showFootballTeamCenter(context,
+      teamId: teamId, name: name, crestUrl: crestUrl,
+      load: () => ref.read(garraFootballServiceProvider).team(teamId),
+      onOpenMatch: (m) => context.push('/centro-garra/partido/${m.id}?competition=${m.competitionId}', extra: m));
+
+  /// SONIC_05 Resumen row: icon, small label, full value (wraps, never truncated).
+  Widget _infoRow(IconData icon, String label, String value, {required String key}) {
+    final text = Theme.of(context).textTheme;
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Padding(
+      key: ValueKey(key),
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(icon, size: 20, color: garraColors(context).brandPrestige),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label.toUpperCase(), style: text.labelSmall?.copyWith(color: muted, fontWeight: FontWeight.w800,
+              letterSpacing: 0.6)),
+          const SizedBox(height: 2),
+          Text(value, style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+        ])),
+      ]),
+    );
+  }
+
   Widget _autoLoad(String section) => Builder(builder: (context) {
     WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _loadSection(section); });
     return const SizedBox.shrink();
@@ -1039,27 +1092,22 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
   Widget _tabBody(String label, FootballMatch match) {
     final text = Theme.of(context).textTheme;
     return switch (label) {
-      'Resumen' => ListView(padding: const EdgeInsets.all(16), children: [
-          if (match.isPrematch) ...[
-            Text(match.kickoff == null
-                ? 'Horario por confirmar'
-                : 'Previa · ${_footballFormat('EEE d MMM · HH:mm').format(match.kickoff!)} (Lima)',
-                style: text.titleSmall),
-            const SizedBox(height: 8),
-            const Text('Las alineaciones aparecerán cerca del pitazo.'),
-          ] else ...[
-            Text(match.statusLabel, style: const TextStyle(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            Text('${match.home} ${match.homeScore ?? '–'} - ${match.awayScore ?? '–'} ${match.away}'),
-          ],
-          if (match.roundLabel != null) ...[
-            const SizedBox(height: 12),
-            Text('${match.competition} · ${match.roundLabel}', style: text.bodySmall),
-          ],
+      // SONIC_05 Resumen V5: stadium, date / time, competition / round, state; refresh time discreet.
+      'Resumen' => ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 24), children: [
+          _infoRow(Icons.emoji_events_outlined, 'Competición', [
+            if (match.competition.isNotEmpty) match.competition,
+            ?match.roundLabel,
+          ].join(' · ').ifEmpty('Por confirmar'), key: 'resumen_competition'),
+          _infoRow(Icons.event_rounded, 'Fecha y hora', footballKickoffLine(match), key: 'resumen_kickoff'),
+          _infoRow(Icons.stadium_outlined, 'Estadio', match.venue ?? 'Por confirmar', key: 'resumen_venue'),
+          _infoRow(Icons.flag_outlined, 'Estado', _statusWord(match), key: 'resumen_state'),
+          if (match.isPrematch)
+            Text('Las alineaciones aparecerán cerca del pitazo.', style: text.bodySmall),
           if (match.snapshotAt != null) ...[
-            const SizedBox(height: 12),
-            Text('Datos del proveedor · ${_footballFormat('HH:mm').format(limaWallClock(match.snapshotAt!))} (Lima)',
-                key: const ValueKey('snapshot_line'), style: text.bodySmall),
+            const SizedBox(height: 16),
+            Text('Actualizado ${_footballFormat('HH:mm').format(limaWallClock(match.snapshotAt!))} (hora de Lima)',
+                key: const ValueKey('snapshot_line'),
+                style: text.labelSmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
           ],
         ]),
       'Eventos' => ListView(padding: const EdgeInsets.only(top: 8, bottom: 16), children: [
@@ -1069,15 +1117,14 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
       'Alineación' => ListView(children: [
           _autoLoad('LINEUPS'),
           _lazySection('LINEUPS', builder: (items) => Column(children: [
-            for (final item in items)
-              ListTile(
-                title: Text(item['team']?.toString() ?? 'Equipo',
-                    style: const TextStyle(fontWeight: FontWeight.w800)),
-                subtitle: Text([
-                  if ((item['formation']?.toString() ?? '').isNotEmpty) 'Esquema ${item['formation']}',
-                  if ((item['coach']?.toString() ?? '').isNotEmpty) 'DT ${item['coach']}',
-                  'Titulares: ${((item['starting'] as List?) ?? const []).join(' · ')}',
-                ].join('\n'))),
+            for (var i = 0; i < items.length; i++)
+              FootballLineupCard(
+                key: ValueKey('lineup_card_$i'),
+                lineup: FootballLineup.fromJson(items[i]),
+                fallbackCrest: items[i]['team']?.toString() == match.home ? match.homeCrestUrl
+                    : items[i]['team']?.toString() == match.away ? match.awayCrestUrl : null,
+              ),
+            const SizedBox(height: 16),
           ])),
         ]),
       'Stats' => ListView(padding: const EdgeInsets.only(top: 8), children: [
@@ -1089,6 +1136,19 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
           MatchTribunaSection(match: match),
         ]),
       _ => const SizedBox.shrink(),
+    };
+  }
+
+  /// Short Resumen state (the header keeps the full state line; no duplicated sentence).
+  String _statusWord(FootballMatch match) {
+    if (match.isUnconfirmed) return match.isLive ? 'En juego · actualizando' : 'Por confirmar';
+    if (match.isLive) return 'En juego';
+    return switch (match.status) {
+      'FINISHED' => 'Finalizado',
+      'POSTPONED' => 'Postergado',
+      'CANCELLED' => 'Cancelado',
+      'SCHEDULED' => match.kickoffConfirmed == false ? 'Por jugar · hora por confirmar' : 'Por jugar',
+      _ => 'Por confirmar',
     };
   }
 
@@ -1164,9 +1224,10 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
 
 /// SONIC_04 Detail V4 compact header: competition line, teams, score/time, state line.
 class _DetailHeader extends StatelessWidget {
-  const _DetailHeader({required this.match, required this.stateLine});
+  const _DetailHeader({required this.match, required this.stateLine, this.onTeamTap});
   final FootballMatch match;
   final String stateLine;
+  final FootballTeamTap? onTeamTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1178,14 +1239,22 @@ class _DetailHeader extends StatelessWidget {
       if (match.competition.isNotEmpty) match.competition,
       ?match.roundLabel,
     ].join(' · ');
-    Widget team(String name, String? crest) => Expanded(
-      child: Column(children: [
+    Widget team(String name, String? crest, int? id, String side) {
+      final body = Column(children: [
         FootballTeamCrest(name: name, url: crest, size: 40),
         const SizedBox(height: 6),
         Text(name, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
             style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w800, height: 1.15)),
-      ]),
-    );
+      ]);
+      return Expanded(
+        child: id == null || onTeamTap == null ? body : InkWell(
+          key: ValueKey('detail_team_$side'),
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => onTeamTap!(id, name, crest),
+          child: body,
+        ),
+      );
+    }
     final scoreStyle = text.headlineMedium?.copyWith(fontWeight: FontWeight.w900,
         color: live ? garra.danger : null);
     return Container(
@@ -1204,7 +1273,7 @@ class _DetailHeader extends StatelessWidget {
               style: text.labelSmall?.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          team(match.home, match.homeCrestUrl),
+          team(match.home, match.homeCrestUrl, match.homeId, 'home'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             child: showScore
@@ -1221,7 +1290,7 @@ class _DetailHeader extends StatelessWidget {
                       Text(footballDayLabel(match.kickoff!), style: text.labelSmall),
                   ]),
           ),
-          team(match.away, match.awayCrestUrl),
+          team(match.away, match.awayCrestUrl, match.awayId, 'away'),
         ]),
         const SizedBox(height: 8),
         Text(stateLine, key: const ValueKey('match_state_line'), textAlign: TextAlign.center,
@@ -1237,4 +1306,8 @@ class _DetailHeader extends StatelessWidget {
       ]),
     );
   }
+}
+
+extension on String {
+  String ifEmpty(String fallback) => isEmpty ? fallback : this;
 }

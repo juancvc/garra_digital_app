@@ -28,16 +28,21 @@ String footballDayLabel(DateTime kickoff) {
   return _fmt('EEE d MMM').format(kickoff);
 }
 
+/// SONIC_05: a club tapped on a card / table / detail (opens Team Center).
+typedef FootballTeamTap = void Function(int teamId, String name, String? crestUrl);
+
 /// SONIC_04 Match Card V3: scoreboard. Left column = state (LIVE minute, PREMATCH
 /// time, FINAL), right = two team lines with score. Featured team (provider id
 /// via backend `featured`) gets the burgundy / cream / gold treatment.
 class FootballMatchCard extends StatelessWidget {
   const FootballMatchCard({super.key, required this.match, required this.onTap,
-    this.showCompetitionHeader = true, this.margin});
+    this.showCompetitionHeader = true, this.margin, this.onTeamTap});
   final FootballMatch match;
   final VoidCallback? onTap;
   final bool showCompetitionHeader;
   final EdgeInsetsGeometry? margin;
+  /// SONIC_05: when set, crest + name of a club with a provider id open its Team Center.
+  final FootballTeamTap? onTeamTap;
 
   @override
   Widget build(BuildContext context) {
@@ -99,12 +104,18 @@ class FootballMatchCard extends StatelessWidget {
                           _TeamLine(name: match.home, crest: match.homeCrestUrl,
                               score: showScores ? match.homeScore : null, showScore: showScores,
                               strong: homeWins, live: match.isLive && !match.isUnconfirmed,
-                              scoreKey: ValueKey('score_home_${match.id}')),
+                              scoreKey: ValueKey('score_home_${match.id}'),
+                              tapKey: ValueKey('team_tap_${match.id}_home'),
+                              onTap: onTeamTap == null || match.homeId == null ? null
+                                  : () => onTeamTap!(match.homeId!, match.home, match.homeCrestUrl)),
                           const SizedBox(height: 6),
                           _TeamLine(name: match.away, crest: match.awayCrestUrl,
                               score: showScores ? match.awayScore : null, showScore: showScores,
                               strong: awayWins, live: match.isLive && !match.isUnconfirmed,
-                              scoreKey: ValueKey('score_away_${match.id}')),
+                              scoreKey: ValueKey('score_away_${match.id}'),
+                              tapKey: ValueKey('team_tap_${match.id}_away'),
+                              onTap: onTeamTap == null || match.awayId == null ? null
+                                  : () => onTeamTap!(match.awayId!, match.away, match.awayCrestUrl)),
                         ]),
                       ),
                     ]),
@@ -121,7 +132,8 @@ class FootballMatchCard extends StatelessWidget {
 
 class _TeamLine extends StatelessWidget {
   const _TeamLine({required this.name, required this.crest, required this.score,
-    required this.showScore, required this.strong, required this.live, required this.scoreKey});
+    required this.showScore, required this.strong, required this.live, required this.scoreKey,
+    this.tapKey, this.onTap});
   final String name;
   final String? crest;
   final int? score;
@@ -129,17 +141,34 @@ class _TeamLine extends StatelessWidget {
   final bool strong;
   final bool live;
   final Key scoreKey;
+  final Key? tapKey;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    return Row(children: [
+    final identity = Row(mainAxisSize: MainAxisSize.min, children: [
       FootballTeamCrest(name: name, url: crest, size: 24),
       const SizedBox(width: 8),
-      Expanded(
+      Flexible(
         child: Text(name, maxLines: 2, overflow: TextOverflow.ellipsis,
             style: text.bodyMedium?.copyWith(
                 fontWeight: strong ? FontWeight.w900 : FontWeight.w600, height: 1.15)),
+      ),
+    ]);
+    return Row(children: [
+      Expanded(
+        child: Align(
+          alignment: Alignment.centerLeft,
+          // Only crest + name open the club; the rest of the card keeps opening the match.
+          child: onTap == null ? identity : Semantics(
+            button: true,
+            label: 'Ver club $name',
+            child: InkWell(key: tapKey, borderRadius: BorderRadius.circular(8), onTap: onTap,
+                child: Padding(padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+                    child: identity)),
+          ),
+        ),
       ),
       if (showScore)
         SizedBox(

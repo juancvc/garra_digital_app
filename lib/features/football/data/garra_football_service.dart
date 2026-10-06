@@ -36,6 +36,20 @@ class GarraFootballService {
     return FootballFeatured.fromJson(item);
   }
 
+  /// SONIC_05: Team Center for any provider team id (backend reads cached calendars only).
+  Future<FootballTeamCenterResult> team(int teamId) async {
+    final response = await _dio.get('/football/teams/$teamId');
+    final envelope = response.data['data'];
+    if (envelope is! Map<String, dynamic>) return const FootballTeamCenterResult(unavailable: true);
+    final item = envelope['item'];
+    return FootballTeamCenterResult(
+      center: item is Map<String, dynamic> ? FootballTeamCenter.fromJson(item) : null,
+      unavailable: envelope['unavailable'] == true,
+      stale: envelope['stale'] == true,
+      reason: envelope['reason'] is String ? envelope['reason'] as String : null,
+    );
+  }
+
   Future<FootballPage<Map<String, dynamic>>> standings(String competition) async {
     final response = await _dio.get('/football/competitions/$competition/standings');
     return FootballPage.fromJson(response.data['data'] as Map<String, dynamic>, (json) => json);

@@ -10,7 +10,6 @@ import 'package:garra_digital_app/features/community/presentation/providers/comm
 import 'package:garra_digital_app/features/football/data/garra_football_models.dart';
 import 'package:garra_digital_app/features/football/data/garra_football_service.dart';
 import 'package:garra_digital_app/features/football/presentation/centro_garra_page.dart';
-import 'package:garra_digital_app/features/football/presentation/football_match_card.dart';
 import 'package:garra_digital_app/features/football/presentation/football_team_crest.dart';
 import 'package:go_router/go_router.dart';
 
@@ -119,7 +118,8 @@ void main() {
     expect(find.text('Para ti'), findsOneWidget);
     expect(find.text('Perú'), findsOneWidget);
     expect(find.text('Internacional'), findsOneWidget);
-    expect(find.byType(FootballMatchCard), findsOneWidget);
+    // SONIC_05: the featured match is the Para ti hero (big crests, full names), not a list card.
+    expect(find.byKey(const ValueKey('featured_hero')), findsOneWidget);
     expect(find.byType(FootballTeamCrest), findsWidgets);
     expect(find.textContaining('Fecha 12'), findsOneWidget);
     expect(find.textContaining('Cajamarca'), findsOneWidget);

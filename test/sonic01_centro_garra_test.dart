@@ -155,7 +155,9 @@ void main() {
     await _pumpDetail(tester, _match('SCHEDULED'), community, visited: visited);
 
     expect(find.byKey(const ValueKey('match_state_line')), findsOneWidget);
-    expect(find.textContaining('20:00 (hora de Lima)'), findsOneWidget);
+    // SONIC_05: header state line + Resumen "Fecha y hora" row both show the Lima kickoff.
+    expect(find.textContaining('20:00 (hora de Lima)'), findsWidgets);
+    expect(find.byKey(const ValueKey('resumen_kickoff')), findsOneWidget);
     expect(find.text('Liga 1 Perú · Fecha 12'), findsWidgets);
     await _tribuna(tester);
     expect(find.text('Tribuna del partido'), findsOneWidget);

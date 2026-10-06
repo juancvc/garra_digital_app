@@ -46,7 +46,7 @@ class FootballMatch {
     required this.status, this.kickoff, this.elapsed, this.elapsedExtra,
     this.homeScore, this.awayScore, this.garraMatchId, this.round,
     this.homeId, this.awayId, this.homeCrestUrl, this.awayCrestUrl,
-    this.featured = false, this.snapshotAt, this.dataState});
+    this.featured = false, this.snapshotAt, this.dataState, this.venue, this.kickoffConfirmed});
   final int id;
   final String competitionId;
   final String competition;
@@ -70,6 +70,13 @@ class FootballMatch {
   final DateTime? snapshotAt;
   /// SONIC_04: LIVE_SNAPSHOT / SEASON_SNAPSHOT / UNCONFIRMED (backend single temporal truth).
   final String? dataState;
+  /// SONIC_05: provider stadium name (null when absent).
+  final String? venue;
+  /// SONIC_05: false when the provider marks the time TBD / postponed (date is a placeholder).
+  final bool? kickoffConfirmed;
+
+  /// Date shown is a provider placeholder (time to be defined or postponed).
+  bool get isKickoffTentative => kickoffConfirmed == false || kickoff == null;
 
   /// In play or past kickoff, but no fresh snapshot confirms it: never show a minute.
   bool get isUnconfirmed => dataState == 'UNCONFIRMED';
@@ -88,7 +95,8 @@ class FootballMatch {
       competition: competition, home: home, away: away, status: status, kickoff: kickoff,
       homeScore: homeScore, awayScore: awayScore, garraMatchId: garraMatchId, round: round,
       homeId: homeId, awayId: awayId, homeCrestUrl: homeCrestUrl, awayCrestUrl: awayCrestUrl,
-      featured: featured, snapshotAt: snapshotAt, dataState: 'UNCONFIRMED');
+      featured: featured, snapshotAt: snapshotAt, dataState: 'UNCONFIRMED', venue: venue,
+      kickoffConfirmed: kickoffConfirmed);
 
   factory FootballMatch.fromJson(Map<String, dynamic> json) {
     final home = json['home'] as Map?;
@@ -114,7 +122,20 @@ class FootballMatch {
       featured: json['featured'] == true,
       snapshotAt: DateTime.tryParse(json['snapshotAt']?.toString() ?? '')?.toUtc(),
       dataState: json['dataState']?.toString(),
+      venue: _text(json['venue']),
+      kickoffConfirmed: json['kickoffConfirmed'] is bool ? json['kickoffConfirmed'] as bool : null,
     );
+  }
+
+  /// Not played and not cancelled as far as the provider knows (incl. postponed / time TBD).
+  bool get isPending => isPrematch || status == 'POSTPONED';
+
+  /// Provider team id of the side that is [teamId], or null.
+  bool? isHomeOf(int? teamId) {
+    if (teamId == null) return null;
+    if (homeId == teamId) return true;
+    if (awayId == teamId) return false;
+    return null;
   }
 
   bool get isLive => const {
@@ -166,6 +187,100 @@ class FootballMatch {
   }
 }
 
+String? _text(Object? raw) {
+  final value = raw?.toString().trim() ?? '';
+  return value.isEmpty ? null : value;
+}
+
+/// SONIC_05: shared crest validation (cards, standings, lineups, Team Center): http(s) only.
+String? footballCrestUrl(Object? raw) => _crest(raw);
+
+const _limaWeekdays = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+const _limaMonths = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto',
+  'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+/// SONIC_05: full Spanish date for a Lima wall-clock kickoff: "domingo 18 de octubre".
+/// Locale-data independent (no intl initialization needed), never truncated.
+String footballFullDate(DateTime limaKickoff) =>
+    '${_limaWeekdays[limaKickoff.weekday - 1]} ${limaKickoff.day} de ${_limaMonths[limaKickoff.month - 1]}';
+
+/// "15:30" for a Lima wall-clock kickoff.
+String footballClock(DateTime limaKickoff) =>
+    '${limaKickoff.hour.toString().padLeft(2, '0')}:${limaKickoff.minute.toString().padLeft(2, '0')}';
+
+/// SONIC_05: "domingo 18 de octubre · 15:30 (hora de Lima)", or an honest tentative text.
+String footballKickoffLine(FootballMatch m) {
+  final k = m.kickoff;
+  if (m.status == 'POSTPONED') {
+    return k == null ? 'Partido postergado · nueva fecha por confirmar'
+        : 'Partido postergado · programado para el ${footballFullDate(k)} · nueva fecha por confirmar';
+  }
+  if (k == null) return 'Fecha y hora por confirmar';
+  if (m.kickoffConfirmed == false) return '${_cap(footballFullDate(k))} · hora por confirmar';
+  return '${_cap(footballFullDate(k))} · ${footballClock(k)} (hora de Lima)';
+}
+
+String _cap(String v) => v.isEmpty ? v : v[0].toUpperCase() + v.substring(1);
+
+/// SONIC_05: round number of "Regular Season - 11" / "Apertura - 11" (null otherwise).
+int? footballRoundNumber(String? round) {
+  final match = RegExp(r'-\s*(\d+)\s*$').firstMatch(round?.trim() ?? '');
+  return match == null ? null : int.tryParse(match.group(1)!);
+}
+
+/// SONIC_05 round selector data: rounds ordered by their earliest kickoff (not by array order).
+class FootballRound {
+  const FootballRound({required this.key, required this.label, required this.matches});
+  final String key;
+  final String label;
+  final List<FootballMatch> matches;
+  DateTime? get start => matches.map((m) => m.kickoff).whereType<DateTime>()
+      .fold<DateTime?>(null, (a, b) => a == null || b.isBefore(a) ? b : a);
+}
+
+List<FootballRound> footballRounds(List<FootballMatch> items) {
+  final order = <String>[];
+  final map = <String, List<FootballMatch>>{};
+  for (final m in items) {
+    final key = (m.round?.trim().isNotEmpty ?? false) ? m.round!.trim() : '';
+    map.putIfAbsent(key, () { order.add(key); return []; }).add(m);
+  }
+  final rounds = [
+    for (final key in order)
+      FootballRound(key: key, label: key.isEmpty ? 'Sin fecha asignada' : (map[key]!.first.roundLabel ?? key),
+          matches: map[key]!),
+  ];
+  rounds.sort((a, b) {
+    final x = a.start, y = b.start;
+    if (x == null || y == null) return x == null ? (y == null ? 0 : 1) : -1;
+    return x.compareTo(y);
+  });
+  return rounds;
+}
+
+/// SONIC_05: active round = the featured team's next match round when listed; else the first round
+/// (by start) with a live match or a pending match from today (Lima) on; else the first round with
+/// anything pending; else the last round. Never simply the first element of the array.
+String? footballActiveRound(List<FootballRound> rounds, {required DateTime limaNow, int? featuredNextId}) {
+  if (rounds.isEmpty) return null;
+  if (featuredNextId != null) {
+    for (final r in rounds) {
+      if (r.matches.any((m) => m.id == featuredNextId)) return r.key;
+    }
+  }
+  final today = DateTime(limaNow.year, limaNow.month, limaNow.day);
+  for (final r in rounds) {
+    if (r.matches.any((m) => m.isLive && !m.isUnconfirmed)
+        || r.matches.any((m) => m.isPending && m.kickoff != null && !m.kickoff!.isBefore(today))) {
+      return r.key;
+    }
+  }
+  for (final r in rounds) {
+    if (r.matches.any((m) => m.isPending)) return r.key;
+  }
+  return rounds.last.key;
+}
+
 String? _crest(Object? raw) {
   final value = raw?.toString().trim() ?? '';
   if (value.isEmpty) return null;
@@ -192,29 +307,61 @@ String footballEventLabel(String? type, {String? detail}) {
   };
 }
 
+/// SONIC_05: every provider statistic label in Spanish. Keys are normalized (lowercase, "_"/"-" as
+/// spaces) so "Free Kicks", "free_kicks" and "Throw-ins" all resolve.
 String footballStatLabel(String? type) {
   const labels = {
     'shots on goal': 'Remates al arco',
+    'shots on target': 'Remates al arco',
     'shots off goal': 'Remates desviados',
+    'shots off target': 'Remates desviados',
     'total shots': 'Remates totales',
     'blocked shots': 'Remates bloqueados',
     'shots insidebox': 'Remates dentro del área',
+    'shots inside box': 'Remates dentro del área',
     'shots outsidebox': 'Remates fuera del área',
+    'shots outside box': 'Remates fuera del área',
     'fouls': 'Faltas',
     'corner kicks': 'Tiros de esquina',
+    'corners': 'Tiros de esquina',
     'offsides': 'Fueras de juego',
     'ball possession': 'Posesión',
+    'possession': 'Posesión',
     'yellow cards': 'Tarjetas amarillas',
     'red cards': 'Tarjetas rojas',
     'goalkeeper saves': 'Atajadas',
+    'saves': 'Atajadas',
     'total passes': 'Pases totales',
+    'passes': 'Pases',
     'passes accurate': 'Pases precisos',
+    'accurate passes': 'Pases precisos',
     'passes %': 'Precisión de pases',
-    'expected_goals': 'Goles esperados (xG)',
-    'goals_prevented': 'Goles evitados',
+    'pass accuracy': 'Precisión de pases',
+    'expected goals': 'Goles esperados (xG)',
+    'goals prevented': 'Goles evitados',
+    'free kicks': 'Tiros libres',
+    'goal kicks': 'Saques de arco',
+    'throw ins': 'Saques de banda',
+    'throw in': 'Saques de banda',
+    'throwins': 'Saques de banda',
+    'substitutions': 'Cambios',
+    'attacks': 'Ataques',
+    'dangerous attacks': 'Ataques peligrosos',
+    'counter attacks': 'Contraataques',
+    'penalties': 'Penales',
+    'hit woodwork': 'Remates al palo',
+    'crosses': 'Centros',
+    'tackles': 'Entradas',
+    'interceptions': 'Intercepciones',
+    'clearances': 'Despejes',
+    'duels won': 'Duelos ganados',
+    'assists': 'Asistencias',
+    'injuries': 'Lesiones',
+    'goals': 'Goles',
   };
   final raw = type?.trim() ?? '';
-  return labels[raw.toLowerCase()] ?? (raw.isEmpty ? 'Dato' : raw);
+  final key = raw.toLowerCase().replaceAll(RegExp(r'[_-]'), ' ').replaceAll(RegExp(r'\s+'), ' ');
+  return labels[key] ?? (raw.isEmpty ? 'Dato' : raw);
 }
 
 /// SONIC_04: presentation-only stage label ("Primera División: Tabla Anual" → "Tabla anual").
@@ -380,4 +527,92 @@ class FootballDetail {
 
   static List<Map<String, dynamic>> _maps(dynamic value) =>
       ((value as List?) ?? const []).whereType<Map<String, dynamic>>().toList();
+}
+
+/// SONIC_05: lineup card (numbered XI and bench). Falls back to the names-only lists of older answers.
+class FootballLineupPlayer {
+  const FootballLineupPlayer({required this.name, this.number, this.position});
+  final String name;
+  final int? number;
+  final String? position;
+
+  String? get positionLabel => switch (position?.toUpperCase()) {
+    'G' => 'ARQ',
+    'D' => 'DEF',
+    'M' => 'MED',
+    'F' => 'DEL',
+    _ => null,
+  };
+}
+
+class FootballLineup {
+  const FootballLineup({required this.team, this.teamId, this.crestUrl, this.formation, this.coach,
+    this.starting = const [], this.bench = const []});
+  final String team;
+  final int? teamId;
+  final String? crestUrl;
+  final String? formation;
+  final String? coach;
+  final List<FootballLineupPlayer> starting;
+  final List<FootballLineupPlayer> bench;
+
+  factory FootballLineup.fromJson(Map<String, dynamic> json) {
+    List<FootballLineupPlayer> players(Object? detailed, Object? names) {
+      final list = (detailed as List?)?.whereType<Map>().map((p) => FootballLineupPlayer(
+            name: p['name']?.toString() ?? 'Jugador',
+            number: (p['number'] as num?)?.toInt(),
+            position: _text(p['position']))).toList() ?? const <FootballLineupPlayer>[];
+      if (list.isNotEmpty) return list;
+      return ((names as List?) ?? const []).map((n) => FootballLineupPlayer(name: n.toString())).toList();
+    }
+    return FootballLineup(
+      team: _text(json['team']) ?? 'Equipo',
+      teamId: (json['teamId'] as num?)?.toInt(),
+      crestUrl: _crest(json['crestUrl']),
+      formation: _text(json['formation']),
+      coach: _text(json['coach']),
+      starting: players(json['startXI'], json['starting']),
+      bench: players(json['bench'], json['substitutes']),
+    );
+  }
+}
+
+/// SONIC_05 Team Center (any provider team id), from the backend cache-only endpoint.
+class FootballTeamCenter {
+  const FootballTeamCenter({required this.teamId, this.name, this.crestUrl, this.competition,
+    this.live, this.next, this.last, this.matches = const [], this.partial = false});
+  final int teamId;
+  final String? name;
+  final String? crestUrl;
+  final String? competition;
+  final FootballMatch? live;
+  final FootballMatch? next;
+  final FootballMatch? last;
+  final List<FootballMatch> matches;
+  final bool partial;
+
+  factory FootballTeamCenter.fromJson(Map<String, dynamic> json) {
+    FootballMatch? m(Object? raw) => raw is Map<String, dynamic> ? FootballMatch.fromJson(raw) : null;
+    return FootballTeamCenter(
+      teamId: (json['teamId'] as num?)?.toInt() ?? 0,
+      name: _text(json['name']),
+      crestUrl: _crest(json['crestUrl']),
+      competition: _text(json['competition']),
+      live: m(json['live']),
+      next: m(json['next']),
+      last: m(json['last']),
+      matches: ((json['matches'] as List?) ?? const [])
+          .whereType<Map<String, dynamic>>().map(FootballMatch.fromJson).toList(),
+      partial: json['partial'] == true,
+    );
+  }
+}
+
+/// Team Center answer: [center] null with [unavailable] (no cached calendar) or a [reason].
+class FootballTeamCenterResult {
+  const FootballTeamCenterResult({this.center, this.unavailable = false, this.stale = false, this.reason});
+  final FootballTeamCenter? center;
+  final bool unavailable;
+  final bool stale;
+  final String? reason;
 }

@@ -10,13 +10,15 @@ import 'football_team_crest.dart';
 class FootballStandingsView extends StatelessWidget {
   const FootballStandingsView({super.key, required this.rows, required this.competitionName,
     required this.selectedStage, required this.onStageChanged, this.featuredTeamId,
-    this.footer});
+    this.footer, this.onTeamTap});
   final List<Map<String, dynamic>> rows;
   final String competitionName;
   final String? selectedStage;
   final ValueChanged<String> onStageChanged;
   final int? featuredTeamId;
   final Widget? footer;
+  /// SONIC_05: crest + name open the club's Team Center (rows with a provider team id).
+  final FootballTeamTap? onTeamTap;
 
   bool _featured(Map<String, dynamic> row) {
     if (row['featured'] == true) return true;
@@ -76,7 +78,7 @@ class FootballStandingsView extends StatelessWidget {
             SizedBox(width: 36, child: Text('PTS', textAlign: TextAlign.end, style: labelStyle)),
           ]),
         ),
-        for (final row in stage.rows) _StandingRow(row: row, featured: _featured(row)),
+        for (final row in stage.rows) _StandingRow(row: row, featured: _featured(row), onTeamTap: onTeamTap),
         ?footer,
       ],
     );
@@ -103,9 +105,10 @@ class FootballStandingsView extends StatelessWidget {
 }
 
 class _StandingRow extends StatelessWidget {
-  const _StandingRow({required this.row, required this.featured});
+  const _StandingRow({required this.row, required this.featured, this.onTeamTap});
   final Map<String, dynamic> row;
   final bool featured;
+  final FootballTeamTap? onTeamTap;
 
   /// Zone marker from the provider description (presentation only).
   Color? _zone(BuildContext context) {
@@ -126,15 +129,24 @@ class _StandingRow extends StatelessWidget {
     final dg = diff is num ? '${diff > 0 ? '+' : ''}$diff' : '–';
     final zone = _zone(context);
     final team = row['team']?.toString() ?? 'Equipo';
+    // SONIC_05: same crest validation as match cards (http/https only); initials when absent or broken.
+    final crest = footballCrestUrl(row['crestUrl'] ?? row['logoUrl']);
+    final teamId = (row['teamId'] as num?)?.toInt();
+    final identity = Row(children: [
+      FootballTeamCrest(key: ValueKey('standing_crest_${teamId ?? team}'), name: team, url: crest, size: 24),
+      const SizedBox(width: 10),
+      Expanded(child: Text(team, maxLines: 2, overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontWeight: featured ? FontWeight.w900 : FontWeight.w600))),
+    ]);
     return Container(
       key: featured ? const ValueKey('standing_featured_row') : null,
       margin: const EdgeInsets.only(bottom: 4),
       decoration: BoxDecoration(
         color: featured
-            ? garra.brandPrimary.withValues(alpha: 0.10)
+            ? garra.brandPrimary.withValues(alpha: 0.07)
             : scheme.surfaceContainerHighest.withValues(alpha: 0.30),
         borderRadius: BorderRadius.circular(10),
-        border: featured ? Border.all(color: garra.brandPrestige.withValues(alpha: 0.8)) : null,
+        border: featured ? Border.all(color: garra.brandPrestige.withValues(alpha: 0.55)) : null,
       ),
       child: IntrinsicHeight(
         child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -146,10 +158,14 @@ class _StandingRow extends StatelessWidget {
               child: Row(children: [
                 SizedBox(width: 30, child: Text('${row['rank'] ?? '–'}',
                     style: const TextStyle(fontWeight: FontWeight.w800))),
-                FootballTeamCrest(name: team, url: row['crestUrl']?.toString(), size: 24),
-                const SizedBox(width: 10),
-                Expanded(child: Text(team, maxLines: 2, overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontWeight: featured ? FontWeight.w900 : FontWeight.w600))),
+                Expanded(
+                  child: teamId == null || onTeamTap == null ? identity : InkWell(
+                    key: ValueKey('standing_team_$teamId'),
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => onTeamTap!(teamId, team, crest),
+                    child: identity,
+                  ),
+                ),
                 SizedBox(width: 30, child: Text('${row['played'] ?? '–'}', textAlign: TextAlign.center)),
                 SizedBox(width: 40, child: Text(dg, textAlign: TextAlign.center)),
                 SizedBox(width: 36, child: Text('${row['points'] ?? '–'}', textAlign: TextAlign.end,
