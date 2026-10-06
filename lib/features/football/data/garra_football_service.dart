@@ -26,6 +26,16 @@ class GarraFootballService {
     return FootballPage.fromJson(response.data['data'] as Map<String, dynamic>, FootballMatch.fromJson);
   }
 
+  /// SONIC_04: featured team hero (live / next / last). Null when not configured or unavailable.
+  Future<FootballFeatured?> featured() async {
+    final response = await _dio.get('/football/featured');
+    final envelope = response.data['data'];
+    if (envelope is! Map<String, dynamic>) return null;
+    final item = envelope['item'];
+    if (item is! Map<String, dynamic>) return null;
+    return FootballFeatured.fromJson(item);
+  }
+
   Future<FootballPage<Map<String, dynamic>>> standings(String competition) async {
     final response = await _dio.get('/football/competitions/$competition/standings');
     return FootballPage.fromJson(response.data['data'] as Map<String, dynamic>, (json) => json);

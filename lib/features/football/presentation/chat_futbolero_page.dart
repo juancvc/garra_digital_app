@@ -11,7 +11,10 @@ final footballChatServiceProvider =
 
 /// SONIC_03: general football chat from Centro Garra (not match Tribuna).
 class ChatFutboleroPage extends ConsumerStatefulWidget {
-  const ChatFutboleroPage({super.key});
+  const ChatFutboleroPage({super.key, this.topic});
+
+  /// SONIC_04: "Hablar del partido" context (e.g. "Home vs Away"). Display only.
+  final String? topic;
 
   @override
   ConsumerState<ChatFutboleroPage> createState() => _ChatFutboleroPageState();
@@ -99,6 +102,15 @@ class _ChatFutboleroPageState extends ConsumerState<ChatFutboleroPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Chat Futbolero')),
       body: Column(children: [
+        if ((widget.topic?.trim() ?? '').isNotEmpty)
+          Container(
+            key: const ValueKey('chat_topic_banner'),
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+            child: Text('Hablando de: ${widget.topic!.trim()}',
+                style: text.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+          ),
         Expanded(
           child: _loading && _items.isEmpty
               ? const Center(child: CircularProgressIndicator())

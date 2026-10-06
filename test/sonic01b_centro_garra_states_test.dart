@@ -44,8 +44,11 @@ class _Football extends GarraFootballService {
 
   @override
   Future<List<FootballCompetition>> competitions() async => const [
-    FootballCompetition(id: 'LIGA_1', name: 'Liga 1 Perú', available: true),
+    FootballCompetition(id: 'LIGA_1', name: 'Liga 1 Perú', available: true, region: 'PERU'),
   ];
+
+  @override
+  Future<FootballFeatured?> featured() async => null;
 
   @override
   Future<FootballPage<FootballMatch>> matches(FootballView view, {String? competition}) async {
@@ -67,12 +70,22 @@ Future<void> _pump(WidgetTester tester, _Football service) async {
     garraFootballServiceProvider.overrideWithValue(service),
     connectivityStatusProvider.overrideWith(_Network.new),
   ], child: const MaterialApp(home: CentroGarraPage())));
-  await tester.pumpAndSettle();
+  await _settle(tester);
 }
 
+/// SONIC_04: Navigation V4 text tabs (no chips); pumpAndSettle avoided (skeleton animates).
+Future<void> _settle(WidgetTester tester, [int frames = 8]) async {
+  for (var i = 0; i < frames; i++) {
+    await tester.pump(const Duration(milliseconds: 60));
+  }
+}
+
+const _sectionKeys = {'Hoy': 'today', 'En vivo': 'live', 'Próximos': 'upcoming',
+  'Resultados': 'results', 'Tabla': 'standings'};
+
 Future<void> _open(WidgetTester tester, String section) async {
-  await tester.tap(find.widgetWithText(ChoiceChip, section));
-  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(ValueKey('section_${_sectionKeys[section]}')));
+  await _settle(tester);
 }
 
 void _expectNoCodes(WidgetTester tester) {
@@ -151,7 +164,7 @@ void main() {
     expect(find.text('Sin partidos hoy'), findsNothing);
     final before = service.calls;
     await tester.tap(find.text('Reintentar'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(service.calls, before + 1);
     await _open(tester, 'Tabla');
     expect(find.text('Tabla temporalmente no disponible'), findsOneWidget);
@@ -177,14 +190,14 @@ void main() {
     expect(find.text('Reintentar'), findsOneWidget);
     service.error = _dio(DioExceptionType.badResponse, status: 500);
     await tester.tap(find.text('Reintentar'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(find.text('No pudimos cargar el fútbol'), findsOneWidget);
     service.error = null;
     service.page = (_) => FootballPage(items: [FootballMatch(id: 7, competitionId: 'LIGA_1',
         competition: 'Liga 1 Perú', home: 'Universitario', away: 'Rival', status: 'SCHEDULED',
         kickoff: DateTime(2026, 10, 6, 20))], stale: false, unavailable: false, partial: false);
     await tester.tap(find.text('Reintentar'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(find.text('Universitario'), findsOneWidget);
     _expectNoCodes(tester);
   });

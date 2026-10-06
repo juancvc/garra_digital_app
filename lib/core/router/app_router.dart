@@ -360,7 +360,8 @@ List<RouteBase> _buildRoutes() => [
               GoRoute(
                 path: 'chat-futbolero',
                 name: 'centro-garra-chat-futbolero',
-                builder: (context, state) => const ChatFutboleroPage(),
+                builder: (context, state) =>
+                    ChatFutboleroPage(topic: state.uri.queryParameters['tema']),
               ),
               GoRoute(
                 path: 'partido/:fixtureId',

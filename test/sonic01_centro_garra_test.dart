@@ -102,8 +102,29 @@ Future<GoRouter> _pumpDetail(WidgetTester tester, FootballMatch match,
     connectivityStatusProvider.overrideWith(_Network.new),
     communityServiceProvider.overrideWithValue(community),
   ], child: MaterialApp.router(routerConfig: router)));
-  await tester.pumpAndSettle();
+  await _settle(tester);
   return router;
+}
+
+/// SONIC_04: no pumpAndSettle (skeleton/progress animate); Tribuna is a detail tab.
+/// Route transitions (fade-forwards) last ~800 ms, so settle a bit longer than that.
+Future<void> _settle(WidgetTester tester, [int frames = 18]) async {
+  for (var i = 0; i < frames; i++) {
+    await tester.pump(const Duration(milliseconds: 60));
+  }
+}
+
+/// Riverpod 3 auto-retries failed providers (exponential backoff) and only surfaces the
+/// error once retries are exhausted; step fake time (up to 60 s) until [finder] shows.
+Future<void> _until(WidgetTester tester, Finder finder, {int steps = 240}) async {
+  for (var i = 0; i < steps && finder.evaluate().isEmpty; i++) {
+    await tester.pump(const Duration(milliseconds: 250));
+  }
+}
+
+Future<void> _tribuna(WidgetTester tester) async {
+  await tester.tap(find.widgetWithText(Tab, 'Tribuna'));
+  await _settle(tester);
 }
 
 String _allText(WidgetTester tester) => tester.widgetList<Text>(find.byType(Text))
@@ -136,6 +157,7 @@ void main() {
     expect(find.byKey(const ValueKey('match_state_line')), findsOneWidget);
     expect(find.textContaining('20:00 (hora de Lima)'), findsOneWidget);
     expect(find.text('Liga 1 Perú · Fecha 12'), findsWidgets);
+    await _tribuna(tester);
     expect(find.text('Tribuna del partido'), findsOneWidget);
     expect(find.text('Calienta la previa con la hinchada.'), findsOneWidget);
     // Preview reuses the match wall: at most three posts, newest first.
@@ -145,15 +167,15 @@ void main() {
     expect(community.calls, [_garraId]);
 
     await tester.tap(find.text('Publicar en la Tribuna'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(visited, ['compose:$_garraId']);
     await tester.tap(find.text('PUBLICAR'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     // A successful compose reloads the Tribuna preview.
     expect(community.calls.length, 2);
 
     await tester.tap(find.byKey(const ValueKey('tribuna_post_post-2')));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(visited.last, 'post:post-2');
   });
 
@@ -162,8 +184,11 @@ void main() {
     final community = _Community(posts: [_post(1)], status: _wall(_garraId, 'CLOSED'));
     await _pumpDetail(tester, _match('LIVE', home: 1, away: 0, elapsed: 67), community);
     expect(find.textContaining('67′'), findsWidgets);
-    expect(find.text('1 : 0'), findsOneWidget);
+    expect(tester.widget<Text>(find.byKey(const ValueKey('detail_score_home'))).data, '1');
+    expect(tester.widget<Text>(find.byKey(const ValueKey('detail_score_away'))).data, '0');
     expect(find.textContaining('EN VIVO'), findsWidgets);
+    expect(find.byKey(const ValueKey('talk_match_cta')), findsOneWidget);
+    await _tribuna(tester);
     expect(find.text('Publicar en la Tribuna'), findsNothing);
     expect(find.textContaining('Arenga 1'), findsOneWidget);
   });
@@ -175,31 +200,36 @@ void main() {
     final visited = <String>[];
     await _pumpDetail(tester, _match('FINISHED', home: 2, away: 1), community, visited: visited);
     expect(find.text('Final · Universitario 2 - 1 Rival'), findsOneWidget);
+    await _tribuna(tester);
     expect(find.text('La conversación del partido.'), findsOneWidget);
     expect(find.text('Publicar en la Tribuna'), findsNothing);
     expect(find.byKey(const ValueKey('tribuna_post_post-2')), findsNothing);
     await tester.tap(find.text('Ver Tribuna completa'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(visited, ['muro:$_garraId']);
   });
 
   testWidgets('Tribuna error offers retry; unlinked fixture explains it', (tester) async {
     final community = _Community(fail: true);
     await _pumpDetail(tester, _match('SCHEDULED'), community);
+    await _tribuna(tester);
+    await _until(tester, find.text('No pudimos cargar la Tribuna'));
     expect(find.text('No pudimos cargar la Tribuna'), findsOneWidget);
     expect(_allText(tester).contains('DioException'), isFalse);
     community.fail = false;
     final before = community.calls.length;
     await tester.tap(find.text('Reintentar'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     // Riverpod 3 also auto-retries failed providers; the tap must add a call.
     expect(community.calls.length, greaterThan(before));
+    await _until(tester, find.text('Todavía no hay arengas en esta Tribuna.'));
     expect(find.text('Todavía no hay arengas en esta Tribuna.'), findsOneWidget);
   });
 
   testWidgets('unlinked fixture has no Tribuna requests', (tester) async {
     final community = _Community();
     await _pumpDetail(tester, _match('SCHEDULED', garraId: null), community);
+    await _tribuna(tester);
     expect(find.text('Aún no está vinculada a este partido'), findsOneWidget);
     expect(community.calls, isEmpty);
   });
@@ -214,13 +244,13 @@ void main() {
     ]);
     await _pumpDetail(tester, _match('FINISHED', home: 1, away: 0), _Community(), football: football);
     await tester.tap(find.text('Eventos'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(find.text('Valera'), findsOneWidget);
     expect(find.text('Gol de penal · Universitario'), findsOneWidget);
     expect(find.text('Incidencia'), findsOneWidget);
     expect(find.text('45+2′'), findsOneWidget);
-    await tester.tap(find.text('Estadísticas'));
-    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(Tab, 'Stats'));
+    await _settle(tester);
     expect(find.text('Posesión'), findsOneWidget);
     expect(find.text('61%'), findsOneWidget);
     expect(find.text('39%'), findsOneWidget);
@@ -241,7 +271,7 @@ void main() {
       overrides: [communityServiceProvider.overrideWithValue(community)],
       child: MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
     ));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(find.text('Tribuna del partido'), findsOneWidget);
     expect(community.calls, contains(_garraId));
     expect(find.textContaining('Arenga 1'), findsOneWidget);

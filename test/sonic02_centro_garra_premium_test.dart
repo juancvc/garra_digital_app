@@ -39,6 +39,10 @@ class _Football extends GarraFootballService {
     FootballCompetition(id: 'LIBERTADORES', name: 'Copa Libertadores', available: true, region: 'CONMEBOL', group: 'conmebol'),
   ];
 
+  // SONIC_04: featured team not configured in these scenarios.
+  @override
+  Future<FootballFeatured?> featured() async => null;
+
   @override
   Future<FootballPage<FootballMatch>> matches(FootballView view, {String? competition}) async =>
       FootballPage(items: matchList, stale: false, unavailable: false, partial: false);
@@ -126,6 +130,10 @@ void main() {
     await tester.tap(find.text('Internacional'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
+    // SONIC_04: competitions live in the Navigation V4 bottom sheet.
+    await tester.tap(find.byKey(const ValueKey('competition_filter')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Copa Libertadores'), findsOneWidget);
     expect(find.text('Champions League'), findsNothing);
   });
@@ -176,10 +184,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('Resumen'), findsOneWidget);
-    expect(find.text('Alineaciones'), findsOneWidget);
+    expect(find.text('Alineación'), findsOneWidget);
     expect(find.text('Tribuna'), findsOneWidget);
     expect(find.text('Eventos'), findsNothing);
-    expect(find.text('Estadísticas'), findsNothing);
+    expect(find.text('Stats'), findsNothing);
     await tester.tap(find.text('Tribuna'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));

@@ -12,6 +12,7 @@ import 'package:garra_digital_app/features/football/data/garra_football_service.
 import 'package:garra_digital_app/features/football/presentation/centro_garra_page.dart';
 import 'package:go_router/go_router.dart';
 
+/// SONIC_04: updated for Navigation V4 / Card V3 / Detail V4 (tabs, Tribuna tab).
 class _Network extends ConnectivityStatusController {
   @override NetworkConnectivity build() => NetworkConnectivity.online;
   void offline() => state = NetworkConnectivity.offline;
@@ -25,9 +26,12 @@ class _Football extends GarraFootballService {
 
   @override
   Future<List<FootballCompetition>> competitions() async => const [
-    FootballCompetition(id: 'LIGA_1', name: 'Liga 1 Perú', available: true),
-    FootballCompetition(id: 'LIGA_2', name: 'Liga 2 Perú', available: false),
+    FootballCompetition(id: 'LIGA_1', name: 'Liga 1 Perú', available: true, region: 'PERU'),
+    FootballCompetition(id: 'LIGA_2', name: 'Liga 2 Perú', available: false, region: 'PERU'),
   ];
+
+  @override
+  Future<FootballFeatured?> featured() async => null;
 
   @override
   Future<FootballPage<FootballMatch>> matches(FootballView view, {String? competition}) async {
@@ -88,6 +92,17 @@ GoRouter _router(FootballMatch match) => GoRouter(initialLocation: '/centro-garr
   GoRoute(path: '/matchday/:id/polls', builder: (_, _) => const Scaffold(body: Text('TRIBUNA'))),
 ]);
 
+Future<void> _settle(WidgetTester tester, [int frames = 8]) async {
+  for (var i = 0; i < frames; i++) {
+    await tester.pump(const Duration(milliseconds: 60));
+  }
+}
+
+Future<void> _section(WidgetTester tester, String name) async {
+  await tester.tap(find.byKey(ValueKey('section_$name')));
+  await _settle(tester);
+}
+
 void main() {
   final match = FootballMatch(id: 123, competitionId: 'LIGA_1',
     competition: 'Liga 1 Perú', home: 'Universitario', away: 'Rival', status: 'LIVE',
@@ -115,20 +130,18 @@ void main() {
       connectivityStatusProvider.overrideWith(_Network.new),
       communityServiceProvider.overrideWithValue(_Community()),
     ], child: MaterialApp.router(routerConfig: router)));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(find.text('Centro Garra'), findsOneWidget);
-    expect(find.text('PROGRAMADO'), findsWidgets);
-    await tester.tap(find.text('En vivo'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('EN VIVO'), findsWidgets);
-    await tester.tap(find.text('Resultados'));
-    await tester.pumpAndSettle();
-    expect(find.text('2 : 1'), findsOneWidget);
-    await tester.tap(find.text('Próximos'));
-    await tester.pumpAndSettle();
-    expect(find.text('PROGRAMADO'), findsWidgets);
-    await tester.tap(find.text('Tabla'));
-    await tester.pumpAndSettle();
+    expect(find.text('20:00'), findsOneWidget);
+    await _section(tester, 'live');
+    expect(find.text('EN VIVO'), findsWidgets);
+    await _section(tester, 'results');
+    expect(tester.widget<Text>(find.byKey(const ValueKey('score_home_123'))).data, '2');
+    expect(tester.widget<Text>(find.byKey(const ValueKey('score_away_123'))).data, '1');
+    expect(find.text('FINAL'), findsOneWidget);
+    await _section(tester, 'upcoming');
+    expect(find.text('20:00'), findsOneWidget);
+    await _section(tester, 'standings');
     expect(find.text('10'), findsWidgets);
   });
 
@@ -144,13 +157,12 @@ void main() {
     addTearDown(router.dispose);
     await tester.pumpWidget(UncontrolledProviderScope(container: container,
       child: MaterialApp.router(routerConfig: router)));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(service.calls, 1);
     (container.read(connectivityStatusProvider.notifier) as _Network).offline();
     await tester.pump();
     expect(find.text('Universitario'), findsOneWidget);
-    await tester.tap(find.text('En vivo'));
-    await tester.pumpAndSettle();
+    await _section(tester, 'live');
     expect(service.calls, 1);
     expect(find.text('Sin conexión'), findsWidgets);
   });
@@ -166,17 +178,18 @@ void main() {
       connectivityStatusProvider.overrideWith(_Network.new),
       communityServiceProvider.overrideWithValue(_Community()),
     ], child: MaterialApp.router(routerConfig: router)));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(find.text('Competiciones por activar'), findsOneWidget);
     expect(find.text('Reintentar'), findsNothing);
     expect(service.calls, 0);
-    await tester.drag(find.byType(Scrollbar).first, const Offset(-280, 0));
-    await tester.pumpAndSettle();
-    expect(find.text('Resultados').hitTestable(), findsOneWidget);
+    // Second-level nav scrolls horizontally on narrow screens; nothing overflows.
+    await tester.drag(find.byKey(const ValueKey('section_today')), const Offset(-280, 0));
+    await _settle(tester);
+    expect(find.text('Tabla').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('detail stays useful without lineups or statistics and links Tribuna', (tester) async {
-    // SONIC_01: the Tribuna card now sits above the detail sections.
     await tester.binding.setSurfaceSize(const Size(800, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final service = _Football();
@@ -187,25 +200,27 @@ void main() {
       connectivityStatusProvider.overrideWith(_Network.new),
       communityServiceProvider.overrideWithValue(_Community()),
     ], child: MaterialApp.router(routerConfig: router)));
+    await _settle(tester);
     router.go('/centro-garra/partido/123');
-    await tester.pumpAndSettle();
-    expect(find.text('Tribuna del partido'), findsOneWidget);
+    await _settle(tester);
     expect(service.detailSections, [null]);
-    expect(find.text('Alineaciones'), findsOneWidget);
-    expect(find.text('Estadísticas'), findsOneWidget);
-    await tester.tap(find.text('Eventos'));
-    await tester.pumpAndSettle();
+    expect(find.widgetWithText(Tab, 'Alineación'), findsOneWidget);
+    expect(find.widgetWithText(Tab, 'Stats'), findsOneWidget);
+    await tester.tap(find.widgetWithText(Tab, 'Eventos'));
+    await _settle(tester);
     expect(service.detailSections, [null, 'EVENTS']);
     expect(find.text('Jugador'), findsOneWidget);
+    await tester.tap(find.widgetWithText(Tab, 'Tribuna'));
+    await _settle(tester);
+    expect(find.text('Tribuna del partido'), findsOneWidget);
     await tester.ensureVisible(find.text('Encuestas del partido'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     await tester.tap(find.text('Encuestas del partido'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(find.text('TRIBUNA'), findsOneWidget);
   });
 
   testWidgets('detail sections do not request provider data while offline', (tester) async {
-    // SONIC_01: the Tribuna card now sits above the detail sections.
     await tester.binding.setSurfaceSize(const Size(800, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final service = _Football();
@@ -219,13 +234,14 @@ void main() {
     addTearDown(router.dispose);
     await tester.pumpWidget(UncontrolledProviderScope(container: container,
       child: MaterialApp.router(routerConfig: router)));
+    await _settle(tester);
     router.go('/centro-garra/partido/123');
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(service.detailSections, [null]);
     (container.read(connectivityStatusProvider.notifier) as _Network).offline();
     await tester.pump();
-    await tester.tap(find.text('Estadísticas'));
-    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(Tab, 'Stats'));
+    await _settle(tester);
     expect(service.detailSections, [null]);
     expect(find.text('No pudimos cargar esta información'), findsOneWidget);
   });
@@ -241,10 +257,12 @@ void main() {
       connectivityStatusProvider.overrideWith(_Network.new),
       communityServiceProvider.overrideWithValue(_Community()),
     ], child: MaterialApp.router(routerConfig: router)));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(find.text('Fútbol temporalmente no disponible'), findsWidgets);
     router.go('/centro-garra/partido/123');
-    await tester.pumpAndSettle();
+    await _settle(tester);
+    await tester.tap(find.widgetWithText(Tab, 'Tribuna'));
+    await _settle(tester);
     expect(find.text('Aún no está vinculada a este partido'), findsOneWidget);
   });
 }
