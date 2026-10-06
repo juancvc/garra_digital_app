@@ -27,7 +27,6 @@ class FootballCompetition {
   final String id;
   final String name;
   final bool available;
-  /// PERU | CONMEBOL | EUROPE | NATIONAL_TEAMS | OTHER
   final String region;
   final String group;
   bool get isPeru => region == 'PERU';
@@ -44,9 +43,10 @@ class FootballCompetition {
 class FootballMatch {
   const FootballMatch({required this.id, required this.competitionId,
     required this.competition, required this.home, required this.away,
-    required this.status, this.kickoff, this.elapsed, this.homeScore,
-    this.awayScore, this.garraMatchId, this.round, this.homeId, this.awayId,
-    this.homeCrestUrl, this.awayCrestUrl, this.featured = false});
+    required this.status, this.kickoff, this.elapsed, this.elapsedExtra,
+    this.homeScore, this.awayScore, this.garraMatchId, this.round,
+    this.homeId, this.awayId, this.homeCrestUrl, this.awayCrestUrl,
+    this.featured = false});
   final int id;
   final String competitionId;
   final String competition;
@@ -55,6 +55,8 @@ class FootballMatch {
   final String status;
   final DateTime? kickoff;
   final int? elapsed;
+  /// Provider status.extra (injury time). Never invent a local chronometer.
+  final int? elapsedExtra;
   final int? homeScore;
   final int? awayScore;
   final String? garraMatchId;
@@ -63,7 +65,6 @@ class FootballMatch {
   final int? awayId;
   final String? homeCrestUrl;
   final String? awayCrestUrl;
-  /// Backend flags this when a team id matches FOOTBALL_FEATURED_TEAM_ID (never by name).
   final bool featured;
 
   factory FootballMatch.fromJson(Map<String, dynamic> json) {
@@ -82,6 +83,7 @@ class FootballMatch {
       status: json['status']?.toString() ?? 'UNKNOWN',
       kickoff: _limaKickoff(json['kickoff']),
       elapsed: (json['elapsed'] as num?)?.toInt(),
+      elapsedExtra: (json['elapsedExtra'] as num?)?.toInt(),
       homeScore: (json['homeScore'] as num?)?.toInt(),
       awayScore: (json['awayScore'] as num?)?.toInt(),
       garraMatchId: json['garraMatchId']?.toString(),
@@ -95,9 +97,8 @@ class FootballMatch {
   }.contains(status);
   bool get isFinished => status == 'FINISHED';
   bool get isScheduled => status == 'SCHEDULED';
+  bool get isPrematch => isScheduled || status == 'UNKNOWN';
 
-  /// Product round label: provider "Regular Season - 12" becomes "Fecha 12";
-  /// tournament names ("Apertura - 3") keep their own words.
   String? get roundLabel {
     final raw = round?.trim() ?? '';
     if (raw.isEmpty) return null;
@@ -109,20 +110,33 @@ class FootballMatch {
     return raw;
   }
 
-  String get statusLabel => switch (status) {
-    'LIVE' => elapsed == null ? 'EN VIVO' : "${elapsed!}′ EN VIVO",
-    'FIRST_HALF' => elapsed == null ? '1.º TIEMPO' : "${elapsed!}′ · 1.º TIEMPO",
-    'HALFTIME' => 'DESCANSO',
-    'SECOND_HALF' => elapsed == null ? '2.º TIEMPO' : "${elapsed!}′ · 2.º TIEMPO",
-    'EXTRA_TIME' => elapsed == null ? 'PRÓRROGA' : "${elapsed!}′ · PRÓRROGA",
-    'PENALTIES' => 'PENALES',
-    'SUSPENDED' => 'SUSPENDIDO',
-    'FINISHED' => 'FINALIZADO',
-    'POSTPONED' => 'POSTERGADO',
-    'CANCELLED' => 'CANCELADO',
-    'SCHEDULED' => 'PROGRAMADO',
-    _ => 'ESTADO POR CONFIRMAR',
-  };
+  /// Minute from provider only: 67' or 45+2'. Empty when no elapsed.
+  String? get liveMinuteLabel {
+    final e = elapsed;
+    if (e == null) return null;
+    final x = elapsedExtra;
+    if (x != null && x > 0) return "$e+$x′";
+    return "$e′";
+  }
+
+  /// SONIC_03: EN VIVO · 67' / DESCANSO / 1.º TIEMPO — never a local clock.
+  String get statusLabel {
+    final minute = liveMinuteLabel;
+    return switch (status) {
+      'LIVE' => minute == null ? 'EN VIVO' : 'EN VIVO · $minute',
+      'FIRST_HALF' => minute == null ? '1.º TIEMPO' : 'EN VIVO · $minute',
+      'HALFTIME' => 'DESCANSO',
+      'SECOND_HALF' => minute == null ? '2.º TIEMPO' : 'EN VIVO · $minute',
+      'EXTRA_TIME' => minute == null ? 'PRÓRROGA' : 'EN VIVO · $minute',
+      'PENALTIES' => 'PENALES',
+      'SUSPENDED' => 'SUSPENDIDO',
+      'FINISHED' => 'FINALIZADO',
+      'POSTPONED' => 'POSTERGADO',
+      'CANCELLED' => 'CANCELADO',
+      'SCHEDULED' => 'PROGRAMADO',
+      _ => 'ESTADO POR CONFIRMAR',
+    };
+  }
 }
 
 String? _crest(Object? raw) {
@@ -138,7 +152,6 @@ DateTime? _limaKickoff(Object? raw) {
   return parsed == null ? null : limaWallClock(parsed);
 }
 
-/// Spanish label for the Garra event kinds (never the raw code).
 String footballEventLabel(String? type, {String? detail}) {
   final d = detail?.toLowerCase() ?? '';
   return switch (type) {
@@ -152,8 +165,6 @@ String footballEventLabel(String? type, {String? detail}) {
   };
 }
 
-/// Spanish names for the statistics Garra receives from its data source;
-/// unknown names are shown as received (already human-readable text).
 String footballStatLabel(String? type) {
   const labels = {
     'shots on goal': 'Remates al arco',
@@ -179,19 +190,34 @@ String footballStatLabel(String? type) {
   return labels[raw.toLowerCase()] ?? (raw.isEmpty ? 'Dato' : raw);
 }
 
+/// Standing stages from provider \`group\` — never concatenate ranks.
+class FootballStandingStage {
+  const FootballStandingStage({required this.name, required this.rows});
+  final String name;
+  final List<Map<String, dynamic>> rows;
+
+  static List<FootballStandingStage> fromRows(List<Map<String, dynamic>> rows) {
+    final order = <String>[];
+    final map = <String, List<Map<String, dynamic>>>{};
+    for (final row in rows) {
+      final raw = row['group']?.toString().trim();
+      final key = (raw == null || raw.isEmpty) ? 'Tabla' : raw;
+      map.putIfAbsent(key, () {
+        order.add(key);
+        return <Map<String, dynamic>>[];
+      }).add(row);
+    }
+    return [for (final name in order) FootballStandingStage(name: name, rows: map[name]!)];
+  }
+}
+
 class FootballPage<T> {
   const FootballPage({required this.items, required this.stale,
     required this.unavailable, required this.partial, this.reason});
   final List<T> items;
   final bool stale;
-  /// Nothing could be loaded. Empty [items] with `unavailable == false` is a
-  /// valid empty answer (no matches today, no table yet), never an outage.
   final bool unavailable;
-  /// Some competitions failed; what is shown is still valid.
   final bool partial;
-  /// SONIC_01B: coarse backend layer when something failed or is stale
-  /// (CONFIG, CACHE, PROVIDER_BUSY, PROVIDER_COOLDOWN, BUDGET, PROVIDER,
-  /// INTERNAL). Diagnostics only: never shown to the user.
   final String? reason;
 
   factory FootballPage.fromJson(Map<String, dynamic> json, T Function(Map<String, dynamic>) parse) => FootballPage(

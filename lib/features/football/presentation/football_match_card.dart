@@ -12,11 +12,13 @@ DateFormat _fmt(String pattern) {
   }
 }
 
-/// SONIC_02 premium match row: competition · round, crests, score/time hero, truncated names.
+/// SONIC_03: competition/round → teams (2 lines, no forced …) → score/time → status.
 class FootballMatchCard extends StatelessWidget {
-  const FootballMatchCard({super.key, required this.match, required this.onTap});
+  const FootballMatchCard({super.key, required this.match, required this.onTap,
+    this.showCompetitionHeader = true});
   final FootballMatch match;
   final VoidCallback? onTap;
+  final bool showCompetitionHeader;
 
   @override
   Widget build(BuildContext context) {
@@ -37,8 +39,11 @@ class FootballMatchCard extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Expanded(
-                child: Text(competitionLine.isEmpty ? 'Competición' : competitionLine,
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                child: Text(
+                    showCompetitionHeader
+                        ? (competitionLine.isEmpty ? 'Competición' : competitionLine)
+                        : (match.roundLabel ?? ''),
+                    maxLines: 2,
                     style: text.labelMedium?.copyWith(
                         color: featured ? Theme.of(context).colorScheme.primary : null,
                         fontWeight: featured ? FontWeight.w800 : null)),
@@ -51,18 +56,17 @@ class FootballMatchCard extends StatelessWidget {
                 ),
               _StatusPill(match: match),
             ]),
-            const SizedBox(height: 12),
-            Row(children: [
+            const SizedBox(height: 10),
+            Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
               FootballTeamCrest(name: match.home, url: match.homeCrestUrl),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(match.home, maxLines: 1, overflow: TextOverflow.ellipsis,
+                child: Text(match.home, maxLines: 2,
                     style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
               ),
               _ScoreOrTime(match: match, live: live),
               Expanded(
-                child: Text(match.away, maxLines: 1, overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.end,
+                child: Text(match.away, maxLines: 2, textAlign: TextAlign.end,
                     style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
               ),
               const SizedBox(width: 10),

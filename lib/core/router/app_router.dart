@@ -14,6 +14,7 @@ import 'package:garra_digital_app/features/admin/presentation/admin_communities_
 import 'package:garra_digital_app/features/admin/presentation/admin_platform_users_page.dart';
 import 'package:garra_digital_app/features/explore/presentation/explore_page.dart';
 import 'package:garra_digital_app/features/football/presentation/centro_garra_page.dart';
+import 'package:garra_digital_app/features/football/presentation/chat_futbolero_page.dart';
 import 'package:garra_digital_app/features/football/data/garra_football_models.dart';
 import 'package:garra_digital_app/features/settings/presentation/appearance_settings_page.dart';
 import 'package:garra_digital_app/features/settings/presentation/settings_pages.dart';
@@ -356,6 +357,11 @@ List<RouteBase> _buildRoutes() => [
             name: 'centro-garra',
             builder: (context, state) => const CentroGarraPage(),
             routes: [
+              GoRoute(
+                path: 'chat-futbolero',
+                name: 'centro-garra-chat-futbolero',
+                builder: (context, state) => const ChatFutboleroPage(),
+              ),
               GoRoute(
                 path: 'partido/:fixtureId',
                 name: 'centro-garra-partido',
