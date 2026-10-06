@@ -22,14 +22,22 @@ extension FootballViewWire on FootballView {
 }
 
 class FootballCompetition {
-  const FootballCompetition({required this.id, required this.name, required this.available});
+  const FootballCompetition({required this.id, required this.name, required this.available,
+    this.region = 'OTHER', this.group = 'other'});
   final String id;
   final String name;
   final bool available;
+  /// PERU | CONMEBOL | EUROPE | NATIONAL_TEAMS | OTHER
+  final String region;
+  final String group;
+  bool get isPeru => region == 'PERU';
+  bool get isInternational => !isPeru;
   factory FootballCompetition.fromJson(Map<String, dynamic> json) => FootballCompetition(
     id: json['id']?.toString() ?? '',
     name: json['name']?.toString() ?? '',
     available: json['available'] == true,
+    region: json['region']?.toString() ?? 'OTHER',
+    group: json['group']?.toString() ?? 'other',
   );
 }
 
@@ -37,7 +45,8 @@ class FootballMatch {
   const FootballMatch({required this.id, required this.competitionId,
     required this.competition, required this.home, required this.away,
     required this.status, this.kickoff, this.elapsed, this.homeScore,
-    this.awayScore, this.garraMatchId, this.round});
+    this.awayScore, this.garraMatchId, this.round, this.homeId, this.awayId,
+    this.homeCrestUrl, this.awayCrestUrl, this.featured = false});
   final int id;
   final String competitionId;
   final String competition;
@@ -50,23 +59,40 @@ class FootballMatch {
   final int? awayScore;
   final String? garraMatchId;
   final String? round;
+  final int? homeId;
+  final int? awayId;
+  final String? homeCrestUrl;
+  final String? awayCrestUrl;
+  /// Backend flags this when a team id matches FOOTBALL_FEATURED_TEAM_ID (never by name).
+  final bool featured;
 
-  factory FootballMatch.fromJson(Map<String, dynamic> json) => FootballMatch(
-    id: (json['id'] as num?)?.toInt() ?? 0,
-    competitionId: json['competitionId']?.toString() ?? '',
-    competition: json['competition']?.toString() ?? '',
-    home: (json['home'] as Map?)?['name']?.toString() ?? 'Por confirmar',
-    away: (json['away'] as Map?)?['name']?.toString() ?? 'Por confirmar',
-    status: json['status']?.toString() ?? 'UNKNOWN',
-    kickoff: _limaKickoff(json['kickoff']),
-    elapsed: (json['elapsed'] as num?)?.toInt(),
-    homeScore: (json['homeScore'] as num?)?.toInt(),
-    awayScore: (json['awayScore'] as num?)?.toInt(),
-    garraMatchId: json['garraMatchId']?.toString(),
-    round: json['round']?.toString(),
-  );
+  factory FootballMatch.fromJson(Map<String, dynamic> json) {
+    final home = json['home'] as Map?;
+    final away = json['away'] as Map?;
+    return FootballMatch(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      competitionId: json['competitionId']?.toString() ?? '',
+      competition: json['competition']?.toString() ?? '',
+      home: home?['name']?.toString() ?? 'Por confirmar',
+      away: away?['name']?.toString() ?? 'Por confirmar',
+      homeId: (home?['id'] as num?)?.toInt(),
+      awayId: (away?['id'] as num?)?.toInt(),
+      homeCrestUrl: _crest(home?['crestUrl'] ?? home?['logoUrl']),
+      awayCrestUrl: _crest(away?['crestUrl'] ?? away?['logoUrl']),
+      status: json['status']?.toString() ?? 'UNKNOWN',
+      kickoff: _limaKickoff(json['kickoff']),
+      elapsed: (json['elapsed'] as num?)?.toInt(),
+      homeScore: (json['homeScore'] as num?)?.toInt(),
+      awayScore: (json['awayScore'] as num?)?.toInt(),
+      garraMatchId: json['garraMatchId']?.toString(),
+      round: json['round']?.toString(),
+      featured: json['featured'] == true,
+    );
+  }
 
-  bool get isLive => status == 'LIVE';
+  bool get isLive => const {
+    'LIVE', 'FIRST_HALF', 'HALFTIME', 'SECOND_HALF', 'EXTRA_TIME', 'PENALTIES', 'SUSPENDED',
+  }.contains(status);
   bool get isFinished => status == 'FINISHED';
   bool get isScheduled => status == 'SCHEDULED';
 
@@ -85,12 +111,26 @@ class FootballMatch {
 
   String get statusLabel => switch (status) {
     'LIVE' => elapsed == null ? 'EN VIVO' : "${elapsed!}′ EN VIVO",
+    'FIRST_HALF' => elapsed == null ? '1.º TIEMPO' : "${elapsed!}′ · 1.º TIEMPO",
+    'HALFTIME' => 'DESCANSO',
+    'SECOND_HALF' => elapsed == null ? '2.º TIEMPO' : "${elapsed!}′ · 2.º TIEMPO",
+    'EXTRA_TIME' => elapsed == null ? 'PRÓRROGA' : "${elapsed!}′ · PRÓRROGA",
+    'PENALTIES' => 'PENALES',
+    'SUSPENDED' => 'SUSPENDIDO',
     'FINISHED' => 'FINALIZADO',
     'POSTPONED' => 'POSTERGADO',
     'CANCELLED' => 'CANCELADO',
     'SCHEDULED' => 'PROGRAMADO',
     _ => 'ESTADO POR CONFIRMAR',
   };
+}
+
+String? _crest(Object? raw) {
+  final value = raw?.toString().trim() ?? '';
+  if (value.isEmpty) return null;
+  final uri = Uri.tryParse(value);
+  if (uri == null || (uri.scheme != 'https' && uri.scheme != 'http')) return null;
+  return value;
 }
 
 DateTime? _limaKickoff(Object? raw) {

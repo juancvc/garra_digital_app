@@ -8,6 +8,8 @@ import '../../../core/widgets/garra_states.dart';
 import '../data/football_diagnostics.dart';
 import '../data/garra_football_models.dart';
 import '../data/garra_football_service.dart';
+import 'football_match_card.dart';
+import 'football_team_crest.dart';
 import 'match_tribuna_section.dart';
 
 final garraFootballServiceProvider = Provider<GarraFootballService>((ref) => GarraFootballService());
@@ -20,6 +22,16 @@ DateFormat _footballFormat(String pattern) {
   } on Exception {
     return DateFormat(pattern);
   }
+}
+
+enum _Hub { forYou, peru, international }
+
+extension on _Hub {
+  String get label => switch (this) {
+    _Hub.forYou => 'Para ti',
+    _Hub.peru => 'Perú',
+    _Hub.international => 'Internacional',
+  };
 }
 
 enum _Section { today, live, upcoming, results, standings }
@@ -49,6 +61,7 @@ class CentroGarraPage extends ConsumerStatefulWidget {
 }
 
 class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
+  _Hub _hub = _Hub.forYou;
   _Section _section = _Section.today;
   String? _competition;
   List<FootballCompetition> _competitions = const [];
@@ -57,6 +70,7 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
   bool _loading = false;
   bool _failed = false;
   FootballFailureLayer? _failureLayer;
+  final _hubScroll = ScrollController();
   final _sectionScroll = ScrollController();
   final _competitionScroll = ScrollController();
   String get _pageKey => '${_section.name}:${_competition ?? 'ALL'}';
@@ -68,6 +82,7 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
 
   @override
   void dispose() {
+    _hubScroll.dispose();
     _sectionScroll.dispose();
     _competitionScroll.dispose();
     super.dispose();
@@ -77,6 +92,35 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _load(); });
+  }
+
+  List<FootballCompetition> get _hubCompetitions {
+    final available = _competitions.where((c) => c.available);
+    return switch (_hub) {
+      _Hub.peru => available.where((c) => c.isPeru).toList(),
+      _Hub.international => available.where((c) => c.isInternational).toList(),
+      _Hub.forYou => available.toList(),
+    };
+  }
+
+  /// PARA TI: featured (by backend team id) first; else live; else the section list.
+  List<FootballMatch> _visibleMatches(FootballPage<FootballMatch>? page) {
+    final items = page?.items ?? const <FootballMatch>[];
+    if (_hub != _Hub.forYou) return items;
+    final featured = items.where((m) => m.featured).toList();
+    if (featured.isNotEmpty) return featured;
+    final live = items.where((m) => m.isLive).toList();
+    return live.isNotEmpty ? live : items;
+  }
+
+  void _chooseHub(_Hub hub) {
+    if (_hub == hub) return;
+    setState(() {
+      _hub = hub;
+      _competition = null;
+      _failed = false;
+    });
+    if (!_hasCurrentContent) _load();
   }
 
   Future<void> _load({bool refresh = false}) async {
@@ -148,7 +192,16 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Centro Garra')),
       body: Column(children: [
-        SizedBox(height: 54, child: Scrollbar(controller: _sectionScroll,
+        SizedBox(height: 48, child: ListView(
+          controller: _hubScroll, scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(12, 4, 28, 0),
+          children: _Hub.values.map((hub) => Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(label: Text(hub.label),
+              selected: _hub == hub, onSelected: (_) => _chooseHub(hub)),
+          )).toList(),
+        )),
+        SizedBox(height: 50, child: Scrollbar(controller: _sectionScroll,
           thumbVisibility: true, child: ListView(
           controller: _sectionScroll,
           scrollDirection: Axis.horizontal,
@@ -159,7 +212,7 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
               selected: _section == section, onSelected: (_) => _choose(section)),
           )).toList(),
         ))),
-        if (_competitions.isNotEmpty)
+        if (_hub != _Hub.forYou && _hubCompetitions.isNotEmpty)
           SizedBox(height: 50, child: Scrollbar(controller: _competitionScroll,
             thumbVisibility: true, child: ListView(controller: _competitionScroll,
             scrollDirection: Axis.horizontal,
@@ -167,7 +220,7 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
               Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(
                 label: const Text('Todas'), selected: _competition == null,
                 onSelected: (_) { setState(() => _competition = null); _load(); })),
-              ..._competitions.map((c) => Padding(padding: const EdgeInsets.only(right: 8),
+              ..._hubCompetitions.map((c) => Padding(padding: const EdgeInsets.only(right: 8),
                 child: ChoiceChip(label: Text(c.name), selected: _competition == c.id,
                   onSelected: (_) { setState(() => _competition = c.id); _load(); }))),
             ]))),
@@ -214,21 +267,53 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
               : 'Esta competición todavía no publica su tabla.',
           retry: !offline && !unconfigured && outage);
       }
-      return RefreshIndicator(onRefresh: () => _load(refresh: true), child: ListView.builder(
-        itemCount: table.items.length, itemBuilder: (context, index) {
-          final row = table.items[index];
-          final played = row['played'];
-          final diff = row['goalDifference'];
-          final details = [
-            if ((row['group']?.toString() ?? '').isNotEmpty) row['group'].toString(),
-            if (played != null) 'PJ $played',
-            if (diff is num) 'DG ${diff > 0 ? '+' : ''}$diff',
-          ].join(' · ');
-          return ListTile(leading: Text('${row['rank'] ?? '–'}'),
-            title: Text(row['team']?.toString() ?? 'Equipo por confirmar'),
-            subtitle: details.isEmpty ? null : Text(details),
-            trailing: Text('${row['points'] ?? '–'} pts'));
-        }));
+      return RefreshIndicator(onRefresh: () => _load(refresh: true), child: ListView(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+            child: Row(children: [
+              SizedBox(width: 36, child: Text('POS', style: Theme.of(context).textTheme.labelSmall)),
+              const SizedBox(width: 40),
+              Expanded(child: Text('EQUIPO', style: Theme.of(context).textTheme.labelSmall)),
+              SizedBox(width: 36, child: Text('PJ', textAlign: TextAlign.center, style: Theme.of(context).textTheme.labelSmall)),
+              SizedBox(width: 44, child: Text('DG', textAlign: TextAlign.center, style: Theme.of(context).textTheme.labelSmall)),
+              SizedBox(width: 40, child: Text('PTS', textAlign: TextAlign.end, style: Theme.of(context).textTheme.labelSmall)),
+            ]),
+          ),
+          ...table.items.map((row) {
+            final featured = row['featured'] == true;
+            final played = row['played'];
+            final diff = row['goalDifference'];
+            final dg = diff is num ? '${diff > 0 ? '+' : ''}$diff' : '–';
+            return Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              decoration: BoxDecoration(
+                color: featured
+                    ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.08)
+                    : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(12),
+                border: featured
+                    ? Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.35))
+                    : null,
+              ),
+              child: Row(children: [
+                SizedBox(width: 36, child: Text('${row['rank'] ?? '–'}',
+                    style: const TextStyle(fontWeight: FontWeight.w800))),
+                FootballTeamCrest(name: row['team']?.toString() ?? '?', url: row['crestUrl']?.toString(), size: 28),
+                const SizedBox(width: 10),
+                Expanded(child: Text(row['team']?.toString() ?? 'Equipo',
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontWeight: featured ? FontWeight.w800 : FontWeight.w600))),
+                SizedBox(width: 36, child: Text('${played ?? '–'}', textAlign: TextAlign.center)),
+                SizedBox(width: 44, child: Text(dg, textAlign: TextAlign.center)),
+                SizedBox(width: 40, child: Text('${row['points'] ?? '–'}', textAlign: TextAlign.end,
+                    style: const TextStyle(fontWeight: FontWeight.w800))),
+              ]),
+            );
+          }),
+        ]));
     }
     if (page == null || page.items.isEmpty) {
       final unconfigured = _nothingConfigured || _selectedUnconfigured;
@@ -250,11 +335,20 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
             : emptyMessage,
         retry: !offline && !unconfigured && outage);
     }
+    final items = _visibleMatches(page);
+    if (items.isEmpty) {
+      return _notice(
+        _hub == _Hub.forYou ? 'Nada destacado por ahora' : 'No hay partidos aquí',
+        _hub == _Hub.forYou
+            ? 'Cuando tu equipo juegue o haya partidos en vivo, aparecerán aquí.'
+            : 'Prueba otra sección o competición.',
+        retry: false);
+    }
     return RefreshIndicator(onRefresh: () => _load(refresh: true), child: ListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(), itemCount: page.items.length,
-      itemBuilder: (context, index) => FootballMatchCard(match: page.items[index],
-        onTap: () => context.push('/centro-garra/partido/${page.items[index].id}?competition=${page.items[index].competitionId}',
-          extra: page.items[index])),
+      physics: const AlwaysScrollableScrollPhysics(), itemCount: items.length,
+      itemBuilder: (context, index) => FootballMatchCard(match: items[index],
+        onTap: () => context.push('/centro-garra/partido/${items[index].id}?competition=${items[index].competitionId}',
+          extra: items[index])),
     ));
   }
 
@@ -268,41 +362,6 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
             if (retry) TextButton(onPressed: _load, child: const Text('Reintentar')),
           ]))),
       ]);
-}
-
-class FootballMatchCard extends StatelessWidget {
-  const FootballMatchCard({super.key, required this.match, required this.onTap});
-  final FootballMatch match;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final live = match.status == 'LIVE';
-    return Card(margin: const EdgeInsets.fromLTRB(16, 5, 16, 7),
-      child: InkWell(borderRadius: BorderRadius.circular(12), onTap: onTap,
-        child: Padding(padding: const EdgeInsets.all(14), child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [Expanded(child: Text(match.competition,
-              style: Theme.of(context).textTheme.labelMedium)),
-              if (live) const Icon(Icons.circle, size: 8, color: Colors.red),
-              if (live) const SizedBox(width: 5),
-              Text(match.statusLabel, style: TextStyle(fontWeight: FontWeight.w700,
-                color: live ? Colors.red.shade700 : null))]),
-            const SizedBox(height: 10),
-            Row(children: [Expanded(child: Text(match.home, maxLines: 2,
-              overflow: TextOverflow.ellipsis, textAlign: TextAlign.start)),
-              Padding(padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(match.status == 'SCHEDULED' || match.homeScore == null || match.awayScore == null
-                  ? (match.kickoff == null ? '–' : _footballFormat('HH:mm').format(match.kickoff!))
-                  : '${match.homeScore} : ${match.awayScore}',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))),
-              Expanded(child: Text(match.away, maxLines: 2, overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.end))]),
-            if (match.kickoff != null) ...[const SizedBox(height: 8),
-              Text(_footballFormat('d MMM · HH:mm').format(match.kickoff!),
-                style: Theme.of(context).textTheme.bodySmall)],
-          ]))));
-  }
 }
 
 class CentroGarraMatchDetailPage extends ConsumerStatefulWidget {
@@ -433,12 +492,14 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
             padding: const EdgeInsets.all(8), child: Text(detail!.stale
               ? 'Datos guardados · pueden estar desactualizados'
               : 'Algunos datos del partido aún no están disponibles')),
+          const SizedBox(height: 4),
+          Text('Resumen', style: text.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          if (detail != null) _section('Eventos', 'EVENTS'),
+          if (detail != null) _section('Estadísticas', 'STATISTICS'),
+          if (detail != null) _section('Alineaciones', 'LINEUPS'),
           const SizedBox(height: 8),
           MatchTribunaSection(match: match),
-          const SizedBox(height: 8),
-          if (detail != null) _section('Momentos del partido', 'EVENTS'),
-          if (detail != null) _section('Alineaciones', 'LINEUPS'),
-          if (detail != null) _section('Estadísticas', 'STATISTICS'),
         ])));
   }
 
@@ -446,7 +507,9 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
   String _stateLine(FootballMatch match) {
     final kickoff = match.kickoff;
     return switch (match.status) {
-      'LIVE' => match.elapsed == null ? 'En vivo' : 'En vivo · ${match.elapsed}′',
+      'LIVE' || 'FIRST_HALF' || 'HALFTIME' || 'SECOND_HALF' || 'EXTRA_TIME' || 'PENALTIES' =>
+        match.statusLabel,
+      'SUSPENDED' => 'Partido suspendido',
       'FINISHED' => match.homeScore != null && match.awayScore != null
           ? 'Final · ${match.home} ${match.homeScore} - ${match.awayScore} ${match.away}'
           : 'Final del partido',

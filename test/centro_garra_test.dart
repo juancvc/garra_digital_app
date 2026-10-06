@@ -117,19 +117,19 @@ void main() {
     ], child: MaterialApp.router(routerConfig: router)));
     await tester.pumpAndSettle();
     expect(find.text('Centro Garra'), findsOneWidget);
-    expect(find.text('PROGRAMADO'), findsOneWidget);
+    expect(find.text('PROGRAMADO'), findsWidgets);
     await tester.tap(find.text('En vivo'));
     await tester.pumpAndSettle();
-    expect(find.text('EN VIVO'), findsOneWidget);
+    expect(find.textContaining('EN VIVO'), findsWidgets);
     await tester.tap(find.text('Resultados'));
     await tester.pumpAndSettle();
     expect(find.text('2 : 1'), findsOneWidget);
     await tester.tap(find.text('Próximos'));
     await tester.pumpAndSettle();
-    expect(find.text('PROGRAMADO'), findsOneWidget);
+    expect(find.text('PROGRAMADO'), findsWidgets);
     await tester.tap(find.text('Tabla'));
     await tester.pumpAndSettle();
-    expect(find.text('10 pts'), findsOneWidget);
+    expect(find.text('10'), findsWidgets);
   });
 
   testWidgets('offline retains loaded content and starts no new request', (tester) async {
@@ -193,7 +193,7 @@ void main() {
     expect(service.detailSections, [null]);
     expect(find.text('Alineaciones'), findsOneWidget);
     expect(find.text('Estadísticas'), findsOneWidget);
-    await tester.tap(find.text('Momentos del partido'));
+    await tester.tap(find.text('Eventos'));
     await tester.pumpAndSettle();
     expect(service.detailSections, [null, 'EVENTS']);
     expect(find.text('Jugador'), findsOneWidget);

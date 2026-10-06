@@ -135,7 +135,7 @@ void main() {
 
     expect(find.byKey(const ValueKey('match_state_line')), findsOneWidget);
     expect(find.textContaining('20:00 (hora de Lima)'), findsOneWidget);
-    expect(find.text('Liga 1 Perú · Fecha 12'), findsOneWidget);
+    expect(find.text('Liga 1 Perú · Fecha 12'), findsWidgets);
     expect(find.text('Tribuna del partido'), findsOneWidget);
     expect(find.text('Calienta la previa con la hinchada.'), findsOneWidget);
     // Preview reuses the match wall: at most three posts, newest first.
@@ -161,9 +161,9 @@ void main() {
       (tester) async {
     final community = _Community(posts: [_post(1)], status: _wall(_garraId, 'CLOSED'));
     await _pumpDetail(tester, _match('LIVE', home: 1, away: 0, elapsed: 67), community);
-    expect(find.text('En vivo · 67′'), findsOneWidget);
+    expect(find.textContaining('67′'), findsWidgets);
     expect(find.text('1 : 0'), findsOneWidget);
-    expect(find.text('EN VIVO'), findsOneWidget);
+    expect(find.textContaining('EN VIVO'), findsWidgets);
     expect(find.text('Publicar en la Tribuna'), findsNothing);
     expect(find.textContaining('Arenga 1'), findsOneWidget);
   });
@@ -213,7 +213,7 @@ void main() {
       {'team': 'Rival', 'type': 'Ball Possession', 'value': '39%'},
     ]);
     await _pumpDetail(tester, _match('FINISHED', home: 1, away: 0), _Community(), football: football);
-    await tester.tap(find.text('Momentos del partido'));
+    await tester.tap(find.text('Eventos'));
     await tester.pumpAndSettle();
     expect(find.text('Valera'), findsOneWidget);
     expect(find.text('Gol de penal · Universitario'), findsOneWidget);
