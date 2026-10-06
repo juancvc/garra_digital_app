@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/network/connectivity_status.dart';
 import '../../../core/widgets/garra_states.dart';
+import '../data/football_diagnostics.dart';
 import '../data/garra_football_models.dart';
 import '../data/garra_football_service.dart';
 import 'match_tribuna_section.dart';
@@ -55,6 +56,7 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
   final Map<String, FootballPage<Map<String, dynamic>>> _tables = {};
   bool _loading = false;
   bool _failed = false;
+  FootballFailureLayer? _failureLayer;
   final _sectionScroll = ScrollController();
   final _competitionScroll = ScrollController();
   String get _pageKey => '${_section.name}:${_competition ?? 'ALL'}';
@@ -101,13 +103,20 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
       }
       if (section == _Section.standings) {
         final id = competition ?? _competitions.where((c) => c.available).firstOrNull?.id;
-        if (id != null) _tables[id] = await service.standings(id);
+        if (id != null) {
+          final table = await service.standings(id);
+          logFootballAnswer('standings:$id', table);
+          _tables[id] = table;
+        }
       } else {
-        _pages[requestedKey] = await service.matches(section.view!, competition: competition);
+        final page = await service.matches(section.view!, competition: competition);
+        logFootballAnswer('matches:${section.view!.wire}:${competition ?? 'ALL'}', page);
+        _pages[requestedKey] = page;
       }
-      if (mounted) setState(() {});
-    } catch (_) {
-      if (mounted) setState(() => _failed = true);
+      if (mounted) setState(() => _failureLayer = null);
+    } catch (error) {
+      logFootballFailure('${section.name}:${competition ?? 'ALL'}', error);
+      if (mounted) setState(() { _failed = true; _failureLayer = footballFailureLayer(error); });
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -162,8 +171,10 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
                 child: ChoiceChip(label: Text(c.name), selected: _competition == c.id,
                   onSelected: (_) { setState(() => _competition = c.id); _load(); }))),
             ]))),
-        if ((page?.items.isNotEmpty == true || table?.items.isNotEmpty == true) &&
-            (offline || stale || partial || unavailable || _failed))
+        if (((page?.items.isNotEmpty == true || table?.items.isNotEmpty == true) &&
+            (offline || stale || partial || unavailable || _failed)) ||
+            (_section != _Section.standings && page != null && page.items.isEmpty &&
+                partial && !offline && !_failed))
           Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
             child: Text(offline ? 'Sin conexión · mostrando lo disponible' : _failed && _hasCurrentContent
               ? 'No pudimos actualizar · mostramos lo anterior' : stale
@@ -181,19 +192,27 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
       return const GarraHomeSkeleton();
     }
     if (_failed && !_hasCurrentContent) {
+      final network = _failureLayer == FootballFailureLayer.appNetwork;
       return _notice(
-        offline ? 'Sin conexión' : 'No pudimos cargar el fútbol',
-        offline ? 'Conéctate para consultar los partidos.' : 'Inténtalo de nuevo más tarde.',
+        offline ? 'Sin conexión' : network ? 'No pudimos conectar con Garra' : 'No pudimos cargar el fútbol',
+        offline ? 'Conéctate para consultar los partidos.'
+            : network ? 'La conexión tardó demasiado o se interrumpió. Inténtalo de nuevo.'
+            : 'Inténtalo de nuevo más tarde.',
         retry: !offline);
     }
     if (_section == _Section.standings) {
       if (table == null || table.items.isEmpty) {
+        final unconfigured = _nothingConfigured || _selectedUnconfigured;
+        // SONIC_01B: a competition without a published table is not an outage.
+        final outage = table?.unavailable == true;
         return _notice(
-          _nothingConfigured || _selectedUnconfigured ? 'Competiciones por activar' : 'Tabla no disponible',
-          _nothingConfigured || _selectedUnconfigured
+          unconfigured ? 'Competiciones por activar'
+              : outage ? 'Tabla temporalmente no disponible' : 'Tabla aún no disponible',
+          unconfigured
               ? 'Las tablas estarán aquí cuando las competiciones estén disponibles.'
-              : 'Selecciona otra competición o vuelve más tarde.',
-          retry: !offline && !_nothingConfigured && !_selectedUnconfigured && table?.unavailable == true);
+              : outage ? 'No pudimos traer la tabla. Inténtalo más tarde.'
+              : 'Esta competición todavía no publica su tabla.',
+          retry: !offline && !unconfigured && outage);
       }
       return RefreshIndicator(onRefresh: () => _load(refresh: true), child: ListView.builder(
         itemCount: table.items.length, itemBuilder: (context, index) {
@@ -212,14 +231,24 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
         }));
     }
     if (page == null || page.items.isEmpty) {
+      final unconfigured = _nothingConfigured || _selectedUnconfigured;
+      final outage = page?.unavailable == true;
+      // SONIC_01B: a valid empty answer has its own copy per section; only a
+      // real outage says the service is unavailable.
+      final (emptyTitle, emptyMessage) = switch (_section) {
+        _Section.live => ('Ningún partido en vivo ahora', 'Cuando empiece un partido lo verás aquí.'),
+        _Section.upcoming => ('Sin partidos próximos', 'No hay partidos en los próximos 7 días.'),
+        _Section.results => ('Sin resultados recientes', 'No hay resultados de los últimos 7 días.'),
+        _ => ('Sin partidos hoy', 'No hay partidos programados para hoy en estas competiciones.'),
+      };
       return _notice(
-        _nothingConfigured || _selectedUnconfigured ? 'Competiciones por activar'
-            : page?.unavailable == true ? 'Fútbol temporalmente no disponible' : 'No hay partidos aquí',
+        unconfigured ? 'Competiciones por activar'
+            : outage ? 'Fútbol temporalmente no disponible' : emptyTitle,
         offline ? 'Conéctate para consultar nuevos partidos.'
-            : _nothingConfigured || _selectedUnconfigured
-                ? 'Los partidos aparecerán cuando las competiciones estén disponibles.'
-                : 'Prueba otra sección o competición.',
-        retry: !offline && !_nothingConfigured && !_selectedUnconfigured && page?.unavailable == true);
+            : unconfigured ? 'Los partidos aparecerán cuando las competiciones estén disponibles.'
+            : outage ? 'No pudimos traer los partidos. Inténtalo más tarde.'
+            : emptyMessage,
+        retry: !offline && !unconfigured && outage);
     }
     return RefreshIndicator(onRefresh: () => _load(refresh: true), child: ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(), itemCount: page.items.length,
@@ -304,7 +333,10 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
     try {
       final result = await ref.read(garraFootballServiceProvider).detail(widget.match);
       if (mounted) setState(() { _detail = result; _failed = result == null; });
-    } catch (_) { if (mounted) setState(() => _failed = true); }
+    } catch (error) {
+      logFootballFailure('detail', error);
+      if (mounted) setState(() => _failed = true);
+    }
     finally { if (mounted) setState(() => _loading = false); }
   }
 
@@ -330,7 +362,8 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
           _sections[section] = items;
         }
       });
-    } catch (_) {
+    } catch (error) {
+      logFootballFailure('detail:$section', error);
       if (mounted) setState(() => _sectionFailed.add(section));
     } finally {
       if (mounted) setState(() => _sectionLoading.remove(section));

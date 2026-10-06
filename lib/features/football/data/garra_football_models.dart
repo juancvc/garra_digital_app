@@ -141,11 +141,18 @@ String footballStatLabel(String? type) {
 
 class FootballPage<T> {
   const FootballPage({required this.items, required this.stale,
-    required this.unavailable, required this.partial});
+    required this.unavailable, required this.partial, this.reason});
   final List<T> items;
   final bool stale;
+  /// Nothing could be loaded. Empty [items] with `unavailable == false` is a
+  /// valid empty answer (no matches today, no table yet), never an outage.
   final bool unavailable;
+  /// Some competitions failed; what is shown is still valid.
   final bool partial;
+  /// SONIC_01B: coarse backend layer when something failed or is stale
+  /// (CONFIG, CACHE, PROVIDER_BUSY, PROVIDER_COOLDOWN, BUDGET, PROVIDER,
+  /// INTERNAL). Diagnostics only: never shown to the user.
+  final String? reason;
 
   factory FootballPage.fromJson(Map<String, dynamic> json, T Function(Map<String, dynamic>) parse) => FootballPage(
     items: ((json['items'] as List?) ?? const [])
@@ -153,6 +160,7 @@ class FootballPage<T> {
     stale: json['stale'] == true,
     unavailable: json['unavailable'] == true,
     partial: json['partial'] == true,
+    reason: json['reason'] is String ? json['reason'] as String : null,
   );
 }
 
