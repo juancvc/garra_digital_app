@@ -20,6 +20,7 @@ class CremaPointModel {
     this.phone,
     this.whatsapp,
     this.category,
+    this.coverImageUrl,
   });
 
   final String id;
@@ -42,6 +43,9 @@ class CremaPointModel {
   final String? phone;
   final String? whatsapp;
   final String? category;
+
+  /// SONIC_01: business cover photo, null when the business has none.
+  final String? coverImageUrl;
 
   factory CremaPointModel.fromJson(Map<String, dynamic> json) {
     return CremaPointModel(
@@ -66,6 +70,9 @@ class CremaPointModel {
       phone: json['phone']?.toString(),
       whatsapp: json['whatsapp']?.toString(),
       category: json['category']?.toString(),
+      coverImageUrl: (json['coverImageUrl']?.toString().trim().isEmpty ?? true)
+          ? null
+          : json['coverImageUrl'].toString().trim(),
     );
   }
 }

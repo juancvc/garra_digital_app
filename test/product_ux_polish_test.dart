@@ -171,7 +171,7 @@ void main() {
       MaterialApp(theme: AppTheme.darkTheme, home: const NegociosCremasPage()),
     );
     expect(find.text('Negocios Cremas'), findsOneWidget);
-    expect(find.text('Mi negocio'), findsOneWidget);
+    expect(find.text('Mis negocios'), findsOneWidget);
     expect(find.text('Ruta al Templo'), findsNothing);
     expect(find.text('Consultar por chat'), findsNothing);
   });

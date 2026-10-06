@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garra_digital_app/core/network/connectivity_status.dart';
+import 'package:garra_digital_app/features/community/data/community_service.dart';
+import 'package:garra_digital_app/features/community/data/wall_post_model.dart';
+import 'package:garra_digital_app/features/community/data/wall_status_model.dart';
+import 'package:garra_digital_app/features/community/presentation/providers/community_provider.dart';
 import 'package:garra_digital_app/features/football/data/garra_football_models.dart';
 import 'package:garra_digital_app/features/football/data/garra_football_service.dart';
 import 'package:garra_digital_app/features/football/presentation/centro_garra_page.dart';
@@ -60,6 +64,15 @@ class _Football extends GarraFootballService {
   }
 }
 
+/// SONIC_01: the detail embeds the match Tribuna; never hit the network.
+class _Community extends CommunityService {
+  _Community() : super(dio: Dio());
+  @override
+  Future<WallStatusModel?> getCurrentWallStatus() async => null;
+  @override
+  Future<List<WallPostModel>> getPosts({required String matchId, String? locationTag}) async => const [];
+}
+
 class _UnconfiguredFootball extends _Football {
   @override
   Future<List<FootballCompetition>> competitions() async => const [
@@ -80,7 +93,7 @@ void main() {
     competition: 'Liga 1 Perú', home: 'Universitario', away: 'Rival', status: 'LIVE',
     garraMatchId: '11111111-1111-1111-1111-111111111111');
 
-  test('match model tolerates missing fields and normalizes kickoff to device time', () {
+  test('match model tolerates missing fields and shows kickoff in Lima time', () {
     final parsed = FootballMatch.fromJson({
       'id': 9, 'competitionId': 'LIGA_1', 'status': 'SCHEDULED',
       'kickoff': '2026-10-03T01:00:00Z',
@@ -88,6 +101,8 @@ void main() {
     expect(parsed.home, 'Por confirmar');
     expect(parsed.awayScore, isNull);
     expect(parsed.kickoff?.isUtc, isFalse);
+    // 01:00Z is 20:00 of the previous day in America/Lima (UTC-5, no DST).
+    expect(parsed.kickoff, DateTime(2026, 10, 2, 20));
     expect(parsed.statusLabel, 'PROGRAMADO');
   });
 
@@ -98,6 +113,7 @@ void main() {
     await tester.pumpWidget(ProviderScope(overrides: [
       garraFootballServiceProvider.overrideWithValue(service),
       connectivityStatusProvider.overrideWith(_Network.new),
+      communityServiceProvider.overrideWithValue(_Community()),
     ], child: MaterialApp.router(routerConfig: router)));
     await tester.pumpAndSettle();
     expect(find.text('Centro Garra'), findsOneWidget);
@@ -121,6 +137,7 @@ void main() {
     final container = ProviderContainer(overrides: [
       garraFootballServiceProvider.overrideWithValue(service),
       connectivityStatusProvider.overrideWith(_Network.new),
+      communityServiceProvider.overrideWithValue(_Community()),
     ]);
     addTearDown(container.dispose);
     final router = _router(match);
@@ -147,6 +164,7 @@ void main() {
     await tester.pumpWidget(ProviderScope(overrides: [
       garraFootballServiceProvider.overrideWithValue(service),
       connectivityStatusProvider.overrideWith(_Network.new),
+      communityServiceProvider.overrideWithValue(_Community()),
     ], child: MaterialApp.router(routerConfig: router)));
     await tester.pumpAndSettle();
     expect(find.text('Competiciones por activar'), findsOneWidget);
@@ -158,16 +176,20 @@ void main() {
   });
 
   testWidgets('detail stays useful without lineups or statistics and links Tribuna', (tester) async {
+    // SONIC_01: the Tribuna card now sits above the detail sections.
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     final service = _Football();
     final router = _router(match);
     addTearDown(router.dispose);
     await tester.pumpWidget(ProviderScope(overrides: [
       garraFootballServiceProvider.overrideWithValue(service),
       connectivityStatusProvider.overrideWith(_Network.new),
+      communityServiceProvider.overrideWithValue(_Community()),
     ], child: MaterialApp.router(routerConfig: router)));
     router.go('/centro-garra/partido/123');
     await tester.pumpAndSettle();
-    expect(find.text('Entrar a Tribuna Garra'), findsOneWidget);
+    expect(find.text('Tribuna del partido'), findsOneWidget);
     expect(service.detailSections, [null]);
     expect(find.text('Alineaciones'), findsOneWidget);
     expect(find.text('Estadísticas'), findsOneWidget);
@@ -175,16 +197,22 @@ void main() {
     await tester.pumpAndSettle();
     expect(service.detailSections, [null, 'EVENTS']);
     expect(find.text('Jugador'), findsOneWidget);
-    await tester.tap(find.text('Entrar a Tribuna Garra'));
+    await tester.ensureVisible(find.text('Encuestas del partido'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Encuestas del partido'));
     await tester.pumpAndSettle();
     expect(find.text('TRIBUNA'), findsOneWidget);
   });
 
   testWidgets('detail sections do not request provider data while offline', (tester) async {
+    // SONIC_01: the Tribuna card now sits above the detail sections.
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     final service = _Football();
     final container = ProviderContainer(overrides: [
       garraFootballServiceProvider.overrideWithValue(service),
       connectivityStatusProvider.overrideWith(_Network.new),
+      communityServiceProvider.overrideWithValue(_Community()),
     ]);
     addTearDown(container.dispose);
     final router = _router(match);
@@ -211,6 +239,7 @@ void main() {
     await tester.pumpWidget(ProviderScope(overrides: [
       garraFootballServiceProvider.overrideWithValue(service),
       connectivityStatusProvider.overrideWith(_Network.new),
+      communityServiceProvider.overrideWithValue(_Community()),
     ], child: MaterialApp.router(routerConfig: router)));
     await tester.pumpAndSettle();
     expect(find.text('Fútbol temporalmente no disponible'), findsWidgets);

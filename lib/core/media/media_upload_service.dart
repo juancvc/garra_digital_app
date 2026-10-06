@@ -16,6 +16,9 @@ enum MediaUploadPurpose {
   communityPost('COMMUNITY_POST'),
   profileAvatar('PROFILE_AVATAR'),
   solidarity('SOLIDARITY_EVIDENCE'),
+  // SONIC_01: business images (offer image, business cover photo) share the
+  // backend purpose BUSINESS_OFFER, validated server-side like offers.
+  businessMedia('BUSINESS_OFFER'),
   chatImage('CHAT_IMAGE'),
   chatAudio('CHAT_AUDIO');
 

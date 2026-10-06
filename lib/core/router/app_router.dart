@@ -35,6 +35,7 @@ import 'package:garra_digital_app/features/locations/presentation/business_offer
 import 'package:garra_digital_app/features/locations/presentation/mi_negocio_crema_page.dart';
 import 'package:garra_digital_app/features/locations/presentation/negocios_cremas_page.dart';
 import 'package:garra_digital_app/features/locations/presentation/pick_business_location_page.dart';
+import 'package:garra_digital_app/features/locations/presentation/mi_negocio_activo_page.dart';
 import 'package:garra_digital_app/features/locations/data/crema_business_application_service.dart';
 import 'package:garra_digital_app/features/history/presentation/history_page.dart';
 import 'package:garra_digital_app/features/history/presentation/year_recap_page.dart';
@@ -250,6 +251,17 @@ List<RouteBase> _buildRoutes() => [
           : null;
       return RegistrarNegocioCremaPage(existing: existing);
     },
+  ),
+  // SONIC_01: owner's page for an approved business ("Mis negocios").
+  GoRoute(
+    path: '/negocios/mi-negocio/activo/:applicationId',
+    name: 'mi-negocio-activo',
+    builder: (context, state) => MiNegocioActivoPage(
+      applicationId: state.pathParameters['applicationId'] ?? '',
+      initial: state.extra is CremaBusinessApplication
+          ? state.extra as CremaBusinessApplication
+          : null,
+    ),
   ),
   GoRoute(
     path: '/negocios/mi-negocio/ubicacion',
@@ -613,7 +625,8 @@ List<RouteBase> _buildRoutes() => [
   GoRoute(
     path: '/muro-crema',
     name: 'muro-crema',
-    builder: (context, state) => const MuroCremaPage(),
+    builder: (context, state) =>
+        MuroCremaPage(matchId: state.uri.queryParameters['matchId']),
   ),
   GoRoute(
     path: '/muro-crema/compose',

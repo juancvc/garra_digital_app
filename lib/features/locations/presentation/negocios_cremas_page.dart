@@ -8,6 +8,10 @@ import '../data/location_service.dart';
 import '../data/business_social_links.dart';
 import '../data/business_map_links.dart';
 import '../../marketplace/data/marketplace_url_launcher.dart';
+import '../../../core/widgets/garra_cached_network_image.dart';
+import '../../community/presentation/widgets/garra_post_media_grid.dart'
+    show openGarraMediaViewer;
+import 'mi_negocio_crema_page.dart' show BusinessCoverThumb;
 
 /// Registered crema businesses. Separate from Marketplace listings and from
 /// the stadium route.
@@ -40,8 +44,8 @@ class NegociosCremasPage extends StatelessWidget {
           ),
           _Action(
             icon: Icons.add_business_outlined,
-            title: 'Mi negocio',
-            subtitle: 'Registra o administra tu negocio',
+            title: 'Mis negocios',
+            subtitle: 'Tus solicitudes y tus negocios aprobados',
             onTap: () => context.push('/negocios/mi-negocio'),
           ),
         ],
@@ -257,6 +261,10 @@ class _BusinessCard extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  if ((point.coverImageUrl ?? '').isNotEmpty) ...[
+                    BusinessCoverThumb(url: point.coverImageUrl, size: 44),
+                    const SizedBox(width: GarraSpacing.md),
+                  ],
                   Expanded(
                     child: Text(
                       point.name,
@@ -410,6 +418,23 @@ class _NegocioCremaDetailPageState extends State<NegocioCremaDetailPage> {
           : ListView(
               padding: const EdgeInsets.all(GarraSpacing.lg),
               children: [
+                if ((point.coverImageUrl ?? '').isNotEmpty) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: GestureDetector(
+                        onTap: () =>
+                            openGarraMediaViewer(context, [point.coverImageUrl!]),
+                        child: GarraCachedNetworkImage(
+                          imageUrl: point.coverImageUrl!,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 Text(
                   point.name,
                   style: Theme.of(context).textTheme.headlineSmall,

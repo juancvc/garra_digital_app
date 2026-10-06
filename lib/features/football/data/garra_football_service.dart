@@ -15,11 +15,12 @@ class GarraFootballService {
   }
 
   Future<FootballPage<FootballMatch>> matches(FootballView view, {String? competition}) async {
-    final now = DateTime.now();
+    // SONIC_01: "today" is the Lima day, whatever the device time zone.
+    final now = limaWallClock(DateTime.now());
     final response = await _dio.get('/football/matches', queryParameters: {
       'view': view.wire,
       'date': '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
-      'offsetMinutes': now.timeZoneOffset.inMinutes,
+      'offsetMinutes': limaUtcOffset.inMinutes,
       'competition': ?competition,
     });
     return FootballPage.fromJson(response.data['data'] as Map<String, dynamic>, FootballMatch.fromJson);

@@ -4,22 +4,31 @@ import 'package:go_router/go_router.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_form.dart';
+import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/widgets/garra_cached_network_image.dart';
+import '../../../core/widgets/garra_states.dart';
 import '../data/crema_business_application_service.dart';
 import '../data/business_social_links.dart';
 
+/// SONIC_01: "Mis negocios". Approved businesses (verified, with their Crema
+/// point) live in "Negocios activos" and open the owner's business page;
+/// drafts, pending and rejected applications live in "Solicitudes".
 class MiNegocioCremaPage extends StatefulWidget {
-  const MiNegocioCremaPage({super.key});
+  const MiNegocioCremaPage({super.key, this.service});
+
+  final CremaBusinessApplicationService? service;
 
   @override
   State<MiNegocioCremaPage> createState() => _MiNegocioCremaPageState();
 }
 
 class _MiNegocioCremaPageState extends State<MiNegocioCremaPage> {
-  final _service = CremaBusinessApplicationService();
+  late final CremaBusinessApplicationService _service =
+      widget.service ?? CremaBusinessApplicationService();
   List<CremaBusinessApplication> _items = const [];
   bool _loading = true;
-  String? _error;
+  bool _failed = false;
 
   @override
   void initState() {
@@ -29,8 +38,8 @@ class _MiNegocioCremaPageState extends State<MiNegocioCremaPage> {
 
   Future<void> _load() async {
     setState(() {
-      _loading = true;
-      _error = null;
+      _loading = _items.isEmpty;
+      _failed = false;
     });
     try {
       final items = await _service.listMine();
@@ -43,102 +52,326 @@ class _MiNegocioCremaPageState extends State<MiNegocioCremaPage> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'No pudimos cargar tus solicitudes';
+        _failed = true;
       });
     }
   }
 
+  Future<void> _register([CremaBusinessApplication? existing]) async {
+    final ok = await context.push<bool>(
+      '/negocios/mi-negocio/nuevo',
+      extra: existing,
+    );
+    if (ok == true || existing != null) _load();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final active = _items.where((a) => a.isApprovedBusiness).toList();
+    final requests = _items.where((a) => !a.isApprovedBusiness).toList();
     return Scaffold(
-      appBar: AppBar(title: const Text('Mi Negocio Crema')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final ok = await context.push<bool>('/negocios/mi-negocio/nuevo');
-          if (ok == true) _load();
-        },
-        backgroundColor: const Color(GarraColors.garnet),
-        foregroundColor: const Color(GarraColors.cream),
-        label: const Text('Registrar mi negocio'),
-        icon: const Icon(Icons.add_business_outlined),
-      ),
+      appBar: AppBar(title: const Text('Mis negocios')),
+      floatingActionButton: _loading || (_failed && _items.isEmpty)
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _register(),
+              backgroundColor: const Color(GarraColors.garnet),
+              foregroundColor: const Color(GarraColors.cream),
+              label: const Text('Registrar negocio'),
+              icon: const Icon(Icons.add_business_outlined),
+            ),
       body: _loading
           ? Center(
               child: CircularProgressIndicator(
                 color: context.garraColors.brandPrestige,
               ),
             )
-          : _error != null
-          ? Center(child: Text(_error!))
-          : _items.isEmpty
-          ? const Padding(
-              padding: EdgeInsets.all(GarraSpacing.xl),
-              child: Text(
-                '¿Tienes un negocio?\nRegístralo para aparecer en Puntos Crema tras revisión de Garra.',
-                textAlign: TextAlign.center,
-              ),
+          : _failed && _items.isEmpty
+          ? GarraErrorState(
+              title: 'No pudimos cargar tus negocios',
+              onRetry: _load,
             )
-          : ListView.separated(
-              padding: const EdgeInsets.all(GarraSpacing.lg),
-              itemCount: _items.length,
-              separatorBuilder: (_, _) =>
-                  const SizedBox(height: GarraSpacing.md),
-              itemBuilder: (context, i) {
-                final item = _items[i];
-                return Material(
-                  color: context.garraColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(GarraSpacing.md),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+          : _items.isEmpty
+          ? GarraEmptyState(
+              title: '¿Tienes un negocio?',
+              message:
+                  'Regístralo para aparecer en Negocios Crema tras la revisión de Garra.',
+              actionLabel: 'Registrar mi negocio',
+              onAction: () => _register(),
+            )
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(
+                  GarraSpacing.lg,
+                  GarraSpacing.lg,
+                  GarraSpacing.lg,
+                  96,
+                ),
+                children: [
+                  if (_failed)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: GarraSpacing.md),
+                      child: Text(
+                        'No pudimos actualizar · mostramos lo anterior',
+                      ),
+                    ),
+                  if (active.isNotEmpty) ...[
+                    const _SectionTitle('NEGOCIOS ACTIVOS'),
+                    for (final item in active)
+                      _ActiveBusinessCard(
+                        item: item,
+                        onTap: () async {
+                          await context.push(
+                            '/negocios/mi-negocio/activo/${item.id}',
+                            extra: item,
+                          );
+                          if (mounted) _load();
+                        },
+                      ),
+                  ],
+                  if (requests.isNotEmpty) ...[
+                    if (active.isNotEmpty)
+                      const SizedBox(height: GarraSpacing.lg),
+                    const _SectionTitle('SOLICITUDES'),
+                    for (final item in requests)
+                      _RequestCard(
+                        item: item,
+                        onFix: () => _register(item),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
+    child: Text(
+      text,
+      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+        color: context.garraColors.brandPrestige,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.6,
+      ),
+    ),
+  );
+}
+
+/// "Activo · Verificado por Garra" (or the honest hidden state when Garra
+/// paused the point). Shared by the list and the owner business page.
+class BusinessOwnerStatusChip extends StatelessWidget {
+  const BusinessOwnerStatusChip({super.key, required this.item});
+  final CremaBusinessApplication item;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.garraColors;
+    final visible = item.isPubliclyVisible;
+    final color = visible ? colors.success : colors.warning;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(GarraRadius.pill),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            visible ? Icons.verified_rounded : Icons.visibility_off_outlined,
+            size: 15,
+            color: color,
+          ),
+          const SizedBox(width: 5),
+          // Flexible: wraps instead of overflowing on narrow screens / large
+          // text scale.
+          Flexible(
+            child: Text(
+              visible
+                  ? 'Activo · Verificado por Garra'
+                  : 'Verificado · no visible por ahora',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Cover photo or a neutral storefront fallback (businesses without photo
+/// keep working, e.g. older records).
+class BusinessCoverThumb extends StatelessWidget {
+  const BusinessCoverThumb({super.key, required this.url, this.size = 56});
+  final String? url;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.garraColors;
+    final fallback = ColoredBox(
+      color: colors.surfaceMuted,
+      child: Center(
+        child: Icon(
+          Icons.storefront_outlined,
+          color: colors.textSecondary,
+          size: size * 0.5,
+        ),
+      ),
+    );
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(GarraRadius.sm),
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: (url ?? '').isEmpty
+            ? fallback
+            : GarraCachedNetworkImage(
+                imageUrl: url!,
+                fit: BoxFit.cover,
+                errorWidget: fallback,
+              ),
+      ),
+    );
+  }
+}
+
+class _ActiveBusinessCard extends StatelessWidget {
+  const _ActiveBusinessCard({required this.item, required this.onTap});
+  final CremaBusinessApplication item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.garraColors;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: GarraSpacing.md),
+      child: Material(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(GarraRadius.sm),
+        child: InkWell(
+          key: ValueKey('active_business_${item.id}'),
+          borderRadius: BorderRadius.circular(GarraRadius.sm),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(GarraSpacing.md),
+            child: Row(
+              children: [
+                BusinessCoverThumb(url: item.coverImageUrl),
+                const SizedBox(width: GarraSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.businessName,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      if (item.category.isNotEmpty)
                         Text(
-                          item.businessName,
-                          style: Theme.of(context).textTheme.titleMedium,
+                          item.category,
+                          style: TextStyle(color: colors.textSecondary),
                         ),
-                        const SizedBox(height: 4),
-                        Text(item.status.label),
-                        if (item.status ==
-                            CremaBusinessApplicationStatus.verified)
-                          Padding(
-                            padding: EdgeInsets.only(top: 6),
-                            child: Text(
-                              '✓ Verificado por Garra',
-                              style: TextStyle(
-                                color: context.garraColors.brandPrestige,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        if (item.rejectionReason != null) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            item.rejectionReason!,
-                            style: const TextStyle(
-                              color: Color(GarraColors.danger),
-                            ),
-                          ),
-                        ],
-                        if (item.status ==
-                                CremaBusinessApplicationStatus.rejected ||
-                            item.status == CremaBusinessApplicationStatus.draft)
-                          TextButton(
-                            onPressed: () async {
-                              await context.push(
-                                '/negocios/mi-negocio/nuevo',
-                                extra: item,
-                              );
-                              _load();
-                            },
-                            child: const Text('Corregir / reenviar'),
-                          ),
-                      ],
+                      const SizedBox(height: 6),
+                      BusinessOwnerStatusChip(item: item),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: colors.textSecondary),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RequestCard extends StatelessWidget {
+  const _RequestCard({required this.item, required this.onFix});
+  final CremaBusinessApplication item;
+  final VoidCallback onFix;
+
+  String get _hint => switch (item.status) {
+    CremaBusinessApplicationStatus.pending =>
+      'Garra está revisando tu solicitud. Te avisaremos cuando termine.',
+    CremaBusinessApplicationStatus.draft =>
+      'Aún no la envías a revisión.',
+    CremaBusinessApplicationStatus.rejected =>
+      'Corrige los datos y vuelve a enviarla.',
+    CremaBusinessApplicationStatus.verified =>
+      'Verificado por Garra.',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.garraColors;
+    final rejected = item.status == CremaBusinessApplicationStatus.rejected;
+    final canFix = rejected || item.status == CremaBusinessApplicationStatus.draft;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: GarraSpacing.md),
+      child: Material(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(GarraRadius.sm),
+        child: Padding(
+          padding: const EdgeInsets.all(GarraSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.businessName,
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
-                );
-              },
-            ),
+                  Text(
+                    item.status == CremaBusinessApplicationStatus.rejected
+                        ? 'Rechazada'
+                        : item.status.label,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: rejected ? colors.danger : colors.brandPrestige,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(_hint, style: TextStyle(color: colors.textSecondary)),
+              if (rejected && (item.rejectionReason ?? '').trim().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Motivo: ${item.rejectionReason!.trim()}',
+                  style: TextStyle(color: colors.danger),
+                ),
+              ],
+              if (canFix)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: onFix,
+                    child: Text(rejected ? 'Corregir y reenviar' : 'Completar y enviar'),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

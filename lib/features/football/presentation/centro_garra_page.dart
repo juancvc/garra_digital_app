@@ -7,8 +7,19 @@ import '../../../core/network/connectivity_status.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../data/garra_football_models.dart';
 import '../data/garra_football_service.dart';
+import 'match_tribuna_section.dart';
 
 final garraFootballServiceProvider = Provider<GarraFootballService>((ref) => GarraFootballService());
+
+/// SONIC_01: Spanish (es_PE) dates like the rest of the app; falls back to the
+/// default locale when es_PE data is not initialized (isolated widget tests).
+DateFormat _footballFormat(String pattern) {
+  try {
+    return DateFormat(pattern, 'es_PE');
+  } on Exception {
+    return DateFormat(pattern);
+  }
+}
 
 enum _Section { today, live, upcoming, results, standings }
 
@@ -187,9 +198,16 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage> {
       return RefreshIndicator(onRefresh: () => _load(refresh: true), child: ListView.builder(
         itemCount: table.items.length, itemBuilder: (context, index) {
           final row = table.items[index];
+          final played = row['played'];
+          final diff = row['goalDifference'];
+          final details = [
+            if ((row['group']?.toString() ?? '').isNotEmpty) row['group'].toString(),
+            if (played != null) 'PJ $played',
+            if (diff is num) 'DG ${diff > 0 ? '+' : ''}$diff',
+          ].join(' · ');
           return ListTile(leading: Text('${row['rank'] ?? '–'}'),
             title: Text(row['team']?.toString() ?? 'Equipo por confirmar'),
-            subtitle: Text(row['group']?.toString() ?? ''),
+            subtitle: details.isEmpty ? null : Text(details),
             trailing: Text('${row['points'] ?? '–'} pts'));
         }));
     }
@@ -246,13 +264,13 @@ class FootballMatchCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis, textAlign: TextAlign.start)),
               Padding(padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Text(match.status == 'SCHEDULED' || match.homeScore == null || match.awayScore == null
-                  ? (match.kickoff == null ? '–' : DateFormat.Hm().format(match.kickoff!))
+                  ? (match.kickoff == null ? '–' : _footballFormat('HH:mm').format(match.kickoff!))
                   : '${match.homeScore} : ${match.awayScore}',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))),
               Expanded(child: Text(match.away, maxLines: 2, overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.end))]),
             if (match.kickoff != null) ...[const SizedBox(height: 8),
-              Text(DateFormat('d MMM · HH:mm').format(match.kickoff!),
+              Text(_footballFormat('d MMM · HH:mm').format(match.kickoff!),
                 style: Theme.of(context).textTheme.bodySmall)],
           ]))));
   }
@@ -331,19 +349,24 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
           title: const Text('No pudimos cargar esta información'),
           trailing: TextButton(onPressed: () => _loadSection(section), child: const Text('Reintentar'))),
         if (items != null && items.isEmpty) const ListTile(title: Text('Sin datos disponibles')),
-        if (items != null) ...items.map((item) => switch (section) {
+        if (items != null && section == 'STATISTICS')
+          ..._statisticRows(items, _detail?.match ?? widget.match),
+        if (items != null && section != 'STATISTICS') ...items.map((item) => switch (section) {
           'EVENTS' => ListTile(dense: true,
             leading: Icon(_eventIcon(item['type']?.toString())),
-            title: Text(item['player']?.toString() ?? item['type']?.toString() ?? 'Evento'),
-            subtitle: Text(item['detail']?.toString() ?? ''),
-            trailing: Text("${item['elapsed'] ?? '–'}′")),
-          'LINEUPS' => ListTile(
+            title: Text(_eventTitle(item)),
+            subtitle: Text([
+              if ((item['player']?.toString() ?? '').isNotEmpty)
+                footballEventLabel(item['type']?.toString(), detail: item['detail']?.toString()),
+              if ((item['team']?.toString() ?? '').isNotEmpty) item['team'].toString(),
+            ].join(' · ')),
+            trailing: Text(_minute(item))),
+          _ => ListTile(
             title: Text(item['team']?.toString() ?? 'Equipo'),
-            subtitle: Text('${item['formation'] ?? ''}\nTitulares: ${((item['starting'] as List?) ?? const []).join(' · ')}')),
-          _ => ListTile(dense: true,
-            title: Text(item['type']?.toString() ?? ''),
-            subtitle: Text(item['team']?.toString() ?? ''),
-            trailing: Text(item['value']?.toString() ?? '–')),
+            subtitle: Text([
+              if ((item['formation']?.toString() ?? '').isNotEmpty) 'Esquema ${item['formation']}',
+              'Titulares: ${((item['starting'] as List?) ?? const []).join(' · ')}',
+            ].join('\n'))),
         }),
       ],
     );
@@ -353,9 +376,23 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
   Widget build(BuildContext context) {
     final detail = _detail;
     final match = detail?.match ?? widget.match;
+    final text = Theme.of(context).textTheme;
+    final competition = [
+      if (match.competition.isNotEmpty) match.competition,
+      ?match.roundLabel,
+    ].join(' · ');
     return Scaffold(appBar: AppBar(title: const Text('Partido')),
-      body: ListView(padding: const EdgeInsets.all(16), children: [
+      body: RefreshIndicator(onRefresh: _load, child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16), children: [
           FootballMatchCard(match: match, onTap: null),
+          Padding(padding: const EdgeInsets.fromLTRB(4, 2, 4, 6), child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(_stateLine(match), key: const ValueKey('match_state_line'),
+                style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700,
+                  color: match.isLive ? Colors.red.shade700 : null)),
+              if (competition.isNotEmpty) Text(competition, style: text.bodySmall),
+            ])),
           if (_loading) const LinearProgressIndicator(),
           if (_failed) ListTile(title: const Text('No pudimos actualizar este partido'),
             trailing: TextButton(onPressed: _load, child: const Text('Reintentar'))),
@@ -364,15 +401,63 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
               ? 'Datos guardados · pueden estar desactualizados'
               : 'Algunos datos del partido aún no están disponibles')),
           const SizedBox(height: 8),
-          if (match.garraMatchId != null) FilledButton.icon(
-            onPressed: () => context.push('/matchday/${match.garraMatchId}/polls'),
-            icon: const Icon(Icons.forum_outlined), label: const Text('Entrar a Tribuna Garra'))
-          else const ListTile(leading: Icon(Icons.forum_outlined),
-            title: Text('Tribuna Garra'), subtitle: Text('Aún no está vinculada a este partido')),
+          MatchTribunaSection(match: match),
+          const SizedBox(height: 8),
           if (detail != null) _section('Momentos del partido', 'EVENTS'),
           if (detail != null) _section('Alineaciones', 'LINEUPS'),
           if (detail != null) _section('Estadísticas', 'STATISTICS'),
-        ]));
+        ])));
+  }
+
+  /// Pre-match shows the Lima kickoff, LIVE the minute, finished the result.
+  String _stateLine(FootballMatch match) {
+    final kickoff = match.kickoff;
+    return switch (match.status) {
+      'LIVE' => match.elapsed == null ? 'En vivo' : 'En vivo · ${match.elapsed}′',
+      'FINISHED' => match.homeScore != null && match.awayScore != null
+          ? 'Final · ${match.home} ${match.homeScore} - ${match.awayScore} ${match.away}'
+          : 'Final del partido',
+      'POSTPONED' => 'Partido postergado',
+      'CANCELLED' => 'Partido cancelado',
+      'SCHEDULED' => kickoff == null ? 'Previa · horario por confirmar'
+          : 'Previa · ${_footballFormat('EEE d MMM · HH:mm').format(kickoff)} (hora de Lima)',
+      _ => 'Estado por confirmar',
+    };
+  }
+
+  String _eventTitle(Map<String, dynamic> item) {
+    final player = item['player']?.toString() ?? '';
+    return player.isNotEmpty ? player
+        : footballEventLabel(item['type']?.toString(), detail: item['detail']?.toString());
+  }
+
+  String _minute(Map<String, dynamic> item) {
+    final elapsed = item['elapsed'];
+    final extra = item['extra'];
+    if (elapsed == null) return '–';
+    return extra is num && extra > 0 ? "$elapsed+$extra′" : "$elapsed′";
+  }
+
+  /// One row per statistic: home value · label · away value.
+  List<Widget> _statisticRows(List<Map<String, dynamic>> items, FootballMatch match) {
+    final rows = <String, List<String?>>{};
+    for (final item in items) {
+      final type = item['type']?.toString() ?? '';
+      final row = rows.putIfAbsent(type, () => [null, null]);
+      final value = item['value']?.toString();
+      if (item['team']?.toString() == match.away) {
+        row[1] = value;
+      } else {
+        row[0] = value;
+      }
+    }
+    return [
+      for (final entry in rows.entries)
+        ListTile(dense: true,
+          leading: Text(entry.value[0] ?? '–'),
+          title: Text(footballStatLabel(entry.key), textAlign: TextAlign.center),
+          trailing: Text(entry.value[1] ?? '–')),
+    ];
   }
 
   IconData _eventIcon(String? type) => switch (type) {

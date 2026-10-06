@@ -31,7 +31,11 @@ import 'widgets/garra_reaction_burst.dart';
 import 'widgets/garra_viewport_tracker.dart';
 
 class MuroCremaPage extends ConsumerStatefulWidget {
-  const MuroCremaPage({super.key});
+  const MuroCremaPage({super.key, this.matchId});
+
+  /// SONIC_01: Tribuna of a specific Garra match (from the Centro Garra match
+  /// detail). Null keeps the original behaviour: the current match wall.
+  final String? matchId;
 
   @override
   ConsumerState<MuroCremaPage> createState() => _MuroCremaPageState();
@@ -49,7 +53,27 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
   bool get _dirty => _contentController.text.trim().isNotEmpty ||
       _selectedPostLocationTag != _savedPostLocationTag || _postLocation != null;
   void _leave() => _exitGuard.leave(context, dirty: _dirty, busy: _publishing,
-      refresh: () => setState(() {}), pop: () => context.go('/home'));
+      refresh: () => setState(() {}), pop: () {
+        // Opened from a match detail: go back there, not to Home.
+        if (widget.matchId != null && context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      });
+
+  /// The wall shown: the requested match, or the current one.
+  String? _matchIdFor(WallStatusModel? status) {
+    final requested = widget.matchId?.trim() ?? '';
+    if (requested.isNotEmpty) return requested;
+    final current = status?.matchId ?? '';
+    return current.isEmpty ? null : current;
+  }
+
+  /// Publishing is only possible on the current, open wall (the backend
+  /// enforces it too); another match's Tribuna is read-only history.
+  bool _isCurrentWall(WallStatusModel? status) =>
+      status?.matchId != null && status!.matchId == _matchIdFor(status);
 
   @override
   void initState() {
@@ -69,7 +93,7 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
   /// Compose publishes on the current match wall and returns true on success;
   /// then the wall lists reload so the new post shows.
   Future<void> _openCompose() async {
-    final matchId = ref.read(wallStatusProvider).asData?.value?.matchId;
+    final matchId = _matchIdFor(ref.read(wallStatusProvider).asData?.value);
     final location = matchId == null || matchId.isEmpty
         ? '/muro-crema/compose'
         : '/muro-crema/compose?matchId=${Uri.encodeQueryComponent(matchId)}';
@@ -83,6 +107,10 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
   @override
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(wallStatusProvider);
+    final loadedStatus = statusAsync.asData?.value;
+    final readOnlyHistory = widget.matchId != null &&
+        (!_isCurrentWall(loadedStatus) ||
+            !_canPublish(loadedStatus!.wallStatus));
 
     return PopScope(
       canPop: _exitGuard.canPop(dirty: _dirty, busy: _publishing),
@@ -95,19 +123,19 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: _leave,
         ),
-        title: const Text(
-          'Muro Crema',
-          style: TextStyle(color: AppTheme.cream, fontWeight: FontWeight.w900),
+        title: Text(
+          widget.matchId == null ? 'Muro Crema' : 'Tribuna del partido',
+          style: const TextStyle(color: AppTheme.cream, fontWeight: FontWeight.w900),
         ),
         actions: [
-          IconButton(
+          if (!readOnlyHistory) IconButton(
             tooltip: 'Nueva publicación',
             icon: const Icon(Icons.edit_outlined, color: AppTheme.gold),
             onPressed: _openCompose,
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: readOnlyHistory ? null : FloatingActionButton.extended(
         onPressed: _openCompose,
         backgroundColor: AppTheme.gold,
         foregroundColor: AppTheme.background,
@@ -127,23 +155,21 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
               ),
               error: (error, _) => _ErrorState(
                 message: 'No se pudo cargar el muro.',
-                detail: error.toString(),
+                detail: 'Revisa tu conexión e inténtalo de nuevo.',
                 horizontalPadding: horizontalPadding,
               ),
               data: (status) {
-                if (status == null ||
-                    status.matchId == null ||
-                    status.matchId!.isEmpty) {
+                final matchId = _matchIdFor(status);
+                if (matchId == null) {
                   return _EmptyState(horizontalPadding: horizontalPadding);
                 }
-
-                final matchId = status.matchId!;
+                final current = _isCurrentWall(status);
                 final params = WallPostsParams(
                   matchId: matchId,
                   locationTag: _selectedFilter,
                 );
                 final postsAsync = ref.watch(wallPostsProvider(params));
-                final canPublish = _canPublish(status.wallStatus);
+                final canPublish = current && _canPublish(status!.wallStatus);
 
                 return RefreshIndicator(
                   color: AppTheme.gold,
@@ -166,7 +192,19 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
                       0,
                     ),
                     children: [
-                      _Header(status: status, isMobile: isMobile),
+                      _Header(
+                        status: current ? status! : WallStatusModel(
+                          matchId: matchId,
+                          matchName: 'Tribuna en modo lectura',
+                          matchDateTime: null,
+                          wallStatus: 'CLOSED',
+                          opensAt: null,
+                          closesAt: null,
+                          secondsToOpen: 0,
+                          secondsToClose: 0,
+                        ),
+                        isMobile: isMobile,
+                      ),
                       SizedBox(height: isMobile ? 12 : 16),
                       _FilterChips(
                         selectedTag: _selectedFilter,
@@ -180,7 +218,7 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
                         selectedLocationTag: _selectedPostLocationTag,
                         publishing: _publishing,
                         canPublish: canPublish,
-                        wallStatus: status.wallStatus,
+                        wallStatus: current ? status!.wallStatus : 'CLOSED',
                         isMobile: isMobile,
                         onLocationChanged: (value) {
                           setState(() => _selectedPostLocationTag = value);
@@ -206,9 +244,9 @@ class _MuroCremaPageState extends ConsumerState<MuroCremaPage> {
                             ),
                           ),
                         ),
-                        error: (error, _) => _InlineErrorState(
+                        error: (error, _) => const _InlineErrorState(
                           message: 'No se pudieron cargar las publicaciones.',
-                          detail: error.toString(),
+                          detail: 'Desliza hacia abajo para intentarlo de nuevo.',
                         ),
                         data: (posts) {
                           if (posts.isEmpty) {

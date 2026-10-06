@@ -52,6 +52,8 @@ class CremaBusinessApplication {
     this.tiktok,
     this.rejectionReason,
     this.cremaPointId,
+    this.coverImageUrl,
+    this.pointActive,
   });
 
   final String id;
@@ -69,6 +71,22 @@ class CremaBusinessApplication {
   final CremaBusinessApplicationStatus status;
   final String? rejectionReason;
   final String? cremaPointId;
+
+  /// SONIC_01: cover photo of the verified business (null without photo).
+  final String? coverImageUrl;
+
+  /// SONIC_01: whether the linked Crema point is publicly visible (null
+  /// before verification).
+  final bool? pointActive;
+
+  /// A verified application with its Crema point: an approved business that
+  /// lives in "Negocios activos", never among the requests.
+  bool get isApprovedBusiness =>
+      status == CremaBusinessApplicationStatus.verified &&
+      (cremaPointId ?? '').isNotEmpty;
+
+  /// Approved and currently visible on the map / directory.
+  bool get isPubliclyVisible => isApprovedBusiness && pointActive != false;
 
   factory CremaBusinessApplication.fromJson(Map<String, dynamic> json) {
     return CremaBusinessApplication(
@@ -89,8 +107,17 @@ class CremaBusinessApplication {
       ),
       rejectionReason: json['rejectionReason']?.toString(),
       cremaPointId: json['cremaPointId']?.toString(),
+      coverImageUrl: _nonBlank(json['coverImageUrl']),
+      pointActive: json['pointActive'] is bool
+          ? json['pointActive'] as bool
+          : null,
     );
   }
+}
+
+String? _nonBlank(Object? value) {
+  final text = value?.toString().trim() ?? '';
+  return text.isEmpty ? null : text;
 }
 
 class CremaBusinessApplicationService {
@@ -154,6 +181,30 @@ class CremaBusinessApplicationService {
   Future<CremaBusinessApplication> submit(String id) async {
     final response = await _dio.post(
       '/locations/business-applications/$id/submit',
+    );
+    return CremaBusinessApplication.fromJson(
+      Map<String, dynamic>.from(response.data['data'] as Map),
+    );
+  }
+
+  /// SONIC_01: the verified owner sets the business cover photo (a READY
+  /// media asset uploaded by them through the existing media pipeline).
+  Future<CremaBusinessApplication> updateCover(
+    String id,
+    String mediaAssetId,
+  ) async {
+    final response = await _dio.put(
+      '/locations/business-applications/$id/cover',
+      data: {'mediaAssetId': mediaAssetId},
+    );
+    return CremaBusinessApplication.fromJson(
+      Map<String, dynamic>.from(response.data['data'] as Map),
+    );
+  }
+
+  Future<CremaBusinessApplication> removeCover(String id) async {
+    final response = await _dio.delete(
+      '/locations/business-applications/$id/cover',
     );
     return CremaBusinessApplication.fromJson(
       Map<String, dynamic>.from(response.data['data'] as Map),
