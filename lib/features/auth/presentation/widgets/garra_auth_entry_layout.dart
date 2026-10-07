@@ -4,6 +4,7 @@ import '../../../../core/design/garra_colors.dart';
 import '../../../../core/design/garra_spacing.dart';
 import '../../../../core/theme/garra_semantic_colors.dart';
 import '../../../../core/widgets/garra_puma_crest.dart';
+import 'garra_auth_video_backdrop.dart';
 
 /// Stadium hero + readable form zone for Welcome, Login and Register.
 class GarraAuthEntryLayout extends StatefulWidget {
@@ -73,6 +74,7 @@ class _GarraAuthEntryLayoutState extends State<GarraAuthEntryLayout>
               ),
             ),
           ),
+          const GarraAuthVideoBackdrop(),
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
