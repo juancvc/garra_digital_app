@@ -159,7 +159,8 @@ void main() {
           : FootballChatPage(items: [_msg('g1', 'Solo general', 11)], hasMore: false);
       await _pumpChat(tester, chat, matchId: 9, topic: 'Texto viejo');
       expect(find.text('Local FC vs Visita FC'), findsOneWidget);
-      expect(find.text('Liga 1 Perú · Fecha 11'), findsOneWidget);
+      expect(find.textContaining('Liga 1 Perú'), findsWidgets);
+      expect(find.textContaining('Fecha 11'), findsWidgets);
       expect(find.text('Solo del partido'), findsOneWidget);
       expect(find.text('Solo general'), findsNothing);
       await tester.tap(find.byKey(const ValueKey('chat_back_general')));
@@ -183,14 +184,14 @@ void main() {
           ]);
       await _pumpChat(tester, chat, matchId: 9, size: const Size(360, 1000));
       final goal = find.text('⚽ Gol 23′ · A. Valera · Local FC');
-      final red = find.text('🟥 Roja 58′ · J. Pérez · Visita FC');
+      final red = find.text('🟥 Tarjeta roja 58′ · J. Pérez · Visita FC');
       expect(goal, findsOneWidget);
       expect(red, findsOneWidget);
+      expect(find.text('EVENTO DEL PARTIDO'), findsNWidgets(2));
       double y(Finder f) => tester.getTopLeft(f).dy;
       expect(y(find.text('Previa caliente')), lessThan(y(goal)));
       expect(y(goal), lessThan(y(find.text('Golazo!'))));
       expect(y(find.text('Golazo!')), lessThan(y(red)));
-      expect(tester.getTopLeft(red).dx, greaterThan(tester.getTopLeft(goal).dx), reason: 'away on the right');
       await _close(tester);
     });
 

@@ -294,19 +294,6 @@ DateTime? _limaKickoff(Object? raw) {
   return parsed == null ? null : limaWallClock(parsed);
 }
 
-String footballEventLabel(String? type, {String? detail}) {
-  final d = detail?.toLowerCase() ?? '';
-  return switch (type) {
-    'GOAL' => d.contains('own goal') ? 'Autogol'
-        : d.contains('missed penalty') ? 'Penal fallado'
-        : d.contains('penalty') ? 'Gol de penal' : 'Gol',
-    'YELLOW_CARD' => 'Tarjeta amarilla',
-    'RED_CARD' => 'Tarjeta roja',
-    'SUBSTITUTION' => 'Cambio',
-    _ => 'Incidencia',
-  };
-}
-
 /// SONIC_05: every provider statistic label in Spanish. Keys are normalized (lowercase, "_"/"-" as
 /// spaces) so "Free Kicks", "free_kicks" and "Throw-ins" all resolve.
 String footballStatLabel(String? type) {
@@ -383,20 +370,21 @@ String footballStageLabel(String? raw) {
   return value[0].toUpperCase() + value.substring(1);
 }
 
-/// SONIC_04: semantic event kind for the timeline (icon + color), from the
-/// backend type plus provider detail. Unknown details stay a neutral incident.
+/// SONIC_04/06A: semantic event kind (icon + color). Unknown details stay a neutral incident.
 enum FootballEventKind { goal, penaltyGoal, ownGoal, missedPenalty, yellow, secondYellow, red,
   substitution, videoReview, other }
 
 FootballEventKind footballEventKind(String? type, {String? detail}) {
+  final t = type?.trim().toUpperCase() ?? '';
   final d = detail?.toLowerCase() ?? '';
-  return switch (type) {
+  return switch (t) {
     'GOAL' => d.contains('own goal') ? FootballEventKind.ownGoal
         : d.contains('missed penalty') ? FootballEventKind.missedPenalty
         : d.contains('penalty') ? FootballEventKind.penaltyGoal : FootballEventKind.goal,
     'YELLOW_CARD' => d.contains('second yellow') ? FootballEventKind.secondYellow : FootballEventKind.yellow,
     'RED_CARD' => FootballEventKind.red,
     'SUBSTITUTION' => FootballEventKind.substitution,
+    'VAR' => FootballEventKind.videoReview,
     _ => (d.contains('var') || d.contains('cancelled') || d.contains('disallowed')
             || d.contains('confirmed')) ? FootballEventKind.videoReview : FootballEventKind.other,
   };
@@ -408,13 +396,72 @@ String footballMinuteLabel(int? minute, int? extra) {
   return extra != null && extra > 0 ? '$minute+$extra′' : '$minute′';
 }
 
-/// SONIC_06 decisive VAR outcome readable from the provider detail; null when ambiguous.
-String? footballVarDecision(String? detail) {
+/// SONIC_06A: decisive VAR outcome from provider detail or backend kind. Null = ambiguous → "Decisión VAR".
+/// Penalty cancel/revoke is checked before bare "cancelled" so Momentos and Eventos never disagree.
+String? footballVarDecision(String? detail, {String? backendKind}) {
+  final fromKind = switch (backendKind?.trim().toUpperCase()) {
+    'VAR_GOAL_CANCELLED' => 'GOAL_CANCELLED',
+    'VAR_PENALTY_CONFIRMED' => 'PENALTY_CONFIRMED',
+    'VAR_PENALTY_CANCELLED' => 'PENALTY_CANCELLED',
+    _ => null,
+  };
+  if (fromKind != null) return fromKind;
   final d = detail?.toLowerCase() ?? '';
-  if (d.contains('goal cancelled') || d.contains('goal disallowed')) return 'GOAL_CANCELLED';
-  if (d.contains('penalty confirmed')) return 'PENALTY_CONFIRMED';
-  if (d.contains('penalty cancelled')) return 'PENALTY_CANCELLED';
+  if (d.contains('penalty') && (d.contains('cancel') || d.contains('revok') || d.contains('disallow'))) {
+    return 'PENALTY_CANCELLED';
+  }
+  if ((d.contains('goal') || d.contains('gol')) && (d.contains('cancel') || d.contains('disallow'))) {
+    return 'GOAL_CANCELLED';
+  }
+  if (d.contains('penalty') && (d.contains('confirm') || d.contains('award') || d.contains('conced'))) {
+    return 'PENALTY_CONFIRMED';
+  }
   return null;
+}
+
+/// SONIC_06A: one Spanish label for the same fact in Momentos clave, Eventos and Chat Futbolero.
+String footballEventFactLabel(FootballEventKind kind, {String? varDecision}) => switch (kind) {
+  FootballEventKind.goal => 'Gol',
+  FootballEventKind.penaltyGoal => 'Gol de penal',
+  FootballEventKind.ownGoal => 'Autogol',
+  FootballEventKind.missedPenalty => 'Penal fallado',
+  FootballEventKind.yellow => 'Tarjeta amarilla',
+  FootballEventKind.secondYellow => 'Tarjeta roja',
+  FootballEventKind.red => 'Tarjeta roja',
+  FootballEventKind.substitution => 'Cambio',
+  FootballEventKind.videoReview => switch (varDecision) {
+      'GOAL_CANCELLED' => 'Gol anulado por VAR',
+      'PENALTY_CONFIRMED' => 'Penal concedido por VAR',
+      'PENALTY_CANCELLED' => 'Penal anulado por VAR',
+      _ => 'Decisión VAR',
+    },
+  FootballEventKind.other => 'Incidencia',
+};
+
+/// Resolve kind + decision + shared label from a provider row and/or a backend KeyMoment kind.
+({FootballEventKind kind, String? varDecision, String label}) footballNormalizeEvent({
+  String? type, String? detail, String? backendKind,
+}) {
+  final fromBackend = switch (backendKind?.trim().toUpperCase()) {
+    'GOAL' => (FootballEventKind.goal, null),
+    'PENALTY_GOAL' => (FootballEventKind.penaltyGoal, null),
+    'OWN_GOAL' => (FootballEventKind.ownGoal, null),
+    'RED_CARD' => (FootballEventKind.red, null),
+    'SECOND_YELLOW' => (FootballEventKind.secondYellow, null),
+    'VAR_GOAL_CANCELLED' => (FootballEventKind.videoReview, 'GOAL_CANCELLED'),
+    'VAR_PENALTY_CONFIRMED' => (FootballEventKind.videoReview, 'PENALTY_CONFIRMED'),
+    'VAR_PENALTY_CANCELLED' => (FootballEventKind.videoReview, 'PENALTY_CANCELLED'),
+    _ => null,
+  };
+  final kind = fromBackend?.$1 ?? footballEventKind(type, detail: detail);
+  final decision = fromBackend?.$2 ?? (kind == FootballEventKind.videoReview
+      ? footballVarDecision(detail, backendKind: backendKind) : null);
+  return (kind: kind, varDecision: decision, label: footballEventFactLabel(kind, varDecision: decision));
+}
+
+String footballEventLabel(String? type, {String? detail}) {
+  final n = footballNormalizeEvent(type: type, detail: detail);
+  return n.label;
 }
 
 /// SONIC_06 Match Center "Momentos clave": goals, own goals, converted penalties, reds, second yellows and
@@ -441,19 +488,17 @@ class FootballKeyMoment {
     _ => '📺',
   };
 
-  /// Text after the minute: "A. Valera", "F. Polo (pen.)", "E. Díaz (e.c.)", "VAR · Gol anulado".
+  /// Shared fact label (Obj1). Player suffix only for goals/expulsions, never invents a VAR outcome.
   String get label {
+    final fact = footballEventFactLabel(kind, varDecision: varDecision);
     final who = player?.trim().isNotEmpty == true ? player!.trim() : null;
     return switch (kind) {
-      FootballEventKind.penaltyGoal => '${who ?? 'Gol'} (pen.)',
-      FootballEventKind.ownGoal => '${who ?? 'Autogol'} (e.c.)',
-      FootballEventKind.secondYellow => '${who ?? 'Expulsión'} (doble amarilla)',
-      FootballEventKind.videoReview => switch (varDecision) {
-          'GOAL_CANCELLED' => 'VAR · Gol anulado',
-          'PENALTY_CONFIRMED' => 'VAR · Penal confirmado',
-          _ => 'VAR · Penal anulado',
-        },
-      _ => who ?? (isGoal ? 'Gol' : 'Expulsión'),
+      FootballEventKind.penaltyGoal => who == null ? fact : '$who (pen.)',
+      FootballEventKind.ownGoal => who == null ? fact : '$who (e.c.)',
+      FootballEventKind.secondYellow => who == null ? '$fact (doble amarilla)' : '$who (doble amarilla)',
+      FootballEventKind.videoReview => fact,
+      FootballEventKind.goal || FootballEventKind.red => who ?? fact,
+      _ => who ?? fact,
     };
   }
 }
@@ -466,21 +511,21 @@ List<FootballKeyMoment> footballKeyMoments(List<Map<String, dynamic>> events, Fo
   for (final e in sortFootballEvents(events)) {
     final type = e['type']?.toString();
     final detail = e['detail']?.toString();
-    final kind = footballEventKind(type, detail: detail);
-    final decision = kind == FootballEventKind.videoReview ? footballVarDecision(detail) : null;
-    final keep = switch (kind) {
+    final backendKind = e['kind']?.toString();
+    final n = footballNormalizeEvent(type: type, detail: detail, backendKind: backendKind);
+    final keep = switch (n.kind) {
       FootballEventKind.goal || FootballEventKind.penaltyGoal || FootballEventKind.ownGoal
           || FootballEventKind.red || FootballEventKind.secondYellow => true,
-      FootballEventKind.videoReview => decision != null,
+      FootballEventKind.videoReview => n.varDecision != null,
       _ => false,
     };
     if (!keep) continue;
-    final signature = [e['elapsed'], e['extra'], type, detail, e['player'], e['team']].join('|');
+    final signature = [e['elapsed'], e['extra'], type, detail, backendKind, e['player'], e['team']].join('|');
     if (!seen.add(signature)) continue;
     final team = e['team']?.toString();
-    out.add(FootballKeyMoment(kind: kind, minute: (e['elapsed'] as num?)?.toInt(),
+    out.add(FootballKeyMoment(kind: n.kind, minute: (e['elapsed'] as num?)?.toInt() ?? (e['minute'] as num?)?.toInt(),
         extra: (e['extra'] as num?)?.toInt(), player: e['player']?.toString(), team: team,
-        away: team != null && team == match.away && match.away != match.home, varDecision: decision));
+        away: team != null && team == match.away && match.away != match.home, varDecision: n.varDecision));
   }
   return out;
 }
@@ -492,6 +537,7 @@ Map<String, dynamic> footballMomentAsEvent(Map<String, dynamic> m) {
     'GOAL' || 'OWN_GOAL' || 'PENALTY_GOAL' => 'GOAL',
     'RED_CARD' => 'RED_CARD',
     'SECOND_YELLOW' => 'YELLOW_CARD',
+    final k when k.startsWith('VAR_') => 'VAR',
     _ => 'OTHER',
   };
   final fallback = switch (kind) {
@@ -510,6 +556,7 @@ Map<String, dynamic> footballMomentAsEvent(Map<String, dynamic> m) {
     'player': m['player'],
     'team': m['team'],
     'type': type,
+    'kind': kind,
     'detail': _text(m['detail']) ?? fallback,
   };
 }
@@ -587,25 +634,83 @@ class FootballFeatured {
   }
 }
 
-/// Standing stages from provider \`group\` — never concatenate ranks.
-class FootballStandingStage {
-  const FootballStandingStage({required this.name, required this.rows});
-  final String name;
+/// SONIC_06A: Competition → Stage → Group → Rows from the provider `group` field only.
+/// Distinct provider keys are never concatenated (no two rank-"1" rows in one apparent table).
+/// Stage/group split is inferred from the provider string; names are never invented.
+class FootballStandingGroup {
+  const FootballStandingGroup({required this.key, required this.rows});
+  /// Original provider group leaf (or the full key when the stage has a single table).
+  final String key;
   final List<Map<String, dynamic>> rows;
+}
+
+class FootballStandingStage {
+  const FootballStandingStage({required this.name, required this.groups});
+  /// Provider-derived stage identity (full key for Liga 1 phases; shared prefix or "Tabla").
+  final String name;
+  final List<FootballStandingGroup> groups;
+
+  /// Rows of a selected group; when [groupKey] is null, the sole group (or empty).
+  List<Map<String, dynamic>> rowsFor(String? groupKey) {
+    if (groups.isEmpty) return const [];
+    if (groupKey == null || groups.length == 1) return groups.first.rows;
+    return groups.firstWhere((g) => g.key == groupKey, orElse: () => groups.first).rows;
+  }
+
+  /// Back-compat flat view used only by callers that still expect a single list when groups.length==1.
+  List<Map<String, dynamic>> get rows => groups.length == 1
+      ? groups.first.rows
+      : [for (final g in groups) ...g.rows];
 
   static List<FootballStandingStage> fromRows(List<Map<String, dynamic>> rows) {
-    final order = <String>[];
-    final map = <String, List<Map<String, dynamic>>>{};
+    final stageOrder = <String>[];
+    final stageMap = <String, Map<String, List<Map<String, dynamic>>>>{};
+    final groupOrder = <String, List<String>>{};
     for (final row in rows) {
-      final raw = row['group']?.toString().trim();
-      final key = (raw == null || raw.isEmpty) ? 'Tabla' : raw;
-      map.putIfAbsent(key, () {
-        order.add(key);
+      final raw = row['group']?.toString();
+      final (stage, group) = footballStandingPartition(raw);
+      // Keep the original provider string as the group key when there is no subgroup leaf,
+      // so Team Center can still match `standings.group` exactly.
+      final groupKey = group ?? (raw == null || raw.trim().isEmpty ? stage : raw.trim());
+      stageMap.putIfAbsent(stage, () {
+        stageOrder.add(stage);
+        groupOrder[stage] = <String>[];
+        return <String, List<Map<String, dynamic>>>{};
+      });
+      stageMap[stage]!.putIfAbsent(groupKey, () {
+        groupOrder[stage]!.add(groupKey);
         return <Map<String, dynamic>>[];
       }).add(row);
     }
-    return [for (final name in order) FootballStandingStage(name: name, rows: map[name]!)];
+    return [
+      for (final stage in stageOrder)
+        FootballStandingStage(
+          name: stage,
+          groups: [
+            for (final g in groupOrder[stage]!)
+              FootballStandingGroup(key: g, rows: stageMap[stage]![g]!),
+          ],
+        ),
+    ];
   }
+}
+
+/// Parse provider `group` into (stageKey, groupKey?). groupKey null = stage is a single table.
+(String stage, String? group) footballStandingPartition(String? raw) {
+  final value = raw?.trim() ?? '';
+  if (value.isEmpty) return ('Tabla', null);
+  final withGroup = RegExp(
+    r'^(.*?)[\s\-–:]+((?:group|grupo)\s*[a-z0-9]+)$',
+    caseSensitive: false,
+  ).firstMatch(value);
+  if (withGroup != null) {
+    final stage = withGroup.group(1)!.trim();
+    return (stage.isEmpty ? 'Tabla' : stage, withGroup.group(2)!.trim());
+  }
+  if (RegExp(r'^(?:group|grupo)\s*[a-z0-9]+$', caseSensitive: false).hasMatch(value)) {
+    return ('Tabla', value);
+  }
+  return (value, null);
 }
 
 class FootballPage<T> {

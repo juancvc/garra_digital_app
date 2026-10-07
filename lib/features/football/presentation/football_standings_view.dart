@@ -4,20 +4,21 @@ import '../data/garra_football_models.dart';
 import 'football_match_card.dart';
 import 'football_team_crest.dart';
 
-/// SONIC_04 Standings V3: competition name on top, stages kept separate with a
-/// compact selector (pills up to 4 stages, sheet beyond), normalized stage labels
-/// (presentation only), POS | EQUIPO | PJ | DG | PTS, featured row by team id.
+/// SONIC_04/06A Standings: Competition → Stage → Group → Rows.
+/// Stage selector when multiple stages; group selector when the selected stage has multiple groups.
+/// Provider names only (never invent "Grupo A/B"); never concatenate distinct groups.
 class FootballStandingsView extends StatelessWidget {
   const FootballStandingsView({super.key, required this.rows, required this.competitionName,
-    required this.selectedStage, required this.onStageChanged, this.featuredTeamId,
-    this.footer, this.onTeamTap});
+    required this.selectedStage, required this.onStageChanged, this.selectedGroup,
+    this.onGroupChanged, this.featuredTeamId, this.footer, this.onTeamTap});
   final List<Map<String, dynamic>> rows;
   final String competitionName;
   final String? selectedStage;
   final ValueChanged<String> onStageChanged;
+  final String? selectedGroup;
+  final ValueChanged<String>? onGroupChanged;
   final int? featuredTeamId;
   final Widget? footer;
-  /// SONIC_05: crest + name open the club's Team Center (rows with a provider team id).
   final FootballTeamTap? onTeamTap;
 
   bool _featured(Map<String, dynamic> row) {
@@ -31,6 +32,12 @@ class FootballStandingsView extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final stages = FootballStandingStage.fromRows(rows);
     final stage = stages.firstWhere((s) => s.name == selectedStage, orElse: () => stages.first);
+    final groups = stage.groups;
+    final multiGroup = groups.length > 1;
+    final groupKey = multiGroup
+        ? (groups.any((g) => g.key == selectedGroup) ? selectedGroup : groups.first.key)
+        : null;
+    final visible = stage.rowsFor(groupKey);
     final labelStyle = text.labelSmall?.copyWith(fontWeight: FontWeight.w800);
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
@@ -61,10 +68,35 @@ class FootballStandingsView extends StatelessWidget {
               onPressed: () => _pickStage(context, stages, stage.name),
             ),
           ),
-        if (stages.length == 1 && footballStageLabel(stage.name) != 'Tabla')
+        if (stages.length == 1 && footballStageLabel(stage.name) != 'Tabla' && !multiGroup)
           Padding(
             padding: const EdgeInsets.only(left: 4),
             child: Text(footballStageLabel(stage.name), style: text.titleSmall),
+          ),
+        if (multiGroup && groups.length <= 4) ...[
+          const SizedBox(height: 6),
+          Wrap(spacing: 8, runSpacing: 6, children: [
+            for (final g in groups)
+              ChoiceChip(
+                key: ValueKey('group_${g.key}'),
+                label: Text(footballStageLabel(g.key)),
+                visualDensity: VisualDensity.compact,
+                selected: g.key == groupKey,
+                onSelected: onGroupChanged == null ? null : (_) => onGroupChanged!(g.key),
+              ),
+          ]),
+        ],
+        if (multiGroup && groups.length > 4)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              key: const ValueKey('group_selector'),
+              icon: const Icon(Icons.expand_more),
+              label: Text(footballStageLabel(groupKey)),
+              onPressed: onGroupChanged == null
+                  ? null
+                  : () => _pickGroup(context, groups, groupKey!),
+            ),
           ),
         const SizedBox(height: 10),
         Padding(
@@ -78,7 +110,8 @@ class FootballStandingsView extends StatelessWidget {
             SizedBox(width: 36, child: Text('PTS', textAlign: TextAlign.end, style: labelStyle)),
           ]),
         ),
-        for (final row in stage.rows) _StandingRow(row: row, featured: _featured(row), onTeamTap: onTeamTap),
+        for (final row in visible)
+          _StandingRow(row: row, featured: _featured(row), onTeamTap: onTeamTap),
         ?footer,
       ],
     );
@@ -102,6 +135,25 @@ class FootballStandingsView extends StatelessWidget {
     );
     if (picked != null) onStageChanged(picked);
   }
+
+  Future<void> _pickGroup(BuildContext context, List<FootballStandingGroup> groups, String current) async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: ListView(shrinkWrap: true, children: [
+          for (final g in groups)
+            ListTile(
+              key: ValueKey('group_option_${g.key}'),
+              title: Text(footballStageLabel(g.key)),
+              trailing: g.key == current ? const Icon(Icons.check) : null,
+              onTap: () => Navigator.of(context).pop(g.key),
+            ),
+        ]),
+      ),
+    );
+    if (picked != null) onGroupChanged?.call(picked);
+  }
 }
 
 class _StandingRow extends StatelessWidget {
@@ -110,7 +162,6 @@ class _StandingRow extends StatelessWidget {
   final bool featured;
   final FootballTeamTap? onTeamTap;
 
-  /// Zone marker from the provider description (presentation only).
   Color? _zone(BuildContext context) {
     final d = row['description']?.toString().toLowerCase() ?? '';
     if (d.isEmpty) return null;
@@ -129,7 +180,6 @@ class _StandingRow extends StatelessWidget {
     final dg = diff is num ? '${diff > 0 ? '+' : ''}$diff' : '–';
     final zone = _zone(context);
     final team = row['team']?.toString() ?? 'Equipo';
-    // SONIC_05: same crest validation as match cards (http/https only); initials when absent or broken.
     final crest = footballCrestUrl(row['crestUrl'] ?? row['logoUrl']);
     final teamId = (row['teamId'] as num?)?.toInt();
     final identity = Row(children: [

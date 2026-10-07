@@ -65,18 +65,21 @@ extension CentroSectionLabel on CentroSection {
 @immutable
 class CentroGarraNav {
   const CentroGarraNav({this.hub = CentroHub.forYou, this.section = CentroSection.today,
-    this.competition, this.stage});
+    this.competition, this.stage, this.group});
   final CentroHub hub;
   final CentroSection section;
   final String? competition;
   final String? stage;
+  /// SONIC_06A: selected standings group within [stage] (provider key).
+  final String? group;
 
   CentroGarraNav copyWith({CentroHub? hub, CentroSection? section, String? Function()? competition,
-      String? Function()? stage}) => CentroGarraNav(
+      String? Function()? stage, String? Function()? group}) => CentroGarraNav(
     hub: hub ?? this.hub,
     section: section ?? this.section,
     competition: competition == null ? this.competition : competition(),
     stage: stage == null ? this.stage : stage(),
+    group: group == null ? this.group : group(),
   );
 }
 
@@ -204,19 +207,19 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
 
   void _chooseHub(CentroHub hub) {
     if (_nav.hub == hub) return;
-    _setNav(_nav.copyWith(hub: hub, competition: () => null, stage: () => null));
+    _setNav(_nav.copyWith(hub: hub, competition: () => null, stage: () => null, group: () => null));
     _load();
   }
 
   void _chooseSection(CentroSection section) {
     if (_nav.section == section) return;
-    _setNav(_nav.copyWith(section: section, stage: () => null));
+    _setNav(_nav.copyWith(section: section, stage: () => null, group: () => null));
     _load();
   }
 
   void _chooseCompetition(String? id) {
     if (_nav.competition == id) return;
-    _setNav(_nav.copyWith(competition: () => id, stage: () => null));
+    _setNav(_nav.copyWith(competition: () => id, stage: () => null, group: () => null));
     _load();
   }
 
@@ -579,8 +582,10 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
         rows: table.items,
         competitionName: _competitionName(id),
         selectedStage: stage,
+        selectedGroup: _nav.group,
         featuredTeamId: _featured?.teamId,
-        onStageChanged: (name) => _setNav(_nav.copyWith(stage: () => name)),
+        onStageChanged: (name) => _setNav(_nav.copyWith(stage: () => name, group: () => null)),
+        onGroupChanged: (name) => _setNav(_nav.copyWith(group: () => name)),
         onTeamTap: _openTeam,
         footer: table.stale
             ? _softNote('Datos guardados · pueden estar desactualizados')
@@ -870,6 +875,8 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
   final Set<String> _sectionStale = {};
   late List<String> _labels;
   late TabController _tabs;
+  /// SONIC_06A Match Detail V6: expanded header on entry; collapses as content scrolls.
+  bool _headerExpanded = true;
 
   @override
   void initState() {
@@ -1020,35 +1027,67 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
     return builder(items);
   }
 
+  void _setHeaderExpanded(bool expanded) {
+    if (_headerExpanded == expanded) return;
+    setState(() => _headerExpanded = expanded);
+  }
+
+  void _onTabTap(int index) {
+    _ensureTabLoaded(index);
+    _setHeaderExpanded(false);
+  }
+
+  bool _onContentScroll(ScrollNotification note) {
+    if (note.metrics.axis != Axis.vertical) return false;
+    // Only user drags collapse/expand — ignore layout/programmatic notifications that fire on first build.
+    if (note is! ScrollUpdateNotification || note.dragDetails == null) return false;
+    if (note.metrics.pixels > 28) {
+      _setHeaderExpanded(false);
+    } else if (note.metrics.pixels <= 0) {
+      _setHeaderExpanded(true);
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final detail = _detail;
     final match = _display;
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    final duration = Duration(milliseconds: reduce ? 0 : 180);
     return Scaffold(
       appBar: AppBar(title: Text(match.competition.isEmpty ? 'Partido' : match.competition)),
       body: Column(children: [
-        _DetailHeader(match: match, stateLine: _stateLine(match), onTeamTap: _openTeam),
         AnimatedSize(
-          duration: const Duration(milliseconds: 220),
+          key: const ValueKey('detail_header_size'),
+          duration: duration,
+          curve: Curves.easeOutCubic,
           alignment: Alignment.topCenter,
-          child: _keyMoments(match),
+          child: _headerExpanded
+              ? Column(key: const ValueKey('detail_header_expanded'), children: [
+                  _DetailHeader(match: match, stateLine: _stateLine(match), onTeamTap: _openTeam),
+                  _keyMoments(match),
+                  if (match.status != 'CANCELLED')
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.tonalIcon(
+                          key: const ValueKey('talk_match_cta'),
+                          icon: const Icon(Icons.forum_outlined),
+                          label: const Text('Hablar del partido'),
+                          onPressed: () => context.push(
+                              '/centro-garra/chat-futbolero?partido=${match.id}'
+                              '&tema=${Uri.encodeComponent('${match.home} vs ${match.away}')}',
+                              extra: match),
+                        ),
+                      ),
+                    ),
+                ])
+              : _DetailHeaderCompact(key: const ValueKey('detail_header_compact'),
+                  match: match, stateLine: _stateLine(match), onTeamTap: _openTeam,
+                  onExpand: () => _setHeaderExpanded(true)),
         ),
-        if (match.status != 'CANCELLED')
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton.tonalIcon(
-                key: const ValueKey('talk_match_cta'),
-                icon: const Icon(Icons.forum_outlined),
-                label: const Text('Hablar del partido'),
-                // SONIC_06: the MATCH room of this fixture (never mixed with other matches).
-                onPressed: () => context.push(
-                    '/centro-garra/chat-futbolero?partido=${match.id}'
-                    '&tema=${Uri.encodeComponent('${match.home} vs ${match.away}')}', extra: match),
-              ),
-            ),
-          ),
         if (_loading) const LinearProgressIndicator(minHeight: 2),
         if (_failed) ListTile(dense: true, title: const Text('No pudimos actualizar este partido'),
           trailing: TextButton(onPressed: _load, child: const Text('Reintentar'))),
@@ -1058,18 +1097,26 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
             ? 'Datos guardados · pueden estar desactualizados'
             : 'Algunos datos del partido aún no están disponibles',
             style: Theme.of(context).textTheme.bodySmall)),
-        TabBar(
-          controller: _tabs,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          labelPadding: const EdgeInsets.symmetric(horizontal: 14),
-          onTap: _ensureTabLoaded,
-          tabs: [for (final label in _labels) Tab(text: label)],
+        Material(
+          elevation: 0,
+          color: Theme.of(context).scaffoldBackgroundColor,
+          child: TabBar(
+            key: const ValueKey('detail_tab_bar'),
+            controller: _tabs,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            labelPadding: const EdgeInsets.symmetric(horizontal: 14),
+            onTap: _onTabTap,
+            tabs: [for (final label in _labels) Tab(text: label)],
+          ),
         ),
         Expanded(
-          child: TabBarView(controller: _tabs, children: [
-            for (final label in _labels) _tabBody(label, match),
-          ]),
+          child: NotificationListener<ScrollNotification>(
+            onNotification: _onContentScroll,
+            child: TabBarView(controller: _tabs, children: [
+              for (final label in _labels) _tabBody(label, match),
+            ]),
+          ),
         ),
       ]),
     );
@@ -1096,7 +1143,11 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
   /// "Ver todos los eventos (n)": the Eventos tab of this detail.
   void _showEvents() {
     final index = _labels.indexOf('Eventos');
-    if (index >= 0) _tabs.animateTo(index);
+    if (index >= 0) {
+      _setHeaderExpanded(false);
+      _tabs.animateTo(index);
+      _ensureTabLoaded(index);
+    }
   }
 
   void _openTeam(int teamId, String name, String? crestUrl) => showFootballTeamCenter(context,
@@ -1259,6 +1310,79 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
           ]),
         ),
     ];
+  }
+}
+
+
+/// SONIC_06A compact sticky header: small crests + score/state only.
+class _DetailHeaderCompact extends StatelessWidget {
+  const _DetailHeaderCompact({super.key, required this.match, required this.stateLine, this.onTeamTap, this.onExpand});
+  final FootballMatch match;
+  final String stateLine;
+  final FootballTeamTap? onTeamTap;
+  final VoidCallback? onExpand;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final garra = garraColors(context);
+    final live = match.isLive && !match.isUnconfirmed;
+    final showScore = match.isLive || match.isFinished || match.homeScore != null;
+    final scoreStyle = text.titleLarge?.copyWith(fontWeight: FontWeight.w900,
+        color: live ? garra.danger : null);
+    Widget crest(String name, String? url, int? id, String side) {
+      final child = FootballTeamCrest(name: name, url: url, size: 28);
+      if (id == null || onTeamTap == null) return child;
+      return InkWell(
+        key: ValueKey('detail_team_$side'),
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => onTeamTap!(id, name, url),
+        child: child,
+      );
+    }
+    return InkWell(
+      key: const ValueKey('detail_compact_bar'),
+      onTap: onExpand,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+      ),
+      child: Column(children: [
+        Row(children: [
+          crest(match.home, match.homeCrestUrl, match.homeId, 'home'),
+          const SizedBox(width: 8),
+          Expanded(child: Text(match.home, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: text.labelLarge?.copyWith(fontWeight: FontWeight.w800))),
+          if (showScore)
+            Text('${match.homeScore ?? '–'} - ${match.awayScore ?? '–'}',
+                key: const ValueKey('detail_compact_score'), style: scoreStyle)
+          else
+            Text(match.kickoff == null ? '–' : _footballFormat('HH:mm').format(match.kickoff!),
+                style: scoreStyle),
+          Expanded(child: Text(match.away, maxLines: 1, overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end, style: text.labelLarge?.copyWith(fontWeight: FontWeight.w800))),
+          const SizedBox(width: 8),
+          crest(match.away, match.awayCrestUrl, match.awayId, 'away'),
+        ]),
+        const SizedBox(height: 2),
+        Text(stateLine, key: const ValueKey('match_state_line'), maxLines: 1,
+            overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+            style: text.labelSmall?.copyWith(fontWeight: FontWeight.w700,
+                color: live ? garra.danger : null)),
+        if (match.isUnconfirmed)
+          Padding(
+            key: const ValueKey('match_unconfirmed_note'),
+            padding: const EdgeInsets.only(top: 2),
+            child: Text('Minuto no disponible hasta confirmar con el proveedor.',
+                textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: text.bodySmall),
+          ),
+      ]),
+    ));
   }
 }
 

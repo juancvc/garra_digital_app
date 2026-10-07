@@ -61,6 +61,8 @@ class _ChatFutboleroPageState extends ConsumerState<ChatFutboleroPage> with Widg
   int _seq = 0;
   Timer? _poll;
   bool _foreground = true;
+  /// SONIC_06A: avoid yanking the reader down on silent polls.
+  bool _nearBottom = true;
 
   @override
   void initState() {
@@ -128,7 +130,7 @@ class _ChatFutboleroPageState extends ConsumerState<ChatFutboleroPage> with Widg
         _loaded = true;
         _failure = null;
       });
-      if (first) _jumpToBottom();
+      if (first || _nearBottom) _jumpToBottom();
       _ensurePolling();
     } catch (error) {
       // Distinguish the failing layer in logs (path / status / type only, never payloads or tokens).
@@ -202,7 +204,17 @@ class _ChatFutboleroPageState extends ConsumerState<ChatFutboleroPage> with Widg
       for (final position in _scroll.positions.toList()) {
         position.jumpTo(position.maxScrollExtent);
       }
+      _nearBottom = true;
     });
+  }
+
+  bool _onChatScroll(ScrollNotification note) {
+    if (note.metrics.axis != Axis.vertical) return false;
+    if (note is ScrollUpdateNotification || note is UserScrollNotification) {
+      final remaining = note.metrics.maxScrollExtent - note.metrics.pixels;
+      _nearBottom = remaining < 80;
+    }
+    return false;
   }
 
   String get _title {
@@ -213,11 +225,24 @@ class _ChatFutboleroPageState extends ConsumerState<ChatFutboleroPage> with Widg
     return topic.isEmpty ? 'Chat del partido' : topic;
   }
 
+  /// Compact MATCH line: score/state · minute · competition · round.
   String? get _subtitle {
     final m = _match;
     if (!_context.isMatch || m == null) return null;
-    final line = [if (m.competition.isNotEmpty) m.competition, ?m.roundLabel].join(' · ');
-    return line.isEmpty ? null : line;
+    final bits = <String>[];
+    if (m.isLive || m.isFinished || m.homeScore != null) {
+      bits.add('${m.homeScore ?? '–'}-${m.awayScore ?? '–'}');
+    }
+    if (m.isLive && !m.isUnconfirmed) {
+      bits.add(m.liveMinuteLabel ?? m.statusLabel);
+    } else if (m.isFinished) {
+      bits.add('Final');
+    } else if (m.status == 'POSTPONED') {
+      bits.add('Postergado');
+    }
+    final meta = [if (m.competition.isNotEmpty) m.competition, ?m.roundLabel].join(' · ');
+    if (meta.isNotEmpty) bits.add(meta);
+    return bits.isEmpty ? null : bits.join(' · ');
   }
 
   /// Messages (server + confirmed sends) by time, sports moments by their minute hint; moments without
@@ -321,21 +346,24 @@ class _ChatFutboleroPageState extends ConsumerState<ChatFutboleroPage> with Widg
     final entries = _timeline;
     final hasMessages = entries.any((e) => e is FootballChatMessage || e is _Outgoing);
     final empty = hasMessages ? null : _emptyCard(text);
-    return RefreshIndicator(
-      onRefresh: () => _load(silent: true),
-      child: ListView.builder(
-        key: const ValueKey('chat_list'),
-        controller: _scroll,
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-        itemCount: entries.length + (empty == null ? 0 : 1),
-        itemBuilder: (context, i) {
-          if (i >= entries.length) return empty!;
-          final entry = entries[i];
-          if (entry is FootballChatEvent) return FootballChatEventCard(event: entry, match: _match);
-          if (entry is _Outgoing) return _outgoingTile(entry, text);
-          return _messageTile(entry as FootballChatMessage, text);
-        },
+    return NotificationListener<ScrollNotification>(
+      onNotification: _onChatScroll,
+      child: RefreshIndicator(
+        onRefresh: () => _load(silent: true),
+        child: ListView.builder(
+          key: const ValueKey('chat_list'),
+          controller: _scroll,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+          itemCount: entries.length + (empty == null ? 0 : 1),
+          itemBuilder: (context, i) {
+            if (i >= entries.length) return empty!;
+            final entry = entries[i];
+            if (entry is FootballChatEvent) return FootballChatEventCard(event: entry, match: _match);
+            if (entry is _Outgoing) return _outgoingTile(entry, text);
+            return _messageTile(entry as FootballChatMessage, text);
+          },
+        ),
       ),
     );
   }
@@ -348,7 +376,10 @@ class _ChatFutboleroPageState extends ConsumerState<ChatFutboleroPage> with Widg
         Text(_context.isMatch ? 'Abre la previa con la hinchada' : 'Empieza la conversación crema',
             style: text.titleMedium),
         const SizedBox(height: 6),
-        Text('Sé el primero en dejar tu arenga.', style: text.bodyMedium),
+        Text(_context.isMatch
+                ? 'Los mensajes de esta sala son solo de este partido.'
+                : 'Sé el primero en dejar tu arenga.',
+            style: text.bodyMedium),
       ])),
   );
 
@@ -461,39 +492,43 @@ class FootballChatEventCard extends StatelessWidget {
   final FootballChatEvent event;
   final FootballMatch? match;
 
-  static String label(FootballChatEvent e) => switch (e.kind) {
-    'GOAL' => '⚽ Gol',
-    'PENALTY_GOAL' => '⚽ Gol de penal',
-    'OWN_GOAL' => '⚽ Autogol',
-    'RED_CARD' => '🟥 Roja',
-    'SECOND_YELLOW' => '🟥 Doble amarilla',
-    'VAR_GOAL_CANCELLED' => '📺 VAR · Gol anulado',
-    'VAR_PENALTY_CONFIRMED' => '📺 VAR · Penal confirmado',
-    'VAR_PENALTY_CANCELLED' => '📺 VAR · Penal anulado',
-    _ => 'Incidencia',
-  };
+  static String label(FootballChatEvent e) {
+    final n = footballNormalizeEvent(backendKind: e.kind);
+    final emoji = switch (n.kind) {
+      FootballEventKind.goal || FootballEventKind.penaltyGoal || FootballEventKind.ownGoal => '⚽',
+      FootballEventKind.red || FootballEventKind.secondYellow => '🟥',
+      FootballEventKind.videoReview => '📺',
+      _ => '•',
+    };
+    return '$emoji ${n.label}';
+  }
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
-    final away = event.side == 'AWAY';
     final who = [?event.player, ?event.team].join(' · ');
     final line = '${label(event)} ${footballMinuteLabel(event.minute, event.extra)}${who.isEmpty ? '' : ' · $who'}';
+    // SONIC_06A: system strip — not a person bubble (no avatar, centered band, dashed outline).
     return Align(
       key: ValueKey('chat_event_${event.key}'),
-      alignment: away ? Alignment.centerRight : event.side == 'HOME' ? Alignment.centerLeft : Alignment.center,
+      alignment: Alignment.center,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        constraints: const BoxConstraints(maxWidth: 320),
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        constraints: const BoxConstraints(maxWidth: 340),
         decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest.withValues(alpha: 0.7),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: scheme.outlineVariant),
+          color: scheme.secondaryContainer.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: scheme.secondary.withValues(alpha: 0.45), width: 1),
         ),
-        child: Text(line, key: ValueKey('chat_event_text_${event.kind}'), textAlign: away ? TextAlign.end : TextAlign.start,
-            style: text.labelLarge?.copyWith(fontWeight: FontWeight.w700)),
+        child: Column(children: [
+          Text('EVENTO DEL PARTIDO', style: text.labelSmall?.copyWith(
+              letterSpacing: 0.7, fontWeight: FontWeight.w800, color: scheme.secondary)),
+          const SizedBox(height: 2),
+          Text(line, key: ValueKey('chat_event_text_${event.kind}'), textAlign: TextAlign.center,
+              style: text.labelLarge?.copyWith(fontWeight: FontWeight.w800)),
+        ]),
       ),
     );
   }

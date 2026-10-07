@@ -376,11 +376,12 @@ void main() {
     await _settle(tester);
     await _tapKey(tester, 'section_standings');
     await _settle(tester, 10);
-    expect(find.byKey(const ValueKey('stage_selector')), findsOneWidget);
+    // SONIC_06A: bare "Group A..F" share one stage and use a group sheet selector.
+    expect(find.byKey(const ValueKey('group_selector')), findsOneWidget);
     expect(find.text('Lider A'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('stage_selector')));
+    await tester.tap(find.byKey(const ValueKey('group_selector')));
     await _settle(tester, 10);
-    await tester.tap(find.byKey(const ValueKey('stage_option_Group C')));
+    await tester.tap(find.byKey(const ValueKey('group_option_Group C')));
     await _settle(tester, 10);
     expect(find.text('Lider C'), findsOneWidget);
     expect(find.text('Lider A'), findsNothing);
@@ -513,6 +514,9 @@ void main() {
     expect(find.widgetWithText(Tab, 'Eventos'), findsOneWidget);
     expect(find.text('G'), findsOneWidget);
     expect(service.calls.where((c) => c == 'detail:STATISTICS').length, 1);
+    // SONIC_06A: tap compact header to expand and reveal the Hablar CTA again.
+    await tester.tap(find.byKey(const ValueKey('detail_compact_bar')));
+    await _settle(tester, 8);
     await tester.tap(find.byKey(const ValueKey('talk_match_cta')));
     await _settle(tester, 10);
     expect(visited, ['Equipo Con Nombre Muy Largo FC vs Otro Equipo Con Nombre Largo']);
@@ -543,8 +547,8 @@ void main() {
     expect(find.byType(FootballEventIcon), findsNWidgets(5));
     expect(find.text('Gol · Asist. Asistente · Local'), findsOneWidget);
     expect(find.text('Cambio · ⇄ Sale · Visita'), findsOneWidget);
-    expect(find.text('VAR · Gol anulado'), findsOneWidget);
-    expect(find.text('Doble amarilla · Local'), findsOneWidget);
+    expect(find.text('Gol anulado por VAR'), findsOneWidget);
+    expect(find.text('Tarjeta roja · Local'), findsOneWidget);
     expect(find.text('90+3′'), findsOneWidget);
     final first = tester.widget<Text>(find.descendant(of: find.byKey(const ValueKey('event_0')),
         matching: find.textContaining('′')));

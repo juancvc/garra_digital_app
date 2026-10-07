@@ -39,8 +39,10 @@ class _EventRow extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final type = event['type']?.toString();
     final detail = event['detail']?.toString();
-    final kind = footballEventKind(type, detail: detail);
-    final label = _label(kind, type, detail);
+    final backendKind = event['kind']?.toString();
+    final normalized = footballNormalizeEvent(type: type, detail: detail, backendKind: backendKind);
+    final kind = normalized.kind;
+    final label = normalized.label;
     final player = event['player']?.toString() ?? '';
     final assist = event['assist']?.toString() ?? '';
     final team = event['team']?.toString() ?? '';
@@ -86,18 +88,6 @@ class _EventRow extends StatelessWidget {
     );
   }
 
-  String _label(FootballEventKind kind, String? type, String? detail) => switch (kind) {
-    FootballEventKind.secondYellow => 'Doble amarilla',
-    FootballEventKind.videoReview => _varLabel(detail),
-    _ => footballEventLabel(type, detail: detail),
-  };
-
-  String _varLabel(String? detail) {
-    final d = detail?.toLowerCase() ?? '';
-    if (d.contains('cancelled') || d.contains('disallowed')) return 'VAR · Gol anulado';
-    if (d.contains('penalty confirmed')) return 'VAR · Penal confirmado';
-    return 'Revisión VAR';
-  }
 }
 
 /// SONIC_05: strong semantic color per event kind (goal green, cards yellow / red, sub blue,
