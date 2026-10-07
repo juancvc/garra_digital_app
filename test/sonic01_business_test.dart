@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:garra_digital_app/core/media/media_upload_service.dart';
 import 'package:garra_digital_app/core/widgets/garra_cached_network_image.dart';
 import 'package:garra_digital_app/features/locations/data/crema_business_application_service.dart';
+import 'package:garra_digital_app/features/locations/data/crema_business_engagement_service.dart';
+import 'package:garra_digital_app/features/locations/data/crema_business_offer_models.dart';
 import 'package:garra_digital_app/features/locations/data/crema_point_model.dart';
 import 'package:garra_digital_app/features/locations/data/location_service.dart';
 import 'package:garra_digital_app/features/locations/presentation/mi_negocio_activo_page.dart';
@@ -131,6 +133,12 @@ void _expectNoRawCodesOrIds(WidgetTester tester) {
   expect(_rawCodes.hasMatch(texts), isFalse, reason: texts);
   expect(texts.contains(_pointId), isFalse);
   expect(texts.contains('app-verified'), isFalse);
+}
+
+class _NoOffers extends CremaBusinessEngagementService {
+  _NoOffers() : super(dio: Dio());
+  @override
+  Future<List<CremaBusinessOffer>> listPointOffers(String pointId) async => [];
 }
 
 void main() {
@@ -294,7 +302,7 @@ void main() {
         status: 'ACTIVE', createdAt: '', updatedAt: '',
         coverImageUrl: 'https://pub.r2.dev/business-offers/u/cover.jpg');
     await tester.pumpWidget(MaterialApp(home: NegocioCremaDetailPage(
-        idOrSlug: _pointId, locationService: _Points(point))));
+        idOrSlug: _pointId, locationService: _Points(point), engagement: _NoOffers())));
     await tester.pumpAndSettle();
     expect(find.byType(GarraCachedNetworkImage), findsOneWidget);
     expect(find.text('Verificado por Garra'), findsOneWidget);
@@ -306,7 +314,7 @@ void main() {
         latitude: -12.08, longitude: -77.09, verified: true, sponsor: false,
         status: 'ACTIVE', createdAt: '', updatedAt: '');
     await tester.pumpWidget(MaterialApp(home: NegocioCremaDetailPage(
-        idOrSlug: _pointId, locationService: _Points(point))));
+        idOrSlug: _pointId, locationService: _Points(point), engagement: _NoOffers())));
     await tester.pumpAndSettle();
     expect(find.byType(GarraCachedNetworkImage), findsNothing);
     expect(find.text('Ver ubicación del negocio'), findsOneWidget);

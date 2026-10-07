@@ -306,7 +306,7 @@ void main() {
     expect(engagement.publishCalls, 1);
   });
 
-  testWidgets('media failure keeps offer without image (create aborted)',
+  testWidgets('media failure aborts create before saving offer',
       (tester) async {
     final engagement = _Engagement();
     final media = _Media(fail: true);
@@ -322,6 +322,8 @@ void main() {
     );
     await tester.enterText(find.byType(TextFormField).first, 'Con foto');
     await tester.enterText(find.byType(TextFormField).at(1), 'Beneficio');
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('single_photo_add')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('single_photo_add')));
     await tester.pumpAndSettle();

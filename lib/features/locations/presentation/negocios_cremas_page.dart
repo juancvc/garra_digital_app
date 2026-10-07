@@ -3,7 +3,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../data/crema_business_engagement_service.dart';
+import '../data/crema_business_offer_models.dart';
 import '../data/crema_point_model.dart';
+import '../../community/presentation/widgets/garra_tribuna_offer_card.dart';
 import '../data/location_service.dart';
 import '../data/business_social_links.dart';
 import '../data/business_map_links.dart';
@@ -334,10 +337,12 @@ class NegocioCremaDetailPage extends StatefulWidget {
     super.key,
     required this.idOrSlug,
     this.locationService,
+    this.engagement,
   });
 
   final String idOrSlug;
   final LocationService? locationService;
+  final CremaBusinessEngagementService? engagement;
 
   @override
   State<NegocioCremaDetailPage> createState() => _NegocioCremaDetailPageState();
@@ -346,7 +351,10 @@ class NegocioCremaDetailPage extends StatefulWidget {
 class _NegocioCremaDetailPageState extends State<NegocioCremaDetailPage> {
   late final LocationService _service =
       widget.locationService ?? LocationService();
+  late final CremaBusinessEngagementService _engagement =
+      widget.engagement ?? CremaBusinessEngagementService();
   CremaPointModel? _point;
+  List<CremaBusinessOffer> _offers = const [];
   var _loading = true;
   String? _error;
 
@@ -372,9 +380,18 @@ class _NegocioCremaDetailPageState extends State<NegocioCremaDetailPage> {
           break;
         }
       }
+      var offers = const <CremaBusinessOffer>[];
+      if (match != null) {
+        try {
+          offers = await _engagement.listPointOffers(match.id).timeout(const Duration(seconds: 8), onTimeout: () => const <CremaBusinessOffer>[]);
+        } catch (_) {
+          offers = const [];
+        }
+      }
       if (!mounted) return;
       setState(() {
         _point = match;
+        _offers = offers;
         _loading = false;
       });
     } catch (_) {
@@ -530,6 +547,25 @@ class _NegocioCremaDetailPageState extends State<NegocioCremaDetailPage> {
                           ),
                     ],
                   ),
+                ],
+                if (_offers.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  Text(
+                    'OFERTAS Y PROMOCIONES',
+                    key: const ValueKey('public_business_offers_header'),
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: context.garraColors.brandPrestige,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.4,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  for (final offer in _offers)
+                    GarraTribunaOfferCard(
+                      key: ValueKey('public_business_offer_${offer.id}'),
+                      offer: offer,
+                      compact: true,
+                    ),
                 ],
                 const SizedBox(height: 24),
                 OutlinedButton.icon(

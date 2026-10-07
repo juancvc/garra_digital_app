@@ -42,6 +42,15 @@ class CremaBusinessEngagementService {
   }
 
   /// Owner manage list (DRAFT / ACTIVE / EXPIRED / CANCELLED) for one point.
+  Future<List<CremaBusinessOffer>> listPointOffers(String pointId) async {
+    final response = await _dio.get('/locations/points/$pointId/offers');
+    final List data = response.data['data'] ?? [];
+    return data
+        .map((e) => CremaBusinessOffer.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  /// Owner manage list (DRAFT / ACTIVE / EXPIRED / CANCELLED) for one point.
   Future<List<CremaBusinessOffer>> listOwnedOffers(String pointId) async {
     final response = await _dio.get('/locations/points/$pointId/offers/manage');
     final List data = response.data['data'] ?? [];

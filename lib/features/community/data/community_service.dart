@@ -10,6 +10,7 @@ import 'reaction_result.dart';
 import 'reactor_model.dart';
 import 'report_wall_post_request.dart';
 import 'wall_comment_model.dart';
+import 'community_feed_item.dart';
 import 'wall_post_model.dart';
 import 'wall_status_model.dart';
 
@@ -21,13 +22,36 @@ class PostViewResult {
   final int viewCount;
 }
 
-/// GARRA40: a page of a feed with its opaque continuation cursor.
+/// GARRA40 / DEMO_HARDENING_02A: cursor page may mix COMMUNITY_POST and BUSINESS_OFFER.
 class FeedPage {
-  const FeedPage({required this.posts, this.nextCursor, this.hasNext = false});
+  const FeedPage({
+    required this.items,
+    this.nextCursor,
+    this.hasNext = false,
+  });
 
-  final List<WallPostModel> posts;
+  /// Test/helper constructor for organic-only pages.
+  factory FeedPage.posts({
+    required List<WallPostModel> posts,
+    String? nextCursor,
+    bool hasNext = false,
+  }) {
+    return FeedPage(
+      items: [for (final post in posts) CommunityPostFeedItem(post)],
+      nextCursor: nextCursor,
+      hasNext: hasNext,
+    );
+  }
+
+  final List<CommunityFeedItem> items;
   final String? nextCursor;
   final bool hasNext;
+
+  /// Organic posts only (offers excluded).
+  List<WallPostModel> get posts => [
+        for (final item in items)
+          if (item is CommunityPostFeedItem) item.post,
+      ];
 }
 
 class CommunityService {
@@ -195,8 +219,8 @@ class CommunityService {
     final hasNext = page['hasNext'] == true;
     final next = page['nextCursor']?.toString();
     return FeedPage(
-      posts: items
-          .map((e) => WallPostModel.fromJson(Map<String, dynamic>.from(e as Map)))
+      items: items
+          .map((e) => parseCommunityFeedItem(Map<String, dynamic>.from(e as Map)))
           .toList(),
       hasNext: hasNext && next != null && next.isNotEmpty,
       nextCursor: next,

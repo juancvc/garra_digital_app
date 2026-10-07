@@ -58,7 +58,7 @@ class _ShareService extends CommunityService {
       reactionSummary: {'FIRE': 3}, reactionCount: 3));
   }
   @override
-  Future<FeedPage> getFeedPage({required String mode, String? cursor, int size = 20}) async => FeedPage(posts: await getGlobalFeed(mode: mode));
+  Future<FeedPage> getFeedPage({required String mode, String? cursor, int size = 20}) async => FeedPage.posts(posts: await getGlobalFeed(mode: mode));
 
   @override
   Future<List<WallPostModel>> getGlobalFeed({String mode = 'RECENT'}) async => [_original];

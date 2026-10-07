@@ -1,8 +1,11 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:garra_digital_app/features/locations/data/business_social_links.dart';
 import 'package:garra_digital_app/features/locations/data/business_map_links.dart';
+import 'package:garra_digital_app/features/locations/data/crema_business_engagement_service.dart';
+import 'package:garra_digital_app/features/locations/data/crema_business_offer_models.dart';
 import 'package:garra_digital_app/features/locations/data/crema_point_model.dart';
 import 'package:garra_digital_app/features/locations/data/crema_business_application_service.dart';
 import 'package:garra_digital_app/features/locations/data/location_service.dart';
@@ -115,6 +118,7 @@ void main() {
           builder: (_, _) => NegocioCremaDetailPage(
             idOrSlug: _point.id,
             locationService: _FakeLocations(_point),
+            engagement: _NoOffers(),
           ),
         ),
         GoRoute(
@@ -216,4 +220,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Bar'), findsOneWidget);
   });
+}
+
+
+class _NoOffers extends CremaBusinessEngagementService {
+  _NoOffers() : super(dio: Dio());
+  @override
+  Future<List<CremaBusinessOffer>> listPointOffers(String pointId) async => [];
 }

@@ -87,11 +87,21 @@ class _CreateBusinessOfferPageState extends State<CreateBusinessOfferPage> {
       initialDate: initial,
       firstDate: now.subtract(const Duration(days: 1)),
       lastDate: now.add(const Duration(days: 365 * 2)),
+      locale: const Locale('es'),
+      helpText: 'Seleccionar fecha',
+      cancelText: 'Cancelar',
+      confirmText: 'Aceptar',
     );
     if (date == null || !mounted) return;
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(initial),
+      initialEntryMode: TimePickerEntryMode.input,
+      helpText: 'Seleccionar hora',
+      cancelText: 'Cancelar',
+      confirmText: 'Aceptar',
+      hourLabelText: 'Hora',
+      minuteLabelText: 'Minuto',
     );
     if (time == null || !mounted) return;
     final value = DateTime(date.year, date.month, date.day, time.hour, time.minute);
@@ -258,7 +268,7 @@ class _CreateBusinessOfferPageState extends State<CreateBusinessOfferPage> {
               currentUrl: widget.initial?.imageUrl,
               enabled: !_submitting,
               label: 'Foto de la oferta',
-              helper: 'Si la carga falla, la oferta se guarda sin imagen.',
+              helper: 'La imagen es opcional. Si eliges una, debe terminar de cargar antes de guardar la oferta.',
               onPick: () async {
                 final file = await _media.pickImage();
                 if (file == null || !mounted) return;

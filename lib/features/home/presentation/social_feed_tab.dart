@@ -15,6 +15,7 @@ import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_brand_visual.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../community/data/community_report.dart';
+import '../../community/data/community_feed_item.dart';
 import '../../community/data/community_service.dart';
 import '../../community/data/engagement_utils.dart';
 import '../../community/data/garra_view_tracker.dart';
@@ -24,6 +25,7 @@ import '../../community/presentation/widgets/garra_reaction_actions.dart';
 import '../../community/presentation/widgets/garra_discovery_section.dart';
 import '../../community/presentation/widgets/garra_report_sheet.dart';
 import '../../community/presentation/widgets/garra_social_post_card.dart';
+import '../../community/presentation/widgets/garra_tribuna_offer_card.dart';
 import '../../community/presentation/widgets/garra_share_sheet.dart';
 import '../../community/presentation/widgets/garra_viewport_tracker.dart';
 
@@ -44,7 +46,58 @@ class SocialFeedTab extends ConsumerStatefulWidget {
 }
 
 class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
-  List<WallPostModel> _posts = [];
+  List<CommunityFeedItem> _items = [];
+
+  List<WallPostModel> get _posts => [
+        for (final item in _items)
+          if (item is CommunityPostFeedItem) item.post,
+      ];
+
+  void _mapPosts(WallPostModel Function(WallPostModel post) map) {
+    _items = [
+      for (final item in _items)
+        if (item is CommunityPostFeedItem)
+          CommunityPostFeedItem(map(item.post))
+        else
+          item,
+    ];
+  }
+
+  void _filterPosts(bool Function(WallPostModel post) keep) {
+    _items = [
+      for (final item in _items)
+        if (item is! CommunityPostFeedItem)
+          item
+        else if (keep(item.post))
+          item,
+    ];
+  }
+
+  void _upsertLeadingPost(WallPostModel post) {
+    _filterPosts((p) => p.id != post.id);
+    _items = [CommunityPostFeedItem(post), ..._items];
+  }
+
+  /// Rebuild feed from a new organic post list while keeping BUSINESS_OFFER cards
+  /// after every N-th post (same client-visible density as backend V1).
+  void _setPostsKeepingOffers(List<WallPostModel> posts) {
+    final offers = [
+      for (final item in _items)
+        if (item is BusinessOfferFeedItem) item,
+    ];
+    final next = <CommunityFeedItem>[];
+    var offerIdx = 0;
+    for (var i = 0; i < posts.length; i++) {
+      next.add(CommunityPostFeedItem(posts[i]));
+      if ((i + 1) % 5 == 0 && offerIdx < offers.length) {
+        next.add(offers[offerIdx++]);
+      }
+    }
+    while (offerIdx < offers.length) {
+      next.add(offers[offerIdx++]);
+    }
+    _items = next;
+  }
   final ScrollController _scrollController = ScrollController();
   HomeBackScroll? _homeBackScroll;
   final Set<String> _reactingPostIds = {};
@@ -96,7 +149,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
 
   Future<void> _load() async {
     final generation = ++_loadGeneration;
-    final hadContent = _posts.isNotEmpty;
+    final hadContent = _items.isNotEmpty;
     setState(() {
       if (!hadContent) _loading = true;
       _error = null;
@@ -107,9 +160,9 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
       final page = await _service.getFeedPage(mode: widget.mode);
       if (!mounted || generation != _loadGeneration) return;
       setState(() {
-        _posts = page.posts;
+        _items = page.items;
         _nextCursor = page.nextCursor;
-        _hasMore = page.hasNext && page.posts.isNotEmpty;
+        _hasMore = page.hasNext && page.items.isNotEmpty;
         _loading = false;
         _error = null;
       });
@@ -154,10 +207,25 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
       );
       if (!mounted || generation != _loadGeneration) return;
       setState(() {
-        final known = {for (final p in _posts) p.id};
-        _posts = [..._posts, ...page.posts.where((p) => known.add(p.id))];
+        final knownPostIds = {
+          for (final item in _items)
+            if (item is CommunityPostFeedItem) item.post.id,
+        };
+        final knownOfferIds = {
+          for (final item in _items)
+            if (item is BusinessOfferFeedItem) item.offer.id,
+        };
+        final merged = [..._items];
+        for (final item in page.items) {
+          if (item is CommunityPostFeedItem) {
+            if (knownPostIds.add(item.post.id)) merged.add(item);
+          } else if (item is BusinessOfferFeedItem) {
+            if (knownOfferIds.add(item.offer.id)) merged.add(item);
+          }
+        }
+        _items = merged;
         _nextCursor = page.nextCursor;
-        _hasMore = page.hasNext && page.posts.isNotEmpty;
+        _hasMore = page.hasNext && page.items.isNotEmpty;
         _loadingMore = false;
       });
       if (_hasMore) _scheduleFillCheck();
@@ -178,7 +246,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
       final fresh = await _service.getPost(postId);
       if (!mounted) return;
       setState(() {
-        _posts = _posts.map((p) {
+        _mapPosts((p) {
           if (p.id == postId) return fresh;
           final original = p.originalPost;
           if (original?.id == postId) {
@@ -195,7 +263,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
             );
           }
           return p;
-        }).toList();
+        });
       });
     } on DioException catch (e) {
       final code = e.response?.statusCode;
@@ -203,9 +271,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
       // Deleted / no longer visible: drop it instead of leaving a dead card.
       if (code == 404 || code == 403) {
         setState(() {
-          _posts = _posts
-              .where((p) => p.id != postId && p.originalPost?.id != postId)
-              .toList();
+          _filterPosts((p) => p.id != postId && p.originalPost?.id != postId);
         });
       }
     } catch (_) {
@@ -217,9 +283,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
     if (!allowNetworkAction(context)) return;
     final next = !post.savedByMe;
     setState(() {
-      _posts = _posts
-          .map((p) => p.id == post.id ? p.copyWith(savedByMe: next) : p)
-          .toList();
+      _mapPosts((p) => p.id == post.id ? p.copyWith(savedByMe: next) : p);
     });
     try {
       if (next) {
@@ -230,12 +294,9 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _posts = _posts
-            .map(
-              (p) =>
-                  p.id == post.id ? p.copyWith(savedByMe: post.savedByMe) : p,
-            )
-            .toList();
+        _mapPosts(
+          (p) => p.id == post.id ? p.copyWith(savedByMe: post.savedByMe) : p,
+        );
       });
       _showError('No se pudo actualizar el guardado. Inténtalo de nuevo.');
     }
@@ -249,9 +310,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
     );
     if (count == null || !mounted) return;
     setState(() {
-      _posts = _posts
-          .map((p) => p.id == postId ? p.copyWith(viewCount: count) : p)
-          .toList();
+      _mapPosts((p) => p.id == postId ? p.copyWith(viewCount: count) : p);
     });
   }
 
@@ -261,7 +320,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
       delete: () async {
         await _service.deleteOwnPost(postId);
         if (!mounted) return;
-        setState(() => _posts = _posts.where((p) => p.id != postId).toList());
+        setState(() => _filterPosts((p) => p.id != postId));
       },
     );
   }
@@ -317,20 +376,18 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
   }
 
   void _replacePost(WallPostModel replacement) {
-    _posts = _posts
-        .map((post) {
-          if (post.id == replacement.id) return replacement;
-          if (post.originalPost?.id == replacement.id) {
-            return post.copyWith(originalPost: post.originalPost!.copyWith(
-              reactionSummary: replacement.reactionSummary,
-              reactionCount: replacement.reactionCount,
-              myReaction: replacement.myReaction,
-              clearMyReaction: replacement.myReaction == null,
-            ));
-          }
-          return post;
-        })
-        .toList();
+    _mapPosts((post) {
+      if (post.id == replacement.id) return replacement;
+      if (post.originalPost?.id == replacement.id) {
+        return post.copyWith(originalPost: post.originalPost!.copyWith(
+          reactionSummary: replacement.reactionSummary,
+          reactionCount: replacement.reactionCount,
+          myReaction: replacement.myReaction,
+          clearMyReaction: replacement.myReaction == null,
+        ));
+      }
+      return post;
+    });
   }
 
   Future<void> _share(WallPostModel post) async {
@@ -347,19 +404,27 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
     if (outcome.sharedPost case final share?) {
       final count = share.originalPost?.shareCount ?? target.shareCount;
       setState(() {
-        _posts = [share, ..._posts.where((p) => p.id != share.id).map((p) =>
-          p.id == target.id ? p.copyWith(shareCount: count, sharedByMe: true) :
-          p.originalPost?.id == target.id ? p.copyWith(originalPost:
-            p.originalPost!.copyWith(shareCount: count, sharedByMe: true)) : p)];
+        final rebuilt = [
+          share,
+          ..._posts.where((p) => p.id != share.id).map((p) =>
+            p.id == target.id ? p.copyWith(shareCount: count, sharedByMe: true) :
+            p.originalPost?.id == target.id ? p.copyWith(originalPost:
+              p.originalPost!.copyWith(shareCount: count, sharedByMe: true)) : p),
+        ];
+        _setPostsKeepingOffers(rebuilt);
       });
       if (_scrollController.hasClients) _scrollController.jumpTo(0);
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Compartido en Garra')));
     } else if (outcome.undoCount case final count?) {
       setState(() {
-        _posts = _posts.where((p) => !(p.originalPost?.id == target.id && p.isMine)).map((p) =>
-          p.id == target.id ? p.copyWith(shareCount: count, sharedByMe: false) :
-          p.originalPost?.id == target.id ? p.copyWith(originalPost:
-            p.originalPost!.copyWith(shareCount: count, sharedByMe: false)) : p).toList();
+        final rebuilt = _posts
+            .where((p) => !(p.originalPost?.id == target.id && p.isMine))
+            .map((p) =>
+              p.id == target.id ? p.copyWith(shareCount: count, sharedByMe: false) :
+              p.originalPost?.id == target.id ? p.copyWith(originalPost:
+                p.originalPost!.copyWith(shareCount: count, sharedByMe: false)) : p)
+            .toList();
+        _setPostsKeepingOffers(rebuilt);
       });
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Compartido eliminado')));
     }
@@ -406,9 +471,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
     // The author disappears right away (also from wrappers of their posts);
     // no full reload, so the loaded pages and scroll position survive.
     setState(() {
-      _posts = _posts
-          .where((p) => p.authorId != userId && p.originalPost?.authorId != userId)
-          .toList();
+      _filterPosts((p) => p.authorId != userId && p.originalPost?.authorId != userId);
     });
     ScaffoldMessenger.of(
       context,
@@ -419,7 +482,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
     ++_loadGeneration;
     setState(() {
       final original = post.originalPost;
-      _posts = [post, ..._posts.where((existing) => existing.id != post.id).map((existing) {
+      final rebuilt = [post, ..._posts.where((existing) => existing.id != post.id).map((existing) {
         if (original == null) return existing;
         if (existing.id == original.id) {
           return existing.copyWith(shareCount: original.shareCount, sharedByMe: true);
@@ -430,6 +493,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
         }
         return existing;
       })];
+      _setPostsKeepingOffers(rebuilt);
       _loading = false;
       _error = null;
     });
@@ -458,17 +522,20 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
     ) {
       if (previous?.revision == next.revision) return;
       if (next.unsharedOriginalId case final originalId?) {
-        setState(() => _posts = _posts.where((p) =>
-          !(p.originalPost?.id == originalId && p.isMine)).map((p) {
-          if (p.id == originalId) {
-            return p.copyWith(shareCount: next.shareCount, sharedByMe: false);
-          }
-          if (p.originalPost?.id == originalId) {
-            return p.copyWith(originalPost: p.originalPost!.copyWith(
-                shareCount: next.shareCount, sharedByMe: false));
-          }
-          return p;
-        }).toList());
+        setState(() {
+          final rebuilt = _posts.where((p) =>
+            !(p.originalPost?.id == originalId && p.isMine)).map((p) {
+            if (p.id == originalId) {
+              return p.copyWith(shareCount: next.shareCount, sharedByMe: false);
+            }
+            if (p.originalPost?.id == originalId) {
+              return p.copyWith(originalPost: p.originalPost!.copyWith(
+                  shareCount: next.shareCount, sharedByMe: false));
+            }
+            return p;
+          }).toList();
+          _setPostsKeepingOffers(rebuilt);
+        });
         return;
       }
       final post = next.post;
@@ -492,8 +559,8 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
         children: [
           _ComposerRow(displayName: me?.fullName, onCompose: _openCompose),
           if (widget.mode == 'FOR_YOU') const _EditorialFeedMarker(),
-          if (_posts.isEmpty) ...widget.contextualInserts,
-          if (_loading && _posts.isEmpty)
+          if (_items.isEmpty) ...widget.contextualInserts,
+          if (_loading && _items.isEmpty)
             const Padding(
               padding: EdgeInsets.all(GarraSpacing.lg),
               child: Column(
@@ -506,9 +573,9 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
                 ],
               ),
             )
-          else if (_error != null && _posts.isEmpty)
+          else if (_error != null && _items.isEmpty)
             GarraErrorState(message: _error!, onRetry: _load)
-          else if (_posts.isEmpty)
+          else if (_items.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: GarraSpacing.lg),
               child: GarraEmptyState(
@@ -580,7 +647,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
           // fetches once and never refetches on rebuild.
           Offstage(
             key: const ValueKey('garra_discovery_slot'),
-            offstage: _loading && _posts.isEmpty,
+            offstage: _loading && _items.isEmpty,
             child: GarraDiscoverySection(
               key: const ValueKey('garra_discovery'),
               excludePostIds: {
@@ -597,8 +664,19 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
   List<Widget> _buildFeedItems(String? meId) {
     final items = <Widget>[];
     var insertIndex = 0;
-    for (var index = 0; index < _posts.length; index++) {
-      final post = _posts[index];
+    var postIndex = 0;
+    for (final entry in _items) {
+      if (entry is BusinessOfferFeedItem) {
+        items.add(
+          GarraTribunaOfferCard(
+            key: ValueKey('tribuna_offer_${entry.offer.id}'),
+            offer: entry.offer,
+          ),
+        );
+        continue;
+      }
+      if (entry is! CommunityPostFeedItem) continue;
+      final post = entry.post;
       final mine =
           post.isMine ||
           (meId != null && meId.isNotEmpty && post.authorId == meId);
@@ -642,11 +720,12 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
         ),
       );
 
-      final shouldInsert = index == 1 || (index > 1 && (index - 1) % 4 == 0);
+      final shouldInsert = postIndex == 1 || (postIndex > 1 && (postIndex - 1) % 4 == 0);
       if (shouldInsert && insertIndex < widget.contextualInserts.length) {
         items.add(widget.contextualInserts[insertIndex]);
         insertIndex++;
       }
+      postIndex++;
     }
     return items;
   }

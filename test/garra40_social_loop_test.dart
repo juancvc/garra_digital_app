@@ -67,7 +67,7 @@ class _Svc extends CommunityService {
       failMore--;
       throw DioException(requestOptions: RequestOptions(path: '/x'));
     }
-    return byCursor[cursor] ?? const FeedPage(posts: []);
+    return byCursor[cursor] ?? FeedPage.posts(posts: []);
   }
 
   @override
@@ -195,12 +195,11 @@ void main() {
   group('FEED CONTINUITY', () {
     _Svc paged() {
       final svc = _Svc();
-      svc.byCursor[null] = FeedPage(
-        posts: [for (var i = 1; i <= 12; i++) _post('a$i')],
+      svc.byCursor[null] = FeedPage.posts(posts: [for (var i = 1; i <= 12; i++) _post('a$i')],
         hasNext: true,
         nextCursor: 'c1',
       );
-      svc.byCursor['c1'] = FeedPage(
+      svc.byCursor['c1'] = FeedPage.posts(
         // a12 comes again: the list must not duplicate it.
         posts: [_post('a12'), _post('b1'), _post('b2')],
         hasNext: false,
@@ -251,7 +250,7 @@ void main() {
     testWidgets('pull to refresh restarts from the first page', (tester) async {
       final svc = paged();
       await _mount(tester, const SocialFeedTab(mode: 'FOR_YOU'), svc);
-      svc.byCursor[null] = FeedPage(posts: [_post('fresh')], hasNext: false);
+      svc.byCursor[null] = FeedPage.posts(posts: [_post('fresh')], hasNext: false);
 
       await tester.fling(_list.first, const Offset(0, 500), 1000);
       await tester.pumpAndSettle();

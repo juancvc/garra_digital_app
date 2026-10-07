@@ -849,7 +849,7 @@ class _FollowingFeed extends CommunityService {
     int size = 20,
   }) async {
     calls++;
-    return const FeedPage(posts: []);
+    return FeedPage.posts(posts: []);
   }
 }
 
