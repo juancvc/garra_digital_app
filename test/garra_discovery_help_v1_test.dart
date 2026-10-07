@@ -128,6 +128,53 @@ void main() {
     }
   });
 
+  testWidgets('guide card artwork visible at 360px with normal text scale',
+      (tester) async {
+    tester.view.physicalSize = const Size(360, 780);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(const MaterialApp(
+      home: GarraGuidePage(),
+    ));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey(
+          'garra-guide-card-art-assets/images/discovery/garra_help_digital.webp')),
+      findsWidgets,
+    );
+    await tester.scrollUntilVisible(find.text('Garra Solidaria'), 120);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey(
+          'garra-guide-card-art-assets/images/discovery/garra_help_solidarity.webp')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('guide card artwork adapts at 360px / 1.3 scale without overflow',
+      (tester) async {
+    tester.view.physicalSize = const Size(360, 780);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MediaQuery(
+      data: const MediaQueryData(textScaler: TextScaler.linear(1.3)),
+      child: const MaterialApp(home: GarraGuidePage()),
+    ));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey(
+          'garra-guide-card-art-assets/images/discovery/garra_help_digital.webp')),
+      findsNothing,
+    );
+    await tester.scrollUntilVisible(find.text('Marketplace'), 120);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Solicita tu perfil vendedor'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('guide hero, section cards and CTA work at 360px / 1.3 scale',
       (tester) async {
     tester.view.physicalSize = const Size(360, 780);

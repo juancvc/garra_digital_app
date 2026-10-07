@@ -184,56 +184,153 @@ class _GarraGuideCard extends StatelessWidget {
   final VoidCallback? onAction;
   final String? illustrationAsset;
 
+  static bool _hideArtForAccessibility(TextScaler textScale) =>
+      textScale.scale(14) > 17.5;
+
+  static bool _isLongGuideCard(String? asset, String description) =>
+      asset == _GarraHelpArt.marketplace ||
+      asset == _GarraHelpArt.solidarity ||
+      description.length > 130;
+
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final textScale = MediaQuery.textScalerOf(context);
-    final compact = width < 380 || textScale.scale(14) > 17.5;
-    final artSide = width >= 720 ? 92.0 : 76.0;
+    final hideForAccessibility = _hideArtForAccessibility(textScale);
+    final showArt = illustrationAsset != null && !hideForAccessibility;
+    final longCard =
+        _isLongGuideCard(illustrationAsset, description);
+    final artExtent = width >= 720
+        ? (longCard ? 104.0 : 92.0)
+        : (longCard ? 96.0 : 84.0);
+    final textReserve = showArt ? (longCard ? 76.0 : 68.0) : 0.0;
     final dpr = MediaQuery.devicePixelRatioOf(context);
-    final cacheSide = (artSide * dpr).round().clamp(160, 360);
+    final cacheSide = (artExtent * dpr).round().clamp(160, 420);
 
     return DecoratedBox(
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(GarraColors.gold).withValues(alpha: .16)),
-      gradient: const LinearGradient(colors: [Color(GarraColors.surfaceRaised),
-        Color(GarraColors.surface), Color(GarraColors.burgundyDeep)]),
-    ),
-    child: Padding(padding: const EdgeInsets.all(15),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(width: 44, height: 44,
-          decoration: BoxDecoration(color: const Color(GarraColors.burgundy),
-            borderRadius: BorderRadius.circular(13)),
-          child: Icon(icon, color: const Color(GarraColors.cream))),
-        const SizedBox(width: 13),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+            color: const Color(GarraColors.gold).withValues(alpha: .16)),
+        gradient: const LinearGradient(colors: [
+          Color(GarraColors.surfaceRaised),
+          Color(GarraColors.surface),
+          Color(GarraColors.burgundyDeep),
+        ]),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
           children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: const Color(GarraColors.cream), fontWeight: FontWeight.w800)),
-            const SizedBox(height: 5),
-            Text(description, style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: const Color(GarraColors.creamMuted), height: 1.35)),
-            if (action != null && onAction != null)
-              Padding(padding: const EdgeInsets.only(top: 4),
-                child: TextButton.icon(onPressed: onAction,
-                  icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                  label: Text(action!),
-                  style: TextButton.styleFrom(foregroundColor: const Color(GarraColors.gold)))),
-          ])),
-        if (!compact && illustrationAsset != null) ...[
-          const SizedBox(width: 8),
-          ExcludeSemantics(child: SizedBox(
-            width: artSide, height: artSide,
-            child: Image.asset(illustrationAsset!, fit: BoxFit.contain,
-              alignment: Alignment.bottomCenter, cacheWidth: cacheSide,
-              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            if (showArt && longCard)
+              Positioned(
+                right: 0,
+                top: 0,
+                bottom: 0,
+                width: artExtent * 0.9,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          const Color(GarraColors.surface)
+                              .withValues(alpha: 0),
+                          const Color(GarraColors.surface)
+                              .withValues(alpha: 0.88),
+                          const Color(GarraColors.burgundyDeep)
+                              .withValues(alpha: 0.45),
+                        ],
+                        stops: const [0.0, 0.5, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.all(15),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(GarraColors.burgundy),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: Icon(icon, color: const Color(GarraColors.cream)),
+                  ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(right: textReserve),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    color: const Color(GarraColors.cream),
+                                    fontWeight: FontWeight.w800,
+                                  )),
+                          const SizedBox(height: 5),
+                          Text(description,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: const Color(GarraColors.creamMuted),
+                                    height: 1.35,
+                                  )),
+                          if (action != null && onAction != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: TextButton.icon(
+                                onPressed: onAction,
+                                icon: const Icon(Icons.arrow_forward_rounded,
+                                    size: 18),
+                                label: Text(action!),
+                                style: TextButton.styleFrom(
+                                  foregroundColor:
+                                      const Color(GarraColors.gold),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          )),
-        ],
-      ]),
-    ),
-  );
+            if (showArt)
+              Positioned(
+                right: longCard ? -8 : -2,
+                bottom: longCard ? -10 : -4,
+                width: artExtent,
+                height: artExtent,
+                child: IgnorePointer(
+                  child: ExcludeSemantics(
+                    child: Image.asset(
+                      illustrationAsset!,
+                      key: ValueKey('garra-guide-card-art-$illustrationAsset'),
+                      fit: BoxFit.contain,
+                      alignment: Alignment.bottomRight,
+                      cacheWidth: cacheSide,
+                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
