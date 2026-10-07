@@ -8,17 +8,20 @@ import '../../../core/design/garra_spacing.dart';
 import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../data/crema_business_engagement_service.dart';
+import '../data/crema_business_offer_models.dart';
 
 class BusinessOffersPage extends StatefulWidget {
-  const BusinessOffersPage({super.key});
+  const BusinessOffersPage({super.key, this.service});
+
+  final CremaBusinessEngagementService? service;
 
   @override
   State<BusinessOffersPage> createState() => _BusinessOffersPageState();
 }
 
 class _BusinessOffersPageState extends State<BusinessOffersPage> {
-  final _service = CremaBusinessEngagementService();
-  List<Map<String, dynamic>> _offers = [];
+  late final _service = widget.service ?? CremaBusinessEngagementService();
+  List<CremaBusinessOffer> _offers = [];
   bool _loading = true;
   bool _nearby = false;
   String? _error;
@@ -36,7 +39,7 @@ class _BusinessOffersPageState extends State<BusinessOffersPage> {
       _nearby = nearby;
     });
     try {
-      List<Map<String, dynamic>> offers;
+      List<CremaBusinessOffer> offers;
       if (nearby) {
         final permission = await Geolocator.checkPermission();
         LocationPermission p = permission;
@@ -103,18 +106,18 @@ class _BusinessOffersPageState extends State<BusinessOffersPage> {
                     const SizedBox(height: 12),
                   ],
                   if (_offers.isEmpty)
-                    const GarraEmptyState(
+                    GarraEmptyState(
                       title: 'Aún no hay ofertas',
                       message: 'Cuando un Negocio Crema verificado publique una promoción, la verás aquí.',
                       hint: '¿Cómo funciona? Los dueños verificados crean ofertas desde Mi negocio.',
                     )
                   else
                     ..._offers.map((o) {
-                      final title = o['title']?.toString() ?? '';
-                      final point = o['cremaPointName']?.toString() ?? '';
-                      final desc = o['description']?.toString() ?? '';
-                      final following = o['following'] == true;
-                      final pointId = o['cremaPointId']?.toString() ?? '';
+                      final title = o.title;
+                      final point = o.cremaPointName ?? '';
+                      final desc = o.description;
+                      final following = o.following;
+                      final pointId = o.cremaPointId;
                       return Padding(
                         padding: const EdgeInsets.only(bottom: GarraSpacing.md),
                         child: GarraCard(

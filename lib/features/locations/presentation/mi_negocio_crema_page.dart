@@ -96,6 +96,8 @@ class _MiNegocioCremaPageState extends State<MiNegocioCremaPage> {
               title: '¿Tienes un negocio?',
               message:
                   'Regístralo para aparecer en Negocios Crema tras la revisión de Garra.',
+              hint:
+                  'Sin negocio verificado no puedes publicar ofertas ni aparecer en el mapa.',
               actionLabel: 'Registrar mi negocio',
               onAction: () => _register(),
             )

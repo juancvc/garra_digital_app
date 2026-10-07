@@ -13,6 +13,10 @@ import '../../../core/widgets/garra_states.dart';
 import '../data/business_map_links.dart';
 import '../data/business_social_links.dart';
 import '../data/crema_business_application_service.dart';
+import '../data/crema_business_engagement_service.dart';
+import '../data/crema_business_offer_models.dart';
+import 'create_business_offer_page.dart';
+import '../../../core/widgets/garra_card.dart';
 import 'mi_negocio_crema_page.dart';
 
 /// SONIC_01: the owner's page for an approved business. Data always comes
@@ -27,12 +31,14 @@ class MiNegocioActivoPage extends StatefulWidget {
     this.initial,
     this.service,
     this.media,
+    this.engagement,
   });
 
   final String applicationId;
   final CremaBusinessApplication? initial;
   final CremaBusinessApplicationService? service;
   final MediaUploadService? media;
+  final CremaBusinessEngagementService? engagement;
 
   @override
   State<MiNegocioActivoPage> createState() => _MiNegocioActivoPageState();
@@ -50,6 +56,14 @@ class _MiNegocioActivoPageState extends State<MiNegocioActivoPage> {
   bool _failed = false;
   XFile? _photo;
   bool _saving = false;
+
+  CremaBusinessEngagementService? _engagementInstance;
+  CremaBusinessEngagementService get _engagement =>
+      _engagementInstance ??=
+          widget.engagement ?? CremaBusinessEngagementService();
+  List<CremaBusinessOffer> _offers = const [];
+  bool _offersLoading = false;
+  String? _offersError;
 
   @override
   void initState() {
@@ -78,6 +92,9 @@ class _MiNegocioActivoPageState extends State<MiNegocioActivoPage> {
         _item = match;
         _loading = false;
       });
+      if (match != null && match.isApprovedBusiness) {
+        await _loadOffers(match.cremaPointId!);
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -157,6 +174,117 @@ class _MiNegocioActivoPageState extends State<MiNegocioActivoPage> {
       _snack('Quitamos la foto del negocio');
     } catch (_) {
       if (mounted) _snack('No pudimos quitar la foto. Intenta nuevamente.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+
+  Future<void> _loadOffers(String pointId) async {
+    setState(() {
+      _offersLoading = true;
+      _offersError = null;
+    });
+    try {
+      final offers = await _engagement
+          .listOwnedOffers(pointId)
+          .timeout(const Duration(seconds: 4));
+      if (!mounted) return;
+      offers.sort(_offerSort);
+      setState(() {
+        _offers = offers;
+        _offersLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _offersLoading = false;
+        _offersError = 'No pudimos cargar tus ofertas';
+      });
+    }
+  }
+
+  int _offerSort(CremaBusinessOffer a, CremaBusinessOffer b) {
+    int rank(CremaBusinessOffer o) {
+      if (o.isActive && !o.vigenciaTerminada) return 0;
+      if (o.isDraft) return 1;
+      if (o.isActive && o.vigenciaTerminada) return 2;
+      if (o.status == CremaBusinessOfferStatus.expired) return 3;
+      return 4;
+    }
+
+    final c = rank(a).compareTo(rank(b));
+    if (c != 0) return c;
+    final aDate = a.publishedAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final bDate = b.publishedAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+    return bDate.compareTo(aDate);
+  }
+
+  Future<void> _openCreate({CremaBusinessOffer? draft}) async {
+    final item = _item;
+    if (item == null || !item.isApprovedBusiness) return;
+    final result = await Navigator.of(context).push<CremaBusinessOffer>(
+      MaterialPageRoute(
+        builder: (_) => CreateBusinessOfferPage(
+          pointId: item.cremaPointId!,
+          businessName: item.businessName,
+          engagement: _engagement,
+          media: _media,
+          initial: draft,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (result != null) {
+      await _loadOffers(item.cremaPointId!);
+    }
+  }
+
+  Future<void> _publish(CremaBusinessOffer offer) async {
+    if (_saving || !allowNetworkAction(context)) return;
+    setState(() => _saving = true);
+    try {
+      await _engagement.publishOffer(offer.id);
+      if (!mounted) return;
+      _snack('Oferta publicada');
+      await _loadOffers(offer.cremaPointId);
+    } catch (_) {
+      if (mounted) _snack('No pudimos publicar la oferta.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _cancel(CremaBusinessOffer offer) async {
+    if (_saving || !allowNetworkAction(context)) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar oferta'),
+        content: const Text(
+          'La oferta dejará de mostrarse a la hinchada. ¿Continuar?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Cancelar oferta'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _saving = true);
+    try {
+      await _engagement.cancelOffer(offer.id);
+      if (!mounted) return;
+      _snack('Oferta cancelada');
+      await _loadOffers(offer.cremaPointId);
+    } catch (_) {
+      if (mounted) _snack('No pudimos cancelar la oferta.');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -256,6 +384,52 @@ class _MiNegocioActivoPageState extends State<MiNegocioActivoPage> {
             style: TextStyle(color: colors.textSecondary),
           ),
         ],
+
+        Text('OFERTAS Y PROMOCIONES', style: text.labelLarge?.copyWith(
+          color: colors.brandPrestige,
+          fontWeight: FontWeight.w800,
+        ), key: const ValueKey('owner_offers_section')),
+        const SizedBox(height: GarraSpacing.sm),
+        if (_offersLoading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: GarraSpacing.lg),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_offersError != null)
+          GarraErrorState(
+            title: 'No pudimos cargar ofertas',
+            message: _offersError!,
+            onRetry: () => _loadOffers(pointId),
+          )
+        else if (_offers.isEmpty)
+          GarraEmptyState(
+            title: 'Aún no tienes ofertas',
+            message:
+                'Publica una promoción para que la hinchada la vea en Ofertas crema.',
+            hint:
+                '¿Cómo funciona?\n1) Crea el título y el beneficio\n2) Elige vigencia e imagen (opcional)\n3) Publica cuando esté lista',
+            actionLabel: 'Crear mi primera oferta',
+            onAction: _saving ? null : () => _openCreate(),
+          )
+        else ...[
+          ..._offers.map((o) => _OwnerOfferCard(
+                offer: o,
+                busy: _saving,
+                onPublish: o.isDraft ? () => _publish(o) : null,
+                onEdit: o.isDraft ? () => _openCreate(draft: o) : null,
+                onCancel: (!o.isCancelled && o.status != CremaBusinessOfferStatus.expired)
+                    ? () => _cancel(o)
+                    : null,
+              )),
+          const SizedBox(height: GarraSpacing.sm),
+          OutlinedButton.icon(
+            key: const ValueKey('owner_offers_create'),
+            onPressed: _saving ? null : () => _openCreate(),
+            icon: const Icon(Icons.add),
+            label: const Text('Crear oferta'),
+          ),
+        ],
+        const SizedBox(height: GarraSpacing.xl),
         if (item.category.isNotEmpty) ...[
           const SizedBox(height: GarraSpacing.md),
           Text(
@@ -296,6 +470,7 @@ class _MiNegocioActivoPageState extends State<MiNegocioActivoPage> {
           ),
           const SizedBox(height: GarraSpacing.xl),
         ],
+
         Text('FOTO DEL NEGOCIO', style: text.labelLarge?.copyWith(
           color: colors.brandPrestige,
           fontWeight: FontWeight.w800,
@@ -346,3 +521,108 @@ class _Line extends StatelessWidget {
     ),
   );
 }
+
+
+class _OwnerOfferCard extends StatelessWidget {
+  const _OwnerOfferCard({
+    required this.offer,
+    required this.busy,
+    this.onPublish,
+    this.onEdit,
+    this.onCancel,
+  });
+
+  final CremaBusinessOffer offer;
+  final bool busy;
+  final VoidCallback? onPublish;
+  final VoidCallback? onEdit;
+  final VoidCallback? onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final colors = context.garraColors;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: GarraSpacing.md),
+      child: GarraCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if ((offer.imageUrl ?? '').isNotEmpty) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(GarraRadius.md),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: GarraCachedNetworkImage(
+                    imageUrl: offer.imageUrl!,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              const SizedBox(height: GarraSpacing.sm),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  child: Text(offer.title, style: text.titleMedium),
+                ),
+                Chip(
+                  label: Text(offer.statusChipLabel),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              offer.description,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: text.bodyMedium,
+            ),
+            if (offer.startsAt != null || offer.endsAt != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                _vigencia(offer),
+                style: text.bodySmall?.copyWith(color: colors.textSecondary),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                if (onEdit != null)
+                  TextButton(
+                    onPressed: busy ? null : onEdit,
+                    child: const Text('Editar'),
+                  ),
+                if (onPublish != null)
+                  FilledButton(
+                    onPressed: busy ? null : onPublish,
+                    child: const Text('Publicar'),
+                  ),
+                if (onCancel != null)
+                  TextButton(
+                    onPressed: busy ? null : onCancel,
+                    child: const Text('Cancelar'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _vigencia(CremaBusinessOffer o) {
+    String fmt(DateTime? d) {
+      if (d == null) return '—';
+      final l = d.toLocal();
+      final dd = l.day.toString().padLeft(2, '0');
+      final mm = l.month.toString().padLeft(2, '0');
+      return '$dd/$mm/${l.year}';
+    }
+
+    return 'Vigencia: ${fmt(o.startsAt)} → ${fmt(o.endsAt)}';
+  }
+}
+
