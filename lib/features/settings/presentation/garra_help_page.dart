@@ -13,6 +13,31 @@ abstract final class _GarraHelpArt {
   static const solidarity = 'assets/images/discovery/garra_help_solidarity.webp';
 }
 
+/// Help shortcuts that land in [MainShell] must replace the stack. A [push]
+/// from settings/help would keep the shell page already under that stack and
+/// mount a second [StatefulShellRoute], duplicating [rootNavigatorKey].
+bool _guideShortcutUsesGo(String route) => switch (route) {
+      '/home' ||
+      '/comunidad' ||
+      '/centro-garra' ||
+      '/explorar' ||
+      '/passport' ||
+      '/negocios' ||
+      '/marketplace' ||
+      '/solidaria' ||
+      '/settings' =>
+        true,
+      _ => false,
+    };
+
+void _openGuideShortcut(BuildContext context, String route) {
+  if (_guideShortcutUsesGo(route)) {
+    context.go(route);
+  } else {
+    context.push(route);
+  }
+}
+
 class GarraHelpPage extends StatelessWidget {
   const GarraHelpPage({super.key});
 
@@ -92,7 +117,8 @@ class GarraGuidePage extends StatelessWidget {
       {String? route, String? action, String? illustrationAsset}) => Padding(
     padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
     child: _GarraGuideCard(icon: icon, title: title, description: body,
-      action: action, onAction: route == null ? null : () => context.push(route),
+      action: action,
+      onAction: route == null ? null : () => _openGuideShortcut(context, route),
       illustrationAsset: illustrationAsset),
   );
 }
