@@ -276,16 +276,9 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                         child: TextButton.icon(
                           key: const ValueKey('guidelines-link'),
                           onPressed: () async {
-                            final messenger = ScaffoldMessenger.of(context);
-                            final opened = await openCommunityGuidelines();
-                            if (!opened) {
-                              messenger.showSnackBar(const SnackBar(
-                                content: Text(
-                                    'No pudimos abrir las normas ahora. Intenta de nuevo.'),
-                              ));
-                            }
+                            await openCommunityGuidelines(context);
                           },
-                          icon: const Icon(Icons.open_in_new, size: 16),
+                          icon: const Icon(Icons.article_outlined, size: 16),
                           label: const Text('Leer las normas de comunidad'),
                         ),
                       ),

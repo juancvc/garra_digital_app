@@ -8,13 +8,13 @@ import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
-
 import '../../../core/config/api_config.dart';
 import '../../../core/config/app_config_service.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/design/garra_spacing.dart';
-import '../../../core/legal/legal_links.dart';
+import '../../../core/legal/garra_legal_documents.dart';
+import '../../../core/legal/garra_legal_modal.dart';
+import '../../../core/navigation/settings_back.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/garra_error.dart';
 import '../../../core/telemetry/telemetry.dart';
@@ -28,8 +28,11 @@ class SettingsHubPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Ajustes')),
+    return GarraSettingsRouteScope(
+      routePath: '/settings',
+      child: Scaffold(
+      appBar: garraSettingsAppBar(context,
+          routePath: '/settings', title: 'Ajustes'),
       body: ListView(
         padding: const EdgeInsets.all(GarraSpacing.lg),
         children: [
@@ -80,6 +83,7 @@ class SettingsHubPage extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -128,8 +132,11 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Privacidad')),
+    return GarraSettingsRouteScope(
+      routePath: '/settings/privacy',
+      child: Scaffold(
+      appBar: garraSettingsAppBar(context,
+          routePath: '/settings/privacy', title: 'Privacidad'),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -182,6 +189,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
                 ),
               ],
             ),
+    ),
     );
   }
 }
@@ -189,44 +197,33 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
 class LegalSettingsPage extends StatelessWidget {
   const LegalSettingsPage({super.key});
 
-  Uri _resolve(String? pathOrUrl) {
-    if (pathOrUrl == null || pathOrUrl.isEmpty) {
-      return Uri.parse(
-        ApiConfig.baseUrl.replaceAll('/api/v1', '/legal/privacy'),
-      );
-    }
-    if (pathOrUrl.startsWith('http')) return Uri.parse(pathOrUrl);
-    final root = ApiConfig.baseUrl.replaceAll(RegExp(r'/api/v1/?$'), '');
-    return Uri.parse('$root$pathOrUrl');
-  }
-
-  Future<void> _open(String? url) async {
-    final uri = _resolve(url);
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
+  Future<void> _openDocument(BuildContext context, GarraLegalDocument doc) =>
+      showGarraLegalDocumentModal(context, doc);
 
   @override
   Widget build(BuildContext context) {
-    final cfg = appConfigService.current;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Legal y privacidad')),
+    return GarraSettingsRouteScope(
+      routePath: '/settings/legal',
+      child: Scaffold(
+      appBar: garraSettingsAppBar(context,
+          routePath: '/settings/legal', title: 'Legal y privacidad'),
       body: ListView(
         padding: const EdgeInsets.all(GarraSpacing.lg),
         children: [
           ListTile(
             title: const Text('Política de privacidad'),
-            trailing: const Icon(Icons.open_in_new),
-            onTap: () => _open(cfg.privacyUrl ?? '/legal/privacy'),
+            trailing: const Icon(Icons.description_outlined),
+            onTap: () => _openDocument(context, GarraLegalDocument.privacy),
           ),
           ListTile(
             title: const Text('Términos'),
-            trailing: const Icon(Icons.open_in_new),
-            onTap: () => _open(cfg.termsUrl ?? '/legal/terms'),
+            trailing: const Icon(Icons.description_outlined),
+            onTap: () => _openDocument(context, GarraLegalDocument.terms),
           ),
           ListTile(
             title: const Text('Normas de comunidad'),
-            trailing: const Icon(Icons.open_in_new),
-            onTap: () => openCommunityGuidelines(),
+            trailing: const Icon(Icons.description_outlined),
+            onTap: () => _openDocument(context, GarraLegalDocument.community),
           ),
           ListTile(
             title: const Text('Eliminar cuenta'),
@@ -238,6 +235,7 @@ class LegalSettingsPage extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }
@@ -277,8 +275,11 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Eliminar mi cuenta')),
+    return GarraSettingsRouteScope(
+      routePath: '/settings/delete-account',
+      child: Scaffold(
+      appBar: garraSettingsAppBar(context,
+          routePath: '/settings/delete-account', title: 'Eliminar mi cuenta'),
       body: Padding(
         padding: const EdgeInsets.all(GarraSpacing.lg),
         child: Column(
@@ -306,6 +307,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
           ],
         ),
       ),
+    ),
     );
   }
 }
@@ -346,8 +348,11 @@ class _DataExportPageState extends State<DataExportPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Descargar mis datos')),
+    return GarraSettingsRouteScope(
+      routePath: '/settings/data-export',
+      child: Scaffold(
+      appBar: garraSettingsAppBar(context,
+          routePath: '/settings/data-export', title: 'Descargar mis datos'),
       body: Padding(
         padding: const EdgeInsets.all(GarraSpacing.lg),
         child: Column(
@@ -369,6 +374,7 @@ class _DataExportPageState extends State<DataExportPage> {
           ],
         ),
       ),
+    ),
     );
   }
 }
@@ -415,8 +421,11 @@ class _HelpDiagnosticsPageState extends State<HelpDiagnosticsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Diagnóstico')),
+    return GarraSettingsRouteScope(
+      routePath: '/settings/help/diagnostics',
+      child: Scaffold(
+      appBar: garraSettingsAppBar(context,
+          routePath: '/settings/help/diagnostics', title: 'Diagnóstico'),
       body: Padding(
         padding: const EdgeInsets.all(GarraSpacing.lg),
         child: Column(
@@ -451,6 +460,7 @@ class _HelpDiagnosticsPageState extends State<HelpDiagnosticsPage> {
           ],
         ),
       ),
+    ),
     );
   }
 }
@@ -504,8 +514,11 @@ class _BetaFeedbackPageState extends State<BetaFeedbackPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Feedback Beta')),
+    return GarraSettingsRouteScope(
+      routePath: '/settings/feedback',
+      child: Scaffold(
+      appBar: garraSettingsAppBar(context,
+          routePath: '/settings/feedback', title: 'Feedback Beta'),
       body: Padding(
         padding: const EdgeInsets.all(GarraSpacing.lg),
         child: Column(
@@ -541,6 +554,7 @@ class _BetaFeedbackPageState extends State<BetaFeedbackPage> {
           ],
         ),
       ),
+    ),
     );
   }
 }

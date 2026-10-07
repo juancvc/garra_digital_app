@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/navigation/settings_back.dart';
 import '../../../core/theme/garra_appearance.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 
@@ -12,8 +13,11 @@ class AppearanceSettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = ref.watch(garraAppearanceProvider);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Apariencia')),
+    return GarraSettingsRouteScope(
+      routePath: '/settings/apariencia',
+      child: Scaffold(
+      appBar: garraSettingsAppBar(context,
+          routePath: '/settings/apariencia', title: 'Apariencia'),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
           GarraSpacing.lg,
@@ -51,6 +55,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }

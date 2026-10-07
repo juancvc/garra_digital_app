@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/design/garra_colors.dart';
+import '../../../core/navigation/settings_back.dart';
 import '../../../core/widgets/garra_card.dart';
 
 abstract final class _GarraHelpArt {
@@ -42,8 +43,11 @@ class GarraHelpPage extends StatelessWidget {
   const GarraHelpPage({super.key});
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Ayuda y soporte')),
+  Widget build(BuildContext context) => GarraSettingsRouteScope(
+    routePath: '/settings/help',
+    child: Scaffold(
+    appBar: garraSettingsAppBar(context,
+        routePath: '/settings/help', title: 'Ayuda y soporte'),
     body: ListView(padding: const EdgeInsets.all(GarraSpacing.lg), children: [
       const Text('Encuentra tu camino en Garra',
         style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
@@ -61,6 +65,7 @@ class GarraHelpPage extends StatelessWidget {
       _entry(context, 'Diagnóstico', 'Información técnica para resolver problemas.',
         Icons.info_outline, '/settings/help/diagnostics'),
     ]),
+  ),
   );
 
   Widget _entry(BuildContext context, String title, String subtitle,
@@ -78,8 +83,11 @@ class GarraGuidePage extends StatelessWidget {
   const GarraGuidePage({super.key});
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Cómo usar Garra')),
+  Widget build(BuildContext context) => GarraSettingsRouteScope(
+    routePath: '/settings/help/guide',
+    child: Scaffold(
+    appBar: garraSettingsAppBar(context,
+        routePath: '/settings/help/guide', title: 'Cómo usar Garra'),
     body: ListView(padding: const EdgeInsets.all(GarraSpacing.md), children: [
       const _GarraGuideHero(),
       const SizedBox(height: GarraSpacing.lg),
@@ -111,6 +119,7 @@ class GarraGuidePage extends StatelessWidget {
         'Actualiza tu perfil y revisa tus preferencias, términos y privacidad desde Ajustes.',
         route: '/settings', action: 'Abrir Ajustes'),
     ]),
+  ),
   );
 
   Widget _section(BuildContext context, IconData icon, String title, String body,
@@ -347,8 +356,11 @@ class GarraFaqPage extends StatelessWidget {
   const GarraFaqPage({super.key});
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Preguntas frecuentes')),
+  Widget build(BuildContext context) => GarraSettingsRouteScope(
+    routePath: '/settings/help/faq',
+    child: Scaffold(
+    appBar: garraSettingsAppBar(context,
+        routePath: '/settings/help/faq', title: 'Preguntas frecuentes'),
     body: ListView(padding: const EdgeInsets.all(GarraSpacing.lg), children: const [
       _Question('¿Por qué mi negocio está en revisión?',
         'Garra revisa las solicitudes antes de mostrar negocios a la comunidad.'),
@@ -363,6 +375,7 @@ class GarraFaqPage extends StatelessWidget {
       _Question('¿Dónde reviso privacidad y términos?',
         'En Ajustes encontrarás Privacidad y Legal y privacidad.'),
     ]),
+  ),
   );
 }
 
