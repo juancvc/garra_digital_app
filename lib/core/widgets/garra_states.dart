@@ -94,18 +94,22 @@ class GarraConversationSkeleton extends StatelessWidget {
 }
 
 class GarraEmptyState extends StatelessWidget {
+  /// DEMO HARDENING 01: reusable first-use / empty pattern.
+  /// Optional [hint] is a short "¿Cómo funciona?" line; never a blocking tutorial.
   const GarraEmptyState({
     super.key,
     required this.title,
     required this.message,
     this.actionLabel,
     this.onAction,
+    this.hint,
   });
 
   final String title;
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final String? hint;
 
   @override
   Widget build(BuildContext context) {
@@ -123,6 +127,13 @@ class GarraEmptyState extends StatelessWidget {
               Text(title, style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
               const SizedBox(height: GarraSpacing.sm),
               Text(message, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
+              if (hint != null && hint!.trim().isNotEmpty) ...[
+                const SizedBox(height: GarraSpacing.sm),
+                Text(hint!, key: const ValueKey('empty_hint'),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.garraColors.textSecondary),
+                    textAlign: TextAlign.center),
+              ],
               if (actionLabel != null && onAction != null) ...[
                 const SizedBox(height: GarraSpacing.xl),
                 GarraSecondaryButton(label: actionLabel!, onPressed: onAction),

@@ -271,9 +271,12 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
                     error: (_, _) => GarraErrorState(onRetry: _refresh),
                     data: (listings) {
                       if (listings.isEmpty) {
-                        return const GarraEmptyState(
-                          title: 'Marketplace Crema',
-                          message: 'Los emprendimientos crema aparecerán aquí.',
+                        return GarraEmptyState(
+                          title: 'Aún no hay productos',
+                          message: 'Cuando la hinchada publique, los productos aparecerán aquí.',
+                          hint: '¿Cómo funciona? Publica desde tu negocio verificado en el panel de vendedor.',
+                          actionLabel: 'Ir a mis negocios',
+                          onAction: () => GoRouter.maybeOf(context)?.push('/marketplace/seller'),
                         );
                       }
                       return GridView.builder(

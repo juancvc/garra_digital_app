@@ -137,6 +137,7 @@ class _SolidariaPageState extends State<SolidariaPage> {
                                     'Garra Solidaria re\u00fane iniciativas de hinchas para ayudar a otros. '
                                     'Cada una se revisa antes de mostrarse. '
                                     '\u00bfConoces una causa? Prop\u00f3n la tuya.',
+                                hint: '¿Cómo funciona? Garra revisa cada iniciativa antes de publicarla.',
                                 actionLabel: 'Proponer iniciativa',
                                 onAction: _propose,
                               ),

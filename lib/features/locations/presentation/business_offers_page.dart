@@ -104,8 +104,9 @@ class _BusinessOffersPageState extends State<BusinessOffersPage> {
                   ],
                   if (_offers.isEmpty)
                     const GarraEmptyState(
-                      title: 'Sin ofertas',
-                      message: 'Los negocios verificados publicarán aquí.',
+                      title: 'Aún no hay ofertas',
+                      message: 'Cuando un Negocio Crema verificado publique una promoción, la verás aquí.',
+                      hint: '¿Cómo funciona? Los dueños verificados crean ofertas desde Mi negocio.',
                     )
                   else
                     ..._offers.map((o) {

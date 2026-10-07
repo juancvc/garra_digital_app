@@ -362,12 +362,9 @@ void main() {
     final service = FakeMarketplaceService(categories: [sampleCategory()]);
     await tester.pumpWidget(pumpMarketplace(service));
     await tester.pumpAndSettle();
-    expect(find.text('Marketplace Crema'), findsWidgets);
-    expect(
-      find.text('Los emprendimientos crema aparecerán aquí.'),
-      findsOneWidget,
-    );
-    expect(find.text('Publica tu emprendimiento'), findsWidgets);
+    expect(find.text('Aún no hay productos'), findsOneWidget);
+    expect(find.textContaining('productos aparecerán'), findsOneWidget);
+    expect(find.text('Ir a mis negocios'), findsOneWidget);
   });
 
   testWidgets('82_MARKETPLACE_DISCOVERY_RENDER', (tester) async {
