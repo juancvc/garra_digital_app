@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/home/presentation/create_action_sheet.dart';
 import '../../features/chat/presentation/chat_unread_badge.dart';
 import 'home_back_scroll.dart';
+import '../discovery/garra_discovery_tip.dart';
 import '../design/garra_colors.dart';
 import '../theme/garra_semantic_colors.dart';
 
@@ -53,7 +54,25 @@ class MainShell extends ConsumerWidget {
       },
       child: Scaffold(
       backgroundColor: colors.background,
-      body: navigationShell,
+      body: Stack(children: [
+        navigationShell,
+        Positioned(left: 12, right: 12, bottom: 12,
+          child: switch (navigationShell.currentIndex) {
+            0 => const GarraDiscoveryTip(key: ValueKey('home-tip'),
+              id: 'home.v1', title: 'Descubre Garra',
+              message: 'Desde Inicio y Explorar encuentras publicaciones, personas y experiencias de la comunidad.'),
+            1 => const GarraDiscoveryTip(key: ValueKey('community-tip'),
+              id: 'tribuna.v1', title: 'Tu Tribuna',
+              message: 'Publica, comenta y reacciona. En las comunidades también puedes conversar con otros hinchas.'),
+            2 => const GarraDiscoveryTip(key: ValueKey('football-tip'),
+              id: 'football.v1', title: 'Centro Garra',
+              message: 'Consulta partidos, resultados y tablas. Abre un partido para entrar a su Tribuna y Chat Futbolero.'),
+            3 => const GarraDiscoveryTip(key: ValueKey('explore-tip'),
+              id: 'explore.v1', title: 'Explora Garra',
+              message: 'Encuentra personas, negocios, Marketplace y otras experiencias de la comunidad.'),
+            _ => const SizedBox.shrink(),
+          }),
+      ]),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: colors.surface,

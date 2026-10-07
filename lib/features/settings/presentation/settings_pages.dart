@@ -65,8 +65,8 @@ class SettingsHubPage extends StatelessWidget {
           ),
           _tile(
             context,
-            title: 'Ayuda',
-            subtitle: 'Diagnóstico y feedback beta',
+            title: 'Ayuda y soporte',
+            subtitle: 'Cómo usar Garra, preguntas y contacto',
             icon: Icons.help_outline,
             route: '/settings/help',
           ),

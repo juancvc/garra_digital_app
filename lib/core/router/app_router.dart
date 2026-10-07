@@ -18,6 +18,8 @@ import 'package:garra_digital_app/features/football/presentation/chat_futbolero_
 import 'package:garra_digital_app/features/football/data/garra_football_models.dart';
 import 'package:garra_digital_app/features/settings/presentation/appearance_settings_page.dart';
 import 'package:garra_digital_app/features/settings/presentation/settings_pages.dart';
+import 'package:garra_digital_app/features/settings/presentation/garra_help_page.dart';
+import 'package:garra_digital_app/core/discovery/garra_discovery_tip.dart';
 import 'package:garra_digital_app/core/config/app_config_service.dart';
 import 'package:garra_digital_app/core/widgets/app_gates.dart';
 import 'package:garra_digital_app/features/community/presentation/create_community_post_page.dart';
@@ -231,7 +233,10 @@ List<RouteBase> _buildRoutes() => [
   GoRoute(
     path: '/comunidad/compose',
     name: 'comunidad-compose',
-    builder: (context, state) => const CreateCommunityPostPage(),
+    builder: (context, state) => const GarraDiscoverySurface(
+      id: 'create-post.v1', title: 'Comparte en la Tribuna',
+      message: 'Escribe una publicación y, si quieres, agrega una foto antes de publicar.',
+      child: CreateCommunityPostPage()),
   ),
   GoRoute(
     path: '/passport/edit',
@@ -569,6 +574,21 @@ List<RouteBase> _buildRoutes() => [
   GoRoute(
     path: '/settings/help',
     name: 'settings-help',
+    builder: (context, state) => const GarraHelpPage(),
+  ),
+  GoRoute(
+    path: '/settings/help/guide',
+    name: 'settings-help-guide',
+    builder: (context, state) => const GarraGuidePage(),
+  ),
+  GoRoute(
+    path: '/settings/help/faq',
+    name: 'settings-help-faq',
+    builder: (context, state) => const GarraFaqPage(),
+  ),
+  GoRoute(
+    path: '/settings/help/diagnostics',
+    name: 'settings-help-diagnostics',
     builder: (context, state) => const HelpDiagnosticsPage(),
   ),
   GoRoute(
@@ -651,7 +671,10 @@ List<RouteBase> _buildRoutes() => [
     name: 'muro-crema-compose',
     builder: (context, state) {
       final matchId = state.uri.queryParameters['matchId'];
-      return CreateCommunityPostPage(matchId: matchId);
+      return GarraDiscoverySurface(
+        id: 'create-post.v1', title: 'Comparte en la Tribuna',
+        message: 'Escribe una publicación y, si quieres, agrega una foto antes de publicar.',
+        child: CreateCommunityPostPage(matchId: matchId));
     },
   ),
   GoRoute(
@@ -781,7 +804,10 @@ List<RouteBase> _exploreOwnedRoutes() => [
   GoRoute(
     path: '/negocios',
     name: 'negocios-cremas',
-    builder: (context, state) => const NegociosCremasPage(),
+    builder: (context, state) => const GarraDiscoverySurface(
+      id: 'business.v1', title: 'Negocios de la comunidad',
+      message: 'Descubre negocios y promociones. Si tienes un negocio, puedes solicitar registrarlo y gestionarlo.',
+      child: NegociosCremasPage()),
     routes: [
       GoRoute(
         path: 'buscar',
@@ -808,8 +834,11 @@ List<RouteBase> _exploreOwnedRoutes() => [
   GoRoute(
     path: '/marketplace',
     name: 'marketplace',
-    builder: (context, state) =>
-        _featureOrDisabled('marketplace', const MarketplacePage()),
+    builder: (context, state) => _featureOrDisabled('marketplace',
+      const GarraDiscoverySurface(
+        id: 'marketplace.v1', title: 'Cómo vender en Marketplace',
+        message: 'Solicita el perfil vendedor. Tras la revisión de Garra, crea tu tienda y luego tus productos; ambos pasan por revisión antes de mostrarse.',
+        child: MarketplacePage())),
     routes: [
       GoRoute(
         path: 'favorites',
@@ -875,8 +904,11 @@ List<RouteBase> _exploreOwnedRoutes() => [
   GoRoute(
     path: '/solidaria',
     name: 'solidaria',
-    builder: (context, state) =>
-        _featureOrDisabled('solidaria', const SolidariaPage()),
+    builder: (context, state) => _featureOrDisabled('solidaria',
+      const GarraDiscoverySurface(
+        id: 'solidaria.v1', title: 'Garra Solidaria',
+        message: 'Propón una iniciativa. Garra la revisa y, si la aprueba, la comunidad podrá contactarte. Garra no procesa dinero, donaciones ni pagos.',
+        child: SolidariaPage())),
     routes: [
       // Literal before ':id' so "mias" is never read as a campaign id.
       GoRoute(
