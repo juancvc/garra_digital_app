@@ -96,10 +96,61 @@ void main() {
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('¿Cómo funciona Garra Solidaria?'), 100);
     expect(find.text('¿Cómo funciona Garra Solidaria?'), findsOneWidget);
-    router.go('/settings/help');
+    for (final (label, path) in [
+      ('Escríbenos', '/settings/feedback'),
+      ('Términos y condiciones', '/settings/legal'),
+      ('Privacidad', '/settings/privacy'),
+      ('Diagnóstico', '/settings/help/diagnostics'),
+    ]) {
+      router.go('/settings/help');
+      await tester.pumpAndSettle();
+      await Scrollable.ensureVisible(tester.element(find.text(label)),
+        alignment: 0.5);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+      expect(find.text(path), findsOneWidget);
+    }
+  });
+
+  testWidgets('guide hero, section cards and CTA work at 360px / 1.3 scale',
+      (tester) async {
+    tester.view.physicalSize = const Size(360, 780);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final router = GoRouter(initialLocation: '/settings/help/guide', routes: [
+      GoRoute(path: '/settings/help/guide', builder: (_, _) => const GarraGuidePage()),
+      GoRoute(path: '/marketplace', builder: (_, _) => const Scaffold(body: Text('Marketplace abierto'))),
+    ]);
+    await tester.pumpWidget(MediaQuery(
+      data: const MediaQueryData(textScaler: TextScaler.linear(1.3)),
+      child: MaterialApp.router(routerConfig: router),
+    ));
     await tester.pumpAndSettle();
-    router.go('/settings/feedback');
+    expect(find.text('GARRA\nTE ENSEÑA\nGARRA'), findsOneWidget);
+    expect(find.byType(Image), findsWidgets);
+    await tester.scrollUntilVisible(find.text('Marketplace'), 120);
+    expect(find.textContaining('Solicita tu perfil vendedor'), findsOneWidget);
+    await Scrollable.ensureVisible(tester.element(find.text('Ir a Marketplace')),
+      alignment: 0.5);
     await tester.pumpAndSettle();
-    expect(find.text('/settings/feedback'), findsOneWidget);
+    await tester.tap(find.text('Ir a Marketplace'));
+    await tester.pumpAndSettle();
+    expect(find.text('Marketplace abierto'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('guide remains readable at wider width and normal text scale',
+      (tester) async {
+    tester.view.physicalSize = const Size(800, 1100);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(const MaterialApp(home: GarraGuidePage()));
+    await tester.pumpAndSettle();
+    expect(find.text('GARRA\nTE ENSEÑA\nGARRA'), findsOneWidget);
+    expect(find.text('Primeros pasos'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

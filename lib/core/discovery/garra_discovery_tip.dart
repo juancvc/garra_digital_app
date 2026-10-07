@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../theme/garra_semantic_colors.dart';
+import '../design/garra_colors.dart';
 
 /// Independent versioned first-use flags; the guide remains available in Help.
 class DiscoveryTipStore {
@@ -83,26 +84,40 @@ class _GarraDiscoveryTipState extends State<GarraDiscoveryTip> {
         heightFactor: 1,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
-          child: Card(
-            color: colors.surface,
-            elevation: 8,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: colors.brandPrestige.withValues(alpha: .3)),
+              gradient: const LinearGradient(colors: [
+                Color(GarraColors.surfaceRaised), Color(GarraColors.burgundyDeep),
+              ]),
+              boxShadow: const [BoxShadow(color: Color(0x66000000), blurRadius: 16)],
+            ),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(children: [
-                    Icon(Icons.lightbulb_outline, color: colors.brandPrestige),
+                    ExcludeSemantics(child: ClipOval(child: Image.asset(
+                      'assets/brand/intro/garra_puma.png', width: 36, height: 36,
+                      cacheWidth: 72, fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Icon(Icons.lightbulb_outline,
+                        color: colors.brandPrestige),
+                    ))),
                     const SizedBox(width: 8),
                     Expanded(child: Text(widget.title,
-                        style: Theme.of(context).textTheme.titleSmall)),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: const Color(GarraColors.cream),
+                          fontWeight: FontWeight.w800))),
                     IconButton(
                       tooltip: 'Cerrar ayuda',
                       onPressed: _close,
-                      icon: const Icon(Icons.close),
+                      icon: const Icon(Icons.close, color: Color(GarraColors.cream)),
                     ),
                   ]),
-                  Text(widget.message),
+                  Text(widget.message, style: const TextStyle(
+                    color: Color(GarraColors.cream), height: 1.35)),
                   if (widget.actionLabel != null && widget.onAction != null)
                     TextButton(onPressed: () {
                       _close();

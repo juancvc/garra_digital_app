@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/design/garra_colors.dart';
 import '../../../core/widgets/garra_card.dart';
 
 class GarraHelpPage extends StatelessWidget {
@@ -46,45 +47,131 @@ class GarraGuidePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Cómo usar Garra')),
-    body: ListView(padding: const EdgeInsets.all(GarraSpacing.lg), children: [
-      _section(context, 'Primeros pasos',
+    body: ListView(padding: const EdgeInsets.all(GarraSpacing.md), children: [
+      const _GarraGuideHero(),
+      const SizedBox(height: GarraSpacing.lg),
+      _section(context, Icons.person_outline, 'Primeros pasos',
         'Completa tu perfil y elige tus intereses para encontrar gente y contenido que te importen.'),
-      _section(context, 'Inicio y Explorar',
+      _section(context, Icons.explore_outlined, 'Inicio y Explorar',
         'En Inicio ves publicaciones. En Explorar encuentras personas y experiencias de Garra.'),
-      _section(context, 'Tribuna',
+      _section(context, Icons.groups_outlined, 'Tribuna',
         'Comparte publicaciones, comenta y reacciona. En las comunidades también puedes conversar con otros hinchas.',
         route: '/comunidad', action: 'Ir a Comunidad'),
-      _section(context, 'Centro Garra',
+      _section(context, Icons.sports_soccer_outlined, 'Centro Garra',
         'Consulta partidos, resultados y tablas. Entra en un partido para ver su Tribuna y Chat Futbolero.',
         route: '/centro-garra', action: 'Ir a Centro Garra'),
-      _section(context, 'Negocios y promociones',
+      _section(context, Icons.storefront_outlined, 'Negocios y promociones',
         'Descubre negocios de la comunidad y sus ofertas. Si tienes un negocio, puedes solicitar registrarlo y gestionarlo.' ,
         route: '/negocios', action: 'Ver negocios'),
-      _section(context, 'Marketplace',
+      _section(context, Icons.shopping_bag_outlined, 'Marketplace',
         'Solicita tu perfil vendedor. Garra lo revisa. Luego crea tu tienda o negocio; tras su aprobación, publica un producto. Revisamos las publicaciones antes de mostrarlas a la comunidad.',
         route: '/marketplace', action: 'Ir a Marketplace'),
-      _section(context, 'Garra Solidaria',
+      _section(context, Icons.favorite_border, 'Garra Solidaria',
         'Propón una iniciativa. Garra la revisa y, si se aprueba, la publica para que la comunidad contacte directamente. Garra no procesa dinero, donaciones ni pagos.',
         route: '/solidaria', action: 'Ver Garra Solidaria'),
-      _section(context, 'Perfil y privacidad',
+      _section(context, Icons.add_circle_outline, 'Crear publicación',
+        'Escribe lo que quieres compartir con la comunidad y, si quieres, agrega una foto.',
+        route: '/comunidad/compose', action: 'Crear publicación'),
+      _section(context, Icons.privacy_tip_outlined, 'Perfil y privacidad',
         'Actualiza tu perfil y revisa tus preferencias, términos y privacidad desde Ajustes.',
         route: '/settings', action: 'Abrir Ajustes'),
     ]),
   );
 
-  Widget _section(BuildContext context, String title, String body,
+  Widget _section(BuildContext context, IconData icon, String title, String body,
       {String? route, String? action}) => Padding(
-    padding: const EdgeInsets.only(bottom: GarraSpacing.md),
-    child: GarraCard(child: Padding(
-      padding: const EdgeInsets.all(GarraSpacing.md),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: GarraSpacing.sm),
-        Text(body),
-        if (route != null && action != null)
-          TextButton(onPressed: () => context.push(route), child: Text(action)),
+    padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
+    child: _GarraGuideCard(icon: icon, title: title, description: body,
+      action: action, onAction: route == null ? null : () => context.push(route)),
+  );
+}
+
+class _GarraGuideHero extends StatelessWidget {
+  const _GarraGuideHero();
+
+  @override
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(24),
+    child: DecoratedBox(
+      decoration: const BoxDecoration(color: Color(GarraColors.burgundyDeep)),
+      child: Stack(children: [
+        Positioned.fill(child: ExcludeSemantics(child: Image.asset(
+          'assets/visual/garra_match_hero.png', fit: BoxFit.cover,
+          cacheWidth: 960,
+          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+        ))),
+        const Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(
+          gradient: LinearGradient(begin: Alignment.centerLeft,
+            end: Alignment.centerRight, colors: [
+              Color(0xF00E0C0B), Color(0xC947101C), Color(0x770E0C0B),
+            ]),
+        ))),
+        Padding(padding: const EdgeInsets.all(20), child: Row(children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min, children: [
+              const Text('GUÍA DE LA HINCHADA', style: TextStyle(
+                color: Color(GarraColors.gold), fontSize: 11,
+                fontWeight: FontWeight.w800, letterSpacing: 1.6)),
+              const SizedBox(height: 10),
+              const Text('GARRA\nTE ENSEÑA\nGARRA',
+                style: TextStyle(color: Color(GarraColors.cream),
+                  fontWeight: FontWeight.w900, fontSize: 25, height: 1.05)),
+              const SizedBox(height: 12),
+              const Text('Descubre todo lo que puedes hacer en la app y vive el fútbol dentro y fuera de la cancha.',
+                style: TextStyle(color: Color(GarraColors.cream), height: 1.35)),
+            ])),
+          const SizedBox(width: 10),
+          ExcludeSemantics(child: ClipOval(child: Image.asset(
+            'assets/brand/intro/garra_puma.png', width: 76, height: 76,
+            cacheWidth: 152, fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+          ))),
+        ])),
       ]),
-    )),
+    ),
+  );
+}
+
+class _GarraGuideCard extends StatelessWidget {
+  const _GarraGuideCard({required this.icon, required this.title,
+    required this.description, this.action, this.onAction});
+  final IconData icon;
+  final String title;
+  final String description;
+  final String? action;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: const Color(GarraColors.gold).withValues(alpha: .16)),
+      gradient: const LinearGradient(colors: [Color(GarraColors.surfaceRaised),
+        Color(GarraColors.surface), Color(GarraColors.burgundyDeep)]),
+    ),
+    child: Padding(padding: const EdgeInsets.all(15),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Container(width: 44, height: 44,
+          decoration: BoxDecoration(color: const Color(GarraColors.burgundy),
+            borderRadius: BorderRadius.circular(13)),
+          child: Icon(icon, color: const Color(GarraColors.cream))),
+        const SizedBox(width: 13),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: const Color(GarraColors.cream), fontWeight: FontWeight.w800)),
+            const SizedBox(height: 5),
+            Text(description, style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: const Color(GarraColors.creamMuted), height: 1.35)),
+            if (action != null && onAction != null)
+              Padding(padding: const EdgeInsets.only(top: 4),
+                child: TextButton.icon(onPressed: onAction,
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                  label: Text(action!),
+                  style: TextButton.styleFrom(foregroundColor: const Color(GarraColors.gold)))),
+          ])),
+      ]),
+    ),
   );
 }
 
