@@ -402,6 +402,131 @@ FootballEventKind footballEventKind(String? type, {String? detail}) {
   };
 }
 
+/// SONIC_06: "23′" / "45+2′" / "90+7′" from provider minute + extra (never a local clock).
+String footballMinuteLabel(int? minute, int? extra) {
+  if (minute == null) return '–';
+  return extra != null && extra > 0 ? '$minute+$extra′' : '$minute′';
+}
+
+/// SONIC_06 decisive VAR outcome readable from the provider detail; null when ambiguous.
+String? footballVarDecision(String? detail) {
+  final d = detail?.toLowerCase() ?? '';
+  if (d.contains('goal cancelled') || d.contains('goal disallowed')) return 'GOAL_CANCELLED';
+  if (d.contains('penalty confirmed')) return 'PENALTY_CONFIRMED';
+  if (d.contains('penalty cancelled')) return 'PENALTY_CANCELLED';
+  return null;
+}
+
+/// SONIC_06 Match Center "Momentos clave": goals, own goals, converted penalties, reds, second yellows and
+/// decisive VAR only. Never plain yellows, substitutions or missed penalties.
+class FootballKeyMoment {
+  const FootballKeyMoment({required this.kind, this.minute, this.extra, this.player, this.team,
+    this.away = false, this.varDecision});
+  final FootballEventKind kind;
+  final int? minute;
+  final int? extra;
+  final String? player;
+  final String? team;
+  final bool away;
+  final String? varDecision;
+
+  bool get isGoal => kind == FootballEventKind.goal || kind == FootballEventKind.penaltyGoal
+      || kind == FootballEventKind.ownGoal;
+  bool get cancelsGoal => kind == FootballEventKind.videoReview && varDecision == 'GOAL_CANCELLED';
+  String get minuteLabel => footballMinuteLabel(minute, extra);
+
+  String get emoji => switch (kind) {
+    FootballEventKind.goal || FootballEventKind.penaltyGoal || FootballEventKind.ownGoal => '⚽',
+    FootballEventKind.red || FootballEventKind.secondYellow => '🟥',
+    _ => '📺',
+  };
+
+  /// Text after the minute: "A. Valera", "F. Polo (pen.)", "E. Díaz (e.c.)", "VAR · Gol anulado".
+  String get label {
+    final who = player?.trim().isNotEmpty == true ? player!.trim() : null;
+    return switch (kind) {
+      FootballEventKind.penaltyGoal => '${who ?? 'Gol'} (pen.)',
+      FootballEventKind.ownGoal => '${who ?? 'Autogol'} (e.c.)',
+      FootballEventKind.secondYellow => '${who ?? 'Expulsión'} (doble amarilla)',
+      FootballEventKind.videoReview => switch (varDecision) {
+          'GOAL_CANCELLED' => 'VAR · Gol anulado',
+          'PENALTY_CONFIRMED' => 'VAR · Penal confirmado',
+          _ => 'VAR · Penal anulado',
+        },
+      _ => who ?? (isGoal ? 'Gol' : 'Expulsión'),
+    };
+  }
+}
+
+/// Key moments in minute order (extra time included); exact provider duplicates dropped, distinct facts of
+/// the same minute kept.
+List<FootballKeyMoment> footballKeyMoments(List<Map<String, dynamic>> events, FootballMatch match) {
+  final seen = <String>{};
+  final out = <FootballKeyMoment>[];
+  for (final e in sortFootballEvents(events)) {
+    final type = e['type']?.toString();
+    final detail = e['detail']?.toString();
+    final kind = footballEventKind(type, detail: detail);
+    final decision = kind == FootballEventKind.videoReview ? footballVarDecision(detail) : null;
+    final keep = switch (kind) {
+      FootballEventKind.goal || FootballEventKind.penaltyGoal || FootballEventKind.ownGoal
+          || FootballEventKind.red || FootballEventKind.secondYellow => true,
+      FootballEventKind.videoReview => decision != null,
+      _ => false,
+    };
+    if (!keep) continue;
+    final signature = [e['elapsed'], e['extra'], type, detail, e['player'], e['team']].join('|');
+    if (!seen.add(signature)) continue;
+    final team = e['team']?.toString();
+    out.add(FootballKeyMoment(kind: kind, minute: (e['elapsed'] as num?)?.toInt(),
+        extra: (e['extra'] as num?)?.toInt(), player: e['player']?.toString(), team: team,
+        away: team != null && team == match.away && match.away != match.home, varDecision: decision));
+  }
+  return out;
+}
+
+/// Backend key moment ({kind, minute, extra, player, team, detail}) in the event shape of the timeline.
+Map<String, dynamic> footballMomentAsEvent(Map<String, dynamic> m) {
+  final kind = m['kind']?.toString() ?? '';
+  final type = switch (kind) {
+    'GOAL' || 'OWN_GOAL' || 'PENALTY_GOAL' => 'GOAL',
+    'RED_CARD' => 'RED_CARD',
+    'SECOND_YELLOW' => 'YELLOW_CARD',
+    _ => 'OTHER',
+  };
+  final fallback = switch (kind) {
+    'OWN_GOAL' => 'Own Goal',
+    'PENALTY_GOAL' => 'Penalty',
+    'SECOND_YELLOW' => 'Second Yellow card',
+    'RED_CARD' => 'Red Card',
+    'VAR_GOAL_CANCELLED' => 'Goal cancelled',
+    'VAR_PENALTY_CONFIRMED' => 'Penalty confirmed',
+    'VAR_PENALTY_CANCELLED' => 'Penalty cancelled',
+    _ => 'Normal Goal',
+  };
+  return {
+    'elapsed': m['minute'],
+    'extra': m['extra'],
+    'player': m['player'],
+    'team': m['team'],
+    'type': type,
+    'detail': _text(m['detail']) ?? fallback,
+  };
+}
+
+/// SONIC_06 score ↔ moments coherence. The score always comes from the fixture and is never changed here;
+/// false means the known goals do not explain it yet ("Eventos actualizándose"). A VAR-cancelled goal is
+/// accepted whether the provider kept or removed the original goal row.
+bool footballMomentsExplainScore(FootballMatch match, List<FootballKeyMoment> moments) {
+  final home = match.homeScore;
+  final away = match.awayScore;
+  if (home == null || away == null) return true;
+  final goals = moments.where((m) => m.isGoal).length;
+  final cancelled = moments.where((m) => m.cancelsGoal).length;
+  final score = home + away;
+  return goals == score || goals - cancelled == score;
+}
+
 /// Minute + extra time order; stable for events in the same minute.
 List<Map<String, dynamic>> sortFootballEvents(List<Map<String, dynamic>> events) {
   int minute(Map<String, dynamic> e) => (e['elapsed'] as num?)?.toInt() ?? 1 << 20;
@@ -505,16 +630,22 @@ class FootballPage<T> {
 class FootballDetail {
   const FootballDetail({required this.match, required this.events,
     required this.lineups, required this.statistics, required this.partial,
-    required this.stale});
+    required this.stale, this.moments, this.momentsStale = false, this.eventCount});
   final FootballMatch match;
   final List<Map<String, dynamic>> events;
   final List<Map<String, dynamic>> lineups;
   final List<Map<String, dynamic>> statistics;
   final bool partial;
   final bool stale;
+  /// SONIC_06 key moments known by the backend (cache peek, zero provider cost), in the event shape read by
+  /// [footballKeyMoments]. Null = no events snapshot known yet (nothing is invented).
+  final List<Map<String, dynamic>>? moments;
+  final bool momentsStale;
+  final int? eventCount;
 
   factory FootballDetail.fromEnvelope(Map<String, dynamic> envelope) {
     final data = envelope['item'] as Map<String, dynamic>;
+    final moments = data['moments'];
     return FootballDetail(
       match: FootballMatch.fromJson(data['match'] as Map<String, dynamic>),
       events: _maps(data['events']),
@@ -522,6 +653,9 @@ class FootballDetail {
       statistics: _maps(data['statistics']),
       partial: data['partial'] == true,
       stale: envelope['stale'] == true,
+      moments: moments is List ? _maps(moments).map(footballMomentAsEvent).toList() : null,
+      momentsStale: data['momentsStale'] == true,
+      eventCount: (data['eventCount'] as num?)?.toInt(),
     );
   }
 
@@ -577,10 +711,46 @@ class FootballLineup {
   }
 }
 
+/// SONIC_06 Team Center TABLA: the team's group of the cached standings (rows = whole snapshot).
+class FootballTeamStandings {
+  const FootballTeamStandings({required this.rows, this.competitionId, this.competition, this.group,
+    this.rank, this.total = 0, this.stale = false});
+  final String? competitionId;
+  final String? competition;
+  final String? group;
+  final int? rank;
+  final int total;
+  final List<Map<String, dynamic>> rows;
+  final bool stale;
+
+  /// Rows of the team's group, by rank.
+  List<Map<String, dynamic>> get groupRows {
+    final list = rows.where((r) => (r['group']?.toString()) == group).toList();
+    list.sort((a, b) => ((a['rank'] as num?)?.toInt() ?? 1 << 20).compareTo((b['rank'] as num?)?.toInt() ?? 1 << 20));
+    return list;
+  }
+
+  static FootballTeamStandings? fromJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    return FootballTeamStandings(
+      competitionId: _text(raw['competitionId']),
+      competition: _text(raw['competition']),
+      group: raw['group']?.toString(),
+      rank: (raw['rank'] as num?)?.toInt(),
+      total: (raw['total'] as num?)?.toInt() ?? 0,
+      rows: ((raw['rows'] as List?) ?? const []).whereType<Map<String, dynamic>>().toList(),
+      stale: raw['stale'] == true,
+    );
+  }
+}
+
 /// SONIC_05 Team Center (any provider team id), from the backend cache-only endpoint.
+/// SONIC_06: [upcoming] (live first, then by date; postponed by its round) and [results] (newest first)
+/// split every fixture of [matches]; empty lists from an older backend are derived on the device.
 class FootballTeamCenter {
   const FootballTeamCenter({required this.teamId, this.name, this.crestUrl, this.competition,
-    this.live, this.next, this.last, this.matches = const [], this.partial = false});
+    this.live, this.next, this.last, this.matches = const [], this.partial = false,
+    this.upcoming = const [], this.results = const [], this.standings});
   final int teamId;
   final String? name;
   final String? crestUrl;
@@ -590,9 +760,14 @@ class FootballTeamCenter {
   final FootballMatch? last;
   final List<FootballMatch> matches;
   final bool partial;
+  final List<FootballMatch> upcoming;
+  final List<FootballMatch> results;
+  final FootballTeamStandings? standings;
 
   factory FootballTeamCenter.fromJson(Map<String, dynamic> json) {
     FootballMatch? m(Object? raw) => raw is Map<String, dynamic> ? FootballMatch.fromJson(raw) : null;
+    List<FootballMatch> list(Object? raw) => ((raw as List?) ?? const [])
+        .whereType<Map<String, dynamic>>().map(FootballMatch.fromJson).toList();
     return FootballTeamCenter(
       teamId: (json['teamId'] as num?)?.toInt() ?? 0,
       name: _text(json['name']),
@@ -601,9 +776,11 @@ class FootballTeamCenter {
       live: m(json['live']),
       next: m(json['next']),
       last: m(json['last']),
-      matches: ((json['matches'] as List?) ?? const [])
-          .whereType<Map<String, dynamic>>().map(FootballMatch.fromJson).toList(),
+      matches: list(json['matches']),
       partial: json['partial'] == true,
+      upcoming: list(json['upcoming']),
+      results: list(json['results']),
+      standings: FootballTeamStandings.fromJson(json['standings']),
     );
   }
 }

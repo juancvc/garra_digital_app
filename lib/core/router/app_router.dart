@@ -360,8 +360,12 @@ List<RouteBase> _buildRoutes() => [
               GoRoute(
                 path: 'chat-futbolero',
                 name: 'centro-garra-chat-futbolero',
-                builder: (context, state) =>
-                    ChatFutboleroPage(topic: state.uri.queryParameters['tema']),
+                // SONIC_06: ?partido={fixtureId} opens that match room; none = GENERAL.
+                builder: (context, state) => ChatFutboleroPage(
+                  topic: state.uri.queryParameters['tema'],
+                  matchId: int.tryParse(state.uri.queryParameters['partido'] ?? ''),
+                  match: state.extra is FootballMatch ? state.extra as FootballMatch : null,
+                ),
               ),
               GoRoute(
                 path: 'partido/:fixtureId',

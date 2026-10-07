@@ -300,8 +300,11 @@ void main() {
     expect(service.calls.last, 'team:911');
     expect(find.text('Liga 1 Perú'), findsWidgets);
     double y(String key) => tester.getTopLeft(find.byKey(ValueKey(key))).dy;
-    expect(y('team_center_match_101'), lessThan(y('team_center_match_111')));
+    // SONIC_06: the calendar lives under PARTIDOS; "Todos" = PRÓXIMOS (ascending) then RESULTADOS (newest first).
+    await tester.tap(find.byKey(const ValueKey('team_center_tab_partidos')));
+    await _settle(tester);
     expect(y('team_center_match_111'), lessThan(y('team_center_match_112')));
+    expect(y('team_center_match_112'), lessThan(y('team_center_match_101')));
     await tester.tap(find.byKey(const ValueKey('team_center_filter_upcoming')));
     await _settle(tester);
     expect(find.byKey(const ValueKey('team_center_match_101')), findsNothing);

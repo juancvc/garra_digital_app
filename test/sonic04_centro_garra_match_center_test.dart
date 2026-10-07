@@ -34,7 +34,7 @@ class _Community extends CommunityService {
 class _Chat extends FootballChatService {
   _Chat() : super(dio: Dio());
   @override
-  Future<FootballChatPage> messages({DateTime? before, int size = 30}) async =>
+  Future<FootballChatPage> page(FootballChatContext context, {DateTime? before, int size = 30}) async =>
       const FootballChatPage(items: [], hasMore: false);
 }
 
@@ -523,7 +523,8 @@ void main() {
     expect(find.widgetWithText(Tab, 'Alineación'), findsOneWidget);
     expect(find.widgetWithText(Tab, 'Eventos'), findsNothing);
     expect(find.widgetWithText(Tab, 'Stats'), findsNothing);
-    expect(find.byKey(const ValueKey('talk_match_cta')), findsNothing);
+    // SONIC_06: the match room opens before kickoff too ("Abre la previa con la hinchada").
+    expect(find.byKey(const ValueKey('talk_match_cta')), findsOneWidget);
     await _pumpDetail(tester, _Football(), _m(10, status: 'POSTPONED'));
     expect(find.widgetWithText(Tab, 'Alineación'), findsNothing);
     expect(find.widgetWithText(Tab, 'Tribuna'), findsOneWidget);

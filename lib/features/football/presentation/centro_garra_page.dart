@@ -11,6 +11,7 @@ import '../data/garra_football_models.dart';
 import '../data/garra_football_service.dart';
 import 'football_event_timeline.dart';
 import 'football_featured_hero.dart';
+import 'football_key_moments.dart';
 import 'football_lineup_view.dart';
 import 'football_match_card.dart';
 import 'football_standings_view.dart';
@@ -423,7 +424,8 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
     if (_nav.section == CentroSection.upcoming && competition != null && items.isNotEmpty) {
       return RefreshIndicator(
         onRefresh: () => _load(refresh: true),
-        child: FootballUpcomingRounds(
+        // SONIC_06: each section / competition keeps its own scroll offset (PageStorage).
+        child: KeyedSubtree(key: PageStorageKey('centro_rounds_$competition'), child: FootballUpcomingRounds(
           key: ValueKey('rounds_$competition'),
           competitionName: _competitionName(competition),
           matches: items,
@@ -433,7 +435,7 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
           onOpen: _openMatch,
           onTeamTap: _openTeam,
           header: notes,
-        ),
+        )),
       );
     }
     final hero = _nav.hub == CentroHub.forYou && _nav.section == CentroSection.today
@@ -483,6 +485,7 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
     return RefreshIndicator(
       onRefresh: () => _load(refresh: true),
       child: ListView(
+        key: PageStorageKey('centro_list_${_nav.hub.name}_$_pageKey'),
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: 24),
         children: children,
@@ -572,7 +575,7 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
     final stage = stages.any((s) => s.name == _nav.stage) ? _nav.stage : stages.first.name;
     return RefreshIndicator(
       onRefresh: () => _load(refresh: true),
-      child: FootballStandingsView(
+      child: KeyedSubtree(key: PageStorageKey('centro_table_$id'), child: FootballStandingsView(
         rows: table.items,
         competitionName: _competitionName(id),
         selectedStage: stage,
@@ -582,7 +585,7 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
         footer: table.stale
             ? _softNote('Datos guardados · pueden estar desactualizados')
             : null,
-      ),
+      )),
     );
   }
 
@@ -864,6 +867,7 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
   final Map<String, List<Map<String, dynamic>>> _sections = {};
   final Set<String> _sectionLoading = {};
   final Set<String> _sectionFailed = {};
+  final Set<String> _sectionStale = {};
   late List<String> _labels;
   late TabController _tabs;
 
@@ -969,6 +973,11 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
           _sectionFailed.add(section);
         } else {
           _sections[section] = items;
+          if (result.stale) {
+            _sectionStale.add(section);
+          } else {
+            _sectionStale.remove(section);
+          }
           // The section answer carries the freshest header the backend has (events reconcile it).
           _adopt(result.match);
         }
@@ -1019,7 +1028,12 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
       appBar: AppBar(title: Text(match.competition.isEmpty ? 'Partido' : match.competition)),
       body: Column(children: [
         _DetailHeader(match: match, stateLine: _stateLine(match), onTeamTap: _openTeam),
-        if (match.isLive)
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          alignment: Alignment.topCenter,
+          child: _keyMoments(match),
+        ),
+        if (match.status != 'CANCELLED')
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
             child: SizedBox(
@@ -1028,8 +1042,10 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
                 key: const ValueKey('talk_match_cta'),
                 icon: const Icon(Icons.forum_outlined),
                 label: const Text('Hablar del partido'),
+                // SONIC_06: the MATCH room of this fixture (never mixed with other matches).
                 onPressed: () => context.push(
-                    '/centro-garra/chat-futbolero?tema=${Uri.encodeComponent('${match.home} vs ${match.away}')}'),
+                    '/centro-garra/chat-futbolero?partido=${match.id}'
+                    '&tema=${Uri.encodeComponent('${match.home} vs ${match.away}')}', extra: match),
               ),
             ),
           ),
@@ -1057,6 +1073,30 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
         ),
       ]),
     );
+  }
+
+  /// SONIC_06 Momentos clave: the loaded Eventos section when the user opened it (fresher), otherwise the
+  /// moments the primary detail already carries (backend cache peek). Opening the detail never requests the
+  /// events section: secondary sections stay explicit requests (provider budget).
+  Widget _keyMoments(FootballMatch match) {
+    const none = SizedBox(width: double.infinity);
+    if (match.isPending || match.status == 'CANCELLED') return none;
+    final loaded = _sections['EVENTS'];
+    final events = loaded ?? _detail?.moments;
+    if (events == null) return none;
+    return FootballKeyMoments(
+      match: match,
+      events: events,
+      totalEvents: loaded?.length ?? _detail?.eventCount ?? events.length,
+      stale: loaded != null ? _sectionStale.contains('EVENTS') : _detail?.momentsStale == true,
+      onShowAll: _showEvents,
+    );
+  }
+
+  /// "Ver todos los eventos (n)": the Eventos tab of this detail.
+  void _showEvents() {
+    final index = _labels.indexOf('Eventos');
+    if (index >= 0) _tabs.animateTo(index);
   }
 
   void _openTeam(int teamId, String name, String? crestUrl) => showFootballTeamCenter(context,
