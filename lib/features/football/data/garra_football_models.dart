@@ -657,21 +657,14 @@ class FootballStandingStage {
     return groups.firstWhere((g) => g.key == groupKey, orElse: () => groups.first).rows;
   }
 
-  /// Back-compat flat view used only by callers that still expect a single list when groups.length==1.
-  List<Map<String, dynamic>> get rows => groups.length == 1
-      ? groups.first.rows
-      : [for (final g in groups) ...g.rows];
+  /// Back-compat: first group's rows only. Never concatenates independent groups (SONIC_06B).
+  List<Map<String, dynamic>> get rows => groups.isEmpty ? const [] : groups.first.rows;
 
   static List<FootballStandingStage> fromRows(List<Map<String, dynamic>> rows) {
     final stageOrder = <String>[];
     final stageMap = <String, Map<String, List<Map<String, dynamic>>>>{};
     final groupOrder = <String, List<String>>{};
-    for (final row in rows) {
-      final raw = row['group']?.toString();
-      final (stage, group) = footballStandingPartition(raw);
-      // Keep the original provider string as the group key when there is no subgroup leaf,
-      // so Team Center can still match `standings.group` exactly.
-      final groupKey = group ?? (raw == null || raw.trim().isEmpty ? stage : raw.trim());
+    void add(String stage, String groupKey, Map<String, dynamic> row) {
       stageMap.putIfAbsent(stage, () {
         stageOrder.add(stage);
         groupOrder[stage] = <String>[];
@@ -682,16 +675,38 @@ class FootballStandingStage {
         return <Map<String, dynamic>>[];
       }).add(row);
     }
-    return [
-      for (final stage in stageOrder)
-        FootballStandingStage(
-          name: stage,
-          groups: [
-            for (final g in groupOrder[stage]!)
-              FootballStandingGroup(key: g, rows: stageMap[stage]![g]!),
-          ],
-        ),
-    ];
+
+    for (final row in rows) {
+      final raw = row['group']?.toString();
+      final (stage, group) = footballStandingPartition(raw);
+      final groupKey = group ?? (raw == null || raw.trim().isEmpty ? stage : raw.trim());
+      add(stage, groupKey, row);
+    }
+
+    // SONIC_06B: if a partition still hides a rank reset (cached flat snapshot with blank/identical
+    // groups), split into honest Tabla 1 / Tabla 2 so two #1 never share one visible table.
+    final out = <FootballStandingStage>[];
+    for (final stage in stageOrder) {
+      final rebuilt = <FootballStandingGroup>[];
+      for (final g in groupOrder[stage]!) {
+        final blocks = footballStandingBlocksByRankReset(stageMap[stage]![g]!);
+        if (blocks.length == 1) {
+          rebuilt.add(FootballStandingGroup(key: g, rows: blocks.first));
+          continue;
+        }
+        for (var i = 0; i < blocks.length; i++) {
+          final key = (g == 'Tabla' || g.isEmpty)
+              ? 'Tabla ${i + 1}'
+              : blocks.length == 1
+                  ? g
+                  : '$g · ${i + 1}';
+          rebuilt.add(FootballStandingGroup(key: key, rows: blocks[i]));
+        }
+      }
+      // If the stage was a single "Tabla" that split into Tabla 1/2, keep one stage with those groups.
+      out.add(FootballStandingStage(name: stage, groups: rebuilt));
+    }
+    return out;
   }
 }
 
@@ -699,6 +714,9 @@ class FootballStandingStage {
 (String stage, String? group) footballStandingPartition(String? raw) {
   final value = raw?.trim() ?? '';
   if (value.isEmpty) return ('Tabla', null);
+  // Backend SONIC_06B last-resort labels: Tabla 1 / Tabla 2 → one stage, many groups.
+  final tablaN = RegExp(r'^tabla\s+(\d+)$', caseSensitive: false).firstMatch(value);
+  if (tablaN != null) return ('Tabla', value);
   final withGroup = RegExp(
     r'^(.*?)[\s\-–:]+((?:group|grupo)\s*[a-z0-9]+)$',
     caseSensitive: false,
@@ -711,6 +729,26 @@ class FootballStandingStage {
     return ('Tabla', value);
   }
   return (value, null);
+}
+
+/// Split a flat row list when ranks reset (…9 then 1…): each block is an independent table.
+List<List<Map<String, dynamic>>> footballStandingBlocksByRankReset(List<Map<String, dynamic>> rows) {
+  if (rows.length < 2) return [List<Map<String, dynamic>>.from(rows)];
+  final blocks = <List<Map<String, dynamic>>>[];
+  var current = <Map<String, dynamic>>[rows.first];
+  var prev = (rows.first['rank'] as num?)?.toInt();
+  for (var i = 1; i < rows.length; i++) {
+    final rank = (rows[i]['rank'] as num?)?.toInt();
+    if (prev != null && rank != null && rank < prev && rank <= 2) {
+      blocks.add(current);
+      current = [rows[i]];
+    } else {
+      current.add(rows[i]);
+    }
+    prev = rank ?? prev;
+  }
+  blocks.add(current);
+  return blocks;
 }
 
 class FootballPage<T> {
