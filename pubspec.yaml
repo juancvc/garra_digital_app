@@ -93,6 +93,7 @@ flutter:
     - assets/brand/
     - assets/brand/intro/
     - assets/visual/
+    - assets/images/discovery/
     - assets/audio/garra_intro_source.mp3
 
   # An image asset can refer to one or more resolution-specific "variants", see

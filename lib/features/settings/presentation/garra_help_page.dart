@@ -5,6 +5,14 @@ import '../../../core/design/garra_spacing.dart';
 import '../../../core/design/garra_colors.dart';
 import '../../../core/widgets/garra_card.dart';
 
+abstract final class _GarraHelpArt {
+  static const hero = 'assets/images/discovery/garra_help_hero.webp';
+  static const fan = 'assets/images/discovery/garra_help_fan.webp';
+  static const digital = 'assets/images/discovery/garra_help_digital.webp';
+  static const marketplace = 'assets/images/discovery/garra_help_marketplace.webp';
+  static const solidarity = 'assets/images/discovery/garra_help_solidarity.webp';
+}
+
 class GarraHelpPage extends StatelessWidget {
   const GarraHelpPage({super.key});
 
@@ -51,27 +59,29 @@ class GarraGuidePage extends StatelessWidget {
       const _GarraGuideHero(),
       const SizedBox(height: GarraSpacing.lg),
       _section(context, Icons.person_outline, 'Primeros pasos',
-        'Completa tu perfil y elige tus intereses para encontrar gente y contenido que te importen.'),
+        'Completa tu perfil y elige tus intereses para encontrar gente y contenido que te importen.',
+        illustrationAsset: _GarraHelpArt.digital),
       _section(context, Icons.explore_outlined, 'Inicio y Explorar',
-        'En Inicio ves publicaciones. En Explorar encuentras personas y experiencias de Garra.'),
+        'En Inicio ves publicaciones. En Explorar encuentras personas y experiencias de Garra.',
+        illustrationAsset: _GarraHelpArt.digital),
       _section(context, Icons.groups_outlined, 'Tribuna',
         'Comparte publicaciones, comenta y reacciona. En las comunidades también puedes conversar con otros hinchas.',
-        route: '/comunidad', action: 'Ir a Comunidad'),
+        route: '/comunidad', action: 'Ir a Comunidad', illustrationAsset: _GarraHelpArt.fan),
       _section(context, Icons.sports_soccer_outlined, 'Centro Garra',
         'Consulta partidos, resultados y tablas. Entra en un partido para ver su Tribuna y Chat Futbolero.',
-        route: '/centro-garra', action: 'Ir a Centro Garra'),
+        route: '/centro-garra', action: 'Ir a Centro Garra', illustrationAsset: _GarraHelpArt.fan),
       _section(context, Icons.storefront_outlined, 'Negocios y promociones',
         'Descubre negocios de la comunidad y sus ofertas. Si tienes un negocio, puedes solicitar registrarlo y gestionarlo.' ,
-        route: '/negocios', action: 'Ver negocios'),
+        route: '/negocios', action: 'Ver negocios', illustrationAsset: _GarraHelpArt.marketplace),
       _section(context, Icons.shopping_bag_outlined, 'Marketplace',
         'Solicita tu perfil vendedor. Garra lo revisa. Luego crea tu tienda o negocio; tras su aprobación, publica un producto. Revisamos las publicaciones antes de mostrarlas a la comunidad.',
-        route: '/marketplace', action: 'Ir a Marketplace'),
+        route: '/marketplace', action: 'Ir a Marketplace', illustrationAsset: _GarraHelpArt.marketplace),
       _section(context, Icons.favorite_border, 'Garra Solidaria',
         'Propón una iniciativa. Garra la revisa y, si se aprueba, la publica para que la comunidad contacte directamente. Garra no procesa dinero, donaciones ni pagos.',
-        route: '/solidaria', action: 'Ver Garra Solidaria'),
+        route: '/solidaria', action: 'Ver Garra Solidaria', illustrationAsset: _GarraHelpArt.solidarity),
       _section(context, Icons.add_circle_outline, 'Crear publicación',
         'Escribe lo que quieres compartir con la comunidad y, si quieres, agrega una foto.',
-        route: '/comunidad/compose', action: 'Crear publicación'),
+        route: '/comunidad/compose', action: 'Crear publicación', illustrationAsset: _GarraHelpArt.digital),
       _section(context, Icons.privacy_tip_outlined, 'Perfil y privacidad',
         'Actualiza tu perfil y revisa tus preferencias, términos y privacidad desde Ajustes.',
         route: '/settings', action: 'Abrir Ajustes'),
@@ -79,10 +89,11 @@ class GarraGuidePage extends StatelessWidget {
   );
 
   Widget _section(BuildContext context, IconData icon, String title, String body,
-      {String? route, String? action}) => Padding(
+      {String? route, String? action, String? illustrationAsset}) => Padding(
     padding: const EdgeInsets.only(bottom: GarraSpacing.sm),
     child: _GarraGuideCard(icon: icon, title: title, description: body,
-      action: action, onAction: route == null ? null : () => context.push(route)),
+      action: action, onAction: route == null ? null : () => context.push(route),
+      illustrationAsset: illustrationAsset),
   );
 }
 
@@ -90,7 +101,9 @@ class _GarraGuideHero extends StatelessWidget {
   const _GarraGuideHero();
 
   @override
-  Widget build(BuildContext context) => ClipRRect(
+  Widget build(BuildContext context) {
+    final artSide = MediaQuery.sizeOf(context).width < 400 ? 96.0 : 128.0;
+    return ClipRRect(
     borderRadius: BorderRadius.circular(24),
     child: DecoratedBox(
       decoration: const BoxDecoration(color: Color(GarraColors.burgundyDeep)),
@@ -120,29 +133,41 @@ class _GarraGuideHero extends StatelessWidget {
               const Text('Descubre todo lo que puedes hacer en la app y vive el fútbol dentro y fuera de la cancha.',
                 style: TextStyle(color: Color(GarraColors.cream), height: 1.35)),
             ])),
-          const SizedBox(width: 10),
-          ExcludeSemantics(child: ClipOval(child: Image.asset(
-            'assets/brand/intro/garra_puma.png', width: 76, height: 76,
-            cacheWidth: 152, fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => const SizedBox.shrink(),
-          ))),
+          const SizedBox(width: 8),
+          ExcludeSemantics(child: SizedBox(
+            width: artSide, height: artSide,
+            child: Image.asset(_GarraHelpArt.hero, fit: BoxFit.contain,
+              alignment: Alignment.bottomCenter, cacheWidth: 520,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
+          )),
         ])),
       ]),
     ),
   );
+  }
 }
 
 class _GarraGuideCard extends StatelessWidget {
   const _GarraGuideCard({required this.icon, required this.title,
-    required this.description, this.action, this.onAction});
+    required this.description, this.action, this.onAction, this.illustrationAsset});
   final IconData icon;
   final String title;
   final String description;
   final String? action;
   final VoidCallback? onAction;
+  final String? illustrationAsset;
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
+  Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final textScale = MediaQuery.textScalerOf(context);
+    final compact = width < 380 || textScale.scale(14) > 17.5;
+    final artSide = width >= 720 ? 92.0 : 76.0;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final cacheSide = (artSide * dpr).round().clamp(160, 360);
+
+    return DecoratedBox(
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(18),
       border: Border.all(color: const Color(GarraColors.gold).withValues(alpha: .16)),
@@ -170,9 +195,20 @@ class _GarraGuideCard extends StatelessWidget {
                   label: Text(action!),
                   style: TextButton.styleFrom(foregroundColor: const Color(GarraColors.gold)))),
           ])),
+        if (!compact && illustrationAsset != null) ...[
+          const SizedBox(width: 8),
+          ExcludeSemantics(child: SizedBox(
+            width: artSide, height: artSide,
+            child: Image.asset(illustrationAsset!, fit: BoxFit.contain,
+              alignment: Alignment.bottomCenter, cacheWidth: cacheSide,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
+          )),
+        ],
       ]),
     ),
   );
+  }
 }
 
 class GarraFaqPage extends StatelessWidget {

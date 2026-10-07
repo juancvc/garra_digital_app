@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,6 +8,20 @@ import 'package:garra_digital_app/features/settings/presentation/garra_help_page
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  test('official help artwork assets are bundled', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    for (final path in const [
+      'assets/images/discovery/garra_help_hero.webp',
+      'assets/images/discovery/garra_help_fan.webp',
+      'assets/images/discovery/garra_help_digital.webp',
+      'assets/images/discovery/garra_help_marketplace.webp',
+      'assets/images/discovery/garra_help_solidarity.webp',
+    ]) {
+      final data = await rootBundle.load(path);
+      expect(data.lengthInBytes, greaterThan(1024));
+    }
+  });
 
   testWidgets('first-use tip appears once, dismiss persists, IDs are independent',
       (tester) async {
