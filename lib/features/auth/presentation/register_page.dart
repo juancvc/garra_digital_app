@@ -11,6 +11,7 @@ import '../data/register_request.dart';
 import 'providers/auth_flow_providers.dart';
 import 'providers/auth_provider.dart';
 import 'widgets/auth_flow_widgets.dart';
+import 'widgets/garra_auth_entry_layout.dart';
 
 /// E-MAIL ENTRY: e-mail + password (+ confirmation) -> CHECK YOUR EMAIL ->
 /// code -> Garra profile. Name, @usuario and tribuna are asked later, in the
@@ -102,11 +103,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     final colors = context.garraColors;
-    return AuthFlowScaffold(
-      title: '\u00daNETE A GARRA',
-      subtitle: 'Crea tu acceso con correo. Luego completas tu perfil crema.',
+    return GarraAuthEntryLayout(
       onBack: _loading ? null : () => context.go('/welcome'),
-      children: [
+      heroTitle: 'Crear cuenta',
+      heroSubtitle: 'Crea tu acceso con correo. Luego completas tu perfil crema.',
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
         Form(
           key: _formKey,
           child: Column(
@@ -164,7 +167,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             style: TextStyle(color: colors.brandPrestige),
           ),
         ),
-      ],
+        ],
+      ),
     );
   }
 }

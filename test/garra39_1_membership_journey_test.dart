@@ -168,9 +168,12 @@ class _Harness {
     child: Consumer(
       builder: (context, ref, _) {
         ref.watch(connectivityStatusProvider);
-        return MaterialApp.router(
-          routerConfig: router,
-          theme: theme ?? AppTheme.darkTheme,
+        return MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: MaterialApp.router(
+            routerConfig: router,
+            theme: theme ?? AppTheme.darkTheme,
+          ),
         );
       },
     ),
@@ -250,7 +253,7 @@ void main() {
       );
       expect(find.text('Continuar con Google'), findsOneWidget);
       expect(find.text('o'), findsOneWidget);
-      expect(find.text('Continuar con correo'), findsOneWidget);
+      expect(find.text('Crear cuenta con correo'), findsOneWidget);
       expect(
         find.text('\u00bfYa tienes una cuenta? Inicia sesi\u00f3n'),
         findsOneWidget,
@@ -260,12 +263,12 @@ void main() {
       expect(find.textContaining('Instagram'), findsNothing);
     });
 
-    testWidgets('"Continuar con correo" opens e-mail + password only', (
+    testWidgets('"Crear cuenta con correo" opens e-mail + password only', (
       tester,
     ) async {
       final h = await _open(tester, _FakeAuth());
 
-      await tester.tap(find.text('Continuar con correo'));
+      await tester.tap(find.text('Crear cuenta con correo'));
       await tester.pumpAndSettle();
 
       expect(h.router.state.uri.path, '/register');
@@ -385,19 +388,37 @@ void main() {
       },
     );
 
-    testWidgets('a Google failure stays on the entry with a message', (
+    testWidgets('a Google cancel stays on the entry without a message', (
       tester,
     ) async {
       final auth = _FakeAuth()
-        ..onGoogle = () async =>
-            LoginResult.failure('Inicio con Google cancelado');
+        ..onGoogle = () async => LoginResult.cancelled();
       final h = await _open(tester, auth);
 
       await tester.tap(find.text('Continuar con Google'));
       await tester.pumpAndSettle();
 
       expect(h.router.state.uri.path, '/welcome');
-      expect(find.text('Inicio con Google cancelado'), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
+    });
+
+    testWidgets('a Google failure stays on the entry with a message', (
+      tester,
+    ) async {
+      final auth = _FakeAuth()
+        ..onGoogle = () async => LoginResult.failure(
+          'No pudimos iniciar sesi\u00f3n con Google. Intenta de nuevo.',
+        );
+      final h = await _open(tester, auth);
+
+      await tester.tap(find.text('Continuar con Google'));
+      await tester.pumpAndSettle();
+
+      expect(h.router.state.uri.path, '/welcome');
+      expect(
+        find.text('No pudimos iniciar sesi\u00f3n con Google. Intenta de nuevo.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets(
@@ -470,7 +491,7 @@ void main() {
         await tester.enterText(fields.at(0), 'juan@example.com');
         await tester.enterText(fields.at(1), 'Password-123');
         await tester.enterText(fields.at(2), 'Password-123');
-        await tester.tap(find.text('Crear cuenta'));
+        await tester.tap(find.widgetWithText(FilledButton, 'Crear cuenta'));
         await tester.pumpAndSettle();
 
         expect(auth.registers.single.toJson().keys.toSet(), {
@@ -507,7 +528,7 @@ void main() {
         await tester.enterText(fields.at(0), 'juan@example.com');
         await tester.enterText(fields.at(1), 'Password-123');
         await tester.enterText(fields.at(2), 'Password-123');
-        await tester.tap(find.text('Crear cuenta'));
+        await tester.tap(find.widgetWithText(FilledButton, 'Crear cuenta'));
         await tester.pumpAndSettle();
 
         expect(find.text(authEmailUnavailableMessage), findsOneWidget);
@@ -526,7 +547,7 @@ void main() {
       await tester.enterText(fields.at(0), 'no-es-correo');
       await tester.enterText(fields.at(1), 'corta');
       await tester.enterText(fields.at(2), 'otra');
-      await tester.tap(find.text('Crear cuenta'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Crear cuenta'));
       await tester.pumpAndSettle();
 
       expect(auth.registers, isEmpty);

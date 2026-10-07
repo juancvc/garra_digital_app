@@ -221,11 +221,11 @@ void main() {
         child: MaterialApp(theme: AppTheme.darkTheme, home: const LoginPage()),
       ),
     );
-    expect(find.text('Email'), findsOneWidget);
+    expect(find.text('Correo electr\u00f3nico'), findsOneWidget);
     expect(find.text('Contraseña'), findsOneWidget);
     expect(find.text('Continuar con Google'), findsOneWidget);
-    expect(find.text('Crear cuenta'), findsOneWidget);
-    expect(find.text('De hinchas para hinchas'), findsOneWidget);
+    expect(find.textContaining('Crear cuenta'), findsOneWidget);
+    expect(find.text('Inicia sesi\u00f3n'), findsOneWidget);
     expect(find.byType(GarraClawMark), findsNothing);
     expect(find.byKey(const Key('garra-puma-crest')), findsOneWidget);
   });

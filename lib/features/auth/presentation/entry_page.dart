@@ -4,10 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
-import '../../../core/widgets/garra_puma_crest.dart';
-import '../../../core/widgets/garra_ui.dart';
+import '../../../core/design/garra_radius.dart';
 import 'providers/auth_flow_providers.dart';
 import 'providers/auth_provider.dart';
+import 'widgets/garra_auth_entry_layout.dart';
+import 'widgets/garra_google_sign_in_button.dart';
 
 /// GARRA39.1 entry: every method (Google today, e-mail now, others later)
 /// proves identity and then converges on the same journey: Garra profile ->
@@ -38,10 +39,17 @@ class _EntryPageState extends ConsumerState<EntryPage> {
     final result = await authService.loginWithGoogle();
     if (!mounted) return;
 
+    if (result.cancelled) {
+      setState(() => _loading = false);
+      return;
+    }
+
     final user = result.user;
     if (!result.success || user == null) {
       setState(() => _loading = false);
-      messenger.showSnackBar(SnackBar(content: Text(result.message)));
+      if (result.message.isNotEmpty) {
+        messenger.showSnackBar(SnackBar(content: Text(result.message)));
+      }
       return;
     }
 
@@ -54,81 +62,66 @@ class _EntryPageState extends ConsumerState<EntryPage> {
   @override
   Widget build(BuildContext context) {
     final colors = context.garraColors;
-    final text = Theme.of(context).textTheme;
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(GarraSpacing.lg),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Center(child: GarraPumaCrest(size: 84)),
-                  const SizedBox(height: GarraSpacing.lg),
-                  Text(
-                    '\u00daNETE A GARRA',
-                    key: const ValueKey('entry-title'),
-                    textAlign: TextAlign.center,
-                    style: text.headlineSmall?.copyWith(
-                      color: colors.textPrimary,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.6,
-                    ),
-                  ),
-                  const SizedBox(height: GarraSpacing.sm),
-                  Text(
-                    'La comunidad digital de la hinchada crema.',
-                    textAlign: TextAlign.center,
-                    style: text.bodyMedium?.copyWith(
-                      color: colors.textSecondary,
-                      height: 1.35,
-                    ),
-                  ),
-                  const SizedBox(height: GarraSpacing.xxl),
-                  GarraPrimaryButton(
-                    label: 'Continuar con Google',
-                    loading: _loading,
-                    onPressed: _loading ? null : _continueWithGoogle,
-                  ),
-                  const SizedBox(height: GarraSpacing.md),
-                  Row(
-                    children: [
-                      Expanded(child: Divider(color: colors.border)),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: GarraSpacing.md,
-                        ),
-                        child: Text(
-                          'o',
-                          style: TextStyle(color: colors.textSecondary),
-                        ),
-                      ),
-                      Expanded(child: Divider(color: colors.border)),
-                    ],
-                  ),
-                  const SizedBox(height: GarraSpacing.md),
-                  GarraSecondaryButton(
-                    label: 'Continuar con correo',
-                    onPressed: _loading ? null : () => context.go('/register'),
-                  ),
-                  const SizedBox(height: GarraSpacing.lg),
-                  TextButton(
-                    key: const ValueKey('entry-login'),
-                    onPressed: _loading ? null : () => context.go('/login'),
-                    child: Text(
-                      '\u00bfYa tienes una cuenta? Inicia sesi\u00f3n',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: colors.brandPrestige),
-                    ),
-                  ),
-                ],
+    return GarraAuthEntryLayout(
+      heroTitle: '\u00daNETE A GARRA',
+      heroSubtitle: 'La comunidad digital de la hinchada crema.',
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GarraGoogleSignInButton(
+            label: 'Continuar con Google',
+            loading: _loading,
+            primary: true,
+            onPressed: _loading ? null : _continueWithGoogle,
+          ),
+          const SizedBox(height: GarraSpacing.md),
+          Row(
+            children: [
+              Expanded(child: Divider(color: colors.border)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: GarraSpacing.md),
+                child: Text('o', style: TextStyle(color: colors.textSecondary)),
+              ),
+              Expanded(child: Divider(color: colors.border)),
+            ],
+          ),
+          const SizedBox(height: GarraSpacing.md),
+          OutlinedButton(
+            onPressed: _loading ? null : () => context.go('/register'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: colors.textPrimary,
+              side: BorderSide(color: colors.border),
+              minimumSize: const Size(double.infinity, 52),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(GarraRadius.md),
               ),
             ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.mail_outline_rounded, size: 20, color: colors.textPrimary),
+                const SizedBox(width: GarraSpacing.sm),
+                const Flexible(
+                  child: Text(
+                    'Crear cuenta con correo',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+          const SizedBox(height: GarraSpacing.lg),
+          TextButton(
+            key: const ValueKey('entry-login'),
+            onPressed: _loading ? null : () => context.go('/login'),
+            child: Text(
+              '\u00bfYa tienes una cuenta? Inicia sesi\u00f3n',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.brandPrestige),
+            ),
+          ),
+        ],
       ),
     );
   }

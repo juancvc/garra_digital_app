@@ -9,15 +9,25 @@ import 'auth_user.dart';
 import 'register_request.dart';
 import 'register_response.dart';
 import 'google_auth_service.dart';
+import 'google_sign_in_outcome.dart';
 import 'package:flutter/foundation.dart';
 
 class AuthService {
-  AuthService({Dio? dio, SecureStorageService? storage})
-    : _dio = dio ?? DioClient.instance,
-      _storage = storage ?? SecureStorageService();
+  AuthService({
+    Dio? dio,
+    SecureStorageService? storage,
+    GoogleAuthService? googleAuth,
+  })  : _dio = dio ?? DioClient.instance,
+        _storage = storage ?? SecureStorageService(),
+        _googleAuthInjected = googleAuth;
 
   final Dio _dio;
   final SecureStorageService _storage;
+  final GoogleAuthService? _googleAuthInjected;
+  GoogleAuthService? _googleAuthLazy;
+
+  GoogleAuthService get _googleAuth =>
+      _googleAuthInjected ?? (_googleAuthLazy ??= GoogleAuthService());
 
   Future<LoginResult> login({
     required String email,
@@ -237,23 +247,26 @@ class AuthService {
 
   Future<LoginResult> loginWithGoogle() async {
     try {
-      final firebaseIdToken = await GoogleAuthService().signInWithGoogle();
+      final outcome = await _googleAuth.signInWithGoogle();
 
-      if (firebaseIdToken == null) {
-        return LoginResult.failure('Inicio con Google cancelado');
+      switch (outcome) {
+        case GoogleSignInOutcomeCancelled():
+          return LoginResult.cancelled();
+        case GoogleSignInOutcomeFailure(:final message):
+          return LoginResult.failure(message);
+        case GoogleSignInOutcomeSuccess(:final idToken):
+          final response = await _dio.post(
+            '/auth/google',
+            data: {'idToken': idToken},
+          );
+
+          final data = response.data['data'] as Map<String, dynamic>;
+          final token = data['token'] as String;
+
+          await _storage.saveToken(token);
+
+          return LoginResult.success(user: AuthUser.fromJson(data));
       }
-
-      final response = await _dio.post(
-        '/auth/google',
-        data: {'idToken': firebaseIdToken},
-      );
-
-      final data = response.data['data'] as Map<String, dynamic>;
-      final token = data['token'] as String;
-
-      await _storage.saveToken(token);
-
-      return LoginResult.success(user: AuthUser.fromJson(data));
     } on DioException catch (e) {
       final message = e.response?.data is Map<String, dynamic>
           ? e.response?.data['message']?.toString()
@@ -264,7 +277,9 @@ class AuthService {
       debugPrint('❌ GOOGLE LOGIN ERROR: $e');
       debugPrint('❌ GOOGLE LOGIN STACK: $stack');
 
-      return LoginResult.failure('Ocurrió un error con Google Login: $e');
+      return LoginResult.failure(
+        'No pudimos iniciar sesión con Google. Intenta de nuevo.',
+      );
     }
   }
 
@@ -334,6 +349,7 @@ class LoginResult {
     required this.message,
     this.user,
     this.requiresEmailVerification = false,
+    this.cancelled = false,
   });
 
   final bool success;
@@ -343,6 +359,9 @@ class LoginResult {
   /// Typed (HTTP 403 + errors.code): the password was right but the e-mail is
   /// not verified yet. The UI sends the user to the code screen.
   final bool requiresEmailVerification;
+
+  /// User dismissed the Google account picker (not an error).
+  final bool cancelled;
 
   factory LoginResult.verificationRequired() {
     return const LoginResult(
@@ -358,6 +377,14 @@ class LoginResult {
 
   factory LoginResult.failure(String message) {
     return LoginResult(success: false, message: message);
+  }
+
+  factory LoginResult.cancelled() {
+    return const LoginResult(
+      success: false,
+      message: '',
+      cancelled: true,
+    );
   }
 }
 

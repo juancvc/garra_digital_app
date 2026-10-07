@@ -169,9 +169,12 @@ class _Harness {
     child: Consumer(
       builder: (context, ref, _) {
         ref.watch(connectivityStatusProvider);
-        return MaterialApp.router(
-          routerConfig: router,
-          theme: theme ?? AppTheme.darkTheme,
+        return MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: MaterialApp.router(
+            routerConfig: router,
+            theme: theme ?? AppTheme.darkTheme,
+          ),
         );
       },
     ),
@@ -195,8 +198,9 @@ Future<void> _fillRegisterForm(WidgetTester tester) async {
 }
 
 Future<void> _tapRegister(WidgetTester tester) async {
-  await tester.ensureVisible(find.text('Crear cuenta'));
-  await tester.tap(find.text('Crear cuenta'));
+  final button = find.widgetWithText(FilledButton, 'Crear cuenta');
+  await tester.ensureVisible(button);
+  await tester.tap(button);
 }
 
 Finder _primary(String label) => find.widgetWithText(FilledButton, label);
@@ -354,9 +358,12 @@ void main() {
           child: Consumer(
             builder: (context, ref, _) {
               ref.watch(connectivityStatusProvider);
-              return MaterialApp.router(
-                routerConfig: h.router,
-                theme: AppTheme.darkTheme,
+              return MediaQuery(
+                data: const MediaQueryData(disableAnimations: true),
+                child: MaterialApp.router(
+                  routerConfig: h.router,
+                  theme: AppTheme.darkTheme,
+                ),
               );
             },
           ),

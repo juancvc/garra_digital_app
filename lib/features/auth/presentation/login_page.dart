@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/design/garra_colors.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/garra_puma_crest.dart';
+import '../../../core/design/garra_spacing.dart';
 import '../../../core/network/offline_action_guard.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
+import '../../../core/widgets/garra_form.dart';
+import '../../../core/widgets/garra_ui.dart';
 import 'providers/auth_flow_providers.dart';
 import 'providers/auth_provider.dart';
+import 'widgets/auth_flow_widgets.dart';
+import 'widgets/garra_auth_entry_layout.dart';
+import 'widgets/garra_google_sign_in_button.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -29,7 +34,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     // Success flash from password reset: shown here so the SnackBar binds to
     // the login Scaffold, never to a page that is about to be disposed.
     if (_passwordResetNoticeShown) return;
-    if (GoRouterState.of(context).uri.queryParameters['passwordReset'] != '1') {
+    final resetQuery =
+        GoRouter.maybeOf(context)?.state.uri.queryParameters['passwordReset'];
+    if (resetQuery != '1') {
       return;
     }
     _passwordResetNoticeShown = true;
@@ -116,9 +123,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (!mounted) return;
     setState(() => _loading = false);
 
+    if (result.cancelled) return;
+
     final user = result.user;
     if (!result.success || user == null) {
-      messenger.showSnackBar(_errorSnackBar(result.message));
+      if (result.message.isNotEmpty) {
+        messenger.showSnackBar(_errorSnackBar(result.message));
+      }
       return;
     }
 
@@ -129,203 +140,73 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(GarraColors.background),
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: const AssetImage('assets/visual/garra_stadium_splash.png'),
-            fit: BoxFit.cover,
-            alignment: Alignment.topCenter,
-            colorFilter: ColorFilter.mode(
-              const Color(GarraColors.background).withValues(alpha: 0.94),
-              BlendMode.srcATop,
+    final colors = context.garraColors;
+    return GarraAuthEntryLayout(
+      heroTitle: 'Inicia sesi\u00f3n',
+      heroSubtitle: 'Bienvenido de vuelta a Garra Digital.',
+      body: GarraAuthFormCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            GarraTextField(
+              label: 'Correo electr\u00f3nico',
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              fieldKey: const ValueKey('login-email'),
             ),
-          ),
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xE647101C),
-              Color(0xF20E0C0B),
-              Color(GarraColors.background),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final hero = constraints.maxHeight * 0.31;
-              return SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight - 36,
-                  ),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 420),
-                      child: Column(
-                        children: [
-                          ConstrainedBox(
-                            constraints: BoxConstraints(minHeight: hero),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const GarraPumaCrest(size: 76),
-                                const SizedBox(height: 12),
-                                const Text(
-                                  'GARRA DIGITAL',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: AppTheme.cream,
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 1.8,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                const Text(
-                                  'De hinchas para hinchas',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: Color(GarraColors.cream),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  'Comunidad no oficial de hinchas cremas',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: Color(GarraColors.creamMuted),
-                                    fontSize: 12,
-                                    height: 1.3,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: const Color(GarraColors.surface),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: const Color(
-                                  GarraColors.gold,
-                                ).withValues(alpha: 0.18),
-                              ),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                20,
-                                22,
-                                20,
-                                12,
-                              ),
-                              child: Column(
-                                children: [
-                                  TextField(
-                                    controller: _emailController,
-                                    keyboardType: TextInputType.emailAddress,
-                                    textInputAction: TextInputAction.next,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Email',
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  TextField(
-                                    controller: _passwordController,
-                                    obscureText: true,
-                                    textInputAction: TextInputAction.done,
-                                    onSubmitted: (_) =>
-                                        _loading ? null : _login(),
-                                    decoration: const InputDecoration(
-                                      labelText: 'Contraseña',
-                                    ),
-                                  ),
-                                  const SizedBox(height: 18),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: FilledButton(
-                                      onPressed: _loading ? null : _login,
-                                      child: _loading
-                                          ? const SizedBox(
-                                              height: 18,
-                                              width: 18,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Colors.white,
-                                              ),
-                                            )
-                                          : const Text('Iniciar sesión'),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  const Row(
-                                    children: [
-                                      Expanded(child: Divider()),
-                                      Padding(
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                        ),
-                                        child: Text(
-                                          'o',
-                                          style: TextStyle(
-                                            color: Color(
-                                              GarraColors.creamMuted,
-                                            ),
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ),
-                                      Expanded(child: Divider()),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: OutlinedButton(
-                                      onPressed: _loading
-                                          ? null
-                                          : _loginWithGoogle,
-                                      child: const Text('Continuar con Google'),
-                                    ),
-                                  ),
-                                  TextButton(
-                                    key: const ValueKey('forgot-password-link'),
-                                    onPressed: _loading
-                                        ? null
-                                        : () => context.go(
-                                            '/forgot-password',
-                                            extra: _emailController.text.trim(),
-                                          ),
-                                    child: const Text(
-                                      '\u00bfOlvidaste tu contrase\u00f1a?',
-                                      style: TextStyle(color: AppTheme.gold),
-                                    ),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => context.go('/register'),
-                                    child: const Text(
-                                      'Crear cuenta',
-                                      style: TextStyle(color: AppTheme.gold),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+            const SizedBox(height: GarraSpacing.md),
+            AuthPasswordField(
+              label: 'Contrase\u00f1a',
+              controller: _passwordController,
+              enabled: !_loading,
+              textInputAction: TextInputAction.done,
+              fieldKey: const ValueKey('login-password'),
+            ),
+            const SizedBox(height: GarraSpacing.lg),
+            GarraPrimaryButton(
+              label: 'Iniciar sesi\u00f3n',
+              loading: _loading,
+              onPressed: _loading ? null : _login,
+            ),
+            TextButton(
+              key: const ValueKey('forgot-password-link'),
+              onPressed: _loading
+                  ? null
+                  : () => context.go(
+                      '/forgot-password',
+                      extra: _emailController.text.trim(),
                     ),
-                  ),
+              child: const Text(
+                '\u00bfOlvidaste tu contrase\u00f1a?',
+                style: TextStyle(color: AppTheme.gold),
+              ),
+            ),
+            Row(
+              children: [
+                Expanded(child: Divider(color: colors.border)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: GarraSpacing.md),
+                  child: Text('o', style: TextStyle(color: colors.textSecondary)),
                 ),
-              );
-            },
-          ),
+                Expanded(child: Divider(color: colors.border)),
+              ],
+            ),
+            const SizedBox(height: GarraSpacing.sm),
+            GarraGoogleSignInButton(
+              label: 'Continuar con Google',
+              loading: _loading,
+              onPressed: _loading ? null : _loginWithGoogle,
+            ),
+            TextButton(
+              key: const ValueKey('login-register-link'),
+              onPressed: _loading ? null : () => context.go('/register'),
+              child: Text(
+                '\u00bfNo tienes una cuenta? Crear cuenta',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.brandPrestige),
+              ),
+            ),
+          ],
         ),
       ),
     );
