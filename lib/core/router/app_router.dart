@@ -189,7 +189,7 @@ List<RouteBase> _buildRoutes() => [
   GoRoute(
     path: '/register',
     name: 'register',
-    builder: (context, state) => const RegisterPage(),
+    builder: (context, state) => RegisterPage(fromLogin: state.extra == true),
   ),
   GoRoute(
     path: '/verify-email',

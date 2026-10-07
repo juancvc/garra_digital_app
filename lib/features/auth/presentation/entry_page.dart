@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/garra_spacing.dart';
-import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import 'providers/auth_flow_providers.dart';
 import 'providers/auth_provider.dart';
@@ -61,7 +60,8 @@ class _EntryPageState extends ConsumerState<EntryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.garraColors;
+    const heroText = Color(0xFFF7F0E2);
+    const heroSecondary = Color(0xFFE8DED0);
     return GarraAuthEntryLayout(
       heroTitle: '\u00daNETE A GARRA',
       heroSubtitle: 'La comunidad digital de la hinchada crema.',
@@ -77,20 +77,26 @@ class _EntryPageState extends ConsumerState<EntryPage> {
           const SizedBox(height: GarraSpacing.md),
           Row(
             children: [
-              Expanded(child: Divider(color: colors.border)),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: GarraSpacing.md),
-                child: Text('o', style: TextStyle(color: colors.textSecondary)),
+              Expanded(
+                child: Divider(color: heroSecondary.withValues(alpha: 0.5)),
               ),
-              Expanded(child: Divider(color: colors.border)),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: GarraSpacing.md,
+                ),
+                child: const Text('o', style: TextStyle(color: heroSecondary)),
+              ),
+              Expanded(
+                child: Divider(color: heroSecondary.withValues(alpha: 0.5)),
+              ),
             ],
           ),
           const SizedBox(height: GarraSpacing.md),
           OutlinedButton(
-            onPressed: _loading ? null : () => context.go('/register'),
+            onPressed: _loading ? null : () => context.push('/register'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: colors.textPrimary,
-              side: BorderSide(color: colors.border),
+              foregroundColor: heroText,
+              side: BorderSide(color: heroText.withValues(alpha: 0.6)),
               minimumSize: const Size(double.infinity, 52),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(GarraRadius.md),
@@ -99,7 +105,11 @@ class _EntryPageState extends ConsumerState<EntryPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.mail_outline_rounded, size: 20, color: colors.textPrimary),
+                const Icon(
+                  Icons.mail_outline_rounded,
+                  size: 20,
+                  color: heroText,
+                ),
                 const SizedBox(width: GarraSpacing.sm),
                 const Flexible(
                   child: Text(
@@ -114,11 +124,11 @@ class _EntryPageState extends ConsumerState<EntryPage> {
           const SizedBox(height: GarraSpacing.lg),
           TextButton(
             key: const ValueKey('entry-login'),
-            onPressed: _loading ? null : () => context.go('/login'),
+            onPressed: _loading ? null : () => context.push('/login'),
             child: Text(
               '\u00bfYa tienes una cuenta? Inicia sesi\u00f3n',
               textAlign: TextAlign.center,
-              style: TextStyle(color: colors.brandPrestige),
+              style: const TextStyle(color: Color(0xFFE7C879)),
             ),
           ),
         ],

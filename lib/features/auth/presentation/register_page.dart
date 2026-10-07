@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/navigation/auth_back.dart';
 
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/network/offline_action_guard.dart';
@@ -17,7 +18,9 @@ import 'widgets/garra_auth_entry_layout.dart';
 /// code -> Garra profile. Name, @usuario and tribuna are asked later, in the
 /// same Garra profile every sign-in method ends in.
 class RegisterPage extends ConsumerStatefulWidget {
-  const RegisterPage({super.key});
+  const RegisterPage({super.key, this.fromLogin = false});
+
+  final bool fromLogin;
 
   @override
   ConsumerState<RegisterPage> createState() => _RegisterPageState();
@@ -103,71 +106,84 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     final colors = context.garraColors;
-    return GarraAuthEntryLayout(
-      onBack: _loading ? null : () => context.go('/welcome'),
-      heroTitle: 'Crear cuenta',
-      heroSubtitle: 'Crea tu acceso con correo. Luego completas tu perfil crema.',
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-        Form(
-          key: _formKey,
+    return GarraAuthRouteScope(
+      child: GarraAuthEntryLayout(
+        onBack: _loading ? null : () => authNavigateBack(context),
+        heroTitle: 'Crear cuenta',
+        heroSubtitle:
+            'Crea tu acceso con correo. Luego completas tu perfil crema.',
+        body: GarraAuthFormCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              GarraTextField(
-                label: 'Correo electr\u00f3nico',
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                fieldKey: const ValueKey('register-email'),
-                validator: (value) {
-                  final text = value?.trim() ?? '';
-                  final ok = RegExp(
-                    r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                  ).hasMatch(text);
-                  return ok ? null : 'Ingresa un correo v\u00e1lido';
-                },
+              Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    GarraTextField(
+                      label: 'Correo electr\u00f3nico',
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      fieldKey: const ValueKey('register-email'),
+                      validator: (value) {
+                        final text = value?.trim() ?? '';
+                        final ok = RegExp(
+                          r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                        ).hasMatch(text);
+                        return ok ? null : 'Ingresa un correo v\u00e1lido';
+                      },
+                    ),
+                    const SizedBox(height: GarraSpacing.lg),
+                    AuthPasswordField(
+                      label: 'Contrase\u00f1a',
+                      controller: _passwordController,
+                      enabled: !_loading,
+                      helper: authPasswordRequirement(),
+                      fieldKey: const ValueKey('register-password'),
+                      validator: validateNewPassword,
+                    ),
+                    const SizedBox(height: GarraSpacing.lg),
+                    AuthPasswordField(
+                      label: 'Confirmar contrase\u00f1a',
+                      controller: _confirmPasswordController,
+                      enabled: !_loading,
+                      textInputAction: TextInputAction.done,
+                      fieldKey: const ValueKey('register-confirm'),
+                      validator: (value) => value == _passwordController.text
+                          ? null
+                          : 'Las contrase\u00f1as no coinciden',
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: GarraSpacing.lg),
-              AuthPasswordField(
-                label: 'Contrase\u00f1a',
-                controller: _passwordController,
-                enabled: !_loading,
-                helper: authPasswordRequirement(),
-                fieldKey: const ValueKey('register-password'),
-                validator: validateNewPassword,
+              if (_error != null) AuthInlineError(message: _error!),
+              GarraPrimaryButton(
+                label: 'Crear cuenta',
+                loading: _loading,
+                onPressed: _loading ? null : _register,
               ),
-              const SizedBox(height: GarraSpacing.lg),
-              AuthPasswordField(
-                label: 'Confirmar contrase\u00f1a',
-                controller: _confirmPasswordController,
-                enabled: !_loading,
-                textInputAction: TextInputAction.done,
-                fieldKey: const ValueKey('register-confirm'),
-                validator: (value) => value == _passwordController.text
+              const SizedBox(height: GarraSpacing.md),
+              TextButton(
+                onPressed: _loading
                     ? null
-                    : 'Las contrase\u00f1as no coinciden',
+                    : () {
+                        if (widget.fromLogin && context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.pushReplacement('/login');
+                        }
+                      },
+                child: Text(
+                  '\u00bfYa tienes una cuenta? Inicia sesi\u00f3n',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.brandPrestige),
+                ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: GarraSpacing.lg),
-        if (_error != null) AuthInlineError(message: _error!),
-        GarraPrimaryButton(
-          label: 'Crear cuenta',
-          loading: _loading,
-          onPressed: _loading ? null : _register,
-        ),
-        const SizedBox(height: GarraSpacing.md),
-        TextButton(
-          onPressed: _loading ? null : () => context.go('/login'),
-          child: Text(
-            '\u00bfYa tienes una cuenta? Inicia sesi\u00f3n',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: colors.brandPrestige),
-          ),
-        ),
-        ],
       ),
     );
   }

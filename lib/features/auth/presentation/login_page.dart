@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/navigation/auth_back.dart';
 
 import '../../../core/design/garra_spacing.dart';
 import '../../../core/network/offline_action_guard.dart';
@@ -34,8 +35,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     // Success flash from password reset: shown here so the SnackBar binds to
     // the login Scaffold, never to a page that is about to be disposed.
     if (_passwordResetNoticeShown) return;
-    final resetQuery =
-        GoRouter.maybeOf(context)?.state.uri.queryParameters['passwordReset'];
+    final resetQuery = GoRouter.maybeOf(
+      context,
+    )?.state.uri.queryParameters['passwordReset'];
     if (resetQuery != '1') {
       return;
     }
@@ -141,72 +143,82 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final colors = context.garraColors;
-    return GarraAuthEntryLayout(
-      heroTitle: 'Inicia sesi\u00f3n',
-      heroSubtitle: 'Bienvenido de vuelta a Garra Digital.',
-      body: GarraAuthFormCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            GarraTextField(
-              label: 'Correo electr\u00f3nico',
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              fieldKey: const ValueKey('login-email'),
-            ),
-            const SizedBox(height: GarraSpacing.md),
-            AuthPasswordField(
-              label: 'Contrase\u00f1a',
-              controller: _passwordController,
-              enabled: !_loading,
-              textInputAction: TextInputAction.done,
-              fieldKey: const ValueKey('login-password'),
-            ),
-            const SizedBox(height: GarraSpacing.lg),
-            GarraPrimaryButton(
-              label: 'Iniciar sesi\u00f3n',
-              loading: _loading,
-              onPressed: _loading ? null : _login,
-            ),
-            TextButton(
-              key: const ValueKey('forgot-password-link'),
-              onPressed: _loading
-                  ? null
-                  : () => context.go(
-                      '/forgot-password',
-                      extra: _emailController.text.trim(),
-                    ),
-              child: const Text(
-                '\u00bfOlvidaste tu contrase\u00f1a?',
-                style: TextStyle(color: AppTheme.gold),
+    return GarraAuthRouteScope(
+      child: GarraAuthEntryLayout(
+        onBack: _loading ? null : () => authNavigateBack(context),
+        heroTitle: 'Inicia sesi\u00f3n',
+        heroSubtitle: 'Bienvenido de vuelta a Garra Digital.',
+        body: GarraAuthFormCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              GarraTextField(
+                label: 'Correo electr\u00f3nico',
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                fieldKey: const ValueKey('login-email'),
               ),
-            ),
-            Row(
-              children: [
-                Expanded(child: Divider(color: colors.border)),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: GarraSpacing.md),
-                  child: Text('o', style: TextStyle(color: colors.textSecondary)),
+              const SizedBox(height: GarraSpacing.md),
+              AuthPasswordField(
+                label: 'Contrase\u00f1a',
+                controller: _passwordController,
+                enabled: !_loading,
+                textInputAction: TextInputAction.done,
+                fieldKey: const ValueKey('login-password'),
+              ),
+              const SizedBox(height: GarraSpacing.lg),
+              GarraPrimaryButton(
+                label: 'Iniciar sesi\u00f3n',
+                loading: _loading,
+                onPressed: _loading ? null : _login,
+              ),
+              TextButton(
+                key: const ValueKey('forgot-password-link'),
+                onPressed: _loading
+                    ? null
+                    : () => context.push(
+                        '/forgot-password',
+                        extra: _emailController.text.trim(),
+                      ),
+                child: const Text(
+                  '\u00bfOlvidaste tu contrase\u00f1a?',
+                  style: TextStyle(color: AppTheme.gold),
                 ),
-                Expanded(child: Divider(color: colors.border)),
-              ],
-            ),
-            const SizedBox(height: GarraSpacing.sm),
-            GarraGoogleSignInButton(
-              label: 'Continuar con Google',
-              loading: _loading,
-              onPressed: _loading ? null : _loginWithGoogle,
-            ),
-            TextButton(
-              key: const ValueKey('login-register-link'),
-              onPressed: _loading ? null : () => context.go('/register'),
-              child: Text(
-                '\u00bfNo tienes una cuenta? Crear cuenta',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: colors.brandPrestige),
               ),
-            ),
-          ],
+              Row(
+                children: [
+                  Expanded(child: Divider(color: colors.border)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: GarraSpacing.md,
+                    ),
+                    child: Text(
+                      'o',
+                      style: TextStyle(color: colors.textSecondary),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: colors.border)),
+                ],
+              ),
+              const SizedBox(height: GarraSpacing.sm),
+              GarraGoogleSignInButton(
+                label: 'Continuar con Google',
+                loading: _loading,
+                onPressed: _loading ? null : _loginWithGoogle,
+              ),
+              TextButton(
+                key: const ValueKey('login-register-link'),
+                onPressed: _loading
+                    ? null
+                    : () => context.push('/register', extra: true),
+                child: Text(
+                  '\u00bfNo tienes una cuenta? Crear cuenta',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.brandPrestige),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

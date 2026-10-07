@@ -56,12 +56,11 @@ class _GarraAuthEntryLayoutState extends State<GarraAuthEntryLayout>
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.garraColors;
     final text = Theme.of(context).textTheme;
     final ambient = _ambient;
 
     return Scaffold(
-      backgroundColor: colors.background,
+      backgroundColor: const Color(0xFF0E0C0B),
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -82,7 +81,7 @@ class _GarraAuthEntryLayoutState extends State<GarraAuthEntryLayout>
                 colors: [
                   const Color(0xCC0E0C0B),
                   const Color(0xD947101C),
-                  colors.background.withValues(alpha: 0.92),
+                  const Color(0xF20E0C0B),
                 ],
                 stops: const [0.0, 0.42, 1.0],
               ),
@@ -93,15 +92,23 @@ class _GarraAuthEntryLayoutState extends State<GarraAuthEntryLayout>
               animation: ambient,
               builder: (context, _) {
                 final t = Curves.easeInOut.transform(ambient.value);
-                return DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: const Alignment(0.1, -0.55),
-                      radius: 1.1,
-                      colors: [
-                        const Color(GarraColors.gold).withValues(alpha: 0.06 + t * 0.05),
-                        Colors.transparent,
-                      ],
+                return RepaintBoundary(
+                  key: const ValueKey('auth-ambient-aura'),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        center: Alignment(-0.18 + t * 0.36, -0.5),
+                        radius: 1.05,
+                        colors: [
+                          const Color(
+                            GarraColors.gold,
+                          ).withValues(alpha: 0.04 + t * 0.06),
+                          const Color(
+                            GarraColors.burgundy,
+                          ).withValues(alpha: 0.025 + t * 0.02),
+                          Colors.transparent,
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -118,7 +125,10 @@ class _GarraAuthEntryLayoutState extends State<GarraAuthEntryLayout>
                       key: const ValueKey('auth-flow-back'),
                       tooltip: 'Volver',
                       onPressed: widget.onBack,
-                      icon: Icon(Icons.arrow_back_rounded, color: colors.textPrimary),
+                      icon: const Icon(
+                        Icons.arrow_back_rounded,
+                        color: Color(0xFFF7F0E2),
+                      ),
                     ),
                   ),
                 Expanded(
@@ -132,7 +142,9 @@ class _GarraAuthEntryLayoutState extends State<GarraAuthEntryLayout>
                           GarraSpacing.xxl,
                         ),
                         child: ConstrainedBox(
-                          constraints: BoxConstraints(minHeight: constraints.maxHeight - 8),
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight - 8,
+                          ),
                           child: Center(
                             child: ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 420),
@@ -141,7 +153,9 @@ class _GarraAuthEntryLayoutState extends State<GarraAuthEntryLayout>
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   if (widget.showCrest) ...[
-                                    const Center(child: GarraPumaCrest(size: 76)),
+                                    const Center(
+                                      child: GarraPumaCrest(size: 76),
+                                    ),
                                     const SizedBox(height: GarraSpacing.md),
                                   ],
                                   if (widget.heroTitle != null) ...[
@@ -149,7 +163,7 @@ class _GarraAuthEntryLayoutState extends State<GarraAuthEntryLayout>
                                       widget.heroTitle!,
                                       textAlign: TextAlign.center,
                                       style: text.headlineSmall?.copyWith(
-                                        color: colors.textPrimary,
+                                        color: const Color(0xFFF7F0E2),
                                         fontWeight: FontWeight.w800,
                                         letterSpacing: 1.2,
                                       ),
@@ -160,7 +174,7 @@ class _GarraAuthEntryLayoutState extends State<GarraAuthEntryLayout>
                                         widget.heroSubtitle!,
                                         textAlign: TextAlign.center,
                                         style: text.bodyMedium?.copyWith(
-                                          color: colors.textSecondary,
+                                          color: const Color(0xFFE8DED0),
                                           height: 1.35,
                                         ),
                                       ),
@@ -197,7 +211,7 @@ class GarraAuthFormCard extends StatelessWidget {
     final colors = context.garraColors;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: 0.94),
+        color: colors.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: const Color(GarraColors.gold).withValues(alpha: 0.2),
