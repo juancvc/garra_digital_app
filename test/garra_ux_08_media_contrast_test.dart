@@ -211,6 +211,31 @@ Future<void> _tap(WidgetTester tester, Finder finder) async {
   await tester.pumpAndSettle();
 }
 
+/// DH04: Solidaria validates the backend-required fields before sending.
+Future<void> _fillSolidarity(WidgetTester tester) async {
+  Future<void> enter(Finder field, String value) async {
+    await tester.ensureVisible(field);
+    await tester.pumpAndSettle();
+    await tester.enterText(field, value);
+  }
+
+  await enter(find.byKey(const ValueKey('solidarity_title')), 'Colecta');
+  await enter(
+    find.descendant(
+      of: find.byKey(const ValueKey('solidarity_description')),
+      matching: find.byType(TextField),
+    ),
+    'Necesitamos v\u00edveres',
+  );
+  await enter(find.byKey(const ValueKey('solidarity_city')), 'Lima');
+  await enter(find.byKey(const ValueKey('solidarity_contact')), 'Ana');
+  await enter(
+    find.byKey(const ValueKey('solidarity_whatsapp')),
+    '51999000111',
+  );
+  await tester.pumpAndSettle();
+}
+
 /// Select, change, remove and re-select: always at most ONE photo.
 Future<void> _exerciseSinglePhoto(WidgetTester tester) async {
   expect(_add, findsOneWidget);
@@ -248,6 +273,7 @@ void main() {
       );
 
       await _exerciseSinglePhoto(tester);
+      await _fillSolidarity(tester);
       await _tap(tester, find.text('Enviar a revisi\u00f3n'));
 
       // a.jpg -> b.jpg (change) -> removed -> c.jpg: only c.jpg uploads.
@@ -266,6 +292,7 @@ void main() {
         child: 'nueva',
         page: SolidariaCreatePage(service: service, media: media),
       );
+      await _fillSolidarity(tester);
       await _tap(tester, find.text('Enviar a revisi\u00f3n'));
       expect(media.uploads, isEmpty);
       expect(service.created.first.containsKey('evidenceMediaAssetId'), isFalse);

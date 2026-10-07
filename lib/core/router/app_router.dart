@@ -31,6 +31,7 @@ import 'package:garra_digital_app/features/chat/presentation/chat_conversation_p
 import 'package:garra_digital_app/features/chat/presentation/chat_inbox_page.dart';
 import 'package:garra_digital_app/features/community_chat/presentation/community_chat_page.dart';
 import 'package:garra_digital_app/features/community/presentation/saved_posts_page.dart';
+import 'package:garra_digital_app/features/solidarity/presentation/solidaria_mine_page.dart';
 import 'package:garra_digital_app/features/solidarity/presentation/solidaria_page.dart';
 import 'package:garra_digital_app/features/locations/presentation/business_offers_page.dart';
 import 'package:garra_digital_app/features/locations/presentation/mi_negocio_crema_page.dart';
@@ -323,6 +324,12 @@ List<RouteBase> _buildRoutes() => [
     path: '/solidaria/nueva',
     name: 'solidaria-nueva',
     builder: (context, state) => const SolidariaCreatePage(),
+  ),
+  GoRoute(
+    path: '/solidaria/:id/editar',
+    name: 'solidaria-editar',
+    builder: (context, state) =>
+        SolidariaCreatePage(campaignId: state.pathParameters['id']!),
   ),
   StatefulShellRoute.indexedStack(
     builder: (context, state, navigationShell) {
@@ -871,6 +878,12 @@ List<RouteBase> _exploreOwnedRoutes() => [
     builder: (context, state) =>
         _featureOrDisabled('solidaria', const SolidariaPage()),
     routes: [
+      // Literal before ':id' so "mias" is never read as a campaign id.
+      GoRoute(
+        path: 'mias',
+        name: 'solidaria-mine',
+        builder: (context, state) => const SolidariaMinePage(),
+      ),
       GoRoute(
         path: ':id',
         name: 'solidaria-detail',
