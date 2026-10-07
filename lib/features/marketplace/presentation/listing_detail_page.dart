@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -80,7 +81,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
             promotionId: widget.promotionId ?? listing.promotionId,
           );
       final uri = Uri.tryParse(result.whatsappUri);
-      if (uri == null) {
+      if (uri == null || !uri.hasScheme) {
         throw MarketplaceServiceException(
           'No pudimos abrir WhatsApp. Inténtalo de nuevo.',
         );
@@ -193,6 +194,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
           async.maybeWhen(
             data: (listing) {
               final current = _localListing ?? listing;
+              if (!listing.canContact) return const SizedBox.shrink();
               return IconButton(
                 tooltip: current.isFavorite
                     ? 'Quitar de favoritos'
@@ -211,8 +213,9 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
           IconButton(
             tooltip: 'Reportar',
             onPressed: async.maybeWhen(
-              data: (listing) =>
-                  () => _report(listing),
+              data: (listing) => listing.canContact
+                  ? () => _report(listing)
+                  : null,
               orElse: () => null,
             ),
             icon: const Icon(Icons.flag_outlined),
@@ -225,12 +228,26 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
             color: context.garraColors.brandPrestige,
           ),
         ),
-        error: (_, _) => GarraErrorState(
-          onRetry: () =>
-              ref.invalidate(marketplaceListingDetailProvider(widget.slug)),
-        ),
+        error: (error, _) {
+          // DEMO_HARDENING_03: a deactivated / not public listing is a 404 for
+          // buyers. Retrying cannot help, so offer a way back instead.
+          if (error is DioException && error.response?.statusCode == 404) {
+            return GarraEmptyState(
+              key: const Key('listing-unavailable'),
+              title: 'Esta publicaci\u00f3n ya no est\u00e1 disponible',
+              message: 'Puede que el vendedor la haya desactivado.',
+              actionLabel: 'Ver Marketplace',
+              onAction: () => GoRouter.maybeOf(context)?.go('/marketplace'),
+            );
+          }
+          return GarraErrorState(
+            onRetry: () =>
+                ref.invalidate(marketplaceListingDetailProvider(widget.slug)),
+          );
+        },
         data: (listing) {
           final current = _localListing ?? listing;
+          final contactable = current.canContact;
           return ListView(
             padding: const EdgeInsets.fromLTRB(
               GarraSpacing.lg,
@@ -267,9 +284,12 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
               if (current.store != null) ...[
                 const SizedBox(height: GarraSpacing.lg),
                 GarraCard(
-                  onTap: () => context.push(
-                    '/marketplace/stores/${current.store!.slug}',
-                  ),
+                  // Public store pages only exist for ACTIVE stores.
+                  onTap: contactable
+                      ? () => context.push(
+                          '/marketplace/stores/${current.store!.slug}',
+                        )
+                      : null,
                   child: Row(
                     children: [
                       Icon(
@@ -283,10 +303,11 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                       ),
-                      Icon(
-                        Icons.chevron_right,
-                        color: context.garraColors.brandPrestige,
-                      ),
+                      if (contactable)
+                        Icon(
+                          Icons.chevron_right,
+                          color: context.garraColors.brandPrestige,
+                        ),
                     ],
                   ),
                 ),
@@ -305,12 +326,25 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
                 ),
               ],
               const SizedBox(height: GarraSpacing.xxl),
-              GarraPrimaryButton(
-                label: 'Contactar por WhatsApp',
-                loading: _contacting,
-                onPressed: () => _contact(current),
-              ),
-              if (current.sellerUserId != null &&
+              if (!contactable)
+                GarraCard(
+                  key: const Key('listing-not-public-note'),
+                  child: Text(
+                    'Vista previa: esta publicaci\u00f3n no es visible en '
+                    'Marketplace (estado: '
+                    '${marketplaceListingStatusLabel(current.status)}). '
+                    'Nadie puede contactarte por ella todav\u00eda.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                )
+              else
+                GarraPrimaryButton(
+                  label: 'Contactar por WhatsApp',
+                  loading: _contacting,
+                  onPressed: () => _contact(current),
+                ),
+              if (contactable &&
+                  current.sellerUserId != null &&
                   current.sellerUserId!.isNotEmpty) ...[
                 const SizedBox(height: GarraSpacing.md),
                 ConsultarPorChatButton(

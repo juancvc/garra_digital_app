@@ -4,6 +4,13 @@ import '../../data/marketplace_models.dart';
 import '../../data/marketplace_media_service.dart';
 import '../../data/marketplace_service.dart';
 
+/// DEMO_HARDENING_03: marketplace screens end in content, empty or
+/// GarraErrorState (manual "Reintentar"). Riverpod 3 retries failed providers
+/// up to 10 times while staying in loading (~40 s of skeleton), and a 404 for
+/// a deactivated listing would never resolve to "no disponible". Dio already
+/// retries GETs once on timeout/5xx, so provider-level retry is disabled here.
+Duration? marketplaceNoAutoRetry(int retryCount, Object error) => null;
+
 final marketplaceServiceProvider = Provider<MarketplaceService>((ref) {
   return MarketplaceService();
 });
@@ -37,7 +44,7 @@ class MarketplaceDiscoveryQuery {
 final marketplaceCategoriesProvider =
     FutureProvider.autoDispose<List<MarketplaceCategory>>((ref) {
   return ref.watch(marketplaceServiceProvider).getCategories();
-});
+}, retry: marketplaceNoAutoRetry);
 
 final marketplaceListingsProvider = FutureProvider.autoDispose
     .family<List<MarketplaceListing>, MarketplaceDiscoveryQuery>(
@@ -49,17 +56,17 @@ final marketplaceListingsProvider = FutureProvider.autoDispose
         sort: query.sort,
       );
   return page.items;
-});
+}, retry: marketplaceNoAutoRetry);
 
 final marketplaceListingDetailProvider = FutureProvider.autoDispose
     .family<MarketplaceListing, String>((ref, slug) {
   return ref.watch(marketplaceServiceProvider).getListing(slug);
-});
+}, retry: marketplaceNoAutoRetry);
 
 final marketplaceStoreProvider =
     FutureProvider.autoDispose.family<MarketplaceStore, String>((ref, slug) {
   return ref.watch(marketplaceServiceProvider).getStore(slug);
-});
+}, retry: marketplaceNoAutoRetry);
 
 final marketplaceFavoritesProvider =
     FutureProvider.autoDispose<List<MarketplaceListing>>((ref) {
@@ -69,7 +76,7 @@ final marketplaceFavoritesProvider =
 final marketplaceFeaturedProvider =
     FutureProvider.autoDispose<FeaturedDiscovery>((ref) {
   return ref.watch(marketplaceServiceProvider).getFeatured();
-});
+}, retry: marketplaceNoAutoRetry);
 
 final marketplaceMediaServiceProvider = Provider<MarketplaceMediaService>((ref) {
   return MarketplaceMediaService();
@@ -83,7 +90,7 @@ final sellerMeProvider =
 final sellerSummaryProvider =
     FutureProvider.autoDispose<SellerSummary>((ref) {
   return ref.watch(marketplaceServiceProvider).getSellerSummary();
-});
+}, retry: marketplaceNoAutoRetry);
 
 final sellerListingsProvider =
     FutureProvider.autoDispose<List<MarketplaceListing>>((ref) {
@@ -94,17 +101,17 @@ final sellerListingsProvider =
 final sellerStoresProvider =
     FutureProvider.autoDispose<List<MarketplaceStore>>((ref) {
   return ref.watch(marketplaceServiceProvider).getSellerStores();
-});
+}, retry: marketplaceNoAutoRetry);
 
 final sellerStoreProvider =
     FutureProvider.autoDispose.family<MarketplaceStore, String>((ref, storeId) {
   return ref.watch(marketplaceServiceProvider).getSellerStoreById(storeId);
-});
+}, retry: marketplaceNoAutoRetry);
 
 final sellerStoreListingsProvider = FutureProvider.autoDispose
     .family<List<MarketplaceListing>, String>((ref, storeId) {
   return ref.watch(marketplaceServiceProvider).getSellerStoreListings(storeId);
-});
+}, retry: marketplaceNoAutoRetry);
 
 final sellerPlanProvider = FutureProvider.autoDispose<SellerPlan>((ref) {
   return ref.watch(marketplaceServiceProvider).getSellerPlan();

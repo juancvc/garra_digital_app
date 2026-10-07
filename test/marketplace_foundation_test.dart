@@ -362,9 +362,10 @@ void main() {
     final service = FakeMarketplaceService(categories: [sampleCategory()]);
     await tester.pumpWidget(pumpMarketplace(service));
     await tester.pumpAndSettle();
-    expect(find.text('Aún no hay productos'), findsOneWidget);
+    // DEMO_HARDENING_03: discovery empty copy; the seller CTA is the FAB.
+    expect(find.text('Aún no hay productos publicados'), findsOneWidget);
     expect(find.textContaining('productos aparecerán'), findsOneWidget);
-    expect(find.text('Ir a mis negocios'), findsOneWidget);
+    expect(find.text('Ir a mis negocios'), findsNothing);
   });
 
   testWidgets('82_MARKETPLACE_DISCOVERY_RENDER', (tester) async {

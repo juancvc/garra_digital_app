@@ -270,13 +270,31 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
                     loading: () => const GarraSkeleton(height: 140),
                     error: (_, _) => GarraErrorState(onRetry: _refresh),
                     data: (listings) {
-                      if (listings.isEmpty) {
+                      if (listings.isEmpty &&
+                          (_search.isNotEmpty || _categorySlug != null)) {
                         return GarraEmptyState(
-                          title: 'Aún no hay productos',
+                          key: const Key('marketplace-search-empty'),
+                          title: 'Sin resultados',
+                          message: 'Prueba con otra búsqueda o categoría.',
+                          actionLabel: 'Ver todos los productos',
+                          onAction: () {
+                            _debounce?.cancel();
+                            _searchController.clear();
+                            setState(() {
+                              _search = '';
+                              _categorySlug = null;
+                            });
+                          },
+                        );
+                      }
+                      if (listings.isEmpty) {
+                        // DEMO_HARDENING_03: discovery empty state. The
+                        // seller CTA lives in the FAB, not here.
+                        return const GarraEmptyState(
+                          key: Key('marketplace-discovery-empty'),
+                          title: 'Aún no hay productos publicados',
                           message: 'Cuando la hinchada publique, los productos aparecerán aquí.',
-                          hint: '¿Cómo funciona? Publica desde tu negocio verificado en el panel de vendedor.',
-                          actionLabel: 'Ir a mis negocios',
-                          onAction: () => GoRouter.maybeOf(context)?.push('/marketplace/seller'),
+                          hint: '¿Cómo funciona? Los hinchas venden a la comunidad y coordinan por WhatsApp.',
                         );
                       }
                       return GridView.builder(

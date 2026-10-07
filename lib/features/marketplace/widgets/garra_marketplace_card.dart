@@ -21,6 +21,7 @@ class GarraMarketplaceCard extends StatelessWidget {
     this.showFavorite = true,
     this.onVisible,
     this.layout = GarraMarketplaceCardLayout.list,
+    this.statusLabel,
   });
 
   final MarketplaceListing listing;
@@ -31,6 +32,10 @@ class GarraMarketplaceCard extends StatelessWidget {
   /// Fired once when featured card is built (caller dedupes).
   final VoidCallback? onVisible;
   final GarraMarketplaceCardLayout layout;
+
+  /// DEMO_HARDENING_03: owner-only lifecycle label (list layout), e.g.
+  /// "En revisi\u00f3n". Public discovery never passes it.
+  final String? statusLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -113,6 +118,11 @@ class GarraMarketplaceCard extends StatelessWidget {
                     if (listing.category != null &&
                         listing.category!.isNotEmpty)
                       _Pill(label: listing.category!),
+                    if (statusLabel != null && statusLabel!.isNotEmpty)
+                      _Pill(
+                        key: Key('listing-status-${listing.id}'),
+                        label: statusLabel!,
+                      ),
                   ],
                 ),
               ],
@@ -299,7 +309,7 @@ class _DestacadoBadge extends StatelessWidget {
 }
 
 class _Pill extends StatelessWidget {
-  const _Pill({required this.label});
+  const _Pill({super.key, required this.label});
 
   final String label;
 

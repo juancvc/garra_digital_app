@@ -27,6 +27,8 @@ class SellerDashboardPage extends ConsumerWidget {
         return 'En revisi\u00f3n';
       case 'REJECTED':
         return 'Rechazado';
+      case 'SUSPENDED':
+        return 'Suspendido';
       default:
         return status;
     }

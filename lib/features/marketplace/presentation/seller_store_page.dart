@@ -174,9 +174,20 @@ class SellerStorePage extends ConsumerWidget {
                 ),
                 data: (listings) {
                   if (listings.isEmpty) {
-                    return const GarraEmptyState(
-                      title: 'Sin publicaciones',
-                      message: 'Este negocio a\u00fan no tiene publicaciones.',
+                    // DEMO_HARDENING_03: personal first-use state.
+                    return GarraEmptyState(
+                      key: const Key('seller-listings-empty'),
+                      title: 'A\u00fan no has publicado productos',
+                      message:
+                          'Publica algo que quieras vender a la comunidad.',
+                      actionLabel: store.isArchived
+                          ? null
+                          : 'Publicar mi primer producto',
+                      onAction: store.isArchived
+                          ? null
+                          : () => context.push(
+                              '/marketplace/seller/stores/$storeId/listings/new',
+                            ),
                     );
                   }
                   return Column(
@@ -185,6 +196,9 @@ class SellerStorePage extends ConsumerWidget {
                         GarraMarketplaceCard(
                           listing: listing,
                           showFavorite: false,
+                          statusLabel: marketplaceListingStatusLabel(
+                            listing.status,
+                          ),
                           onTap: () => context.push(
                             '/marketplace/seller/listings/${listing.slug}/edit',
                           ),

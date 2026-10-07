@@ -484,6 +484,9 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
+      // DEMO_HARDENING_03: more actions follow the submit CTA now.
+      await tester.ensureVisible(submit);
+      await tester.pumpAndSettle();
       await tester.tap(submit);
       await tester.pumpAndSettle();
 

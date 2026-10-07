@@ -9,11 +9,13 @@ import '../../../core/navigation/draft_exit_guard.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/design/garra_radius.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_form.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../data/marketplace_media_service.dart';
 import '../data/marketplace_models.dart';
+import '../data/marketplace_service.dart';
 import 'providers/marketplace_provider.dart';
 
 class SellerListingFormPage extends ConsumerStatefulWidget {
@@ -43,6 +45,10 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
   bool _loading = false;
   bool _hydrated = false;
   String? _listingId;
+
+  /// DEMO_HARDENING_03: last known server state of the listing (edit mode or
+  /// after the first save) so the CTAs match the backend lifecycle.
+  MarketplaceListing? _loaded;
   String? _pickedStoreId;
   List<MarketplaceStore> _eligibleStores = const [];
   final List<ListingImageDraft> _images = [];
@@ -57,6 +63,8 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
   ].join('\u0000');
   bool get _dirty => !_completed && (widget.isEditing
       ? _hydrated && _snapshot != _initialSnapshot
+      : _listingId != null
+      ? _snapshot != _initialSnapshot
       : _titleController.text.trim().isNotEmpty ||
           _descriptionController.text.trim().isNotEmpty ||
           _priceController.text.trim().isNotEmpty || _categorySlug != null ||
@@ -97,6 +105,7 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
   void _hydrateFrom(MarketplaceListing listing) {
     if (_hydrated) return;
     _listingId = listing.id;
+    _loaded = listing;
     _titleController.text = listing.title;
     _descriptionController.text = listing.description ?? '';
     _categorySlug = listing.categorySlug;
@@ -141,7 +150,6 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
       ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
-      _completed = true;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No pudimos seleccionar la imagen.')),
       );
@@ -166,12 +174,8 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
           if (mounted) setState(() {});
         },
       );
-      if (_listingId != null && draft.assetId != null) {
-        await media.attachListingImage(
-          listingId: _listingId!,
-          mediaAssetId: draft.assetId!,
-        );
-      }
+      // DEMO_HARDENING_03: the photo joins the listing on "Guardar"/"Enviar"
+      // as part of the ordered set (no per-photo attach, no duplicates).
       if (mounted) setState(() {});
     } catch (_) {
       if (!mounted) return;
@@ -211,10 +215,60 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
     return null;
   }
 
+  /// Ordered photo set for the create/PATCH body: only uploaded (READY)
+  /// photos, cover first. Failed or in-flight photos never reach the listing.
+  List<SellerListingImageRef> _imageRefs() => [
+    for (final draft in _images)
+      if (draft.state == ListingImageUploadState.ready &&
+          ((draft.assetId?.isNotEmpty ?? false) ||
+              (draft.mediaUrl?.startsWith('https://') ?? false)))
+        SellerListingImageRef(
+          mediaAssetId: draft.assetId,
+          imageUrl: draft.assetId == null ? draft.mediaUrl : null,
+        ),
+  ];
+
+  void _invalidateSellerData() {
+    ref.invalidate(sellerListingsProvider);
+    ref.invalidate(sellerStoreListingsProvider);
+    ref.invalidate(sellerSummaryProvider);
+    ref.invalidate(marketplaceListingsProvider);
+    ref.invalidate(marketplaceFeaturedProvider);
+    final slug = widget.slug;
+    if (slug != null && slug.isNotEmpty) {
+      ref.invalidate(marketplaceListingDetailProvider(slug));
+    }
+  }
+
+  void _toast(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Back to where the seller came from (store page or panel); deep links
+  /// without history land on the seller panel instead of a dead end.
+  void _exitAfterSuccess() {
+    _completed = true;
+    final router = GoRouter.maybeOf(context);
+    if (router == null) {
+      Navigator.of(context).maybePop();
+    } else if (router.canPop()) {
+      router.pop();
+    } else {
+      router.go('/marketplace/seller/dashboard');
+    }
+  }
+
   Future<void> _save({bool submit = false}) async {
+    if (_loading) return;
     if (!_formKey.currentState!.validate()) return;
-    final storeId = widget.isEditing ? null : _resolveStoreId();
-    if (!widget.isEditing && storeId == null) {
+    // DEMO_HARDENING_03: once created, later saves update the same listing
+    // (a failed submit + retry must never create a duplicate).
+    final updating = widget.isEditing || _listingId != null;
+    final storeId = updating ? null : _resolveStoreId();
+    if (!updating && storeId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Elige el negocio de esta publicaci\u00f3n.'),
@@ -244,21 +298,21 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
     if (!allowNetworkAction(context)) return;
 
     setState(() => _loading = true);
-    try {
-      final service = ref.read(marketplaceServiceProvider);
-      final media = ref.read(marketplaceMediaServiceProvider);
-      final request = SellerListingRequest(
-        title: _titleController.text,
-        description: _descriptionController.text,
-        categorySlug: _categorySlug!,
-        priceOnRequest: _priceOnRequest,
-        price: _priceOnRequest
-            ? null
-            : double.tryParse(_priceController.text.replaceAll(',', '.')),
-      );
+    final service = ref.read(marketplaceServiceProvider);
+    final request = SellerListingRequest(
+      title: _titleController.text,
+      description: _descriptionController.text,
+      categorySlug: _categorySlug!,
+      priceOnRequest: _priceOnRequest,
+      price: _priceOnRequest
+          ? null
+          : double.tryParse(_priceController.text.trim().replaceAll(',', '.')),
+      images: _imageRefs(),
+    );
 
-      MarketplaceListing listing;
-      if (widget.isEditing) {
+    MarketplaceListing listing;
+    try {
+      if (updating) {
         // MARKETPLACE_V2_A0: the backend updates by listing id (UUID).
         final listingId = _listingId;
         if (listingId == null || listingId.isEmpty) {
@@ -269,51 +323,111 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
         listing = await service.createSellerListingInStore(storeId!, request);
       }
       _listingId = listing.id;
-
-      for (var i = 0; i < _images.length; i++) {
-        final draft = _images[i];
-        if (draft.isReady && draft.assetId != null) {
-          try {
-            await media.attachListingImage(
-              listingId: listing.id,
-              mediaAssetId: draft.assetId!,
-              sortOrder: i,
-            );
-          } catch (_) {
-            // Idempotent attach best-effort for drafts created before listing id.
-          }
-        }
-      }
-
-      if (submit) {
-        listing = await service.submitSellerListing(listing.id);
-      }
-
-      ref.invalidate(sellerListingsProvider);
-      ref.invalidate(sellerStoreListingsProvider);
-      ref.invalidate(sellerSummaryProvider);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            submit
-                ? 'Publicación enviada a revisión.'
-                : 'Publicación guardada.',
-          ),
-        ),
-      );
-      context.pop();
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No pudimos guardar la publicación. Inténtalo de nuevo.',
-          ),
-        ),
-      );
-    } finally {
+      _loaded = listing;
+      _initialSnapshot = _snapshot;
+      _invalidateSellerData();
+    } catch (e) {
       if (mounted) setState(() => _loading = false);
+      _toast(marketplaceListingErrorMessage(e));
+      return;
+    }
+
+    if (submit) {
+      try {
+        listing = await service.submitSellerListing(listing.id);
+        _loaded = listing;
+        _invalidateSellerData();
+      } catch (e) {
+        if (mounted) setState(() => _loading = false);
+        _toast(
+          'Guardamos tu publicaci\u00f3n como borrador, pero no pudimos '
+          'enviarla a revisi\u00f3n. ${marketplaceListingErrorMessage(e, fallback: 'Int\u00e9ntalo de nuevo.')}',
+        );
+        return;
+      }
+    }
+
+    if (!mounted) return;
+    setState(() => _loading = false);
+    _toast(
+      submit
+          ? 'Publicaci\u00f3n enviada a revisi\u00f3n. Aparecer\u00e1 en Marketplace cuando Garra la apruebe.'
+          : listing.isPublished
+          ? 'Cambios guardados.'
+          : 'Publicaci\u00f3n guardada como borrador.',
+    );
+    _exitAfterSuccess();
+  }
+
+  Future<void> _archive() async {
+    final listingId = _listingId;
+    if (_loading || listingId == null || listingId.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('\u00bfDesactivar publicaci\u00f3n?'),
+        content: const Text(
+          'Dejar\u00e1 de aparecer en Marketplace y nadie podr\u00e1 '
+          'contactarte por ella. Esta acci\u00f3n no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            key: const Key('listing-archive-confirm'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Desactivar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    if (!allowNetworkAction(context)) return;
+    setState(() => _loading = true);
+    try {
+      final archived = await ref
+          .read(marketplaceServiceProvider)
+          .archiveSellerListing(listingId);
+      _loaded = archived;
+      _invalidateSellerData();
+      if (!mounted) return;
+      setState(() => _loading = false);
+      _toast('Publicaci\u00f3n desactivada. Ya no aparece en Marketplace.');
+      _exitAfterSuccess();
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
+      _toast(
+        marketplaceListingErrorMessage(
+          e,
+          fallback:
+              'No pudimos desactivar la publicaci\u00f3n. Int\u00e9ntalo de nuevo.',
+        ),
+      );
+    }
+  }
+
+  static String _statusHint(MarketplaceListing listing) {
+    switch (listing.status.toUpperCase()) {
+      case 'DRAFT':
+        return 'Solo t\u00fa la ves. Env\u00edala a revisi\u00f3n para publicarla.';
+      case 'PENDING':
+      case 'PENDING_REVIEW':
+        return 'Garra la revisar\u00e1 antes de mostrarla en Marketplace.';
+      case 'ACTIVE':
+      case 'PUBLISHED':
+        return 'Visible en Marketplace. Los cambios que guardes se ver\u00e1n ah\u00ed.';
+      case 'REJECTED':
+        return 'Aj\u00fastala y vuelve a enviarla a revisi\u00f3n.';
+      case 'SUSPENDED':
+        return 'Suspendida por moderaci\u00f3n: no se puede editar.';
+      case 'ARCHIVED':
+        return 'Ya no aparece en Marketplace y no se puede editar.';
+      case 'SOLD_OUT':
+        return 'Puedes volver a enviarla a revisi\u00f3n.';
+      default:
+        return '';
     }
   }
 
@@ -376,6 +490,79 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
     );
   }
 
+  /// DEMO_HARDENING_03: CTAs follow the backend lifecycle. New/draft/rejected
+  /// listings are published by sending them to review (primary); "Guardar"
+  /// keeps a draft. Live or pending listings only save changes. Archived or
+  /// suspended listings are read-only. Deactivate (archive) needs confirmation.
+  List<Widget> _actions(BuildContext context) {
+    final loaded = _loaded;
+    if (loaded != null && !loaded.isEditableByOwner) return const [];
+    final canSubmit = loaded == null || loaded.canSubmitForReview;
+    return [
+      if (canSubmit) ...[
+        GarraPrimaryButton(
+          key: const Key('listing-submit'),
+          label: 'Enviar a revisi\u00f3n',
+          loading: _loading,
+          onPressed: _loading ? null : () => _save(submit: true),
+        ),
+        const SizedBox(height: GarraSpacing.md),
+        GarraSecondaryButton(
+          key: const Key('listing-save'),
+          label: 'Guardar',
+          onPressed: _loading ? null : () => _save(),
+        ),
+        const SizedBox(height: GarraSpacing.sm),
+        Text(
+          'Guardar la deja como borrador. Garra revisa cada publicaci\u00f3n '
+          'antes de mostrarla en Marketplace.',
+          key: const Key('listing-review-note'),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: context.garraColors.textSecondary,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ] else
+        GarraPrimaryButton(
+          key: const Key('listing-save'),
+          label: 'Guardar',
+          loading: _loading,
+          onPressed: _loading ? null : () => _save(),
+        ),
+      if (_listingId != null && loaded != null) ...[
+        const SizedBox(height: GarraSpacing.xl),
+        TextButton.icon(
+          key: const Key('listing-archive'),
+          onPressed: _loading ? null : _archive,
+          icon: const Icon(Icons.visibility_off_outlined),
+          label: const Text('Desactivar publicaci\u00f3n'),
+        ),
+      ],
+    ];
+  }
+
+  Widget _statusBanner(BuildContext context, MarketplaceListing listing) {
+    return GarraCard(
+      key: const Key('listing-status-banner'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Estado: ${marketplaceListingStatusLabel(listing.status)}',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          if (_statusHint(listing).isNotEmpty) ...[
+            const SizedBox(height: GarraSpacing.xs),
+            Text(
+              _statusHint(listing),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(marketplaceCategoriesProvider);
@@ -385,6 +572,23 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
         marketplaceListingDetailProvider(widget.slug!),
       );
       listingAsync.whenData(_hydrateFrom);
+      // DEMO_HARDENING_03: never show an empty, unsavable edit form.
+      if (!_hydrated) {
+        return Scaffold(
+          appBar: AppBar(title: const Text('Editar publicaci\u00f3n')),
+          body: listingAsync.hasError
+              ? GarraErrorState(
+                  title: 'No pudimos cargar tu publicaci\u00f3n',
+                  onRetry: () => ref.invalidate(
+                    marketplaceListingDetailProvider(widget.slug!),
+                  ),
+                )
+              : const Padding(
+                  padding: EdgeInsets.all(GarraSpacing.lg),
+                  child: GarraSkeleton(height: 220),
+                ),
+        );
+      }
     }
 
     return PopScope(
@@ -412,6 +616,10 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
               subtitle:
                   'Esto se publica en Marketplace, aparte de tu ficha en Negocios Cremas.',
             ),
+            if (_loaded != null) ...[
+              _statusBanner(context, _loaded!),
+              const SizedBox(height: GarraSpacing.lg),
+            ],
             if (!widget.isEditing) ...[
               _storeSection(context),
               const SizedBox(height: GarraSpacing.lg),
@@ -488,6 +696,10 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
                               ? Image.network(
                                   draft.mediaUrl!,
                                   fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) => Icon(
+                                    Icons.broken_image_outlined,
+                                    color: context.garraColors.brandPrestige,
+                                  ),
                                 )
                               : Icon(
                                   Icons.image_outlined,
@@ -563,6 +775,9 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
                     if (value == null || value.trim().isEmpty) {
                       return 'Ingresa un título';
                     }
+                    if (value.trim().length > 160) {
+                      return 'M\u00e1ximo 160 caracteres';
+                    }
                     return null;
                   },
                 ),
@@ -573,6 +788,9 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Ingresa una descripción';
+                    }
+                    if (value.trim().length > 4000) {
+                      return 'M\u00e1ximo 4000 caracteres';
                     }
                     return null;
                   },
@@ -634,24 +852,21 @@ class _SellerListingFormPageState extends ConsumerState<SellerListingFormPage> {
                   if (value == null || value.trim().isEmpty) {
                     return 'Ingresa un precio o marca consultar';
                   }
-                  if (double.tryParse(value.replaceAll(',', '.')) == null) {
+                  final raw = value.trim();
+                  // NUMERIC(12,2) in the backend: up to 10 digits, 2 decimals.
+                  if (!RegExp(r'^\d{1,10}([.,]\d{1,2})?$').hasMatch(raw)) {
                     return 'Precio inválido';
+                  }
+                  final parsed = double.tryParse(raw.replaceAll(',', '.'));
+                  if (parsed == null || parsed <= 0) {
+                    return 'Ingresa un precio mayor a 0 o marca consultar';
                   }
                   return null;
                 },
               ),
             ],
             const SizedBox(height: GarraSpacing.xxl),
-            GarraPrimaryButton(
-              label: 'Guardar',
-              loading: _loading,
-              onPressed: () => _save(),
-            ),
-            const SizedBox(height: GarraSpacing.md),
-            GarraSecondaryButton(
-              label: 'Enviar a revisión',
-              onPressed: _loading ? null : () => _save(submit: true),
-            ),
+            ..._actions(context),
           ],
         ),
       ),

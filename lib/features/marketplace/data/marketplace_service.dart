@@ -641,6 +641,11 @@ class MarketplaceService {
 
   String _friendlyContactError(DioException e) {
     final message = _extractMessage(e);
+    final status = e.response?.statusCode;
+    if (message.toLowerCase().contains('not available for contact') ||
+        status == 404) {
+      return 'Esta publicaci\u00f3n ya no est\u00e1 disponible.';
+    }
     if (message.isNotEmpty) return message;
     return 'No pudimos abrir WhatsApp. Inténtalo de nuevo.';
   }
@@ -661,4 +666,64 @@ class MarketplaceServiceException implements Exception {
 
   @override
   String toString() => message;
+}
+
+/// DEMO_HARDENING_03: Spanish copy for the seller listing lifecycle errors the
+/// backend returns in English (MarketplaceService/MarketplaceSupport). Unknown
+/// errors fall back to [fallback]; the backend stays the authority.
+String marketplaceListingErrorMessage(
+  Object error, {
+  String fallback =
+      'No pudimos guardar la publicaci\u00f3n. Int\u00e9ntalo de nuevo.',
+}) {
+  String message = '';
+  int? status;
+  if (error is DioException) {
+    status = error.response?.statusCode;
+    final data = error.response?.data;
+    if (data is Map) message = data['message']?.toString() ?? '';
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.connectionError) {
+      return 'Sin conexi\u00f3n estable. Revisa tu internet e int\u00e9ntalo de nuevo.';
+    }
+  } else if (error is MarketplaceServiceException) {
+    message = error.message;
+  }
+  final lower = message.toLowerCase();
+  if (lower.contains('store must be active') ||
+      lower.contains('store and seller must be active') ||
+      lower.contains('listing store/seller must be active')) {
+    return 'Tu negocio a\u00fan no est\u00e1 aprobado. Podr\u00e1s enviar '
+        'publicaciones a revisi\u00f3n cuando Garra lo apruebe.';
+  }
+  if (lower.contains('seller must be active')) {
+    return 'Tu perfil de vendedor a\u00fan no est\u00e1 aprobado. Podr\u00e1s '
+        'enviar publicaciones a revisi\u00f3n cuando Garra lo apruebe.';
+  }
+  if (lower.contains('price amount is required')) {
+    return 'Ingresa un precio o activa \u201cPrecio a consultar\u201d.';
+  }
+  if (lower.contains('cannot be submitted')) {
+    return 'Esta publicaci\u00f3n ya est\u00e1 en revisi\u00f3n o publicada.';
+  }
+  if (lower.contains('cannot be edited')) {
+    return 'Esta publicaci\u00f3n ya no se puede editar.';
+  }
+  if (lower.contains('max listing images')) {
+    return 'M\u00e1ximo 5 fotos por publicaci\u00f3n.';
+  }
+  if (lower.contains('slug already exists')) {
+    return 'Ya existe una publicaci\u00f3n con ese t\u00edtulo. Ajusta el t\u00edtulo e int\u00e9ntalo de nuevo.';
+  }
+  if (lower.contains('only manage your own')) {
+    return 'Solo puedes gestionar tus propias publicaciones.';
+  }
+  if (lower.contains('media') || lower.contains('image')) {
+    return 'Una de las fotos ya no est\u00e1 disponible. Qu\u00edtala y vuelve a subirla.';
+  }
+  if (status == 404) {
+    return 'No encontramos esta publicaci\u00f3n. Vuelve a tu negocio e int\u00e9ntalo de nuevo.';
+  }
+  return fallback;
 }

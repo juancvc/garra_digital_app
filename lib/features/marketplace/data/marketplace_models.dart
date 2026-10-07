@@ -63,6 +63,7 @@ class MarketplaceListing {
     this.promotionId,
     this.sellerUserId,
     this.storeId,
+    this.canContact = true,
   });
 
   final String id;
@@ -88,12 +89,29 @@ class MarketplaceListing {
   final String? promotionId;
   final String? sellerUserId;
 
+  /// DEMO_HARDENING_03: backend `canContact` (listing, store and seller all
+  /// ACTIVE). Only the owner can open a non-public listing; for them it is
+  /// false and the buyer CTAs are hidden. Missing field = public payload.
+  final bool canContact;
+
   bool get isPublished =>
       status.toUpperCase() == 'PUBLISHED' || status.toUpperCase() == 'ACTIVE';
   bool get isDraft => status.toUpperCase() == 'DRAFT';
   bool get isPending =>
       status.toUpperCase() == 'PENDING' ||
       status.toUpperCase() == 'PENDING_REVIEW';
+  bool get isArchived => status.toUpperCase() == 'ARCHIVED';
+
+  /// Backend `requireEditableListing`: SUSPENDED and ARCHIVED are read-only.
+  bool get isEditableByOwner =>
+      status.toUpperCase() != 'SUSPENDED' && !isArchived;
+
+  /// Backend `submitListing` accepts DRAFT, REJECTED and SOLD_OUT only.
+  bool get canSubmitForReview => const {
+    'DRAFT',
+    'REJECTED',
+    'SOLD_OUT',
+  }.contains(status.toUpperCase());
 
   String? get coverImageUrl {
     if (imageUrl != null && imageUrl!.isNotEmpty) return imageUrl;
@@ -129,6 +147,7 @@ class MarketplaceListing {
     bool? featured,
     String? promotionId,
     String? sellerUserId,
+    bool? canContact,
   }) {
     return MarketplaceListing(
       id: id ?? this.id,
@@ -150,6 +169,8 @@ class MarketplaceListing {
       featured: featured ?? this.featured,
       promotionId: promotionId ?? this.promotionId,
       sellerUserId: sellerUserId ?? this.sellerUserId,
+      storeId: storeId,
+      canContact: canContact ?? this.canContact,
     );
   }
 
@@ -220,6 +241,7 @@ class MarketplaceListing {
       promotionId: json['promotionId']?.toString(),
       sellerUserId: json['sellerUserId']?.toString(),
       storeId: json['storeId']?.toString(),
+      canContact: json['canContact'] as bool? ?? true,
     );
   }
 
@@ -732,6 +754,31 @@ class SellerListingPerformance {
   }
 }
 
+/// DEMO_HARDENING_03: one photo of the ordered set sent in the listing
+/// create/PATCH body (`ListingImageRequest`). The backend replaces the whole
+/// set atomically, so re-saving never duplicates and removals persist.
+class SellerListingImageRef {
+  const SellerListingImageRef({this.mediaAssetId, this.imageUrl});
+
+  /// READY media asset owned by the seller (current upload pipeline).
+  final String? mediaAssetId;
+
+  /// Legacy HTTPS image kept as-is when it has no media asset.
+  final String? imageUrl;
+
+  bool get isValid =>
+      (mediaAssetId != null && mediaAssetId!.isNotEmpty) ||
+      (imageUrl != null && imageUrl!.startsWith('https://'));
+
+  Map<String, dynamic> toJson(int sortOrder) => {
+    if (mediaAssetId != null && mediaAssetId!.isNotEmpty)
+      'mediaAssetId': mediaAssetId
+    else
+      'imageUrl': imageUrl,
+    'sortOrder': sortOrder,
+  };
+}
+
 class SellerListingRequest {
   const SellerListingRequest({
     required this.title,
@@ -740,6 +787,7 @@ class SellerListingRequest {
     this.price,
     this.priceOnRequest = false,
     this.type = 'PRODUCT',
+    this.images,
   });
 
   final String title;
@@ -748,6 +796,9 @@ class SellerListingRequest {
   final double? price;
   final bool priceOnRequest;
   final String type;
+
+  /// Ordered photos (cover first). Null = leave the current photos untouched.
+  final List<SellerListingImageRef>? images;
 
   /// PATCH body (UpdateListingRequest): the backend reads `priceAmount`.
   Map<String, dynamic> toJson() {
@@ -758,6 +809,11 @@ class SellerListingRequest {
       'priceOnRequest': priceOnRequest,
       if (!priceOnRequest && price != null) 'priceAmount': price,
       'type': type,
+      if (images != null)
+        'images': [
+          for (final (i, image) in images!.where((e) => e.isValid).indexed)
+            image.toJson(i),
+        ],
     };
   }
 
@@ -831,4 +887,28 @@ class MarketplacePageResult<T> {
   final int size;
   final int? totalElements;
   final bool hasNext;
+}
+
+/// DEMO_HARDENING_03: owner-facing label for the backend ListingStatus.
+String marketplaceListingStatusLabel(String status) {
+  switch (status.toUpperCase()) {
+    case 'DRAFT':
+      return 'Borrador';
+    case 'PENDING':
+    case 'PENDING_REVIEW':
+      return 'En revisi\u00f3n';
+    case 'ACTIVE':
+    case 'PUBLISHED':
+      return 'Publicada';
+    case 'REJECTED':
+      return 'Rechazada';
+    case 'SUSPENDED':
+      return 'Suspendida';
+    case 'ARCHIVED':
+      return 'Desactivada';
+    case 'SOLD_OUT':
+      return 'Agotada';
+    default:
+      return status;
+  }
 }
