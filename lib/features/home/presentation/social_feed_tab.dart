@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -41,6 +43,11 @@ class SocialFeedTab extends ConsumerStatefulWidget {
   final String mode;
   final List<Widget> contextualInserts;
 
+  /// DEMO_HARDENING_02A.1: hard bound for one feed page (Dio connect/receive
+  /// timeouts + GET retry + 401 refresh can otherwise stack up to ~1 min of
+  /// skeleton). Past it the tab shows error + Reintentar, never a stuck skeleton.
+  static const Duration loadTimeout = Duration(seconds: 15);
+
   @override
   ConsumerState<SocialFeedTab> createState() => _SocialFeedTabState();
 }
@@ -71,11 +78,6 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
         else if (keep(item.post))
           item,
     ];
-  }
-
-  void _upsertLeadingPost(WallPostModel post) {
-    _filterPosts((p) => p.id != post.id);
-    _items = [CommunityPostFeedItem(post), ..._items];
   }
 
   /// Rebuild feed from a new organic post list while keeping BUSINESS_OFFER cards
@@ -113,6 +115,38 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
 
   CommunityService get _service => ref.read(communityServiceProvider);
 
+  /// Watchdogs for in-flight page loads; cancelled on dispose so a disposed tab
+  /// never keeps timers alive.
+  final Set<Timer> _loadWatchdogs = {};
+
+  /// DEMO_HARDENING_02A.1: a page load that does not settle within
+  /// [SocialFeedTab.loadTimeout] fails with [TimeoutException], so the tab ends in
+  /// error + Reintentar instead of an endless skeleton.
+  Future<T> _bounded<T>(Future<T> request) {
+    final result = Completer<T>();
+    late final Timer watchdog;
+    watchdog = Timer(SocialFeedTab.loadTimeout, () {
+      _loadWatchdogs.remove(watchdog);
+      if (!result.isCompleted) {
+        result.completeError(TimeoutException('feed page', SocialFeedTab.loadTimeout));
+      }
+    });
+    _loadWatchdogs.add(watchdog);
+    request.then(
+      (value) {
+        watchdog.cancel();
+        _loadWatchdogs.remove(watchdog);
+        if (!result.isCompleted) result.complete(value);
+      },
+      onError: (Object error, StackTrace stack) {
+        watchdog.cancel();
+        _loadWatchdogs.remove(watchdog);
+        if (!result.isCompleted) result.completeError(error, stack);
+      },
+    );
+    return result.future;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -126,6 +160,10 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
 
   @override
   void dispose() {
+    for (final watchdog in _loadWatchdogs) {
+      watchdog.cancel();
+    }
+    _loadWatchdogs.clear();
     _scrollController.removeListener(_onScroll);
     _homeBackScroll?.detach(_scrollController);
     _scrollController.dispose();
@@ -157,7 +195,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
       _moreFailed = false;
     });
     try {
-      final page = await _service.getFeedPage(mode: widget.mode);
+      final page = await _bounded(_service.getFeedPage(mode: widget.mode));
       if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _items = page.items;
@@ -201,9 +239,8 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
       _moreFailed = false;
     });
     try {
-      final page = await _service.getFeedPage(
-        mode: widget.mode,
-        cursor: _nextCursor,
+      final page = await _bounded(
+        _service.getFeedPage(mode: widget.mode, cursor: _nextCursor),
       );
       if (!mounted || generation != _loadGeneration) return;
       setState(() {

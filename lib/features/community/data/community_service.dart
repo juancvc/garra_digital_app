@@ -218,10 +218,18 @@ class CommunityService {
         : const <String, dynamic>{};
     final hasNext = page['hasNext'] == true;
     final next = page['nextCursor']?.toString();
+    final parsed = <CommunityFeedItem>[];
+    for (final raw in items) {
+      if (raw is! Map) continue;
+      try {
+        final item = parseCommunityFeedItem(Map<String, dynamic>.from(raw));
+        if (item != null) parsed.add(item);
+      } catch (_) {
+        // DEMO_HARDENING_02A.1: one malformed item never fails the whole page.
+      }
+    }
     return FeedPage(
-      items: items
-          .map((e) => parseCommunityFeedItem(Map<String, dynamic>.from(e as Map)))
-          .toList(),
+      items: parsed,
       hasNext: hasNext && next != null && next.isNotEmpty,
       nextCursor: next,
     );

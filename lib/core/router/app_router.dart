@@ -789,8 +789,12 @@ List<RouteBase> _exploreOwnedRoutes() => [
       GoRoute(
         path: ':id',
         name: 'negocio-crema-detail',
-        builder: (context, state) =>
-            NegocioCremaDetailPage(idOrSlug: state.pathParameters['id'] ?? ''),
+        // DEMO_HARDENING_02A.1: Tribuna "Ver oferta" opens the real public
+        // business page focused on the offer (?oferta=<offerId>).
+        builder: (context, state) => NegocioCremaDetailPage(
+          idOrSlug: state.pathParameters['id'] ?? '',
+          focusOfferId: state.uri.queryParameters['oferta'],
+        ),
       ),
     ],
   ),

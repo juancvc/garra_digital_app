@@ -99,7 +99,6 @@ void main() {
             body: GarraTribunaOfferCard(offer: _offer(id: 'o1')),
           ),
         ),
-        GoRoute(path: '/negocios/ofertas', builder: (_, __) => const SizedBox()),
         GoRoute(
           path: '/negocios/:id',
           builder: (_, __) => const SizedBox(),

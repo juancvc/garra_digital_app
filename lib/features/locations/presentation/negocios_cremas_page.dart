@@ -338,9 +338,13 @@ class NegocioCremaDetailPage extends StatefulWidget {
     required this.idOrSlug,
     this.locationService,
     this.engagement,
+    this.focusOfferId,
   });
 
   final String idOrSlug;
+
+  /// DEMO_HARDENING_02A.1: offer to bring into view (Tribuna "Ver oferta").
+  final String? focusOfferId;
   final LocationService? locationService;
   final CremaBusinessEngagementService? engagement;
 
@@ -357,11 +361,29 @@ class _NegocioCremaDetailPageState extends State<NegocioCremaDetailPage> {
   List<CremaBusinessOffer> _offers = const [];
   var _loading = true;
   String? _error;
+  final GlobalKey _focusedOfferKey = GlobalKey(debugLabel: 'focused_offer');
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  /// Bring the offer opened from Tribuna into view once the page has content.
+  void _scrollToFocusedOffer() {
+    final focus = widget.focusOfferId;
+    if (focus == null || focus.isEmpty) return;
+    if (!_offers.any((offer) => offer.id == focus)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = _focusedOfferKey.currentContext;
+      if (!mounted || target == null) return;
+      Scrollable.ensureVisible(
+        target,
+        alignment: 0.05,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   Future<void> _load() async {
@@ -394,6 +416,7 @@ class _NegocioCremaDetailPageState extends State<NegocioCremaDetailPage> {
         _offers = offers;
         _loading = false;
       });
+      _scrollToFocusedOffer();
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -432,8 +455,11 @@ class _NegocioCremaDetailPageState extends State<NegocioCremaDetailPage> {
             )
           : point == null
           ? const Center(child: Text('No encontramos este negocio'))
-          : ListView(
+          : SingleChildScrollView(
+              key: const ValueKey('public_business_scroll'),
               padding: const EdgeInsets.all(GarraSpacing.lg),
+              child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if ((point.coverImageUrl ?? '').isNotEmpty) ...[
                   ClipRRect(
@@ -561,10 +587,15 @@ class _NegocioCremaDetailPageState extends State<NegocioCremaDetailPage> {
                   ),
                   const SizedBox(height: 8),
                   for (final offer in _offers)
-                    GarraTribunaOfferCard(
-                      key: ValueKey('public_business_offer_${offer.id}'),
-                      offer: offer,
-                      compact: true,
+                    KeyedSubtree(
+                      key: offer.id == widget.focusOfferId
+                          ? _focusedOfferKey
+                          : null,
+                      child: GarraTribunaOfferCard(
+                        key: ValueKey('public_business_offer_${offer.id}'),
+                        offer: offer,
+                        cardContext: GarraOfferCardContext.business,
+                      ),
                     ),
                 ],
                 const SizedBox(height: 24),
@@ -581,6 +612,7 @@ class _NegocioCremaDetailPageState extends State<NegocioCremaDetailPage> {
                   child: const Text('Ver ubicación del negocio'),
                 ),
               ],
+            ),
             ),
     );
   }
