@@ -200,12 +200,21 @@ class _GarraGuideCard extends StatelessWidget {
     final showArt = illustrationAsset != null && !hideForAccessibility;
     final longCard =
         _isLongGuideCard(illustrationAsset, description);
+    final solidarityArt =
+        illustrationAsset == _GarraHelpArt.solidarity;
     final artExtent = width >= 720
-        ? (longCard ? 104.0 : 92.0)
-        : (longCard ? 96.0 : 84.0);
-    final textReserve = showArt ? (longCard ? 76.0 : 68.0) : 0.0;
+        ? (longCard ? 138.0 : 118.0)
+        : (longCard ? 132.0 : 112.0);
+    final textReserve = showArt ? (longCard ? 84.0 : 74.0) : 0.0;
     final dpr = MediaQuery.devicePixelRatioOf(context);
-    final cacheSide = (artExtent * dpr).round().clamp(160, 420);
+    final cacheSide = (artExtent * dpr).round().clamp(200, 520);
+    final artAlignment = solidarityArt
+        ? const Alignment(0.72, 0.15)
+        : Alignment.bottomRight;
+    final artRight = longCard ? (solidarityArt ? -4.0 : -10.0) : -4.0;
+    final artBottom = longCard
+        ? (solidarityArt ? -2.0 : -14.0)
+        : (solidarityArt ? -4.0 : -8.0);
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -228,7 +237,7 @@ class _GarraGuideCard extends StatelessWidget {
                 right: 0,
                 top: 0,
                 bottom: 0,
-                width: artExtent * 0.9,
+                width: artExtent * (solidarityArt ? 0.72 : 0.82),
                 child: IgnorePointer(
                   child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -238,12 +247,12 @@ class _GarraGuideCard extends StatelessWidget {
                         colors: [
                           const Color(GarraColors.surface)
                               .withValues(alpha: 0),
-                          const Color(GarraColors.surface)
-                              .withValues(alpha: 0.88),
-                          const Color(GarraColors.burgundyDeep)
-                              .withValues(alpha: 0.45),
+                          const Color(GarraColors.surface).withValues(
+                              alpha: solidarityArt ? 0.78 : 0.88),
+                          const Color(GarraColors.burgundyDeep).withValues(
+                              alpha: solidarityArt ? 0.28 : 0.45),
                         ],
-                        stops: const [0.0, 0.5, 1.0],
+                        stops: const [0.0, 0.55, 1.0],
                       ),
                     ),
                   ),
@@ -310,8 +319,8 @@ class _GarraGuideCard extends StatelessWidget {
             ),
             if (showArt)
               Positioned(
-                right: longCard ? -8 : -2,
-                bottom: longCard ? -10 : -4,
+                right: artRight,
+                bottom: artBottom,
                 width: artExtent,
                 height: artExtent,
                 child: IgnorePointer(
@@ -320,7 +329,7 @@ class _GarraGuideCard extends StatelessWidget {
                       illustrationAsset!,
                       key: ValueKey('garra-guide-card-art-$illustrationAsset'),
                       fit: BoxFit.contain,
-                      alignment: Alignment.bottomRight,
+                      alignment: artAlignment,
                       cacheWidth: cacheSide,
                       errorBuilder: (_, _, _) => const SizedBox.shrink(),
                     ),
