@@ -1,5 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:garra_digital_app/core/network/dio_client.dart';
+import 'package:garra_digital_app/core/network/garra_error.dart';
+import 'package:garra_digital_app/features/community/data/community_report.dart';
+import 'package:garra_digital_app/features/community/data/report_wall_post_request.dart';
 
 import 'garra_football_models.dart';
 
@@ -109,9 +112,18 @@ class FootballChatService {
   Future<FootballChatPage> messages({DateTime? before, int size = 30}) =>
       page(const FootballChatContext.general(), before: before, size: size);
 
-  Future<FootballChatPage> page(FootballChatContext context, {DateTime? before, int size = 30}) async {
+  Future<FootballChatPage> page(
+    FootballChatContext context, {
+    DateTime? before,
+    String? beforeId,
+    int size = 30,
+  }) async {
+    if (beforeId != null && before == null) {
+      throw ArgumentError('before is required when beforeId is set');
+    }
     final response = await _dio.get('/football/chat/messages', queryParameters: {
       if (before != null) 'before': before.toUtc().toIso8601String(),
+      if (beforeId != null && beforeId.isNotEmpty) 'beforeId': beforeId,
       'size': size,
       'context': ?context.wire,
     });
@@ -140,11 +152,16 @@ class FootballChatService {
     );
   }
 
-  Future<FootballChatMessage> send(String body,
-      {FootballChatContext context = const FootballChatContext.general()}) async {
+  Future<FootballChatMessage> send(
+    String body, {
+    FootballChatContext context = const FootballChatContext.general(),
+    String? clientMessageId,
+  }) async {
     final response = await _dio.post('/football/chat/messages', data: {
       'body': body,
       'context': ?context.wire,
+      if (clientMessageId != null && clientMessageId.isNotEmpty)
+        'clientMessageId': clientMessageId,
     });
     final data = response.data is Map ? (response.data as Map)['data'] : null;
     if (data is! Map<String, dynamic>) {
@@ -152,4 +169,43 @@ class FootballChatService {
     }
     return FootballChatMessage.fromJson(data);
   }
+
+  /// PRODUCT-03B-3B-3: report another fan's visible message (same body shape as wall reports).
+  Future<ReportSubmitResult> reportMessage({
+    required String messageId,
+    required String category,
+    String? reason,
+  }) async {
+    try {
+      await _dio.post(
+        '/football/chat/messages/$messageId/report',
+        data: ReportWallPostRequest(category: category, reason: reason).toJson(),
+      );
+      return ReportSubmitResult.success();
+    } on DioException catch (e) {
+      return ReportSubmitResult.failure(garraMessageFromDio(e));
+    } catch (_) {
+      return ReportSubmitResult.failure(garraReportFallbackError);
+    }
+  }
+
+  Future<ReportSubmitResult> deleteMessage(String messageId) async {
+    try {
+      await _dio.delete('/football/chat/messages/$messageId');
+      return ReportSubmitResult.success();
+    } on DioException catch (e) {
+      return ReportSubmitResult.failure(garraMessageFromDio(e));
+    } catch (_) {
+      return ReportSubmitResult.failure('No pudimos eliminar el mensaje.');
+    }
+  }
+}
+
+String garraMessageFromDio(DioException e) {
+  final body = e.response?.data;
+  if (body is Map && body['message'] != null) {
+    final msg = body['message'].toString().trim();
+    if (msg.isNotEmpty) return msg;
+  }
+  return classifyDioError(e).message;
 }

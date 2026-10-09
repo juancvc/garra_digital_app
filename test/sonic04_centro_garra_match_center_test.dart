@@ -34,7 +34,8 @@ class _Community extends CommunityService {
 class _Chat extends FootballChatService {
   _Chat() : super(dio: Dio());
   @override
-  Future<FootballChatPage> page(FootballChatContext context, {DateTime? before, int size = 30}) async =>
+  Future<FootballChatPage> page(FootballChatContext context,
+          {DateTime? before, String? beforeId, int size = 30}) async =>
       const FootballChatPage(items: [], hasMore: false);
 }
 

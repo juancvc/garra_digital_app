@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/home/presentation/create_action_sheet.dart';
 import '../../features/chat/presentation/chat_unread_badge.dart';
 import 'home_back_scroll.dart';
+import 'main_shell_branch_scope.dart';
 import '../discovery/garra_discovery_tip.dart';
 import '../design/garra_colors.dart';
 import '../theme/garra_semantic_colors.dart';
@@ -42,7 +43,9 @@ class MainShell extends ConsumerWidget {
     final colors = context.garraColors;
     final homeScrolled = ref.watch(homeBackScrollProvider);
     final chatUnread = ref.watch(chatUnreadTotalProvider);
-    return ChatUnreadReconciler(child: PopScope(
+    return MainShellBranchScope(
+      activeBranch: navigationShell.currentIndex,
+      child: ChatUnreadReconciler(child: PopScope(
       canPop: navigationShell.currentIndex == 0 && !homeScrolled,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
@@ -62,8 +65,8 @@ class MainShell extends ConsumerWidget {
               id: 'home.v1', title: 'Descubre Garra',
               message: 'Desde Inicio y Explorar encuentras publicaciones, personas y experiencias de la comunidad.'),
             1 => const GarraDiscoveryTip(key: ValueKey('community-tip'),
-              id: 'tribuna.v1', title: 'Tu Tribuna',
-              message: 'Publica, comenta y reacciona. En las comunidades también puedes conversar con otros hinchas.'),
+              id: 'community-chat.v1', title: 'Comunidad Crema',
+              message: 'Conversa en tiempo casi real con la hinchada. Las publicaciones largas siguen en Inicio.'),
             2 => const GarraDiscoveryTip(key: ValueKey('football-tip'),
               id: 'football.v1', title: 'Centro Garra',
               message: 'Consulta partidos, resultados y tablas. Abre un partido para entrar a su Tribuna y Chat Futbolero.'),
@@ -144,6 +147,7 @@ class MainShell extends ConsumerWidget {
         ),
       ),
       ),
+    ),
     ));
   }
 }

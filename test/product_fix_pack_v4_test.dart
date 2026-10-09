@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:dio/dio.dart';
+import 'package:garra_digital_app/core/network/connectivity_status.dart';
 import 'package:garra_digital_app/core/theme/app_theme.dart';
 import 'package:garra_digital_app/core/config/app_config_service.dart';
 import 'package:garra_digital_app/core/widgets/app_gates.dart';
@@ -13,6 +15,8 @@ import 'package:garra_digital_app/features/community/presentation/community_soci
 import 'package:garra_digital_app/features/community/presentation/providers/community_provider.dart';
 import 'package:garra_digital_app/features/community/presentation/widgets/garra_post_media_grid.dart';
 import 'package:garra_digital_app/features/community/presentation/widgets/garra_social_post_card.dart';
+import 'package:garra_digital_app/features/football/data/football_chat_service.dart';
+import 'package:garra_digital_app/features/football/presentation/football_chat_room_view.dart';
 import 'package:garra_digital_app/features/admin/data/admin_center_service.dart';
 import 'package:garra_digital_app/features/admin/presentation/admin_center_page.dart';
 import 'package:garra_digital_app/features/auth/data/auth_service.dart';
@@ -42,6 +46,20 @@ Map<String, dynamic> _photo(int index) => {
   'url': 'https://cdn.garra.test/posts/photo-$index.jpg',
   'sortOrder': index,
 };
+
+class _OnlineNet extends ConnectivityStatusController {
+  @override
+  NetworkConnectivity build() => NetworkConnectivity.online;
+}
+
+class _EmptyChat extends FootballChatService {
+  _EmptyChat() : super(dio: Dio());
+
+  @override
+  Future<FootballChatPage> page(FootballChatContext context,
+          {DateTime? before, String? beforeId, int size = 30}) async =>
+      const FootballChatPage(items: [], hasMore: false);
+}
 
 class _FeedService extends CommunityService {
   _FeedService(this.posts);
@@ -171,16 +189,14 @@ void main() {
     );
   });
 
-  testWidgets('Community root is a recent social feed without a back arrow', (
+  testWidgets('Community root is GENERAL chat without a back arrow', (
     tester,
   ) async {
-    final post = WallPostModel.fromJson(
-      _backendPost(id: 'post-1', media: [_photo(0)]),
-    );
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          communityServiceProvider.overrideWithValue(_FeedService([post])),
+          footballChatServiceProvider.overrideWithValue(_EmptyChat()),
+          connectivityStatusProvider.overrideWith(_OnlineNet.new),
         ],
         child: MaterialApp(
           theme: AppTheme.darkTheme,
@@ -189,13 +205,15 @@ void main() {
       ),
     );
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 20));
+    await tester.pump(const Duration(milliseconds: 120));
 
-    expect(find.text('Comunidad'), findsOneWidget);
-    expect(find.byType(GarraSocialPostCard), findsOneWidget);
-    expect(find.byType(GarraPostMediaGrid), findsOneWidget);
+    expect(find.text('Comunidad Crema'), findsOneWidget);
+    expect(find.byKey(const ValueKey('community_chat_room')), findsOneWidget);
+    expect(find.byKey(const ValueKey('chat_input')), findsOneWidget);
+    expect(find.byType(GarraSocialPostCard), findsNothing);
     expect(find.byIcon(Icons.arrow_back), findsNothing);
     expect(find.byIcon(Icons.groups_2_outlined), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('optional update is compact and does not require Overlay', (

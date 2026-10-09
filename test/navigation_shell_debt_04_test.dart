@@ -227,7 +227,7 @@ void main() {
       find.descendant(of: nav, matching: find.text('Comunidad')),
     );
     await settle(tester);
-    expect(appBarTitle('Comunidad').hitTestable(), findsOneWidget);
+    expect(appBarTitle('Comunidad Crema').hitTestable(), findsOneWidget);
     expect(
       tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
       1,

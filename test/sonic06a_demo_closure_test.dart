@@ -251,7 +251,8 @@ class _Chat extends FootballChatService {
   final List<String> calls = [];
   FootballChatPage Function(FootballChatContext context)? pages;
   @override
-  Future<FootballChatPage> page(FootballChatContext context, {DateTime? before, int size = 30}) async {
+  Future<FootballChatPage> page(FootballChatContext context,
+      {DateTime? before, String? beforeId, int size = 30}) async {
     calls.add(context.key);
     return pages?.call(context) ?? const FootballChatPage(items: [], hasMore: false);
   }

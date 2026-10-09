@@ -57,7 +57,7 @@ void main() {
   }
 
   const ctas = <(String label, String path, String appBarTitle)>[
-    ('Ir a Comunidad', '/comunidad', 'Comunidad'),
+    ('Ir a Comunidad', '/comunidad', 'Comunidad Crema'),
     ('Ir a Centro Garra', '/centro-garra', 'Centro Garra'),
     ('Ver negocios', '/negocios', 'Negocios Cremas'),
     ('Ir a Marketplace', '/marketplace', 'Marketplace Crema'),

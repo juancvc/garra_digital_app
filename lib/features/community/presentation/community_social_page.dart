@@ -3,9 +3,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../chat/data/chat_service.dart';
 import '../../chat/presentation/chat_unread_badge.dart';
-import '../../home/presentation/social_feed_tab.dart';
+import '../../football/presentation/football_chat_room_view.dart';
 
-/// Root Community destination: live social activity first, groups second.
+/// Tab Comunidad: conversación crema (Football Chat GENERAL).
 class CommunitySocialPage extends StatelessWidget {
   const CommunitySocialPage({super.key, this.chatService});
 
@@ -16,9 +16,8 @@ class CommunitySocialPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text('Comunidad'),
+        title: const Text('Comunidad Crema'),
         actions: [
-          // CHAT_V2_A: shared Mensajes action + unread badge (same as Home).
           GarraMessagesAction(showBadge: chatService != null),
           IconButton(
             tooltip: 'Comunidades Cremas',
@@ -37,9 +36,9 @@ class CommunitySocialPage extends StatelessWidget {
           ),
         ],
       ),
-      body: const SocialFeedTab(
-        key: ValueKey('COMMUNITY_RECENT_FEED'),
-        mode: 'RECENT',
+      body: const FootballChatRoomView(
+        key: ValueKey('comunidad_general_chat'),
+        surface: FootballChatSurface.community,
       ),
     );
   }

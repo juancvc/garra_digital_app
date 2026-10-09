@@ -53,7 +53,8 @@ class _Chat extends FootballChatService {
   FootballChatPage Function(FootballChatContext context)? pages;
 
   @override
-  Future<FootballChatPage> page(FootballChatContext context, {DateTime? before, int size = 30}) async {
+  Future<FootballChatPage> page(FootballChatContext context,
+      {DateTime? before, String? beforeId, int size = 30}) async {
     calls.add(context.key);
     if (failPages > 0) {
       failPages--;
@@ -64,7 +65,8 @@ class _Chat extends FootballChatService {
 
   @override
   Future<FootballChatMessage> send(String body,
-      {FootballChatContext context = const FootballChatContext.general()}) async {
+      {FootballChatContext context = const FootballChatContext.general(),
+      String? clientMessageId}) async {
     sends.add('${context.key}:$body');
     if (sendGate != null) return sendGate!.future;
     if (failSend) throw _http(503);
