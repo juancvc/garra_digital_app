@@ -126,19 +126,19 @@ void main() {
     final service = FakePollService(poll());
     await show(tester, service);
     expect(find.text('¿Dónde alentarás a la U?'), findsOneWidget);
-    expect(find.text('0 hinchas participantes'), findsOneWidget);
+    expect(find.text('0 hinchas'), findsOneWidget);
     await tester.tap(find.text('Iré al estadio'));
     await tester.pumpAndSettle();
     expect(service.votes, 1);
-    expect(find.text('100 %'), findsOneWidget);
-    await tester.tap(find.text('Cambiar mi voto'));
+    expect(find.textContaining('100 %'), findsOneWidget);
+    await tester.tap(find.text('Cambiar voto'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Lo veré en casa'));
     await tester.pumpAndSettle();
     expect(service.votes, 2);
     expect(service.gets, 1);
-    expect(find.text('1 hincha participante'), findsOneWidget);
-    await tester.tap(find.text('Actualizar resultados'));
+    expect(find.text('1 hincha'), findsOneWidget);
+    await tester.tap(find.text('Actualizar'));
     await tester.pumpAndSettle();
     expect(service.gets, 2);
   });
@@ -147,8 +147,8 @@ void main() {
     final service = FakePollService(poll(status: 'CLOSED'));
     await show(tester, service);
     expect(find.text('Votación cerrada'), findsOneWidget);
-    expect(find.text('0 %'), findsNWidgets(4));
-    expect(find.text('Cambiar mi voto'), findsNothing);
+    expect(find.textContaining('0 %'), findsNWidgets(4));
+    expect(find.text('Cambiar voto'), findsNothing);
     expect(find.text('Feed social'), findsOneWidget);
   });
 

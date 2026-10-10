@@ -14,6 +14,7 @@ import 'package:garra_digital_app/features/home/presentation/social_feed_tab.dar
 import 'package:go_router/go_router.dart';
 
 import 'home_screen_test.dart' show sampleHome;
+import 'home_widget_test_overrides.dart';
 
 class _Fan extends CurrentFanNotifier {
   @override
@@ -71,6 +72,7 @@ void main() {
       await tester.pumpWidget(ProviderScope(
         overrides: [
           homeProvider.overrideWith((ref) async => sampleHome(matchdayState: 'MATCHDAY')),
+          ...homeFeaturedStableOverrides(),
           communityServiceProvider.overrideWithValue(feed),
           currentFanProvider.overrideWith(_Fan.new),
         ],

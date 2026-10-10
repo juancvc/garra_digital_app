@@ -386,8 +386,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     if (body.isEmpty) return;
     final room = _context;
     final generation = _generation;
-    final out = retry ??
-        _Outgoing('local-${_seq++}', body, const Uuid().v4());
+    final out = retry ?? _Outgoing('local-${_seq++}', body, const Uuid().v4());
     if (retry == null &&
         _outgoing.any((o) => !o.failed && o.body == body)) {
       return;
@@ -818,31 +817,64 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     return const SizedBox.shrink();
   }
 
-  Widget _emptyCard(TextTheme text) => Card(
+  bool get _cremaChat => widget.surface == FootballChatSurface.community;
+
+  Widget _emptyCard(TextTheme text) {
+    if (_cremaChat) {
+      return Container(
         key: const ValueKey('chat_empty'),
-        margin: const EdgeInsets.only(top: 8),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _context.isMatch
-                    ? 'Abre la previa con la hinchada'
-                    : 'Empieza la conversación crema',
-                style: text.titleMedium,
+        margin: const EdgeInsets.only(top: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xCC1A1214),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0x55C7A45B)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Empieza la conversación crema',
+              style: text.titleSmall?.copyWith(
+                color: const Color(0xFFF3E9D2),
+                fontWeight: FontWeight.w800,
               ),
-              const SizedBox(height: 6),
-              Text(
-                _context.isMatch
-                    ? 'Los mensajes de esta sala son solo de este partido.'
-                    : 'Sé el primero en dejar tu arenga.',
-                style: text.bodyMedium,
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Sé el primero en dejar tu arenga para la U.',
+              style: text.bodySmall?.copyWith(color: const Color(0xFFD3C5B0)),
+            ),
+          ],
         ),
       );
+    }
+    return Card(
+      key: const ValueKey('chat_empty'),
+      margin: const EdgeInsets.only(top: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _context.isMatch
+                  ? 'Abre la previa con la hinchada'
+                  : 'Empieza la conversación crema',
+              style: text.titleMedium,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _context.isMatch
+                  ? 'Los mensajes de esta sala son solo de este partido.'
+                  : 'Sé el primero en dejar tu arenga.',
+              style: text.bodyMedium,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _avatar(String name) {
     final initial =
@@ -862,45 +894,100 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     Widget? footer,
     double opacity = 1,
     VoidCallback? onTapName,
-  }) =>
-      Opacity(
+    bool mine = false,
+  }) {
+    if (_cremaChat) {
+      final align = mine ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+      final bubbleColor =
+          mine ? const Color(0xFF6E2A35) : const Color(0xE6221A1C);
+      final borderColor =
+          mine ? const Color(0x88C7A45B) : const Color(0x44C7A45B);
+      return Opacity(
         key: key,
         opacity: opacity,
         child: Padding(
-          padding: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.only(bottom: 6),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: mine ? MainAxisAlignment.end : MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              _avatar(name),
-              const SizedBox(width: 10),
-              Expanded(
+              if (!mine) ...[
+                _avatar(name),
+                const SizedBox(width: 8),
+              ],
+              Flexible(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: align,
                   children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: InkWell(
-                            onTap: onTapName,
-                            child: Text(name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: text.labelLarge
-                                    ?.copyWith(fontWeight: FontWeight.w800)),
+                    if (!mine)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2, left: 2),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: InkWell(
+                                onTap: onTapName,
+                                child: Text(
+                                  name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: text.labelSmall?.copyWith(
+                                    color: const Color(0xFFC7A45B),
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (time != null) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                time,
+                                style: text.labelSmall?.copyWith(
+                                  color: const Color(0xFF9A8B7A),
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: bubbleColor,
+                        borderRadius: BorderRadius.only(
+                          topLeft: const Radius.circular(14),
+                          topRight: const Radius.circular(14),
+                          bottomLeft: Radius.circular(mine ? 14 : 4),
+                          bottomRight: Radius.circular(mine ? 4 : 14),
+                        ),
+                        border: Border.all(color: borderColor),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            body,
+                            style: text.bodyMedium?.copyWith(
+                              color: const Color(0xFFF3E9D2),
+                              height: 1.25,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (mine && time != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2, right: 2),
+                        child: Text(
+                          time,
+                          style: text.labelSmall?.copyWith(
+                            color: const Color(0xFF9A8B7A),
+                            fontSize: 10,
                           ),
                         ),
-                        if (time != null) ...[
-                          const SizedBox(width: 6),
-                          Text(time,
-                              style: text.labelSmall?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant)),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(body, style: text.bodyMedium),
+                      ),
                     ?footer,
                   ],
                 ),
@@ -909,6 +996,51 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
           ),
         ),
       );
+    }
+    return Opacity(
+      key: key,
+      opacity: opacity,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _avatar(name),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: InkWell(
+                          onTap: onTapName,
+                          child: Text(name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: text.labelLarge?.copyWith(fontWeight: FontWeight.w800)),
+                        ),
+                      ),
+                      if (time != null) ...[
+                        const SizedBox(width: 6),
+                        Text(time,
+                            style: text.labelSmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(body, style: text.bodyMedium),
+                  ?footer,
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Future<void> _openMessageActions(FootballChatMessage m, bool mine) async {
     final action = await showModalBottomSheet<String>(
@@ -948,41 +1080,45 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
   Widget _messageTile(FootballChatMessage m, TextTheme text) {
     final me = currentFanIdOf(ref);
     final mine = isSameFanId(me, m.authorId);
+    final menu = IconButton(
+      key: ValueKey('chat_msg_menu_${m.id}'),
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.only(top: 2),
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      icon: Icon(
+        Icons.more_vert,
+        size: 18,
+        color: _cremaChat
+            ? const Color(0xFF9A8B7A)
+            : Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+      tooltip: 'Acciones del mensaje',
+      onPressed: () => _openMessageActions(m, mine),
+    );
+    final bubble = GestureDetector(
+      onLongPress: () => _openMessageActions(m, mine),
+      child: _bubble(
+        key: ValueKey('chat_msg_bubble_${m.id}'),
+        name: m.authorName,
+        time: m.createdAt == null
+            ? null
+            : footballClock(limaWallClock(m.createdAt!)),
+        body: m.body,
+        text: text,
+        mine: mine,
+        onTapName: widget.surface == FootballChatSurface.community && m.authorId.isNotEmpty
+            ? () => _openAuthorProfile(m)
+            : null,
+      ),
+    );
     return Row(
+      key: ValueKey('chat_msg_${m.id}'),
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: mine && _cremaChat ? MainAxisAlignment.end : MainAxisAlignment.start,
       children: [
-        Expanded(
-          child: GestureDetector(
-            key: ValueKey('chat_msg_${m.id}'),
-            onLongPress: () => _openMessageActions(m, mine),
-            child: _bubble(
-              key: ValueKey('chat_msg_bubble_${m.id}'),
-              name: m.authorName,
-              time: m.createdAt == null
-                  ? null
-                  : footballClock(limaWallClock(m.createdAt!)),
-              body: m.body,
-              text: text,
-              onTapName: widget.surface == FootballChatSurface.community &&
-                      m.authorId.isNotEmpty
-                  ? () => _openAuthorProfile(m)
-                  : null,
-            ),
-          ),
-        ),
-        IconButton(
-          key: ValueKey('chat_msg_menu_${m.id}'),
-          visualDensity: VisualDensity.compact,
-          padding: const EdgeInsets.only(top: 4),
-          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-          icon: Icon(
-            Icons.more_vert,
-            size: 20,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-          tooltip: 'Acciones del mensaje',
-          onPressed: () => _openMessageActions(m, mine),
-        ),
+        if (mine && _cremaChat) menu,
+        Expanded(child: bubble),
+        if (!mine || !_cremaChat) menu,
       ],
     );
   }
@@ -993,6 +1129,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
         time: null,
         body: out.body,
         text: text,
+        mine: true,
         opacity: out.failed ? 1 : 0.6,
         footer: out.failed
             ? Column(
@@ -1021,9 +1158,10 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
 
   Widget _composer(TextTheme text) {
     final blocked = !_loaded;
+    final crema = _cremaChat;
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1031,8 +1169,12 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
               Padding(
                 key: const ValueKey('chat_composer_disabled'),
                 padding: const EdgeInsets.only(bottom: 6),
-                child: Text('Podrás escribir cuando el chat cargue.',
-                    style: text.bodySmall),
+                child: Text(
+                  'Podrás escribir cuando el chat cargue.',
+                  style: text.bodySmall?.copyWith(
+                    color: crema ? const Color(0xFFD3C5B0) : null,
+                  ),
+                ),
               ),
             Row(
               children: [
@@ -1045,10 +1187,35 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                     minLines: 1,
                     maxLines: 3,
                     textInputAction: TextInputAction.send,
-                    decoration: const InputDecoration(
+                    style: crema ? const TextStyle(color: Color(0xFFF3E9D2)) : null,
+                    decoration: InputDecoration(
                       hintText: 'Escribe tu arenga...',
+                      hintStyle: crema
+                          ? const TextStyle(color: Color(0xFF8A7A6A))
+                          : null,
                       counterText: '',
-                      border: OutlineInputBorder(),
+                      filled: crema,
+                      fillColor: crema ? const Color(0xCC221A1C) : null,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(
+                          color: crema ? const Color(0x55C7A45B) : const Color(0xFF79747E),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(
+                          color: crema ? const Color(0x55C7A45B) : const Color(0xFF79747E),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(
+                          color: crema ? const Color(0xFFC7A45B) : Theme.of(context).colorScheme.primary,
+                          width: 1.4,
+                        ),
+                      ),
                     ),
                     onSubmitted: (_) => _send(),
                   ),
@@ -1056,6 +1223,12 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                 const SizedBox(width: 8),
                 IconButton.filled(
                   key: const ValueKey('chat_send'),
+                  style: crema
+                      ? IconButton.styleFrom(
+                          backgroundColor: const Color(0xFFC7A45B),
+                          foregroundColor: const Color(0xFF211416),
+                        )
+                      : null,
                   onPressed: blocked || _sending ? null : () => _send(),
                   icon: _sending
                       ? const SizedBox(

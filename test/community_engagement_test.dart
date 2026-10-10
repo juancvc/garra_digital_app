@@ -20,6 +20,8 @@ import 'package:garra_digital_app/features/home/presentation/home_page.dart';
 import 'package:garra_digital_app/features/home/presentation/providers/home_provider.dart';
 import 'package:go_router/go_router.dart';
 
+import 'home_widget_test_overrides.dart';
+
 WallPostModel samplePost({
   String id = 'post-1',
   Map<String, int>? reactionSummary,
@@ -525,6 +527,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ...homeFeaturedStableOverrides(),
           homeProvider.overrideWith((ref) async {
             return HomeModel(
               fan: const HomeFanSummary(

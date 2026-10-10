@@ -17,7 +17,7 @@ import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../../chat/presentation/chat_unread_badge.dart';
 import '../../football/data/garra_football_models.dart';
-import 'home_matchday_poll_card.dart';
+import 'home_feed_featured_block.dart';
 import '../../marketplace/widgets/garra_sponsored_card.dart';
 import '../../missions/data/mission_models.dart';
 import '../../missions/presentation/widgets/garra_streak_card.dart';
@@ -150,28 +150,10 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
     return _HomeFeedTab.forYou;
   }
 
-  bool get _showCompactMatch {
-    final home = widget.home;
-    return home.hasMatch && (home.isLive || home.isUpcoming || home.isMatchday);
-  }
-
   @override
   Widget build(BuildContext context) {
     final home = widget.home;
     final forYouInserts = <Widget>[
-      if (_showCompactMatch)
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            GarraSpacing.lg,
-            0,
-            GarraSpacing.lg,
-            GarraSpacing.md,
-          ),
-          child: _CompactMatchInsert(
-            home: home,
-            onOpenMatch: () => _selectTab(_HomeFeedTab.match),
-          ),
-        ),
       if (_hasContextualInsert(home))
         Padding(
           padding: const EdgeInsets.fromLTRB(
@@ -219,13 +201,13 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
             _HomeFeedTab.forYou => SocialFeedTab(
               key: const ValueKey('FOR_YOU'),
               mode: 'FOR_YOU',
-              header: HomeMatchdayPollCard(featured: widget.featured),
+              header: HomeFeedFeaturedBlock(featured: widget.featured),
               contextualInserts: forYouInserts,
             ),
             _HomeFeedTab.following => SocialFeedTab(
               key: const ValueKey('FOLLOWING'),
               mode: 'FOLLOWING',
-              header: HomeMatchdayPollCard(featured: widget.featured),
+              header: HomeFeedFeaturedBlock(featured: widget.featured),
             ),
           },
         ),
@@ -426,71 +408,6 @@ class _FeedTabChips extends StatelessWidget {
               ),
             )
             .toList(),
-      ),
-    );
-  }
-}
-
-class _CompactMatchInsert extends StatelessWidget {
-  const _CompactMatchInsert({required this.home, required this.onOpenMatch});
-
-  final HomeModel home;
-  final VoidCallback onOpenMatch;
-
-  @override
-  Widget build(BuildContext context) {
-    final match = home.match!;
-    final label = home.isLive
-        ? 'EN VIVO'
-        : home.isMatchday
-        ? 'Hoy juega la U'
-        : 'Próximo partido';
-    final score = home.isLive || home.isFinished
-        ? '${match.homeScore ?? '-'} : ${match.awayScore ?? '-'}'
-        : 'VS';
-
-    final textScale = MediaQuery.textScalerOf(context).scale(1);
-    return Semantics(
-      button: true,
-      label: '$label, ${match.homeTeam} $score ${match.awayTeam}',
-      child: InkWell(
-        onTap: onOpenMatch,
-        borderRadius: BorderRadius.circular(GarraRadius.lg),
-        child: GarraAtmosphericHero(
-          height: 124 + ((textScale - 1).clamp(0, 1) * 34),
-          padding: const EdgeInsets.all(GarraSpacing.md),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const GarraCrest(size: 42, showGlow: true),
-              const SizedBox(width: GarraSpacing.md),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _MatchStatusLabel(
-                      label: label,
-                      icon: home.isLive ? Icons.sensors : Icons.sports_soccer,
-                    ),
-                    const SizedBox(height: GarraSpacing.sm),
-                    Text(
-                      '${match.homeTeam}  $score  ${match.awayTeam}',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: const Color(GarraColors.cream),
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: GarraSpacing.xs),
-              const Icon(Icons.chevron_right, color: Color(GarraColors.gold)),
-            ],
-          ),
-        ),
       ),
     );
   }

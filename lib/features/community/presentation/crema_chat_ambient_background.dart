@@ -1,0 +1,201 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+
+import '../../../core/widgets/garra_puma_crest.dart';
+
+/// Light animated crema/gold ambient layer for Comunidad Crema chat.
+class CremaChatAmbientBackground extends StatefulWidget {
+  const CremaChatAmbientBackground({
+    super.key,
+    required this.child,
+    this.active = true,
+  });
+
+  final Widget child;
+  final bool active;
+
+  @override
+  State<CremaChatAmbientBackground> createState() => _CremaChatAmbientBackgroundState();
+}
+
+class _CremaChatAmbientBackgroundState extends State<CremaChatAmbientBackground>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late List<_Particle> _particles;
+
+  static const _crestAsset = GarraIntroAssets.puma;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 52))
+      ..repeat();
+    _particles = _seedParticles(14);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion =
+        MediaQuery.disableAnimationsOf(context) || !TickerMode.of(context);
+    final run = widget.active && !reduceMotion;
+    if (run && !_controller.isAnimating) {
+      _controller.repeat();
+    } else if (!run && _controller.isAnimating) {
+      _controller.stop();
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const ColoredBox(color: Color(0xFF120C0E)),
+        const _BigCremaCrestBackdrop(),
+        if (run)
+          RepaintBoundary(
+            key: const ValueKey('crema_ambient_motion'),
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (context, _) => CustomPaint(
+                painter: _SparkPainter(progress: _controller.value),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    for (var i = 0; i < _particles.length; i++)
+                      _FloatingCrest(
+                        particle: _particles[i],
+                        progress: _controller.value,
+                        asset: _crestAsset,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          )
+        else
+          const KeyedSubtree(
+            key: ValueKey('crema_ambient_static'),
+            child: SizedBox.expand(),
+          ),
+        widget.child,
+      ],
+    );
+  }
+
+  List<_Particle> _seedParticles(int count) {
+    final random = math.Random(42);
+    return List.generate(count, (i) {
+      return _Particle(
+        x: random.nextDouble(),
+        y: random.nextDouble(),
+        size: 14 + random.nextDouble() * 16,
+        speed: 0.035 + random.nextDouble() * 0.07,
+        drift: random.nextDouble() * math.pi * 2,
+        opacity: 0.12 + random.nextDouble() * 0.18,
+      );
+    });
+  }
+}
+
+class _BigCremaCrestBackdrop extends StatelessWidget {
+  const _BigCremaCrestBackdrop();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Align(
+        alignment: const Alignment(0.55, -0.35),
+        child: Opacity(
+          opacity: 0.11,
+          child: Image.asset(
+            GarraIntroAssets.puma,
+            width: 260,
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.medium,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FloatingCrest extends StatelessWidget {
+  const _FloatingCrest({
+    required this.particle,
+    required this.progress,
+    required this.asset,
+  });
+
+  final _Particle particle;
+  final double progress;
+  final String asset;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final y = (particle.y + progress * particle.speed) % 1.15 - 0.08;
+    final x = particle.x + math.sin(progress * math.pi * 2 + particle.drift) * 0.025;
+    return Positioned(
+      left: x * size.width,
+      top: y * size.height,
+      child: Opacity(
+        opacity: particle.opacity,
+        child: Image.asset(
+          asset,
+          width: particle.size,
+          height: particle.size,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.low,
+        ),
+      ),
+    );
+  }
+}
+
+class _Particle {
+  _Particle({
+    required this.x,
+    required this.y,
+    required this.size,
+    required this.speed,
+    required this.drift,
+    required this.opacity,
+  });
+
+  final double x;
+  final double y;
+  final double size;
+  final double speed;
+  final double drift;
+  final double opacity;
+}
+
+class _SparkPainter extends CustomPainter {
+  _SparkPainter({required this.progress});
+
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final random = math.Random(7);
+    for (var i = 0; i < 18; i++) {
+      final seed = i * 1.7 + progress * math.pi * 2;
+      final dx = (random.nextDouble() * 0.85 + 0.05) * size.width;
+      final dy = ((random.nextDouble() + progress * 0.08) % 1.0) * size.height;
+      final paint = Paint()..color = Color.lerp(
+            const Color(0x22C7A45B),
+            const Color(0x44F3E9D2),
+            (math.sin(seed) + 1) * 0.5,
+          )!;
+      canvas.drawCircle(Offset(dx, dy), 1.2 + (i.isEven ? 0.8 : 0.2), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SparkPainter oldDelegate) => oldDelegate.progress != progress;
+}

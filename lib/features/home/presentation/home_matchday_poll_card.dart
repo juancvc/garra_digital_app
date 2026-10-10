@@ -16,8 +16,9 @@ final homeMatchdayPollProvider = FutureProvider.autoDispose.family<HomeMatchdayP
 
 /// Optional, independent Home surface: an unavailable poll never blocks the feed.
 class HomeMatchdayPollCard extends ConsumerStatefulWidget {
-  const HomeMatchdayPollCard({super.key, required this.featured});
+  const HomeMatchdayPollCard({super.key, required this.featured, this.embedded = false});
   final AsyncValue<FootballFeaturedResult> featured;
+  final bool embedded;
 
   @override
   ConsumerState<HomeMatchdayPollCard> createState() => _HomeMatchdayPollCardState();
@@ -61,14 +62,9 @@ class _HomeMatchdayPollCardState extends ConsumerState<HomeMatchdayPollCard> {
     final asyncPoll = ref.watch(homeMatchdayPollProvider(key));
     final poll = _submitted ?? asyncPoll.asData?.value;
     if (poll == null && asyncPoll.isLoading) {
-      return _frame(child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Cargando encuesta Matchday',
-              style: TextStyle(color: Color(0xFFF3E9D2), fontWeight: FontWeight.w700)),
-          SizedBox(height: 10),
-          LinearProgressIndicator(color: Color(0xFFC7A45B)),
-        ],
+      return _frame(child: const SizedBox(
+        height: 3,
+        child: LinearProgressIndicator(color: Color(0xFFC7A45B)),
       ));
     }
     if (poll == null && !asyncPoll.hasError) return const SizedBox.shrink();
@@ -80,71 +76,103 @@ class _HomeMatchdayPollCardState extends ConsumerState<HomeMatchdayPollCard> {
             child: const Text('Reintentar')),
       ]));
     }
-    final showResults = poll.selectedOptionId != null || !poll.isOpen;
+    final showResults = (poll.selectedOptionId != null || !poll.isOpen) && !_changing;
+    final compact = widget.embedded;
     return _frame(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      const Text('ENCUESTA MATCHDAY', style: TextStyle(
-          color: Color(0xFFC7A45B), fontSize: 11, fontWeight: FontWeight.w900,
-          letterSpacing: 1.2)),
-      const SizedBox(height: 8),
-      Text(poll.question, style: const TextStyle(
-          color: Color(0xFFF3E9D2), fontSize: 17, fontWeight: FontWeight.w800)),
-      const SizedBox(height: 12),
-      for (final option in poll.options) Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: OutlinedButton(
-          key: ValueKey('home_poll_option_${option.id}'),
-          onPressed: poll.isOpen && (!_voting) && (!showResults || _changing)
-              ? () => _vote(key, option.id) : null,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFFF3E9D2),
-            disabledForegroundColor: const Color(0xFFF3E9D2),
-            side: BorderSide(color: option.id == poll.selectedOptionId
-                ? const Color(0xFFC7A45B) : const Color(0x997B6A59)),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          ),
-          child: Row(children: [
-            Expanded(child: Text(option.label, maxLines: 2,
-                style: const TextStyle(fontWeight: FontWeight.w700))),
-            if (showResults) Text('${option.percentage} %',
-                style: const TextStyle(color: Color(0xFFC7A45B),
-                    fontWeight: FontWeight.w800)),
-          ]),
+      if (!compact)
+        const Text('ENCUESTA MATCHDAY', style: TextStyle(
+            color: Color(0xFFC7A45B), fontSize: 10, fontWeight: FontWeight.w900,
+            letterSpacing: 1.1)),
+      if (!compact) const SizedBox(height: 6),
+      Text(
+        poll.question,
+        maxLines: compact ? 1 : 2,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: const Color(0xFFF3E9D2),
+          fontSize: compact ? 12 : 14,
+          fontWeight: FontWeight.w800,
         ),
+      ),
+      SizedBox(height: compact ? 6 : 8),
+      Wrap(
+        spacing: compact ? 4 : 6,
+        runSpacing: compact ? 4 : 6,
+        children: [
+          for (final option in poll.options)
+            _PollChip(
+              key: ValueKey('home_poll_option_${option.id}'),
+              label: option.label,
+              percentage: showResults ? option.percentage : null,
+              selected: option.id == poll.selectedOptionId,
+              enabled: poll.isOpen && !_voting && (!showResults || _changing),
+              compact: compact,
+              onTap: () => _vote(key, option.id),
+            ),
+        ],
       ),
       if (_voting) const LinearProgressIndicator(color: Color(0xFFC7A45B)),
       if (_error != null) Text(_error!, style: const TextStyle(color: Color(0xFFFFB4AB))),
-      Text(poll.totalVotes == 1 ? '1 hincha participante'
-          : '${poll.totalVotes} hinchas participantes',
-          style: const TextStyle(color: Color(0xFFD3C5B0), fontSize: 12)),
-      if (poll.isOpen && poll.selectedOptionId != null && !_changing)
-        Align(alignment: Alignment.centerRight, child: TextButton(
-          onPressed: _voting ? null : () => setState(() => _changing = true),
-          child: const Text('Cambiar mi voto'),
-        )),
-      if (showResults) Align(alignment: Alignment.centerRight, child: TextButton(
-        onPressed: _voting ? null : () {
-          setState(() => _submitted = null);
-          ref.invalidate(homeMatchdayPollProvider(key));
-        },
-        child: const Text('Actualizar resultados'),
-      )),
+      Row(
+        children: [
+          Expanded(
+            child: Text(
+              poll.totalVotes == 1 ? '1 hincha' : '${poll.totalVotes} hinchas',
+              style: TextStyle(color: const Color(0xFFD3C5B0), fontSize: compact ? 10 : 12),
+            ),
+          ),
+          if (poll.isOpen && poll.selectedOptionId != null && !_changing)
+            TextButton(
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              onPressed: _voting ? null : () => setState(() => _changing = true),
+              child: Text('Cambiar voto', style: TextStyle(fontSize: compact ? 11 : 14)),
+            ),
+          if (showResults)
+            TextButton(
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.only(left: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              onPressed: _voting ? null : () {
+                setState(() => _submitted = null);
+                ref.invalidate(homeMatchdayPollProvider(key));
+              },
+              child: Text('Actualizar', style: TextStyle(fontSize: compact ? 11 : 14)),
+            ),
+        ],
+      ),
       if (!poll.isOpen) const Text('Votación cerrada',
           style: TextStyle(color: Color(0xFFD3C5B0), fontWeight: FontWeight.w700)),
     ]));
   }
 
-  Widget _frame({required Widget child}) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-    child: Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF2C121C), Color(0xFF191216)]),
-        border: Border.all(color: const Color(0x66C7A45B)),
-        borderRadius: BorderRadius.circular(18),
+  Widget _frame({required Widget child}) {
+    if (widget.embedded) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(10, 2, 10, 8),
+        child: child,
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xFF2C121C), Color(0xFF191216)]),
+          border: Border.all(color: const Color(0x66C7A45B)),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        padding: const EdgeInsets.all(14),
+        child: child,
       ),
-      padding: const EdgeInsets.all(16),
-      child: child,
-    ),
-  );
+    );
+  }
 
   Future<void> _vote(HomeMatchdayPollKey key, String optionId) async {
     if (_voting || !allowNetworkAction(context)) return;
@@ -160,5 +188,58 @@ class _HomeMatchdayPollCardState extends ConsumerState<HomeMatchdayPollCard> {
     } finally {
       if (mounted) setState(() => _voting = false);
     }
+  }
+}
+
+class _PollChip extends StatelessWidget {
+  const _PollChip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
+    this.percentage,
+    this.compact = false,
+  });
+
+  final String label;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onTap;
+  final int? percentage;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final border = selected ? const Color(0xFFC7A45B) : const Color(0x997B6A59);
+    final text = percentage == null ? label : '$label · $percentage %';
+    return Material(
+      color: selected ? const Color(0x332A1218) : const Color(0x22191216),
+      borderRadius: BorderRadius.circular(99),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(99),
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 8 : 10,
+            vertical: compact ? 5 : 8,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(color: border),
+          ),
+          child: Text(
+            text,
+            maxLines: compact ? 1 : 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: const Color(0xFFF3E9D2),
+              fontSize: compact ? 10 : 12,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

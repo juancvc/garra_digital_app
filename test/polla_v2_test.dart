@@ -16,6 +16,8 @@ import 'package:garra_digital_app/features/predictions/data/create_prediction_re
 import 'package:garra_digital_app/features/predictions/data/prediction_service.dart';
 import 'package:go_router/go_router.dart';
 
+import 'home_widget_test_overrides.dart';
+
 PollaResponse samplePolla({
   String state = 'OPEN',
   int home = 0,
@@ -270,7 +272,10 @@ Widget pumpHome(HomeModel home) {
   );
 
   return ProviderScope(
-    overrides: [homeProvider.overrideWith((ref) async => home)],
+    overrides: [
+      ...homeFeaturedStableOverrides(),
+      homeProvider.overrideWith((ref) async => home),
+    ],
     child: MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
   );
 }

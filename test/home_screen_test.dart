@@ -8,6 +8,8 @@ import 'package:garra_digital_app/core/widgets/garra_states.dart';
 import 'package:garra_digital_app/features/home/data/home_models.dart';
 import 'package:garra_digital_app/features/home/presentation/home_page.dart';
 import 'package:garra_digital_app/features/home/presentation/providers/home_provider.dart';
+import 'package:garra_digital_app/features/home/presentation/home_matchday_poll_card.dart';
+import 'package:garra_digital_app/features/football/data/garra_football_models.dart';
 import 'package:go_router/go_router.dart';
 
 HomeModel sampleHome({
@@ -92,11 +94,28 @@ HomeModel sampleHome({
   );
 }
 
-Widget pumpHome(HomeModel home) {
+Widget pumpHome(HomeModel home, {void Function()? onFeaturedLoad}) {
+  final lima = limaWallClock(DateTime.now());
+  final kickoff = home.matchdayState == 'UPCOMING'
+      ? DateTime(lima.year, lima.month, lima.day).add(const Duration(days: 1))
+      : DateTime(lima.year, lima.month, lima.day, 19);
+  final match = FootballMatch(id: 123, competitionId: 'LIGA_1',
+    competition: 'Liga 1', home: 'Universitario', away: 'Rival FC',
+    status: home.matchdayState == 'LIVE' ? 'FIRST_HALF' : 'SCHEDULED',
+    kickoff: kickoff, kickoffConfirmed: true,
+    dataState: home.matchdayState == 'LIVE' ? 'LIVE_SNAPSHOT' : 'SEASON_SNAPSHOT',
+    snapshotAt: DateTime.now().toUtc());
+  final featured = FootballFeaturedResult(featured: home.match == null
+      ? null : FootballFeatured(
+          live: home.matchdayState == 'LIVE' ? match : null,
+          next: home.matchdayState == 'LIVE' ? null : match));
   final router = GoRouter(
     initialLocation: '/home',
     routes: [
       GoRoute(path: '/home', builder: (context, state) => const HomePage()),
+      GoRoute(path: '/centro-garra/partido/:fixtureId',
+          builder: (_, state) => Scaffold(body: Text(
+              'DETAIL:${state.pathParameters['fixtureId']}:${state.uri.queryParameters['competition']}'))),
       GoRoute(
         path: '/passport',
         builder: (context, state) =>
@@ -157,17 +176,36 @@ Widget pumpHome(HomeModel home) {
   );
 
   return ProviderScope(
-    overrides: [homeProvider.overrideWith((ref) async => home)],
+    overrides: [homeProvider.overrideWith((ref) async => home),
+      homeMatchdayPollProvider.overrideWith((ref, key) async => null),
+      homeFeaturedProvider.overrideWith((ref) async {
+        onFeaturedLoad?.call();
+        return featured;
+      })],
     child: MaterialApp.router(theme: AppTheme.darkTheme, routerConfig: router),
   );
 }
 
 void main() {
+  testWidgets('featured request is not repeated by feed tab changes', (tester) async {
+    var calls = 0;
+    await tester.pumpWidget(pumpHome(sampleHome(), onFeaturedLoad: () => calls++));
+    await tester.pumpAndSettle();
+    expect(calls, 1);
+    await tester.tap(find.text('Siguiendo'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Para ti'));
+    await tester.pumpAndSettle();
+    expect(calls, 1);
+  });
+
   testWidgets('HOME_LOADING_STATE', (tester) async {
     final completer = Completer<HomeModel>();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [homeProvider.overrideWith((ref) => completer.future)],
+        overrides: [homeProvider.overrideWith((ref) => completer.future),
+          homeMatchdayPollProvider.overrideWith((ref, key) async => null),
+          homeFeaturedProvider.overrideWith((ref) async => const FootballFeaturedResult())],
         child: MaterialApp(theme: AppTheme.darkTheme, home: const HomePage()),
       ),
     );
@@ -181,11 +219,10 @@ void main() {
     await tester.pumpWidget(pumpHome(sampleHome(matchdayState: 'UPCOMING')));
     await tester.pumpAndSettle();
     expect(find.text('Para ti'), findsOneWidget);
-    expect(find.text('Próximo partido'), findsOneWidget);
-    await tester.tap(find.text('Próximo partido'));
+    expect(find.textContaining('Próximo partido'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('home_featured_open')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('countdown-DD')), findsOneWidget);
-    expect(find.text('Rival FC'), findsOneWidget);
+    expect(find.text('DETAIL:123:LIGA_1'), findsOneWidget);
   });
 
   testWidgets('HOME_MATCHDAY_STATE', (tester) async {
@@ -193,7 +230,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(pumpHome(sampleHome(matchdayState: 'MATCHDAY')));
     await tester.pumpAndSettle();
-    expect(find.text('Hoy juega la U'), findsOneWidget);
+    expect(find.text('HOY JUEGA LA U'), findsOneWidget);
     expect(find.text('Para ti'), findsOneWidget);
     await tester.tap(find.text('Partido'));
     await tester.pumpAndSettle();
@@ -210,7 +247,7 @@ void main() {
   testWidgets('HOME_LIVE_STATE', (tester) async {
     await tester.pumpWidget(pumpHome(sampleHome(matchdayState: 'LIVE')));
     await tester.pumpAndSettle();
-    expect(find.text('EN VIVO'), findsOneWidget);
+    expect(find.textContaining('En vivo'), findsOneWidget);
     await tester.tap(find.text('Partido'));
     await tester.pumpAndSettle();
     expect(find.text('Entrar al partido'), findsOneWidget);
@@ -263,9 +300,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Hoy juega la U'), findsOneWidget);
-    await tester.tap(find.text('Hoy juega la U'));
-    await tester.pumpAndSettle();
+    expect(find.text('HOY JUEGA LA U'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
