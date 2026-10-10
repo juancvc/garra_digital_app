@@ -36,11 +36,13 @@ class SocialFeedTab extends ConsumerStatefulWidget {
   const SocialFeedTab({
     super.key,
     required this.mode,
+    this.header,
     this.contextualInserts = const [],
   });
 
   /// `FOR_YOU` or `FOLLOWING`.
   final String mode;
+  final Widget? header;
   final List<Widget> contextualInserts;
 
   /// DEMO_HARDENING_02A.1: hard bound for one feed page (Dio connect/receive
@@ -594,6 +596,7 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: GarraSpacing.xxl),
         children: [
+          if (widget.header != null) widget.header!,
           _ComposerRow(displayName: me?.fullName, onCompose: _openCompose),
           if (widget.mode == 'FOR_YOU') const _EditorialFeedMarker(),
           if (_items.isEmpty) ...widget.contextualInserts,

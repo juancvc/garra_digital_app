@@ -601,6 +601,28 @@ List<Map<String, dynamic>> sortFootballEvents(List<Map<String, dynamic>> events)
 }
 
 /// SONIC_04: PARA TI hero from the backend (featured provider team id).
+
+/// SONIC_04 envelope for featured hero (stale / unavailable from backend).
+class FootballFeaturedResult {
+  const FootballFeaturedResult({this.featured, this.stale = false,
+      this.unavailable = false, this.reason});
+  final FootballFeatured? featured;
+  final bool stale;
+  final bool unavailable;
+  final String? reason;
+
+  factory FootballFeaturedResult.fromEnvelope(Object? raw) {
+    if (raw is! Map) return const FootballFeaturedResult(unavailable: true);
+    final item = raw['item'];
+    return FootballFeaturedResult(
+      featured: item is Map ? FootballFeatured.fromJson(Map<String, dynamic>.from(item)) : null,
+      stale: raw['stale'] == true,
+      unavailable: raw['unavailable'] == true,
+      reason: raw['reason']?.toString(),
+    );
+  }
+}
+
 class FootballFeatured {
   const FootballFeatured({this.teamId, this.teamName, this.label, this.live, this.next,
     this.last, this.competitionIds = const []});

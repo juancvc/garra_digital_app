@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/home_models.dart';
 import '../../data/home_service.dart';
+import '../../../football/data/garra_football_models.dart';
+import '../../../football/data/garra_football_service.dart';
 
 final homeServiceProvider = Provider<HomeService>((ref) {
   return HomeService();
@@ -9,4 +11,8 @@ final homeServiceProvider = Provider<HomeService>((ref) {
 
 final homeProvider = FutureProvider.autoDispose<HomeModel>((ref) async {
   return ref.watch(homeServiceProvider).getHome();
+});
+
+final homeFeaturedProvider = FutureProvider.autoDispose<FootballFeaturedResult>((ref) {
+  return GarraFootballService().featuredResult();
 });

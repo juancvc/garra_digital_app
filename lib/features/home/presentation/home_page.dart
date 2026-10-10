@@ -16,6 +16,8 @@ import '../../../core/widgets/garra_card.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_ui.dart';
 import '../../chat/presentation/chat_unread_badge.dart';
+import '../../football/data/garra_football_models.dart';
+import 'home_matchday_poll_card.dart';
 import '../../marketplace/widgets/garra_sponsored_card.dart';
 import '../../missions/data/mission_models.dart';
 import '../../missions/presentation/widgets/garra_streak_card.dart';
@@ -32,6 +34,7 @@ class HomePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final homeAsync = ref.watch(homeProvider);
+    final featuredAsync = ref.watch(homeFeaturedProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -65,7 +68,7 @@ class HomePage extends ConsumerWidget {
         loading: () => const GarraHomeSkeleton(),
         error: (error, stackTrace) =>
             GarraErrorState(onRetry: () => ref.invalidate(homeProvider)),
-        data: (home) => _HomeBody(home: home),
+        data: (home) => _HomeBody(home: home, featured: featuredAsync),
       ),
     );
   }
@@ -94,9 +97,10 @@ class _NotificationBell extends StatelessWidget {
 enum _HomeFeedTab { forYou, following, match }
 
 class _HomeBody extends ConsumerStatefulWidget {
-  const _HomeBody({required this.home});
+  const _HomeBody({required this.home, required this.featured});
 
   final HomeModel home;
+  final AsyncValue<FootballFeaturedResult> featured;
 
   @override
   ConsumerState<_HomeBody> createState() => _HomeBodyState();
@@ -215,11 +219,13 @@ class _HomeBodyState extends ConsumerState<_HomeBody> {
             _HomeFeedTab.forYou => SocialFeedTab(
               key: const ValueKey('FOR_YOU'),
               mode: 'FOR_YOU',
+              header: HomeMatchdayPollCard(featured: widget.featured),
               contextualInserts: forYouInserts,
             ),
-            _HomeFeedTab.following => const SocialFeedTab(
-              key: ValueKey('FOLLOWING'),
+            _HomeFeedTab.following => SocialFeedTab(
+              key: const ValueKey('FOLLOWING'),
               mode: 'FOLLOWING',
+              header: HomeMatchdayPollCard(featured: widget.featured),
             ),
           },
         ),

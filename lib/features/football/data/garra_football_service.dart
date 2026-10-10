@@ -28,12 +28,13 @@ class GarraFootballService {
 
   /// SONIC_04: featured team hero (live / next / last). Null when not configured or unavailable.
   Future<FootballFeatured?> featured() async {
+    return (await featuredResult()).featured;
+  }
+
+  /// Preserves the backend snapshot state for surfaces that must not claim stale LIVE data.
+  Future<FootballFeaturedResult> featuredResult() async {
     final response = await _dio.get('/football/featured');
-    final envelope = response.data['data'];
-    if (envelope is! Map<String, dynamic>) return null;
-    final item = envelope['item'];
-    if (item is! Map<String, dynamic>) return null;
-    return FootballFeatured.fromJson(item);
+    return FootballFeaturedResult.fromEnvelope(response.data['data']);
   }
 
   /// SONIC_05: Team Center for any provider team id (backend reads cached calendars only).
