@@ -15,6 +15,9 @@ import '../data/football_chat_service.dart';
 import '../data/football_chat_sync.dart';
 import '../data/football_diagnostics.dart';
 import '../data/garra_football_models.dart';
+import '../../chat/data/chat_models.dart';
+import '../../chat/presentation/chat_reply_tile.dart';
+import '../../chat/presentation/chat_swipe_to_reply.dart';
 import 'football_chat_report_sheet.dart';
 
 final footballChatServiceProvider =
@@ -44,10 +47,18 @@ class FootballChatRoomView extends ConsumerStatefulWidget {
 }
 
 class _Outgoing {
-  _Outgoing(this.localId, this.body, this.clientMessageId);
+  _Outgoing(
+    this.localId,
+    this.body,
+    this.clientMessageId, {
+    this.replyToMessageId,
+    this.replyTo,
+  });
   final String localId;
   final String body;
   final String clientMessageId;
+  final String? replyToMessageId;
+  final FootballChatReplyPreview? replyTo;
   bool failed = false;
   String? failureHint;
 }
@@ -74,6 +85,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
   bool _historyLoadQueued = false;
   int _pendingNewMessages = 0;
   int _generation = 0;
+  FootballChatMessage? _replyTarget;
   int _seq = 0;
   Timer? _poll;
   bool _foreground = true;
@@ -177,11 +189,29 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
       _pendingNewMessages = 0;
       _nearBottom = true;
       _controller.clear();
+      _replyTarget = null;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _load();
     });
   }
+
+  void _startReply(FootballChatMessage message) {
+    setState(() => _replyTarget = message);
+  }
+
+  void _cancelReply() {
+    if (_replyTarget == null) return;
+    setState(() => _replyTarget = null);
+  }
+
+  ChatReplyPreview _composerReplyPreview(FootballChatMessage message) =>
+      ChatReplyPreview(
+        id: message.id,
+        senderId: message.authorId,
+        senderName: message.authorName,
+        content: message.body,
+      );
 
   List<FootballChatMessage> _sortedUnique(Iterable<FootballChatMessage> source) =>
       footballChatSortedUnique(source);
@@ -376,6 +406,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
       _hasMoreHistory = false;
       _historyFailed = false;
       _pendingNewMessages = 0;
+      _replyTarget = null;
     });
     _load();
   }
@@ -386,7 +417,23 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     if (body.isEmpty) return;
     final room = _context;
     final generation = _generation;
-    final out = retry ?? _Outgoing('local-${_seq++}', body, const Uuid().v4());
+    final replyTarget = retry == null ? _replyTarget : null;
+    final replyPreview = replyTarget == null
+        ? retry?.replyTo
+        : FootballChatReplyPreview(
+            id: replyTarget.id,
+            authorId: replyTarget.authorId,
+            authorName: replyTarget.authorName,
+            preview: replyTarget.body,
+          );
+    final out = retry ??
+        _Outgoing(
+          'local-${_seq++}',
+          body,
+          const Uuid().v4(),
+          replyToMessageId: replyTarget?.id,
+          replyTo: replyPreview,
+        );
     if (retry == null &&
         _outgoing.any((o) => !o.failed && o.body == body)) {
       return;
@@ -398,6 +445,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
       if (retry == null) {
         _outgoing.add(out);
         _controller.clear();
+        _replyTarget = null;
       }
     });
     _jumpToBottom();
@@ -406,6 +454,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
             body,
             context: room,
             clientMessageId: out.clientMessageId,
+            replyToMessageId: out.replyToMessageId,
           );
       if (!mounted || generation != _generation) return;
       setState(() {
@@ -885,6 +934,45 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     );
   }
 
+  Widget _quotedReply(FootballChatReplyPreview? reply, TextTheme text, {bool mine = false}) {
+    if (reply == null) return const SizedBox.shrink();
+    final content = reply.unavailable ? 'Mensaje no disponible' : reply.preview;
+    final border = mine ? const Color(0x66C7A45B) : const Color(0x44C7A45B);
+    return Container(
+      key: ValueKey('chat_quote_${reply.id}'),
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: border, width: 3)),
+        color: Colors.black.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            reply.authorName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: text.labelSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: _cremaChat ? const Color(0xFFC7A45B) : null,
+            ),
+          ),
+          Text(
+            content,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: text.bodySmall?.copyWith(
+              color: _cremaChat ? const Color(0xFFD3C5B0) : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _bubble({
     required Key key,
     required String name,
@@ -895,6 +983,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     double opacity = 1,
     VoidCallback? onTapName,
     bool mine = false,
+    FootballChatReplyPreview? replyTo,
   }) {
     if (_cremaChat) {
       final align = mine ? CrossAxisAlignment.end : CrossAxisAlignment.start;
@@ -967,6 +1056,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          _quotedReply(replyTo, text, mine: mine),
                           Text(
                             body,
                             style: text.bodyMedium?.copyWith(
@@ -1031,6 +1121,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                     ],
                   ),
                   const SizedBox(height: 2),
+                  _quotedReply(replyTo, text, mine: mine),
                   Text(body, style: text.bodyMedium),
                   ?footer,
                 ],
@@ -1050,6 +1141,12 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            ListTile(
+              key: const ValueKey('chat_action_reply'),
+              leading: const Icon(Icons.reply_outlined),
+              title: const Text('Responder'),
+              onTap: () => Navigator.pop(ctx, 'reply'),
+            ),
             if (!mine)
               ListTile(
                 key: const ValueKey('chat_action_report'),
@@ -1070,6 +1167,8 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     );
     if (!mounted || action == null) return;
     switch (action) {
+      case 'reply':
+        _startReply(m);
       case 'report':
         await _reportMessage(m);
       case 'delete':
@@ -1095,7 +1194,8 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
       tooltip: 'Acciones del mensaje',
       onPressed: () => _openMessageActions(m, mine),
     );
-    final bubble = GestureDetector(
+    final bubble = ChatSwipeToReply(
+      onReply: () => _startReply(m),
       onLongPress: () => _openMessageActions(m, mine),
       child: _bubble(
         key: ValueKey('chat_msg_bubble_${m.id}'),
@@ -1106,6 +1206,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
         body: m.body,
         text: text,
         mine: mine,
+        replyTo: m.replyTo,
         onTapName: widget.surface == FootballChatSurface.community && m.authorId.isNotEmpty
             ? () => _openAuthorProfile(m)
             : null,
@@ -1130,6 +1231,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
         body: out.body,
         text: text,
         mine: true,
+        replyTo: out.replyTo,
         opacity: out.failed ? 1 : 0.6,
         footer: out.failed
             ? Column(
@@ -1174,6 +1276,15 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                   style: text.bodySmall?.copyWith(
                     color: crema ? const Color(0xFFD3C5B0) : null,
                   ),
+                ),
+              ),
+            if (_replyTarget != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: ChatReplyTile(
+                  key: const ValueKey('chat_reply_composer'),
+                  reply: _composerReplyPreview(_replyTarget!),
+                  onCancel: _cancelReply,
                 ),
               ),
             Row(

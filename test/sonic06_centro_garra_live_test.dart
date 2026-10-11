@@ -66,7 +66,8 @@ class _Chat extends FootballChatService {
   @override
   Future<FootballChatMessage> send(String body,
       {FootballChatContext context = const FootballChatContext.general(),
-      String? clientMessageId}) async {
+      String? clientMessageId,
+      String? replyToMessageId}) async {
     sends.add('${context.key}:$body');
     if (sendGate != null) return sendGate!.future;
     if (failSend) throw _http(503);

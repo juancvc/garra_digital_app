@@ -33,10 +33,43 @@ class FootballChatContext {
   int get hashCode => matchId.hashCode;
 }
 
+class FootballChatReplyPreview {
+  const FootballChatReplyPreview({
+    required this.id,
+    required this.authorId,
+    required this.authorName,
+    required this.preview,
+    this.unavailable = false,
+  });
+
+  final String id;
+  final String authorId;
+  final String authorName;
+  final String preview;
+  final bool unavailable;
+
+  factory FootballChatReplyPreview.fromJson(Map<String, dynamic> json) =>
+      FootballChatReplyPreview(
+        id: json['id']?.toString() ?? '',
+        authorId: json['authorId']?.toString() ?? '',
+        authorName: json['authorName']?.toString() ?? '',
+        preview: json['preview']?.toString() ?? '',
+        unavailable: json['unavailable'] == true,
+      );
+}
+
 class FootballChatMessage {
-  const FootballChatMessage({required this.id, required this.authorId,
-    required this.authorName, required this.authorUsername, required this.body,
-    required this.createdAt, this.contextType = 'GENERAL', this.contextId});
+  const FootballChatMessage({
+    required this.id,
+    required this.authorId,
+    required this.authorName,
+    required this.authorUsername,
+    required this.body,
+    required this.createdAt,
+    this.contextType = 'GENERAL',
+    this.contextId,
+    this.replyTo,
+  });
   final String id;
   final String authorId;
   final String authorName;
@@ -45,17 +78,24 @@ class FootballChatMessage {
   final DateTime? createdAt;
   final String contextType;
   final String? contextId;
+  final FootballChatReplyPreview? replyTo;
 
-  factory FootballChatMessage.fromJson(Map<String, dynamic> json) => FootballChatMessage(
-    id: json['id']?.toString() ?? '',
-    authorId: json['authorId']?.toString() ?? '',
-    authorName: json['authorName']?.toString() ?? 'Hincha',
-    authorUsername: json['authorUsername']?.toString() ?? '',
-    body: json['body']?.toString() ?? '',
-    createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '')?.toUtc(),
-    contextType: json['contextType']?.toString() ?? 'GENERAL',
-    contextId: json['contextId']?.toString(),
-  );
+  factory FootballChatMessage.fromJson(Map<String, dynamic> json) {
+    final replyRaw = json['replyTo'];
+    return FootballChatMessage(
+      id: json['id']?.toString() ?? '',
+      authorId: json['authorId']?.toString() ?? '',
+      authorName: json['authorName']?.toString() ?? 'Hincha',
+      authorUsername: json['authorUsername']?.toString() ?? '',
+      body: json['body']?.toString() ?? '',
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '')?.toUtc(),
+      contextType: json['contextType']?.toString() ?? 'GENERAL',
+      contextId: json['contextId']?.toString(),
+      replyTo: replyRaw is Map<String, dynamic>
+          ? FootballChatReplyPreview.fromJson(replyRaw)
+          : null,
+    );
+  }
 }
 
 /// SONIC_06 read-only sports moment of a MATCH room (backend composes it from cached provider events;
@@ -156,12 +196,15 @@ class FootballChatService {
     String body, {
     FootballChatContext context = const FootballChatContext.general(),
     String? clientMessageId,
+    String? replyToMessageId,
   }) async {
     final response = await _dio.post('/football/chat/messages', data: {
       'body': body,
       'context': ?context.wire,
       if (clientMessageId != null && clientMessageId.isNotEmpty)
         'clientMessageId': clientMessageId,
+      if (replyToMessageId != null && replyToMessageId.isNotEmpty)
+        'replyToMessageId': replyToMessageId,
     });
     final data = response.data is Map ? (response.data as Map)['data'] : null;
     if (data is! Map<String, dynamic>) {

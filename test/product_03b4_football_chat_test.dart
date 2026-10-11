@@ -232,7 +232,7 @@ void main() {
       await tester.ensureVisible(target);
       await _settle(tester, 4);
       await tester.longPress(target);
-      await tester.pumpAndSettle();
+      await _settle(tester, 6);
       expect(find.byKey(const ValueKey('chat_action_report')), findsOneWidget);
     });
 
@@ -242,7 +242,7 @@ void main() {
       await _settle(tester);
       await _openMessageMenu(tester, 'other-msg');
       await tester.tap(find.byKey(const ValueKey('chat_action_report')));
-      await tester.pumpAndSettle();
+      await _settle(tester, 6);
       await _pickReportReason(tester, 'Spam');
       await _submitFootballReport(tester);
       expect(chat.reportCalls, hasLength(1));
@@ -258,7 +258,7 @@ void main() {
       await _settle(tester);
       await _openMessageMenu(tester, 'other-msg');
       await tester.tap(find.byKey(const ValueKey('chat_action_report')));
-      await tester.pumpAndSettle();
+      await _settle(tester, 6);
       await _pickReportReason(tester, 'Spam');
       await _submitFootballReport(tester);
       expect(find.text('Ya denunciaste este mensaje.'), findsOneWidget);
@@ -274,7 +274,7 @@ void main() {
       await _settle(tester);
       await _openMessageMenu(tester, 'other-msg');
       await tester.tap(find.byKey(const ValueKey('chat_action_report')));
-      await tester.pumpAndSettle();
+      await _settle(tester, 6);
       await _pickReportReason(tester, 'Otro');
       await _submitFootballReport(tester);
       expect(
@@ -290,7 +290,7 @@ void main() {
       expect(find.text('my post'), findsOneWidget);
       await _openMessageMenu(tester, 'own-msg');
       await tester.tap(find.byKey(const ValueKey('chat_action_delete')));
-      await tester.pumpAndSettle();
+      await _settle(tester, 6);
       await tester.tap(find.text('Eliminar'));
       await _settle(tester, 12);
       expect(chat.deleteCalls, ['own-msg']);
@@ -303,7 +303,7 @@ void main() {
       await _settle(tester);
       await _openMessageMenu(tester, 'own-msg');
       await tester.tap(find.byKey(const ValueKey('chat_action_delete')));
-      await tester.pumpAndSettle();
+      await _settle(tester, 6);
       await tester.tap(find.text('Cancelar'));
       await _settle(tester, 8);
       expect(chat.deleteCalls, isEmpty);
@@ -317,7 +317,7 @@ void main() {
       await _settle(tester);
       await _openMessageMenu(tester, 'own-msg');
       await tester.tap(find.byKey(const ValueKey('chat_action_delete')));
-      await tester.pumpAndSettle();
+      await _settle(tester, 6);
       await tester.tap(find.text('Eliminar'));
       await _settle(tester, 12);
       expect(find.text('No puedes eliminar esto.'), findsOneWidget);
@@ -332,7 +332,7 @@ void main() {
       await _settle(tester);
       await _openMessageMenu(tester, 'own-msg');
       await tester.tap(find.byKey(const ValueKey('chat_action_delete')));
-      await tester.pumpAndSettle();
+      await _settle(tester, 6);
       await tester.tap(find.text('Eliminar'));
       await _settle(tester, 12);
       expect(find.text('El mensaje ya no está disponible.'), findsOneWidget);
@@ -404,15 +404,15 @@ DioException _dioErr(int status, {String? message}) {
 Future<void> _pickReportReason(WidgetTester tester, String label) async {
   final reason = find.text(label);
   await tester.ensureVisible(reason);
-  await tester.pumpAndSettle();
+  await _settle(tester, 4);
   await tester.tap(reason);
-  await tester.pumpAndSettle();
+  await _settle(tester, 4);
 }
 
 Future<void> _submitFootballReport(WidgetTester tester) async {
   final submit = find.text('Enviar denuncia');
   await tester.ensureVisible(submit);
-  await tester.pumpAndSettle();
+  await _settle(tester, 4);
   await tester.tap(submit);
   await _settle(tester, 12);
 }
@@ -444,7 +444,7 @@ Future<void> _pumpCommunityChat(
 
 Future<void> _openMessageMenu(WidgetTester tester, String messageId) async {
   await tester.tap(find.byKey(ValueKey('chat_msg_menu_$messageId')));
-  await tester.pumpAndSettle();
+  await _settle(tester, 6);
 }
 
 class _Net extends ConnectivityStatusController {
@@ -553,7 +553,8 @@ class _ModerationActionsChat extends _AuthorshipChat {
   @override
   Future<FootballChatMessage> send(String body,
       {FootballChatContext context = const FootballChatContext.general(),
-      String? clientMessageId}) async {
+      String? clientMessageId,
+      String? replyToMessageId}) async {
     sendBodies.add(body);
     return _msg(
       'sent-${sendBodies.length}',
@@ -571,7 +572,8 @@ class _IdempotentSendChat extends _AuthorshipChat {
   @override
   Future<FootballChatMessage> send(String body,
       {FootballChatContext context = const FootballChatContext.general(),
-      String? clientMessageId}) async {
+      String? clientMessageId,
+      String? replyToMessageId}) async {
     clientIds.add(clientMessageId ?? '');
     attempts++;
     if (attempts == 1) {
@@ -596,7 +598,8 @@ class _SlowSendChat extends _AuthorshipChat {
   @override
   Future<FootballChatMessage> send(String body,
       {FootballChatContext context = const FootballChatContext.general(),
-      String? clientMessageId}) async {
+      String? clientMessageId,
+      String? replyToMessageId}) async {
     sendBodies.add(body);
     await _gate.future;
     return _msg('slow-${sendBodies.length}', DateTime.utc(2026, 10, 6, 21, 0),
