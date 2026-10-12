@@ -448,7 +448,7 @@ void main() {
               final other = _bubbleColor(tester, 'other-1');
               final mine = _bubbleColor(tester, 'mine-1');
               if (b == Brightness.light) {
-                expect(other, const Color(0xFFFFFFFF));
+                expect(other, const Color(0xFFFCF6EA)); // PRODUCT-07D: warm cream, no pure white
                 expect(mine, const Color(0xFF7C0211));
               } else {
                 expect(other, const Color(0xE6221A1C));

@@ -77,7 +77,7 @@ class _CremaChatAmbientBackgroundState extends State<CremaChatAmbientBackground>
             key: ValueKey('crema_ambient_base_dark'),
             color: Color(0xFF120C0E),
           ),
-        const _BigCremaCrestBackdrop(),
+        _BigCremaCrestBackdrop(light: light),
         if (run)
           RepaintBoundary(
             key: const ValueKey('crema_ambient_motion'),
@@ -88,7 +88,10 @@ class _CremaChatAmbientBackgroundState extends State<CremaChatAmbientBackground>
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    for (var i = 0; i < _particles.length; i++)
+                    // PRODUCT-07D: the crest PNG is opaque (RGB, dark backdrop), so in light mode each
+                    // floating crest rendered as a small dark square. Light keeps only the round sparks.
+                    if (!light)
+                      for (var i = 0; i < _particles.length; i++)
                       _FloatingCrest(
                         particle: _particles[i],
                         progress: _controller.value,
@@ -125,10 +128,54 @@ class _CremaChatAmbientBackgroundState extends State<CremaChatAmbientBackground>
 }
 
 class _BigCremaCrestBackdrop extends StatelessWidget {
-  const _BigCremaCrestBackdrop();
+  const _BigCremaCrestBackdrop({required this.light});
+
+  final bool light;
+
+  /// PRODUCT-07D: `garra_puma.png` has no alpha channel (RGB, near-black + red smoke backdrop). Drawn at low
+  /// opacity over the cream gradient its whole rectangle showed as a grey-beige box with hard edges. Light
+  /// mode turns luminance into alpha (dark backdrop → transparent), tints it with the Garra burgundy and fades
+  /// the edges with a radial mask, so no rectangle can show. The asset itself is untouched.
+  static const lightTint = Color(GarraColors.burgundy);
+  static const lightOpacity = 0.07;
+  static final ColorFilter lightLumaToAlpha = ColorFilter.matrix(<double>[
+    0, 0, 0, 0, (lightTint.r * 255).roundToDouble(),
+    0, 0, 0, 0, (lightTint.g * 255).roundToDouble(),
+    0, 0, 0, 0, (lightTint.b * 255).roundToDouble(),
+    0.2126, 0.7152, 0.0722, 0, -40,
+  ]);
 
   @override
   Widget build(BuildContext context) {
+    if (light) {
+      return IgnorePointer(
+        child: Align(
+          alignment: const Alignment(0.55, -0.35),
+          child: Opacity(
+            key: const ValueKey('crema_ambient_crest_light'),
+            opacity: lightOpacity,
+            child: ShaderMask(
+              blendMode: BlendMode.dstIn,
+              shaderCallback: (rect) => const RadialGradient(
+                center: Alignment(0, -0.12),
+                radius: 0.62,
+                colors: [Colors.white, Colors.white, Colors.transparent],
+                stops: [0, 0.55, 1],
+              ).createShader(rect),
+              child: ColorFiltered(
+                colorFilter: lightLumaToAlpha,
+                child: Image.asset(
+                  GarraIntroAssets.puma,
+                  width: 240,
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.medium,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     return IgnorePointer(
       child: Align(
         alignment: const Alignment(0.55, -0.35),
@@ -211,10 +258,14 @@ class _SparkPainter extends CustomPainter {
       final dx = (random.nextDouble() * 0.85 + 0.05) * size.width;
       final dy = ((random.nextDouble() + progress * 0.08) % 1.0) * size.height;
       final paint = Paint()..color = Color.lerp(
-            light ? const Color(0x33C7A45B) : const Color(0x22C7A45B),
-            light ? const Color(0x22781C30) : const Color(0x44F3E9D2),
+            light ? const Color(0x26C7A45B) : const Color(0x22C7A45B),
+            light ? const Color(0x18781C30) : const Color(0x44F3E9D2),
             (math.sin(seed) + 1) * 0.5,
           )!;
+      if (light) {
+        // PRODUCT-07D: soft round dots in light mode (blurred edge, never square).
+        paint.maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2);
+      }
       canvas.drawCircle(Offset(dx, dy), 1.2 + (i.isEven ? 0.8 : 0.2), paint);
     }
   }

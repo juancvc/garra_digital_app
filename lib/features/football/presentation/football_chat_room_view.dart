@@ -1770,10 +1770,12 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
   Widget _messageTile(FootballChatMessage m, TextTheme text) {
     final me = currentFanIdOf(ref);
     final mine = isSameFanId(me, m.authorId);
+    // PRODUCT-07D: in light Comunidad Crema the menu lines up with the bubble, not with the name row.
+    final lightCrema = _cremaChat && Theme.of(context).brightness == Brightness.light;
     final menu = IconButton(
       key: ValueKey('chat_msg_menu_${m.id}'),
       visualDensity: VisualDensity.compact,
-      padding: const EdgeInsets.only(top: 2),
+      padding: EdgeInsets.only(top: lightCrema && !m.isSticker ? 14 : 2),
       constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
       icon: Icon(
         Icons.more_vert,
@@ -2124,12 +2126,13 @@ class _CremaPalette {
     cardBorder: Color(0x668A6A1F),
     text: Color(0xFF2A1A1C),
     textSoft: Color(0xFF5B4B42),
-    gold: Color(0xFF7A5A12),
-    meta: Color(0xFF6B5E54),
+    // PRODUCT-07D: warmer cream bubbles (no pure white), stronger name/meta contrast on cream.
+    gold: Color(0xFF6A4C0E),
+    meta: Color(0xFF5E5047),
     ownBubble: Color(0xFF7C0211),
-    otherBubble: Color(0xFFFFFFFF),
+    otherBubble: Color(0xFFFCF6EA),
     ownBorder: Color(0x667C0211),
-    otherBorder: Color(0x338A6A1F),
+    otherBorder: Color(0x598A6A1F),
     ownText: Color(0xFFFFF8EC),
     otherText: Color(0xFF2A1A1C),
     ownQuoteName: Color(0xFFF3D9A0),
