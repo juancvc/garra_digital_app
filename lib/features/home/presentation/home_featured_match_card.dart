@@ -312,7 +312,7 @@ class _HomeFeaturedMatchCardState extends ConsumerState<HomeFeaturedMatchCard> {
             : center;
     final centerSecondary = showScore
         ? (isLive ? (match.liveMinuteLabel ?? 'En vivo') : status)
-        : (scheduleLine != null && !showScore ? _compactScheduleSecondary(scheduleLine, competition) : competition);
+        : (scheduleLine != null && !showScore ? _compactScheduleSecondary(scheduleLine) : '');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -322,18 +322,17 @@ class _HomeFeaturedMatchCardState extends ConsumerState<HomeFeaturedMatchCard> {
           children: [
             const _Eyebrow('FIJADO'),
             const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                competition,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: _muted, fontSize: 10, fontWeight: FontWeight.w600),
-              ),
-            ),
-            // PRODUCT-09B.2: at 320dp + textScale 1.3 the pill must yield space instead of overflowing.
+            const Spacer(),
             Flexible(child: _StatusPill(status: pill, live: isLive)),
           ],
         ),
+        if (competition.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(competition, maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: _muted, fontSize: 10, fontWeight: FontWeight.w600)),
+          ),
         const SizedBox(height: 6),
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -413,17 +412,17 @@ class _HomeFeaturedMatchCardState extends ConsumerState<HomeFeaturedMatchCard> {
 }
 
 String _compactSchedulePrimary(String line) {
-  final clock = RegExp(r'(\d{1,2}:\d{2})').firstMatch(line)?.group(1);
-  if (clock != null) return clock;
+  final clock = RegExp(r'\d{1,2}:\d{2}').firstMatch(line);
+  if (clock != null) return line.substring(clock.start).trim();
   return line.split('·').first.trim();
 }
 
-String _compactScheduleSecondary(String line, String competition) {
+String _compactScheduleSecondary(String line) {
   final parts = line.split('·').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
   if (parts.length >= 2) {
-    return parts.sublist(1).join(' · ');
+    return parts.first;
   }
-  return competition;
+  return '';
 }
 
 class _Eyebrow extends StatelessWidget {

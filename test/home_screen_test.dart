@@ -7,6 +7,7 @@ import 'package:garra_digital_app/core/theme/app_theme.dart';
 import 'package:garra_digital_app/core/widgets/garra_states.dart';
 import 'package:garra_digital_app/features/home/data/home_models.dart';
 import 'package:garra_digital_app/features/home/presentation/home_page.dart';
+import 'package:garra_digital_app/features/home/presentation/home_featured_match_card.dart';
 import 'package:garra_digital_app/features/home/presentation/providers/home_provider.dart';
 import 'package:garra_digital_app/features/home/presentation/home_matchday_poll_card.dart';
 import 'package:garra_digital_app/features/football/data/garra_football_models.dart';
@@ -156,6 +157,12 @@ Widget pumpHome(HomeModel home, {void Function()? onFeaturedLoad}) {
         builder: (context, state) => const Scaffold(body: Text('MURO_ROUTE')),
       ),
       GoRoute(
+        path: '/muro-crema/posts/:id',
+        builder: (context, state) => Scaffold(
+          body: Text('POST_DETAIL:${state.pathParameters['id']}'),
+        ),
+      ),
+      GoRoute(
         path: '/clans',
         builder: (context, state) => const Scaffold(body: Text('CLANS_ROUTE')),
       ),
@@ -187,6 +194,26 @@ Widget pumpHome(HomeModel home, {void Function()? onFeaturedLoad}) {
 }
 
 void main() {
+  testWidgets('compact featured match keeps competition readable and time singular', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final lima = limaWallClock(DateTime.now());
+    final kickoff = DateTime(lima.year, lima.month, lima.day + 1, 19);
+    final match = FootballMatch(id: 123, competitionId: 'LIGA_1',
+      competition: 'Liga 1 Perú', round: 'Clausura · Fecha 11',
+      home: 'Universitario', away: 'FBC Melgar', status: 'SCHEDULED',
+      kickoff: kickoff, kickoffConfirmed: true);
+    await tester.pumpWidget(ProviderScope(child: MaterialApp(home: Scaffold(
+      body: HomeFeaturedMatchCard(embedded: true, now: DateTime.now(),
+        result: AsyncValue.data(FootballFeaturedResult(
+          featured: FootballFeatured(next: match)))),
+    ))));
+    await tester.pump();
+    expect(find.textContaining('Liga 1 Perú'), findsOneWidget);
+    expect(find.textContaining('19:00 (hora de Lima)'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('featured request is not repeated by feed tab changes', (tester) async {
     var calls = 0;
     await tester.pumpWidget(pumpHome(sampleHome(), onFeaturedLoad: () => calls++));
@@ -330,6 +357,22 @@ void main() {
     expect(find.text('TU COMUNIDAD'), findsOneWidget);
     expect(find.text('Garra Surco'), findsOneWidget);
     expect(find.text('Para ti'), findsOneWidget);
+  });
+
+  testWidgets('Home Tribuna preview opens its exact post and Back returns Home',
+      (tester) async {
+    await tester.pumpWidget(pumpHome(sampleHome()));
+    await tester.pumpAndSettle();
+    expect(find.text('EN LA TRIBUNA'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('home-contextual-insert')));
+    await tester.pumpAndSettle();
+    expect(find.text('POST_DETAIL:p1'), findsOneWidget);
+    expect(find.text('MURO_ROUTE'), findsNothing);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('EN LA TRIBUNA'), findsOneWidget);
   });
 
   testWidgets('HOME_MATCH_COUNTDOWN_RENDERS_DD_HH_MM_SS_BLOCKS', (

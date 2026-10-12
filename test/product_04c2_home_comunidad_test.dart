@@ -70,7 +70,7 @@ void main() {
     ));
     await tester.pump();
     expect(find.text('Detalles del partido'), findsOneWidget);
-    expect(find.text('19:00'), findsOneWidget);
+    expect(find.textContaining('19:00 (hora de Lima)'), findsOneWidget);
     expect(find.text('Feed social'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
