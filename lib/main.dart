@@ -65,6 +65,7 @@ class GarraDigitalApp extends ConsumerStatefulWidget {
 
 class _GarraDigitalAppState extends ConsumerState<GarraDigitalApp> {
   final _pushRouter = const PushRouter();
+  final _pushOpenDedupe = PushOpenDedupe();
   final _storage = SecureStorageService();
   bool _handledInitial = false;
   bool _bootstrapped = false;
@@ -126,8 +127,11 @@ class _GarraDigitalAppState extends ConsumerState<GarraDigitalApp> {
   }
 
   Future<void> _handleOpen(RemoteMessage message) async {
-    final authenticated = await _storage.hasToken();
     final data = message.data;
+    // PRODUCT-08C: never navigate twice for the same notification (tap + initial message, app reopen).
+    final openId = data['notificationId']?.toString() ?? message.messageId;
+    if (!await _pushOpenDedupe.claim(openId)) return;
+    final authenticated = await _storage.hasToken();
     _pushRouter.navigate(
       appRouter,
       authenticated: authenticated,

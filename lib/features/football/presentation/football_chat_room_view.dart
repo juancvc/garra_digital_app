@@ -42,6 +42,7 @@ class FootballChatRoomView extends ConsumerStatefulWidget {
     this.topic,
     this.matchId,
     this.initialMatch,
+    this.focusMessageId,
   });
 
   final FootballChatSurface surface;
@@ -49,7 +50,23 @@ class FootballChatRoomView extends ConsumerStatefulWidget {
   final int? matchId;
   final FootballMatch? initialMatch;
 
+  /// PRODUCT-08C: message to reveal after the room loads (reply push / inbox deep link `?messageId=`).
+  final String? focusMessageId;
+
   static const pollEvery = Duration(seconds: 12);
+  static const focusHighlightFor = Duration(milliseconds: 2500);
+  static const focusNotLoadedCopy =
+      'La respuesta está más arriba en el chat o ya no está disponible.';
+
+  /// `messageId` query parameter of the current route, or null (also outside a GoRouter, e.g. tests).
+  static String? routeMessageId(BuildContext context) {
+    try {
+      final id = GoRouterState.of(context).uri.queryParameters['messageId']?.trim();
+      return id == null || id.isEmpty ? null : id;
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   ConsumerState<FootballChatRoomView> createState() => _FootballChatRoomViewState();
@@ -113,6 +130,12 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
   bool _foreground = true;
   bool _nearBottom = true;
   static const _historyTriggerPx = 96.0;
+  // PRODUCT-08C: deep-link focus.
+  String? _pendingFocus;
+  String? _focusTargetId;
+  String? _highlightId;
+  final _focusKey = GlobalKey(debugLabel: 'chat_focus_target');
+  Timer? _highlightTimer;
   static const _nearBottomPx = 80.0;
 
   @override
@@ -123,6 +146,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
         : FootballChatContext.tryMatch(widget.matchId ?? widget.initialMatch?.id) ??
             const FootballChatContext.general();
     _match = _context.isMatch ? widget.initialMatch : null;
+    _pendingFocus = widget.focusMessageId;
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _load();
@@ -160,7 +184,90 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
   }
 
   @override
+  void didUpdateWidget(covariant FootballChatRoomView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final focus = widget.focusMessageId;
+    if (focus != null && focus != oldWidget.focusMessageId) {
+      _pendingFocus = focus;
+      if (_loaded) {
+        // The message may be newer than the last poll: refresh first, then focus.
+        _load(silent: true).whenComplete(_scheduleFocus);
+      }
+    }
+  }
+
+  void _scheduleFocus() {
+    if (_pendingFocus == null || !mounted || !_loaded) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _applyFocus());
+  }
+
+  /// Scrolls to the focused message when it is in the loaded window and highlights it briefly; otherwise
+  /// stays at the latest messages and says so (never pretends to have found it).
+  Future<void> _applyFocus() async {
+    final id = _pendingFocus;
+    if (id == null || !mounted || !_loaded) return;
+    _pendingFocus = null;
+    final entries = _timeline;
+    final index = entries.indexWhere((e) => e is FootballChatMessage && e.id == id);
+    if (index < 0) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(
+          key: ValueKey('chat_focus_not_loaded'),
+          content: Text(FootballChatRoomView.focusNotLoadedCopy),
+        ),
+      );
+      return;
+    }
+    _highlightTimer?.cancel();
+    setState(() {
+      _focusTargetId = id;
+      _highlightId = id;
+    });
+    for (var attempt = 0; attempt < 4 && mounted; attempt++) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      final target = _focusKey.currentContext;
+      if (target != null && target.mounted) {
+        await Scrollable.ensureVisible(
+          target,
+          alignment: 0.35,
+          duration: const Duration(milliseconds: 250),
+        );
+        break;
+      }
+      if (!_scroll.hasClients) break;
+      // Lazily built list: jump near the estimated position so the item gets built, then retry.
+      final maxExtent = _scroll.position.maxScrollExtent;
+      final ratio = entries.length <= 1 ? 1.0 : index / (entries.length - 1);
+      _scroll.jumpTo((maxExtent * ratio).clamp(0.0, maxExtent));
+    }
+    if (!mounted) return;
+    _highlightTimer = Timer(FootballChatRoomView.focusHighlightFor, () {
+      if (mounted) setState(() => _highlightId = null);
+    });
+  }
+
+  Widget _focusWrap(String id, Widget child) {
+    if (id != _focusTargetId) return child;
+    final highlighted = id == _highlightId;
+    final scheme = Theme.of(context).colorScheme;
+    return AnimatedContainer(
+      key: _focusKey,
+      duration: const Duration(milliseconds: 300),
+      decoration: BoxDecoration(
+        color: highlighted ? scheme.primary.withValues(alpha: 0.16) : Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: KeyedSubtree(
+        key: ValueKey(highlighted ? 'chat_focus_highlight_$id' : 'chat_focus_target_$id'),
+        child: child,
+      ),
+    );
+  }
+
+  @override
   void dispose() {
+    _highlightTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _stopPolling();
     _controller.dispose();
@@ -564,6 +671,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
       if (first || (_nearBottom && _pendingNewMessages == 0)) {
         _jumpToBottom(clearPending: first || _nearBottom);
       }
+      if (first) _scheduleFocus();
       _ensurePolling();
     } catch (error) {
       logFootballFailure('chat:${room.key}', error);
@@ -1126,7 +1234,8 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
               return FootballChatEventCard(event: entry, match: _match);
             }
             if (entry is _Outgoing) return _outgoingTile(entry, text);
-            return _messageTile(entry as FootballChatMessage, text);
+            final message = entry as FootballChatMessage;
+            return _focusWrap(message.id, _messageTile(message, text));
           },
         ),
       ),

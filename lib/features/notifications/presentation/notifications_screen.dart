@@ -12,6 +12,7 @@ import '../../../core/widgets/garra_states.dart';
 import '../data/notification_service.dart';
 import '../../home/presentation/providers/home_provider.dart';
 import '../data/push_router.dart';
+import 'notification_preferences_page.dart';
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
   return NotificationService();
@@ -199,6 +200,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         _refreshBadge();
       }, onError: (_) {});
     }
+    if (route != null && _isShellChatRoute(route)) {
+      // PRODUCT-08C: Football Chat rooms live in bottom-nav shell branches; switch branch instead of
+      // stacking a second shell on top of the inbox.
+      context.go(route);
+      return;
+    }
     if (route != null) {
       context.push(route).then((_) {
         _refreshBadge();
@@ -207,6 +214,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     }
   }
 
+  static bool _isShellChatRoute(String route) =>
+      route == '/comunidad' ||
+      route.startsWith('/comunidad?') ||
+      route.startsWith('/centro-garra/chat-futbolero');
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -214,6 +226,14 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       appBar: AppBar(
         title: const Text('Actividad'),
         actions: [
+          IconButton(
+            key: const ValueKey('notifications_preferences'),
+            tooltip: 'Preferencias',
+            icon: const Icon(Icons.tune),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const NotificationPreferencesPage()),
+            ),
+          ),
           TextButton(
             key: const ValueKey('notifications_mark_all'),
             onPressed: _markAllRead,

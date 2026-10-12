@@ -23,6 +23,7 @@ class ChatFutboleroPage extends StatelessWidget {
       topic: topic,
       matchId: matchId,
       initialMatch: match,
+      focusMessageId: FootballChatRoomView.routeMessageId(context),
     );
   }
 }

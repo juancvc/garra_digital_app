@@ -71,9 +71,10 @@ class CommunitySocialPage extends StatelessWidget {
       backgroundColor: Colors.transparent,
       body: CremaChatAmbientBackground(
         active: ambientActive,
-        child: const FootballChatRoomView(
-          key: ValueKey('comunidad_general_chat'),
+        child: FootballChatRoomView(
+          key: const ValueKey('comunidad_general_chat'),
           surface: FootballChatSurface.community,
+          focusMessageId: FootballChatRoomView.routeMessageId(context),
         ),
       ),
     );
