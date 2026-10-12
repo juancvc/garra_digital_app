@@ -1790,9 +1790,12 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
   Widget _composer(TextTheme text) {
     final blocked = !_loaded;
     final crema = _cremaChat;
+    // PRODUCT-07C: compact composer (40 dp controls, dense single-line field that grows to 5 lines).
+    const btn = BoxConstraints.tightFor(width: 40, height: 40);
     return SafeArea(
+      top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+        padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1831,10 +1834,13 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                 ),
               ),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 IconButton(
                   key: const ValueKey('football_chat_emoji_btn'),
                   tooltip: 'Emojis',
+                  constraints: btn,
+                  padding: EdgeInsets.zero,
                   onPressed: blocked || _sending
                       ? null
                       : () => showFootballChatEmojiPicker(
@@ -1852,6 +1858,8 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                 IconButton(
                   key: const ValueKey('football_chat_sticker_btn'),
                   tooltip: 'Stickers',
+                  constraints: btn,
+                  padding: EdgeInsets.zero,
                   onPressed: blocked || _sending ? null : _openStickerPanel,
                   icon: Icon(
                     Icons.sticky_note_2_outlined,
@@ -1866,18 +1874,20 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                     enabled: !blocked,
                     maxLength: 280,
                     minLines: 1,
-                    maxLines: 3,
+                    maxLines: 5,
                     textInputAction: TextInputAction.send,
                     style: crema ? TextStyle(color: _pal.text) : null,
                     decoration: InputDecoration(
                       hintText: 'Escribe tu arenga...',
+                      hintMaxLines: 1,
+                      isDense: true,
                       hintStyle: crema
                           ? TextStyle(color: _pal.hint)
                           : null,
                       counterText: '',
                       filled: crema,
                       fillColor: crema ? _pal.inputFill : null,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                         borderSide: BorderSide(
@@ -1901,9 +1911,11 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                     onSubmitted: (_) => _send(),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 IconButton.filled(
                   key: const ValueKey('chat_send'),
+                  constraints: btn,
+                  padding: EdgeInsets.zero,
                   style: crema
                       ? IconButton.styleFrom(
                           backgroundColor: _pal.sendBg,

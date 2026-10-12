@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../core/design/garra_colors.dart';
+import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_puma_crest.dart';
 
 /// Light animated crema/gold ambient layer for Comunidad Crema chat.
@@ -51,10 +53,30 @@ class _CremaChatAmbientBackgroundState extends State<CremaChatAmbientBackground>
       _controller.stop();
     }
 
+    // PRODUCT-07C: dark keeps the original night base; light uses a cream gradient from tokens.
+    final light = Theme.of(context).brightness == Brightness.light;
     return Stack(
       fit: StackFit.expand,
       children: [
-        const ColoredBox(color: Color(0xFF120C0E)),
+        if (light)
+          DecoratedBox(
+            key: const ValueKey('crema_ambient_base_light'),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(GarraColors.cream),
+                  context.garraColors.background,
+                ],
+              ),
+            ),
+          )
+        else
+          const ColoredBox(
+            key: ValueKey('crema_ambient_base_dark'),
+            color: Color(0xFF120C0E),
+          ),
         const _BigCremaCrestBackdrop(),
         if (run)
           RepaintBoundary(
@@ -62,7 +84,7 @@ class _CremaChatAmbientBackgroundState extends State<CremaChatAmbientBackground>
             child: AnimatedBuilder(
               animation: _controller,
               builder: (context, _) => CustomPaint(
-                painter: _SparkPainter(progress: _controller.value),
+                painter: _SparkPainter(progress: _controller.value, light: light),
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
@@ -176,9 +198,10 @@ class _Particle {
 }
 
 class _SparkPainter extends CustomPainter {
-  _SparkPainter({required this.progress});
+  _SparkPainter({required this.progress, this.light = false});
 
   final double progress;
+  final bool light;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -188,8 +211,8 @@ class _SparkPainter extends CustomPainter {
       final dx = (random.nextDouble() * 0.85 + 0.05) * size.width;
       final dy = ((random.nextDouble() + progress * 0.08) % 1.0) * size.height;
       final paint = Paint()..color = Color.lerp(
-            const Color(0x22C7A45B),
-            const Color(0x44F3E9D2),
+            light ? const Color(0x33C7A45B) : const Color(0x22C7A45B),
+            light ? const Color(0x22781C30) : const Color(0x44F3E9D2),
             (math.sin(seed) + 1) * 0.5,
           )!;
       canvas.drawCircle(Offset(dx, dy), 1.2 + (i.isEven ? 0.8 : 0.2), paint);
@@ -197,5 +220,6 @@ class _SparkPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _SparkPainter oldDelegate) => oldDelegate.progress != progress;
+  bool shouldRepaint(covariant _SparkPainter oldDelegate) =>
+      oldDelegate.progress != progress || oldDelegate.light != light;
 }
