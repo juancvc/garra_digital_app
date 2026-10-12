@@ -40,10 +40,29 @@ class ApiConfig {
     }
   }
 
+  /// PRODUCT-09B.2: explicit environment label, independent of the API hostname
+  /// (e.g. --dart-define=GARRA_ENV=staging with https://api.garradigital.pe).
+  static const String _envName = String.fromEnvironment('GARRA_ENV', defaultValue: '');
+
   /// Show discrete STAGING badge (debug / non-production hosts only).
-  static bool get showStagingBadge {
-    if (kReleaseMode && !_looksLikeStaging(baseUrl)) return false;
-    return _looksLikeStaging(baseUrl) || kDebugMode;
+  static bool get showStagingBadge => stagingBadgeFor(
+        apiBaseUrl: baseUrl,
+        envName: _envName,
+        releaseMode: kReleaseMode,
+        debugMode: kDebugMode,
+      );
+
+  /// Pure decision used by [showStagingBadge]; GARRA_ENV=staging always shows the badge.
+  @visibleForTesting
+  static bool stagingBadgeFor({
+    required String apiBaseUrl,
+    required String envName,
+    required bool releaseMode,
+    required bool debugMode,
+  }) {
+    if (envName.trim().toLowerCase() == 'staging') return true;
+    if (releaseMode && !_looksLikeStaging(apiBaseUrl)) return false;
+    return _looksLikeStaging(apiBaseUrl) || debugMode;
   }
 
   static bool _looksLikeStaging(String url) {
