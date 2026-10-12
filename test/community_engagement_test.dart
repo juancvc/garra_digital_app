@@ -420,6 +420,27 @@ void main() {
     expect(find.text('Comentario publicado'), findsOneWidget);
   });
 
+  testWidgets('selected sticker is previewed visually before sending', (tester) async {
+    final fake = FakeCommunityService(
+      post: samplePost(commentCount: 0),
+      comments: const [],
+    );
+    await tester.pumpWidget(pumpDetail(fake));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('comment_composer')),
+      ':garra_plan_ganar:',
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('comment_sticker_draft')), findsOneWidget);
+    expect(find.text(':garra_plan_ganar:'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('comment_send')));
+    await tester.pumpAndSettle();
+    expect(fake.createdComments, [':garra_plan_ganar:']);
+  });
+
   testWidgets('COMMENT_VALIDATION', (tester) async {
     final fake = FakeCommunityService(
       post: samplePost(commentCount: 0),

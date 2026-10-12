@@ -1451,6 +1451,7 @@ class _CommentComposer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.garraColors;
+    final draftSticker = GarraSticker.fromContent(controller.text);
     return Material(
       color: colors.surface,
       child: SafeArea(
@@ -1517,7 +1518,22 @@ class _CommentComposer extends StatelessWidget {
                     icon: const Icon(Icons.emoji_emotions_outlined),
                   ),
                   Expanded(
-                    child: TextField(
+                    child: draftSticker != null
+                        ? Row(
+                            key: const ValueKey('comment_sticker_draft'),
+                            children: [
+                              GarraStickerView(sticker: draftSticker, compact: true),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text(draftSticker.label,
+                                  maxLines: 1, overflow: TextOverflow.ellipsis)),
+                              IconButton(
+                                tooltip: 'Quitar sticker',
+                                onPressed: sending ? null : controller.clear,
+                                icon: const Icon(Icons.close_rounded),
+                              ),
+                            ],
+                          )
+                        : TextField(
                       key: const ValueKey('comment_composer'),
                       controller: controller,
                       focusNode: focusNode,
