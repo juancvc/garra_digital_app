@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/stickers/garra_sticker_assets.dart';
 import '../data/football_chat_service.dart';
 
 /// PRODUCT-05-B3: sticker picker backed by Football Chat API catalog + favorites.
@@ -103,6 +104,12 @@ class _FootballChatStickerSheetState extends State<_FootballChatStickerSheet> {
                   _chip('Todos', 'all'),
                   _chip('Ánimo', 'animo'),
                   _chip('Celebración', 'celebracion'),
+                  // PRODUCT-06A: Garra Stickers V1 categories (V77).
+                  _chip('Gol', 'gol_celebracion'),
+                  _chip('Aliento', 'aliento'),
+                  _chip('Amor crema', 'amor_crema'),
+                  _chip('Humor', 'humor_reaccion'),
+                  _chip('Frustración', 'frustracion'),
                 ],
               ),
             ),
@@ -205,7 +212,13 @@ class _StickerTile extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(sticker.glyph, style: const TextStyle(fontSize: 32)),
+              GarraStickerImage(
+                id: sticker.id,
+                assetKey: sticker.assetKey,
+                glyph: sticker.glyph,
+                size: 56,
+                thumb: true,
+              ),
               Text(
                 sticker.name,
                 maxLines: 1,

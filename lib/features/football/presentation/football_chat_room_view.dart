@@ -25,6 +25,7 @@ import 'football_chat_message_reactions.dart';
 import 'football_chat_quick_emojis.dart';
 import 'football_chat_report_sheet.dart';
 import 'football_chat_sticker_panel.dart';
+import '../../../core/stickers/garra_sticker_assets.dart';
 
 final footballChatServiceProvider =
     Provider<FootballChatService>((ref) => FootballChatService());
@@ -1187,7 +1188,12 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(glyph, style: const TextStyle(fontSize: 42)),
+          GarraStickerImage(
+            id: sticker?.id ?? 'unknown',
+            assetKey: sticker?.assetKey,
+            glyph: glyph,
+            size: 120,
+          ),
           Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         ],
       ),
@@ -1549,7 +1555,10 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     final chat = ref.read(footballChatServiceProvider);
     final picked = await showFootballChatStickerPanel(
       context,
-      loadCatalog: chat.stickerCatalog,
+      loadCatalog: () async {
+        await GarraStickerAssets.ensureRemoteConfig();
+        return chat.stickerCatalog();
+      },
       loadFavorites: chat.stickerFavorites,
       toggleFavorite: (id) async {
         final favs = await chat.stickerFavorites();
