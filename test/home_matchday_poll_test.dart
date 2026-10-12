@@ -143,6 +143,22 @@ void main() {
     expect(service.gets, 2);
   });
 
+  testWidgets('Actualizar reads votes cast by other users', (tester) async {
+    final service = FakePollService(poll(selected: 'a', total: 1));
+    await show(tester, service);
+    service.current = poll(selected: 'a', total: 8, options: [
+      const HomeMatchdayPollOption(id: 'a', label: 'Iré al estadio',
+          voteCount: 4, percentage: 50),
+      const HomeMatchdayPollOption(id: 'b', label: 'Lo veré en casa',
+          voteCount: 4, percentage: 50),
+    ]);
+    await tester.tap(find.text('Actualizar'));
+    await tester.pumpAndSettle();
+    expect(service.gets, 2);
+    expect(find.text('8 hinchas'), findsOneWidget);
+    expect(find.textContaining('50 %'), findsNWidgets(2));
+  });
+
   testWidgets('closed poll shows results and no vote action', (tester) async {
     final service = FakePollService(poll(status: 'CLOSED'));
     await show(tester, service);
