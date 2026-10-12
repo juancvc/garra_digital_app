@@ -26,6 +26,7 @@ import 'football_chat_quick_emojis.dart';
 import 'football_chat_report_sheet.dart';
 import 'football_chat_sticker_panel.dart';
 import '../../../core/stickers/garra_sticker_assets.dart';
+import '../../../core/widgets/garra_stickers.dart';
 
 final footballChatServiceProvider =
     Provider<FootballChatService>((ref) => FootballChatService());
@@ -342,7 +343,89 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
         id: message.id,
         senderId: message.authorId,
         senderName: message.authorName,
-        content: message.body,
+        content: _replyPreviewText(message),
+      );
+
+  /// PRODUCT-07A: resolves a sticker from local data only (server object first, then the local
+  /// 34-entry catalog by id) so pending/quoted stickers render the image; no network contract change.
+  FootballChatSticker? _resolveSticker(
+    String? id, {
+    FootballChatSticker? server,
+    String? name,
+    String? glyph,
+  }) {
+    if (server != null && (server.assetKey ?? '').isNotEmpty) return server;
+    final local = (id == null || id.isEmpty) ? null : GarraSticker.byId(id);
+    if (local == null) {
+      if (server != null) return server;
+      if (id == null || id.isEmpty) return null;
+      return FootballChatSticker(id: id, name: name ?? '', category: '', glyph: glyph ?? '');
+    }
+    return FootballChatSticker(
+      id: local.stableId,
+      name: (server?.name.isNotEmpty ?? false)
+          ? server!.name
+          : ((name?.isNotEmpty ?? false) ? name! : local.label),
+      category: server?.category ?? local.category,
+      glyph: (server?.glyph.isNotEmpty ?? false)
+          ? server!.glyph
+          : ((glyph?.isNotEmpty ?? false) ? glyph! : local.glyph),
+      assetKey: server?.assetKey ?? local.assetKey,
+    );
+  }
+
+  /// Readable reply preview: never a raw `:garra_x:` token (mirrors the server's `Sticker: <name>`).
+  String _replyPreviewText(FootballChatMessage m) {
+    if (m.isSticker) {
+      final name = _resolveSticker(m.stickerId, server: m.sticker)?.name ?? '';
+      return name.isEmpty ? 'Sticker' : 'Sticker: $name';
+    }
+    final token = GarraSticker.fromContent(m.body);
+    if (token != null) return 'Sticker: ${token.label}';
+    return m.body;
+  }
+
+  /// Sticker shown by a quote: the loaded original message, an exact token, or the server's
+  /// `Sticker: <name>` preview mapped to loaded messages / local catalog. Null = plain text quote.
+  FootballChatSticker? _quotedSticker(FootballChatReplyPreview reply) {
+    if (reply.unavailable) return null;
+    final loaded = [..._items, ..._unseen.values];
+    if (reply.id.isNotEmpty) {
+      for (final m in loaded) {
+        if (m.id == reply.id) {
+          return m.isSticker ? _resolveSticker(m.stickerId, server: m.sticker) : null;
+        }
+      }
+    }
+    final p = reply.preview.trim();
+    final token = GarraSticker.fromContent(p);
+    if (token != null) return _resolveSticker(token.stableId);
+    const prefix = 'Sticker: ';
+    if (p.startsWith(prefix)) {
+      final name = p.substring(prefix.length).trim();
+      for (final m in loaded) {
+        if (m.isSticker && m.sticker?.name == name) {
+          return _resolveSticker(m.stickerId, server: m.sticker);
+        }
+      }
+      for (final s in GarraSticker.all) {
+        if (s.label.toLowerCase() == name.toLowerCase()) return _resolveSticker(s.stableId);
+      }
+    }
+    return null;
+  }
+
+  Widget _stickerThumb(FootballChatSticker s, {Key? key}) => SizedBox(
+        key: key,
+        width: 40,
+        height: 40,
+        child: GarraStickerImage(
+          id: s.id,
+          assetKey: s.assetKey,
+          glyph: s.glyph,
+          size: 40,
+          thumb: true,
+        ),
       );
 
   List<FootballChatMessage> _sortedUnique(Iterable<FootballChatMessage> source) =>
@@ -543,7 +626,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     _load();
   }
 
-  Future<void> _sendSticker(FootballChatSticker sticker) async {
+  Future<void> _sendSticker(FootballChatSticker sticker, {_Outgoing? retry}) async {
     if (_sending || !_loaded || sticker.id.isEmpty) return;
     final room = _context;
     final generation = _generation;
@@ -554,11 +637,10 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
             id: replyTarget.id,
             authorId: replyTarget.authorId,
             authorName: replyTarget.authorName,
-            preview: replyTarget.isSticker
-                ? (replyTarget.sticker?.name ?? 'Sticker')
-                : replyTarget.body,
+            preview: _replyPreviewText(replyTarget),
           );
-    final out = _Outgoing(
+    // A retry reuses the same _Outgoing (same clientMessageId) so the backend idempotency applies.
+    final out = retry ?? _Outgoing(
       'local-${_seq++}',
       '',
       const Uuid().v4(),
@@ -570,8 +652,12 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     );
     setState(() {
       _sending = true;
-      _outgoing.add(out);
-      _replyTarget = null;
+      out.failed = false;
+      out.failureHint = null;
+      if (retry == null) {
+        _outgoing.add(out);
+        _replyTarget = null;
+      }
     });
     _jumpToBottom();
     try {
@@ -617,7 +703,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
         name: retry.stickerName ?? '',
         category: '',
         glyph: retry.stickerGlyph ?? '',
-      ));
+      ), retry: retry);
       return;
     }
     final body = retry?.body ?? _controller.text.trim();
@@ -631,7 +717,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
             id: replyTarget.id,
             authorId: replyTarget.authorId,
             authorName: replyTarget.authorName,
-            preview: replyTarget.body,
+            preview: _replyPreviewText(replyTarget),
           );
     final out = retry ??
         _Outgoing(
@@ -1143,7 +1229,15 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
 
   Widget _quotedReply(FootballChatReplyPreview? reply, TextTheme text, {bool mine = false}) {
     if (reply == null) return const SizedBox.shrink();
-    final content = reply.unavailable ? 'Mensaje no disponible' : reply.preview;
+    final quotedSticker = _quotedSticker(reply);
+    final rawToken = GarraSticker.fromContent(reply.preview);
+    final content = reply.unavailable
+        ? 'Mensaje no disponible'
+        : quotedSticker != null
+            ? (quotedSticker.name.isEmpty ? 'Sticker' : quotedSticker.name)
+            : rawToken != null
+                ? 'Sticker: ${rawToken.label}'
+                : reply.preview;
     final border = mine ? const Color(0x66C7A45B) : const Color(0x44C7A45B);
     return Container(
       key: ValueKey('chat_quote_${reply.id}'),
@@ -1155,7 +1249,14 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
         color: Colors.black.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Column(
+      child: Row(
+        children: [
+          if (quotedSticker != null) ...[
+            _stickerThumb(quotedSticker, key: ValueKey('chat_quote_thumb_${reply.id}')),
+            const SizedBox(width: 6),
+          ],
+          Expanded(
+            child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -1176,26 +1277,101 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
             ),
           ),
         ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _stickerBubbleContent(FootballChatSticker? sticker, String fallbackBody) {
-    final glyph = sticker?.glyph ?? fallbackBody;
-    final label = sticker?.name ?? 'Sticker';
-    return Semantics(
-      label: 'Sticker $label',
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          GarraStickerImage(
-            id: sticker?.id ?? 'unknown',
-            assetKey: sticker?.assetKey,
-            glyph: glyph,
-            size: 120,
-          ),
-          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        ],
+  /// PRODUCT-07A: STICKER messages render as the transparent WebP only (no bubble, no label below).
+  Widget _stickerMessage({
+    required Key key,
+    required String name,
+    required String? time,
+    required String body,
+    required TextTheme text,
+    Widget? footer,
+    double opacity = 1,
+    VoidCallback? onTapName,
+    bool mine = false,
+    FootballChatReplyPreview? replyTo,
+    FootballChatSticker? sticker,
+  }) {
+    final glyph = (sticker?.glyph.isNotEmpty ?? false) ? sticker!.glyph : body;
+    final label = (sticker?.name.isNotEmpty ?? false) ? sticker!.name : 'Sticker';
+    final meta = _cremaChat
+        ? const Color(0xFF9A8B7A)
+        : Theme.of(context).colorScheme.onSurfaceVariant;
+    return Opacity(
+      key: key,
+      opacity: opacity,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Row(
+          mainAxisAlignment: mine ? MainAxisAlignment.end : MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (!mine) ...[
+              _avatar(name),
+              const SizedBox(width: 8),
+            ],
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                children: [
+                  if (!mine)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2, left: 2),
+                      child: InkWell(
+                        onTap: onTapName,
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: text.labelMedium?.copyWith(
+                            color: _cremaChat ? const Color(0xFFC7A45B) : null,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (replyTo != null)
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 220),
+                      child: _quotedReply(replyTo, text, mine: mine),
+                    ),
+                  Semantics(
+                    label: 'Sticker $label',
+                    image: true,
+                    excludeSemantics: true,
+                    child: SizedBox(
+                      key: const ValueKey('chat_sticker_box'),
+                      width: 144,
+                      height: 144,
+                      child: GarraStickerImage(
+                        id: sticker?.id ?? 'unknown',
+                        assetKey: sticker?.assetKey,
+                        glyph: glyph,
+                        size: 144,
+                      ),
+                    ),
+                  ),
+                  if (time != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2, left: 2, right: 2),
+                      child: Text(
+                        time,
+                        style: text.labelSmall?.copyWith(color: meta, fontSize: 10),
+                      ),
+                    ),
+                  ?footer,
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1214,9 +1390,22 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     bool isSticker = false,
     FootballChatSticker? sticker,
   }) {
-    final messageChild = isSticker
-        ? _stickerBubbleContent(sticker, body)
-        : Text(
+    if (isSticker) {
+      return _stickerMessage(
+        key: key,
+        name: name,
+        time: time,
+        body: body,
+        text: text,
+        footer: footer,
+        opacity: opacity,
+        onTapName: onTapName,
+        mine: mine,
+        replyTo: replyTo,
+        sticker: sticker,
+      );
+    }
+    final messageChild = Text(
             body,
             style: text.bodyMedium?.copyWith(
               color: _cremaChat ? const Color(0xFFF3E9D2) : null,
@@ -1377,16 +1566,17 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
+              key: const ValueKey('chat_action_reply'),
+              leading: const Icon(Icons.reply_rounded),
+              title: const Text('Responder'),
+              subtitle: const Text('También puedes deslizar el mensaje a la derecha'),
+              onTap: () => Navigator.pop(ctx, 'reply'),
+            ),
+            ListTile(
               key: const ValueKey('chat_action_react'),
               leading: const Icon(Icons.add_reaction_outlined),
               title: const Text('Reaccionar'),
               onTap: () => Navigator.pop(ctx, 'react'),
-            ),
-            ListTile(
-              key: const ValueKey('chat_action_reply'),
-              leading: const Icon(Icons.reply_outlined),
-              title: const Text('Responder'),
-              onTap: () => Navigator.pop(ctx, 'reply'),
             ),
             if (!mine)
               ListTile(
@@ -1488,7 +1678,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
           mine: mine,
           replyTo: m.replyTo,
           isSticker: m.isSticker,
-          sticker: m.sticker,
+          sticker: m.isSticker ? _resolveSticker(m.stickerId, server: m.sticker) : m.sticker,
           footer: reactionFooter,
           onTapName: widget.surface == FootballChatSurface.community && m.authorId.isNotEmpty
               ? () => _openAuthorProfile(m)
@@ -1517,13 +1707,9 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
         mine: true,
         replyTo: out.replyTo,
         isSticker: out.isSticker,
+        // PRODUCT-07A: local catalog assetKey -> the pending sticker shows its image immediately.
         sticker: out.isSticker
-            ? FootballChatSticker(
-                id: out.stickerId ?? '',
-                name: out.stickerName ?? '',
-                category: '',
-                glyph: out.stickerGlyph ?? '',
-              )
+            ? _resolveSticker(out.stickerId, name: out.stickerName, glyph: out.stickerGlyph)
             : null,
         opacity: out.failed ? 1 : 0.6,
         footer: out.failed
@@ -1593,10 +1779,24 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
             if (_replyTarget != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 6),
-                child: ChatReplyTile(
-                  key: const ValueKey('chat_reply_composer'),
-                  reply: _composerReplyPreview(_replyTarget!),
-                  onCancel: _cancelReply,
+                child: Row(
+                  children: [
+                    if (_replyTarget!.isSticker &&
+                        _resolveSticker(_replyTarget!.stickerId, server: _replyTarget!.sticker) != null) ...[
+                      _stickerThumb(
+                        _resolveSticker(_replyTarget!.stickerId, server: _replyTarget!.sticker)!,
+                        key: const ValueKey('chat_reply_composer_thumb'),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Expanded(
+                      child: ChatReplyTile(
+                        key: const ValueKey('chat_reply_composer'),
+                        reply: _composerReplyPreview(_replyTarget!),
+                        onCancel: _cancelReply,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             Row(
