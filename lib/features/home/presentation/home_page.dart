@@ -284,7 +284,7 @@ class _HomeContextualInsert extends StatelessWidget {
     String title;
     String detail;
     IconData icon;
-    VoidCallback onTap;
+    VoidCallback? onTap;
 
     if (clan != null) {
       eyebrow = 'TU COMUNIDAD';
@@ -297,7 +297,10 @@ class _HomeContextualInsert extends StatelessWidget {
       title = communityPost.displayName;
       detail = communityPost.content;
       icon = Icons.forum_outlined;
-      onTap = () => context.push('/comunidad');
+      final postId = communityPost.id.trim();
+      onTap = postId.isEmpty || postId == 'null'
+          ? null
+          : () => context.push('/muro-crema/posts/${Uri.encodeComponent(postId)}');
     } else {
       final card = commercial;
       eyebrow = card?.label ?? sponsored!.label;
@@ -313,7 +316,7 @@ class _HomeContextualInsert extends StatelessWidget {
     }
 
     return Semantics(
-      button: true,
+      button: onTap != null,
       label: '$eyebrow, $title',
       child: Material(
         key: const ValueKey('home-contextual-insert'),
