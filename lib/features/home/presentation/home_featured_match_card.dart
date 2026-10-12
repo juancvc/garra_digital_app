@@ -330,7 +330,8 @@ class _HomeFeaturedMatchCardState extends ConsumerState<HomeFeaturedMatchCard> {
                 style: const TextStyle(color: _muted, fontSize: 10, fontWeight: FontWeight.w600),
               ),
             ),
-            _StatusPill(status: pill, live: isLive),
+            // PRODUCT-09B.2: at 320dp + textScale 1.3 the pill must yield space instead of overflowing.
+            Flexible(child: _StatusPill(status: pill, live: isLive)),
           ],
         ),
         const SizedBox(height: 6),
