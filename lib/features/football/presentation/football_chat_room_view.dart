@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
@@ -16,9 +17,14 @@ import '../data/football_chat_sync.dart';
 import '../data/football_diagnostics.dart';
 import '../data/garra_football_models.dart';
 import '../../chat/data/chat_models.dart';
+import '../../chat/presentation/chat_message_reactions.dart';
 import '../../chat/presentation/chat_reply_tile.dart';
 import '../../chat/presentation/chat_swipe_to_reply.dart';
+import '../../community/data/reaction_type.dart';
+import 'football_chat_message_reactions.dart';
+import 'football_chat_quick_emojis.dart';
 import 'football_chat_report_sheet.dart';
+import 'football_chat_sticker_panel.dart';
 
 final footballChatServiceProvider =
     Provider<FootballChatService>((ref) => FootballChatService());
@@ -53,19 +59,28 @@ class _Outgoing {
     this.clientMessageId, {
     this.replyToMessageId,
     this.replyTo,
+    this.stickerId,
+    this.stickerGlyph,
+    this.stickerName,
   });
   final String localId;
   final String body;
   final String clientMessageId;
   final String? replyToMessageId;
   final FootballChatReplyPreview? replyTo;
+  final String? stickerId;
+  final String? stickerGlyph;
+  final String? stickerName;
   bool failed = false;
   String? failureHint;
+
+  bool get isSticker => stickerId != null && stickerId!.isNotEmpty;
 }
 
 class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     with WidgetsBindingObserver {
   final _controller = TextEditingController();
+  final _composerFocus = FocusNode();
   final _scroll = ScrollController();
   late FootballChatContext _context;
   FootballMatch? _match;
@@ -87,6 +102,10 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
   int _generation = 0;
   FootballChatMessage? _replyTarget;
   int _seq = 0;
+  final Map<String, List<ChatMessageReactionSummary>> _pendingReactions = {};
+  final Map<String, int> _reactionTokens = {};
+  var _reactionSeq = 0;
+  var _reactionBusy = false;
   Timer? _poll;
   bool _foreground = true;
   bool _nearBottom = true;
@@ -112,6 +131,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     WidgetsBinding.instance.removeObserver(this);
     _stopPolling();
     _controller.dispose();
+    _composerFocus.dispose();
     _scroll.dispose();
     super.dispose();
   }
@@ -190,10 +210,121 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
       _nearBottom = true;
       _controller.clear();
       _replyTarget = null;
+      _pendingReactions.clear();
+      _reactionTokens.clear();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _load();
     });
+  }
+
+  List<ChatMessageReactionSummary> _reactionsOf(FootballChatMessage message) =>
+      _pendingReactions[message.id] ?? message.reactions;
+
+  void _replaceReactionsInState(String id, List<ChatMessageReactionSummary> reactions) {
+    _items = [
+      for (final m in _items) m.id == id ? m.copyWith(reactions: reactions) : m,
+    ];
+    final unseen = _unseen[id];
+    if (unseen != null) {
+      _unseen[id] = unseen.copyWith(reactions: reactions);
+    }
+  }
+
+  Future<void> _openReactions(
+    BuildContext bubbleContext,
+    FootballChatMessage message,
+    bool mine,
+  ) async {
+    if (!_loaded || message.id.isEmpty || _reactionBusy) return;
+    final box = bubbleContext.findRenderObject();
+    if (box is! RenderBox || !box.hasSize || !box.attached) return;
+    final anchor = box.localToGlobal(Offset.zero) & box.size;
+    HapticFeedback.selectionClick();
+    final selected = await showChatReactionPicker(
+      context,
+      anchor: anchor,
+      alignEnd: mine && _cremaChat,
+      current: myChatReaction(_reactionsOf(message)),
+      actions: [
+        ChatMessageAction(
+          key: const ValueKey('chat_action_reply'),
+          label: 'Responder',
+          icon: Icons.reply_outlined,
+          onSelected: () => _startReply(message),
+        ),
+        if (!mine)
+          ChatMessageAction(
+            key: const ValueKey('chat_action_report'),
+            label: 'Reportar mensaje',
+            icon: Icons.flag_outlined,
+            onSelected: () => _reportMessage(message),
+          ),
+        if (mine)
+          ChatMessageAction(
+            key: const ValueKey('chat_action_delete'),
+            label: 'Eliminar mensaje',
+            icon: Icons.delete_outline,
+            destructive: true,
+            onSelected: () => _deleteOwnMessage(message),
+          ),
+      ],
+    );
+    if (selected == null || !mounted) return;
+    await _react(message, selected, anchor, mine);
+  }
+
+  Future<void> _react(
+    FootballChatMessage message,
+    ReactionType type,
+    Rect anchor,
+    bool mine,
+  ) async {
+    if (!mounted || message.id.isEmpty) return;
+    final id = message.id;
+    final current = _reactionsOf(message);
+    final removing = myChatReaction(current) == type.apiValue;
+    final token = ++_reactionSeq;
+    setState(() {
+      _reactionTokens[id] = token;
+      _pendingReactions[id] = withMyChatReaction(current, removing ? null : type.apiValue);
+      _reactionBusy = true;
+    });
+    if (!removing &&
+        type == ReactionType.garra &&
+        anchor.width > 0 &&
+        anchor.height > 0) {
+      showChatGarraPulse(
+        context,
+        Offset(
+          mine && _cremaChat ? anchor.right - 24 : anchor.left + 24,
+          anchor.bottom,
+        ),
+      );
+    }
+    final chat = ref.read(footballChatServiceProvider);
+    try {
+      final result = removing
+          ? await chat.removeMessageReaction(id)
+          : await chat.reactToMessage(id, type);
+      if (!mounted || _reactionTokens[id] != token) return;
+      setState(() {
+        _replaceReactionsInState(id, result.reactions);
+        _pendingReactions.remove(id);
+        _reactionTokens.remove(id);
+        _reactionBusy = false;
+      });
+    } catch (_) {
+      if (!mounted || _reactionTokens[id] != token) return;
+      setState(() {
+        _pendingReactions.remove(id);
+        _reactionTokens.remove(id);
+        _reactionBusy = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No pudimos actualizar la reacci\u00f3n')),
+      );
+    }
   }
 
   void _startReply(FootballChatMessage message) {
@@ -411,8 +542,83 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     _load();
   }
 
+  Future<void> _sendSticker(FootballChatSticker sticker) async {
+    if (_sending || !_loaded || sticker.id.isEmpty) return;
+    final room = _context;
+    final generation = _generation;
+    final replyTarget = _replyTarget;
+    final replyPreview = replyTarget == null
+        ? null
+        : FootballChatReplyPreview(
+            id: replyTarget.id,
+            authorId: replyTarget.authorId,
+            authorName: replyTarget.authorName,
+            preview: replyTarget.isSticker
+                ? (replyTarget.sticker?.name ?? 'Sticker')
+                : replyTarget.body,
+          );
+    final out = _Outgoing(
+      'local-${_seq++}',
+      '',
+      const Uuid().v4(),
+      replyToMessageId: replyTarget?.id,
+      replyTo: replyPreview,
+      stickerId: sticker.id,
+      stickerGlyph: sticker.glyph,
+      stickerName: sticker.name,
+    );
+    setState(() {
+      _sending = true;
+      _outgoing.add(out);
+      _replyTarget = null;
+    });
+    _jumpToBottom();
+    try {
+      final message = await ref.read(footballChatServiceProvider).sendSticker(
+            sticker.id,
+            context: room,
+            clientMessageId: out.clientMessageId,
+            replyToMessageId: out.replyToMessageId,
+          );
+      if (!mounted || generation != _generation) return;
+      setState(() {
+        _outgoing.remove(out);
+        if (message.id.isNotEmpty && !_items.any((m) => m.id == message.id)) {
+          _unseen[message.id] = message;
+        }
+      });
+    } on DioException catch (error) {
+      logFootballFailure('chat:send-sticker:${room.key}', error);
+      if (!mounted || generation != _generation) return;
+      setState(() {
+        out.failed = true;
+        out.failureHint = classifyDioError(error).message;
+      });
+    } catch (error) {
+      logFootballFailure('chat:send-sticker:${room.key}', error);
+      if (mounted && generation == _generation) {
+        setState(() {
+          out.failed = true;
+        });
+      }
+    } finally {
+      if (mounted && generation == _generation) {
+        setState(() => _sending = false);
+      }
+    }
+  }
+
   Future<void> _send([_Outgoing? retry]) async {
     if (_sending || !_loaded) return;
+    if (retry?.isSticker == true) {
+      await _sendSticker(FootballChatSticker(
+        id: retry!.stickerId!,
+        name: retry.stickerName ?? '',
+        category: '',
+        glyph: retry.stickerGlyph ?? '',
+      ));
+      return;
+    }
     final body = retry?.body ?? _controller.text.trim();
     if (body.isEmpty) return;
     final room = _context;
@@ -973,6 +1179,21 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     );
   }
 
+  Widget _stickerBubbleContent(FootballChatSticker? sticker, String fallbackBody) {
+    final glyph = sticker?.glyph ?? fallbackBody;
+    final label = sticker?.name ?? 'Sticker';
+    return Semantics(
+      label: 'Sticker $label',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(glyph, style: const TextStyle(fontSize: 42)),
+          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
   Widget _bubble({
     required Key key,
     required String name,
@@ -984,7 +1205,18 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     VoidCallback? onTapName,
     bool mine = false,
     FootballChatReplyPreview? replyTo,
+    bool isSticker = false,
+    FootballChatSticker? sticker,
   }) {
+    final messageChild = isSticker
+        ? _stickerBubbleContent(sticker, body)
+        : Text(
+            body,
+            style: text.bodyMedium?.copyWith(
+              color: _cremaChat ? const Color(0xFFF3E9D2) : null,
+              height: 1.25,
+            ),
+          );
     if (_cremaChat) {
       final align = mine ? CrossAxisAlignment.end : CrossAxisAlignment.start;
       final bubbleColor =
@@ -1057,12 +1289,9 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _quotedReply(replyTo, text, mine: mine),
-                          Text(
-                            body,
-                            style: text.bodyMedium?.copyWith(
-                              color: const Color(0xFFF3E9D2),
-                              height: 1.25,
-                            ),
+                          DefaultTextStyle(
+                            style: text.bodyMedium!.copyWith(color: const Color(0xFFF3E9D2)),
+                            child: messageChild,
                           ),
                         ],
                       ),
@@ -1122,7 +1351,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                   ),
                   const SizedBox(height: 2),
                   _quotedReply(replyTo, text, mine: mine),
-                  Text(body, style: text.bodyMedium),
+                  messageChild,
                   ?footer,
                 ],
               ),
@@ -1141,6 +1370,12 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            ListTile(
+              key: const ValueKey('chat_action_react'),
+              leading: const Icon(Icons.add_reaction_outlined),
+              title: const Text('Reaccionar'),
+              onTap: () => Navigator.pop(ctx, 'react'),
+            ),
             ListTile(
               key: const ValueKey('chat_action_reply'),
               leading: const Icon(Icons.reply_outlined),
@@ -1167,6 +1402,23 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     );
     if (!mounted || action == null) return;
     switch (action) {
+      case 'react':
+        final selected = await showModalBottomSheet<ReactionType>(
+          context: context,
+          showDragHandle: true,
+          builder: (ctx) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: ChatReactionPicker(
+                selected: myChatReaction(_reactionsOf(m)),
+                onSelected: (type) => Navigator.pop(ctx, type),
+              ),
+            ),
+          ),
+        );
+        if (selected != null) {
+          await _react(m, selected, Rect.zero, mine);
+        }
       case 'reply':
         _startReply(m);
       case 'report':
@@ -1194,22 +1446,48 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
       tooltip: 'Acciones del mensaje',
       onPressed: () => _openMessageActions(m, mine),
     );
-    final bubble = ChatSwipeToReply(
-      onReply: () => _startReply(m),
-      onLongPress: () => _openMessageActions(m, mine),
-      child: _bubble(
-        key: ValueKey('chat_msg_bubble_${m.id}'),
-        name: m.authorName,
-        time: m.createdAt == null
-            ? null
-            : footballClock(limaWallClock(m.createdAt!)),
-        body: m.body,
-        text: text,
-        mine: mine,
-        replyTo: m.replyTo,
-        onTapName: widget.surface == FootballChatSurface.community && m.authorId.isNotEmpty
-            ? () => _openAuthorProfile(m)
-            : null,
+    final reactions = _reactionsOf(m);
+    Widget? reactionFooter;
+    if (reactions.isNotEmpty) {
+      reactionFooter = Padding(
+        padding: EdgeInsets.only(top: 4, left: mine && !_cremaChat ? 0 : 4, right: 4),
+        child: Align(
+          alignment: mine && _cremaChat ? Alignment.centerRight : Alignment.centerLeft,
+          child: FootballChatTappableReactionChips(
+            messageId: m.id,
+            reactions: reactions,
+            onReactionTap: (type) {
+              final box = context.findRenderObject();
+              if (box is RenderBox && box.hasSize) {
+                final anchor = box.localToGlobal(Offset.zero) & box.size;
+                _react(m, type, anchor, mine);
+              }
+            },
+          ),
+        ),
+      );
+    }
+    final bubble = Builder(
+      builder: (bubbleContext) => ChatSwipeToReply(
+        onReply: () => _startReply(m),
+        onLongPress: () => _openReactions(bubbleContext, m, mine),
+        child: _bubble(
+          key: ValueKey('chat_msg_bubble_${m.id}'),
+          name: m.authorName,
+          time: m.createdAt == null
+              ? null
+              : footballClock(limaWallClock(m.createdAt!)),
+          body: m.body,
+          text: text,
+          mine: mine,
+          replyTo: m.replyTo,
+          isSticker: m.isSticker,
+          sticker: m.sticker,
+          footer: reactionFooter,
+          onTapName: widget.surface == FootballChatSurface.community && m.authorId.isNotEmpty
+              ? () => _openAuthorProfile(m)
+              : null,
+        ),
       ),
     );
     return Row(
@@ -1232,6 +1510,15 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
         text: text,
         mine: true,
         replyTo: out.replyTo,
+        isSticker: out.isSticker,
+        sticker: out.isSticker
+            ? FootballChatSticker(
+                id: out.stickerId ?? '',
+                name: out.stickerName ?? '',
+                category: '',
+                glyph: out.stickerGlyph ?? '',
+              )
+            : null,
         opacity: out.failed ? 1 : 0.6,
         footer: out.failed
             ? Column(
@@ -1257,6 +1544,22 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
               )
             : Text('Enviando…', style: text.labelSmall),
       );
+
+  Future<void> _openStickerPanel() async {
+    final chat = ref.read(footballChatServiceProvider);
+    final picked = await showFootballChatStickerPanel(
+      context,
+      loadCatalog: chat.stickerCatalog,
+      loadFavorites: chat.stickerFavorites,
+      toggleFavorite: (id) async {
+        final favs = await chat.stickerFavorites();
+        final exists = favs.any((s) => s.id == id);
+        return exists ? chat.removeStickerFavorite(id) : chat.addStickerFavorite(id);
+      },
+    );
+    if (picked == null || !mounted) return;
+    await _sendSticker(picked);
+  }
 
   Widget _composer(TextTheme text) {
     final blocked = !_loaded;
@@ -1289,10 +1592,37 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
               ),
             Row(
               children: [
+                IconButton(
+                  key: const ValueKey('football_chat_emoji_btn'),
+                  tooltip: 'Emojis',
+                  onPressed: blocked || _sending
+                      ? null
+                      : () => showFootballChatEmojiPicker(
+                            context,
+                            _controller,
+                            maxLength: 280,
+                          ).then((_) {
+                            if (mounted) _composerFocus.requestFocus();
+                          }),
+                  icon: Icon(
+                    Icons.emoji_emotions_outlined,
+                    color: crema ? const Color(0xFFC7A45B) : null,
+                  ),
+                ),
+                IconButton(
+                  key: const ValueKey('football_chat_sticker_btn'),
+                  tooltip: 'Stickers',
+                  onPressed: blocked || _sending ? null : _openStickerPanel,
+                  icon: Icon(
+                    Icons.sticky_note_2_outlined,
+                    color: crema ? const Color(0xFFC7A45B) : null,
+                  ),
+                ),
                 Expanded(
                   child: TextField(
                     key: const ValueKey('chat_input'),
                     controller: _controller,
+                    focusNode: _composerFocus,
                     enabled: !blocked,
                     maxLength: 280,
                     minLines: 1,

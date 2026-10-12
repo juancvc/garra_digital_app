@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:garra_digital_app/core/network/dio_client.dart';
 import 'package:garra_digital_app/core/network/garra_error.dart';
+import 'package:garra_digital_app/features/chat/data/chat_models.dart';
 import 'package:garra_digital_app/features/community/data/community_report.dart';
+import 'package:garra_digital_app/features/community/data/reaction_type.dart';
 import 'package:garra_digital_app/features/community/data/report_wall_post_request.dart';
 
 import 'garra_football_models.dart';
@@ -58,6 +60,49 @@ class FootballChatReplyPreview {
       );
 }
 
+class FootballChatSticker {
+  const FootballChatSticker({
+    required this.id,
+    required this.name,
+    required this.category,
+    required this.glyph,
+    this.assetKey,
+  });
+
+  final String id;
+  final String name;
+  final String category;
+  final String glyph;
+  final String? assetKey;
+
+  factory FootballChatSticker.fromJson(Map<String, dynamic> json) =>
+      FootballChatSticker(
+        id: json['id']?.toString() ?? '',
+        name: json['name']?.toString() ?? '',
+        category: json['category']?.toString() ?? '',
+        glyph: json['glyph']?.toString() ?? '',
+        assetKey: json['assetKey']?.toString(),
+      );
+}
+
+class FootballChatStickerCatalog {
+  const FootballChatStickerCatalog({this.items = const []});
+  final List<FootballChatSticker> items;
+
+  factory FootballChatStickerCatalog.fromJson(Map<String, dynamic> json) {
+    final raw = json['items'];
+    return FootballChatStickerCatalog(
+      items: raw is List
+          ? raw
+              .whereType<Map<String, dynamic>>()
+              .map(FootballChatSticker.fromJson)
+              .where((s) => s.id.isNotEmpty)
+              .toList()
+          : const [],
+    );
+  }
+}
+
 class FootballChatMessage {
   const FootballChatMessage({
     required this.id,
@@ -69,6 +114,10 @@ class FootballChatMessage {
     this.contextType = 'GENERAL',
     this.contextId,
     this.replyTo,
+    this.reactions = const [],
+    this.messageType = 'TEXT',
+    this.stickerId,
+    this.sticker,
   });
   final String id;
   final String authorId;
@@ -79,9 +128,37 @@ class FootballChatMessage {
   final String contextType;
   final String? contextId;
   final FootballChatReplyPreview? replyTo;
+  final List<ChatMessageReactionSummary> reactions;
+  final String messageType;
+  final String? stickerId;
+  final FootballChatSticker? sticker;
+
+  bool get isSticker => messageType == 'STICKER';
+
+  String get reactionSignature => chatReactionSignature(reactions);
+
+  FootballChatMessage copyWith({
+    List<ChatMessageReactionSummary>? reactions,
+  }) =>
+      FootballChatMessage(
+        id: id,
+        authorId: authorId,
+        authorName: authorName,
+        authorUsername: authorUsername,
+        body: body,
+        createdAt: createdAt,
+        contextType: contextType,
+        contextId: contextId,
+        replyTo: replyTo,
+        reactions: reactions ?? this.reactions,
+        messageType: messageType,
+        stickerId: stickerId,
+        sticker: sticker,
+      );
 
   factory FootballChatMessage.fromJson(Map<String, dynamic> json) {
     final replyRaw = json['replyTo'];
+    final stickerRaw = json['sticker'];
     return FootballChatMessage(
       id: json['id']?.toString() ?? '',
       authorId: json['authorId']?.toString() ?? '',
@@ -94,6 +171,33 @@ class FootballChatMessage {
       replyTo: replyRaw is Map<String, dynamic>
           ? FootballChatReplyPreview.fromJson(replyRaw)
           : null,
+      reactions: parseChatReactions(json['reactions']),
+      messageType: json['messageType']?.toString() ?? 'TEXT',
+      stickerId: json['stickerId']?.toString(),
+      sticker: stickerRaw is Map<String, dynamic>
+          ? FootballChatSticker.fromJson(stickerRaw)
+          : null,
+    );
+  }
+}
+
+/// PRODUCT-05-B1: PUT/DELETE reaction response for Football Chat.
+class FootballChatReactionsResult {
+  const FootballChatReactionsResult({
+    required this.messageId,
+    this.reactions = const [],
+    this.myReaction,
+  });
+
+  final String messageId;
+  final List<ChatMessageReactionSummary> reactions;
+  final String? myReaction;
+
+  factory FootballChatReactionsResult.fromJson(Map<String, dynamic> json) {
+    return FootballChatReactionsResult(
+      messageId: json['messageId']?.toString() ?? '',
+      reactions: parseChatReactions(json['reactions']),
+      myReaction: ReactionType.tryParse(json['myReaction']?.toString())?.apiValue,
     );
   }
 }
@@ -197,9 +301,40 @@ class FootballChatService {
     FootballChatContext context = const FootballChatContext.general(),
     String? clientMessageId,
     String? replyToMessageId,
+  }) async =>
+      sendPayload(
+        context: context,
+        clientMessageId: clientMessageId,
+        replyToMessageId: replyToMessageId,
+        body: body,
+      );
+
+  Future<FootballChatMessage> sendSticker(
+    String stickerId, {
+    FootballChatContext context = const FootballChatContext.general(),
+    String? clientMessageId,
+    String? replyToMessageId,
+  }) async =>
+      sendPayload(
+        context: context,
+        clientMessageId: clientMessageId,
+        replyToMessageId: replyToMessageId,
+        messageType: 'STICKER',
+        stickerId: stickerId,
+      );
+
+  Future<FootballChatMessage> sendPayload({
+    FootballChatContext context = const FootballChatContext.general(),
+    String? clientMessageId,
+    String? replyToMessageId,
+    String? body,
+    String messageType = 'TEXT',
+    String? stickerId,
   }) async {
     final response = await _dio.post('/football/chat/messages', data: {
-      'body': body,
+      if (body != null && body.isNotEmpty) 'body': body,
+      if (messageType != 'TEXT') 'messageType': messageType,
+      if (stickerId != null && stickerId.isNotEmpty) 'stickerId': stickerId,
       'context': ?context.wire,
       if (clientMessageId != null && clientMessageId.isNotEmpty)
         'clientMessageId': clientMessageId,
@@ -230,6 +365,60 @@ class FootballChatService {
     } catch (_) {
       return ReportSubmitResult.failure(garraReportFallbackError);
     }
+  }
+
+  Future<FootballChatReactionsResult> reactToMessage(
+    String messageId,
+    ReactionType type,
+  ) async {
+    final response = await _dio.put(
+      '/football/chat/messages/$messageId/reaction',
+      data: {'reactionType': type.apiValue},
+    );
+    final data = response.data is Map ? (response.data as Map)['data'] : null;
+    if (data is! Map<String, dynamic>) {
+      throw const FormatException('Chat Futbolero: unexpected reaction envelope');
+    }
+    return FootballChatReactionsResult.fromJson(data);
+  }
+
+  Future<FootballChatReactionsResult> removeMessageReaction(String messageId) async {
+    final response = await _dio.delete('/football/chat/messages/$messageId/reaction');
+    final data = response.data is Map ? (response.data as Map)['data'] : null;
+    if (data is! Map<String, dynamic>) {
+      throw const FormatException('Chat Futbolero: unexpected reaction envelope');
+    }
+    return FootballChatReactionsResult.fromJson(data);
+  }
+
+  Future<FootballChatStickerCatalog> stickerCatalog() async {
+    final response = await _dio.get('/football/chat/stickers');
+    final data = response.data is Map ? (response.data as Map)['data'] : null;
+    if (data is! Map<String, dynamic>) {
+      throw const FormatException('Chat Futbolero: unexpected sticker catalog');
+    }
+    return FootballChatStickerCatalog.fromJson(data);
+  }
+
+  Future<List<FootballChatSticker>> stickerFavorites() async {
+    final response = await _dio.get('/football/chat/stickers/favorites');
+    return _parseStickerList(response.data);
+  }
+
+  Future<List<FootballChatSticker>> addStickerFavorite(String stickerId) async {
+    final response = await _dio.put('/football/chat/stickers/favorites/$stickerId');
+    return _parseStickerList(response.data);
+  }
+
+  Future<List<FootballChatSticker>> removeStickerFavorite(String stickerId) async {
+    final response = await _dio.delete('/football/chat/stickers/favorites/$stickerId');
+    return _parseStickerList(response.data);
+  }
+
+  List<FootballChatSticker> _parseStickerList(dynamic envelope) {
+    final data = envelope is Map ? envelope['data'] : null;
+    if (data is! Map<String, dynamic>) return const [];
+    return FootballChatStickerCatalog.fromJson(data).items;
   }
 
   Future<ReportSubmitResult> deleteMessage(String messageId) async {
