@@ -134,9 +134,12 @@ class _FootballChatStickerSheetState extends State<_FootballChatStickerSheet> {
                 child: GridView.builder(
                   key: const Key('football_chat_sticker_grid'),
                   shrinkWrap: true,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4,
-                    mainAxisExtent: 92,
+                  // PRODUCT-07B: responsive square cells (~72-80 dp) -> 4 columns at 360 dp, more on wider screens.
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 80,
+                    mainAxisSpacing: 6,
+                    crossAxisSpacing: 6,
+                    childAspectRatio: 1,
                   ),
                   itemCount: _visible.length,
                   itemBuilder: (_, i) {
@@ -160,9 +163,13 @@ class _FootballChatStickerSheetState extends State<_FootballChatStickerSheet> {
                           child: IconButton(
                             key: Key('football_chat_sticker_fav_${sticker.id}'),
                             visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+                            // Keep the star hit area at 28 dp so it never steals taps from the sticker cell.
+                            style: IconButton.styleFrom(tapTargetSize: MaterialTapTargetSize.shrinkWrap),
                             icon: Icon(
                               fav ? Icons.star : Icons.star_border,
-                              size: 20,
+                              size: 16,
                               color: fav ? Colors.amber : null,
                             ),
                             tooltip: fav ? 'Quitar de favoritos' : 'Agregar a favoritos',
@@ -202,30 +209,27 @@ class _StickerTile extends StatelessWidget {
   final FootballChatSticker sticker;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-        label: 'Sticker ${sticker.name}',
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              GarraStickerImage(
+  Widget build(BuildContext context) => Tooltip(
+        // PRODUCT-07B: no visible label; the name stays in tooltip + semantics.
+        message: sticker.name,
+        child: Semantics(
+          label: 'Sticker ${sticker.name}',
+          button: true,
+          excludeSemantics: true,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: GarraStickerImage(
                 id: sticker.id,
                 assetKey: sticker.assetKey,
                 glyph: sticker.glyph,
                 size: 56,
                 thumb: true,
               ),
-              Text(
-                sticker.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelSmall,
-              ),
-            ],
+            ),
           ),
         ),
       );

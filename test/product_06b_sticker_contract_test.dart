@@ -110,7 +110,8 @@ void main() {
       final img = t.widget<GarraCachedNetworkImage>(find.byType(GarraCachedNetworkImage));
       expect(img.imageUrl, 'https://cdn.example.invalid/garra/stickers/v1/thumbs/garra_jajaja_xd.webp');
       expect((img.errorWidget!.key as ValueKey).value, 'garra-sticker-fallback-garra_jajaja_xd');
-      expect((img.placeholder!.key as ValueKey).value, 'garra-sticker-fallback-garra_jajaja_xd');
+      // PRODUCT-07B: loading placeholder is a neutral box; the glyph is only the error/no-CDN fallback.
+      expect((img.placeholder!.key as ValueKey).value, 'garra-sticker-loading-garra_jajaja_xd');
       expect(img.memCacheWidth, lessThanOrEqualTo(128));
     });
     testWidgets('unknown server sticker (null assetKey) renders glyph', (t) async {

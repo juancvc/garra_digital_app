@@ -26,6 +26,7 @@ import 'football_chat_quick_emojis.dart';
 import 'football_chat_report_sheet.dart';
 import 'football_chat_sticker_panel.dart';
 import '../../../core/stickers/garra_sticker_assets.dart';
+import '../../../core/stickers/garra_sticker_preloader.dart';
 import '../../../core/widgets/garra_stickers.dart';
 
 final footballChatServiceProvider =
@@ -125,7 +126,37 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _load();
+      if (mounted) _warmStickers();
     });
+  }
+
+  /// PRODUCT-07B: sticker catalog + CDN config fetched once per room (shared future), early and
+  /// non-blocking, instead of lazily when the panel opens.
+  Future<FootballChatStickerCatalog>? _stickerCatalogFuture;
+
+  Future<FootballChatStickerCatalog> _loadStickerCatalog() =>
+      _stickerCatalogFuture ??= () async {
+        try {
+          await GarraStickerAssets.ensureRemoteConfig();
+          return await ref.read(footballChatServiceProvider).stickerCatalog();
+        } catch (_) {
+          _stickerCatalogFuture = null; // allow a later retry (e.g. panel open)
+          rethrow;
+        }
+      }();
+
+  void _warmStickers() {
+    final hadBase = GarraStickerAssets.baseUrl != null;
+    unawaited(_loadStickerCatalog().then((catalog) {
+      if (!mounted) return;
+      // CDN base may have just arrived: rebuild so already-rendered stickers switch from glyph to image.
+      if (!hadBase && GarraStickerAssets.baseUrl != null) setState(() {});
+      // Bounded, deduped 128px thumbnail warm-up (sequential, max 16); never the 512 pack.
+      unawaited(GarraStickerPreloader.warmThumbs(
+        context,
+        catalog.items.map((s) => s.assetKey),
+      ));
+    }, onError: (Object _) {}));
   }
 
   @override
@@ -1161,6 +1192,9 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
 
   bool get _cremaChat => widget.surface == FootballChatSurface.community;
 
+  /// PRODUCT-07B: Comunidad Crema colors follow the app theme (dark keeps the previous look).
+  _CremaPalette get _pal => _CremaPalette.of(context);
+
   Widget _emptyCard(TextTheme text) {
     if (_cremaChat) {
       return Container(
@@ -1168,9 +1202,9 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
         margin: const EdgeInsets.only(top: 12),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xCC1A1214),
+          color: _pal.card,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0x55C7A45B)),
+          border: Border.all(color: _pal.cardBorder),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1178,14 +1212,14 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
             Text(
               'Empieza la conversación crema',
               style: text.titleSmall?.copyWith(
-                color: const Color(0xFFF3E9D2),
+                color: _pal.text,
                 fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               'Sé el primero en dejar tu arenga para la U.',
-              style: text.bodySmall?.copyWith(color: const Color(0xFFD3C5B0)),
+              style: text.bodySmall?.copyWith(color: _pal.textSoft),
             ),
           ],
         ),
@@ -1238,7 +1272,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
             : rawToken != null
                 ? 'Sticker: ${rawToken.label}'
                 : reply.preview;
-    final border = mine ? const Color(0x66C7A45B) : const Color(0x44C7A45B);
+    final border = mine ? _pal.ownBorder : _pal.otherBorder;
     return Container(
       key: ValueKey('chat_quote_${reply.id}'),
       width: double.infinity,
@@ -1265,7 +1299,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
             overflow: TextOverflow.ellipsis,
             style: text.labelSmall?.copyWith(
               fontWeight: FontWeight.w800,
-              color: _cremaChat ? const Color(0xFFC7A45B) : null,
+              color: _cremaChat ? _pal.quoteName(mine) : null,
             ),
           ),
           Text(
@@ -1273,7 +1307,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: text.bodySmall?.copyWith(
-              color: _cremaChat ? const Color(0xFFD3C5B0) : null,
+              color: _cremaChat ? _pal.quoteText(mine) : null,
             ),
           ),
         ],
@@ -1301,7 +1335,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     final glyph = (sticker?.glyph.isNotEmpty ?? false) ? sticker!.glyph : body;
     final label = (sticker?.name.isNotEmpty ?? false) ? sticker!.name : 'Sticker';
     final meta = _cremaChat
-        ? const Color(0xFF9A8B7A)
+        ? _pal.meta
         : Theme.of(context).colorScheme.onSurfaceVariant;
     return Opacity(
       key: key,
@@ -1331,7 +1365,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: text.labelMedium?.copyWith(
-                            color: _cremaChat ? const Color(0xFFC7A45B) : null,
+                            color: _cremaChat ? _pal.gold : null,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -1408,16 +1442,16 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     final messageChild = Text(
             body,
             style: text.bodyMedium?.copyWith(
-              color: _cremaChat ? const Color(0xFFF3E9D2) : null,
+              color: _cremaChat ? _pal.bubbleText(mine) : null,
               height: 1.25,
             ),
           );
     if (_cremaChat) {
       final align = mine ? CrossAxisAlignment.end : CrossAxisAlignment.start;
       final bubbleColor =
-          mine ? const Color(0xFF6E2A35) : const Color(0xE6221A1C);
+          mine ? _pal.ownBubble : _pal.otherBubble;
       final borderColor =
-          mine ? const Color(0x88C7A45B) : const Color(0x44C7A45B);
+          mine ? _pal.ownBorder : _pal.otherBorder;
       return Opacity(
         key: key,
         opacity: opacity,
@@ -1449,7 +1483,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: text.labelSmall?.copyWith(
-                                    color: const Color(0xFFC7A45B),
+                                    color: _pal.gold,
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
@@ -1460,7 +1494,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                               Text(
                                 time,
                                 style: text.labelSmall?.copyWith(
-                                  color: const Color(0xFF9A8B7A),
+                                  color: _pal.meta,
                                   fontSize: 10,
                                 ),
                               ),
@@ -1485,7 +1519,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                         children: [
                           _quotedReply(replyTo, text, mine: mine),
                           DefaultTextStyle(
-                            style: text.bodyMedium!.copyWith(color: const Color(0xFFF3E9D2)),
+                            style: text.bodyMedium!.copyWith(color: _pal.bubbleText(mine)),
                             child: messageChild,
                           ),
                         ],
@@ -1497,7 +1531,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                         child: Text(
                           time,
                           style: text.labelSmall?.copyWith(
-                            color: const Color(0xFF9A8B7A),
+                            color: _pal.meta,
                             fontSize: 10,
                           ),
                         ),
@@ -1636,7 +1670,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
         Icons.more_vert,
         size: 18,
         color: _cremaChat
-            ? const Color(0xFF9A8B7A)
+            ? _pal.meta
             : Theme.of(context).colorScheme.onSurfaceVariant,
       ),
       tooltip: 'Acciones del mensaje',
@@ -1741,10 +1775,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
     final chat = ref.read(footballChatServiceProvider);
     final picked = await showFootballChatStickerPanel(
       context,
-      loadCatalog: () async {
-        await GarraStickerAssets.ensureRemoteConfig();
-        return chat.stickerCatalog();
-      },
+      loadCatalog: _loadStickerCatalog,
       loadFavorites: chat.stickerFavorites,
       toggleFavorite: (id) async {
         final favs = await chat.stickerFavorites();
@@ -1772,7 +1803,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                 child: Text(
                   'Podrás escribir cuando el chat cargue.',
                   style: text.bodySmall?.copyWith(
-                    color: crema ? const Color(0xFFD3C5B0) : null,
+                    color: crema ? _pal.textSoft : null,
                   ),
                 ),
               ),
@@ -1815,7 +1846,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                           }),
                   icon: Icon(
                     Icons.emoji_emotions_outlined,
-                    color: crema ? const Color(0xFFC7A45B) : null,
+                    color: crema ? _pal.gold : null,
                   ),
                 ),
                 IconButton(
@@ -1824,7 +1855,7 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                   onPressed: blocked || _sending ? null : _openStickerPanel,
                   icon: Icon(
                     Icons.sticky_note_2_outlined,
-                    color: crema ? const Color(0xFFC7A45B) : null,
+                    color: crema ? _pal.gold : null,
                   ),
                 ),
                 Expanded(
@@ -1837,32 +1868,32 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                     minLines: 1,
                     maxLines: 3,
                     textInputAction: TextInputAction.send,
-                    style: crema ? const TextStyle(color: Color(0xFFF3E9D2)) : null,
+                    style: crema ? TextStyle(color: _pal.text) : null,
                     decoration: InputDecoration(
                       hintText: 'Escribe tu arenga...',
                       hintStyle: crema
-                          ? const TextStyle(color: Color(0xFF8A7A6A))
+                          ? TextStyle(color: _pal.hint)
                           : null,
                       counterText: '',
                       filled: crema,
-                      fillColor: crema ? const Color(0xCC221A1C) : null,
+                      fillColor: crema ? _pal.inputFill : null,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                         borderSide: BorderSide(
-                          color: crema ? const Color(0x55C7A45B) : const Color(0xFF79747E),
+                          color: crema ? _pal.inputBorder : Theme.of(context).colorScheme.outline,
                         ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                         borderSide: BorderSide(
-                          color: crema ? const Color(0x55C7A45B) : const Color(0xFF79747E),
+                          color: crema ? _pal.inputBorder : Theme.of(context).colorScheme.outline,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                         borderSide: BorderSide(
-                          color: crema ? const Color(0xFFC7A45B) : Theme.of(context).colorScheme.primary,
+                          color: crema ? _pal.gold : Theme.of(context).colorScheme.primary,
                           width: 1.4,
                         ),
                       ),
@@ -1875,8 +1906,8 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
                   key: const ValueKey('chat_send'),
                   style: crema
                       ? IconButton.styleFrom(
-                          backgroundColor: const Color(0xFFC7A45B),
-                          foregroundColor: const Color(0xFF211416),
+                          backgroundColor: _pal.sendBg,
+                          foregroundColor: _pal.sendFg,
                         )
                       : null,
                   onPressed: blocked || _sending ? null : () => _send(),
@@ -1894,6 +1925,103 @@ class _FootballChatRoomViewState extends ConsumerState<FootballChatRoomView>
       ),
     );
   }
+}
+
+/// PRODUCT-07B: Comunidad Crema palette per theme brightness. `dark` = the original colors;
+/// `light` keeps the guinda/gold identity with readable contrast on light backgrounds.
+class _CremaPalette {
+  const _CremaPalette({
+    required this.card,
+    required this.cardBorder,
+    required this.text,
+    required this.textSoft,
+    required this.gold,
+    required this.meta,
+    required this.ownBubble,
+    required this.otherBubble,
+    required this.ownBorder,
+    required this.otherBorder,
+    required this.ownText,
+    required this.otherText,
+    required this.ownQuoteName,
+    required this.ownQuoteText,
+    required this.hint,
+    required this.inputFill,
+    required this.inputBorder,
+    required this.sendBg,
+    required this.sendFg,
+  });
+
+  final Color card;
+  final Color cardBorder;
+  final Color text;
+  final Color textSoft;
+  final Color gold;
+  final Color meta;
+  final Color ownBubble;
+  final Color otherBubble;
+  final Color ownBorder;
+  final Color otherBorder;
+  final Color ownText;
+  final Color otherText;
+  final Color ownQuoteName;
+  final Color ownQuoteText;
+  final Color hint;
+  final Color inputFill;
+  final Color inputBorder;
+  final Color sendBg;
+  final Color sendFg;
+
+  Color bubbleText(bool mine) => mine ? ownText : otherText;
+  Color quoteName(bool mine) => mine ? ownQuoteName : gold;
+  Color quoteText(bool mine) => mine ? ownQuoteText : textSoft;
+
+  static const dark = _CremaPalette(
+    card: Color(0xCC1A1214),
+    cardBorder: Color(0x55C7A45B),
+    text: Color(0xFFF3E9D2),
+    textSoft: Color(0xFFD3C5B0),
+    gold: Color(0xFFC7A45B),
+    meta: Color(0xFF9A8B7A),
+    ownBubble: Color(0xFF6E2A35),
+    otherBubble: Color(0xE6221A1C),
+    ownBorder: Color(0x88C7A45B),
+    otherBorder: Color(0x44C7A45B),
+    ownText: Color(0xFFF3E9D2),
+    otherText: Color(0xFFF3E9D2),
+    ownQuoteName: Color(0xFFC7A45B),
+    ownQuoteText: Color(0xFFD3C5B0),
+    hint: Color(0xFF8A7A6A),
+    inputFill: Color(0xCC221A1C),
+    inputBorder: Color(0x55C7A45B),
+    sendBg: Color(0xFFC7A45B),
+    sendFg: Color(0xFF211416),
+  );
+
+  static const light = _CremaPalette(
+    card: Color(0xFFFBF6EC),
+    cardBorder: Color(0x668A6A1F),
+    text: Color(0xFF2A1A1C),
+    textSoft: Color(0xFF5B4B42),
+    gold: Color(0xFF7A5A12),
+    meta: Color(0xFF6B5E54),
+    ownBubble: Color(0xFF7C0211),
+    otherBubble: Color(0xFFFFFFFF),
+    ownBorder: Color(0x667C0211),
+    otherBorder: Color(0x338A6A1F),
+    ownText: Color(0xFFFFF8EC),
+    otherText: Color(0xFF2A1A1C),
+    ownQuoteName: Color(0xFFF3D9A0),
+    ownQuoteText: Color(0xFFF1E4D2),
+    hint: Color(0xFF7D6F64),
+    inputFill: Color(0xFFFFFFFF),
+    inputBorder: Color(0x668A6A1F),
+    sendBg: Color(0xFF7C0211),
+    sendFg: Color(0xFFFFFFFF),
+  );
+
+  static _CremaPalette of(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? dark : light;
 }
 
 /// SONIC_06 sports moment inside a MATCH room: read-only system card.

@@ -124,7 +124,13 @@ class GarraStickerImage extends StatelessWidget {
         width: size,
         height: size,
         memCacheWidth: (size * dpr).round().clamp(64, thumb ? 128 : 512),
-        placeholder: fallback,
+        // PRODUCT-07B: while downloading show a neutral empty box (no glyph flash);
+        // the glyph is reserved for real errors / no CDN.
+        placeholder: SizedBox(
+          key: Key('garra-sticker-loading-$id'),
+          width: size,
+          height: size,
+        ),
         errorWidget: fallback,
       ),
     );
