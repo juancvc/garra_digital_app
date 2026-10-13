@@ -160,22 +160,18 @@ class GarraCommentTile extends StatelessWidget {
                   ) ?? const TextStyle(),
                 ),
                 const SizedBox(height: 2),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Wrap(
+                  spacing: GarraSpacing.sm,
+                  runSpacing: 2,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Flexible(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Flexible(
-                            child: _CommentReactButton(
+                    _CommentReactButton(
                               commentId: comment.id,
                               myReaction: comment.myReaction,
                               onPressed: reacting ? null : onReact,
                               onLongPress: reacting ? null : onChangeReaction,
                             ),
-                          ),
-                          if (onReply != null)
+                    if (onReply != null)
                             InkWell(
                               key: ValueKey('comment_reply_${comment.id}'),
                               onTap: onReply,
@@ -200,10 +196,6 @@ class GarraCommentTile extends StatelessWidget {
                                 ),
                               ),
                             ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: GarraSpacing.sm),
                     InkWell(
                       key: ValueKey('comment_reactors_${comment.id}'),
                       onTap: comment.reactionCount > 0

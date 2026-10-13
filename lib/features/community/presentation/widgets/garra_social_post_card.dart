@@ -55,6 +55,8 @@ class GarraSocialPostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final engagement = post.originalPost?.asPost() ?? post;
+    final hasMedia = engagement.media.isNotEmpty ||
+        engagement.imageUrl?.isNotEmpty == true;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -139,7 +141,7 @@ class GarraSocialPostCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (onSave != null)
+                  if (onSave != null && MediaQuery.sizeOf(context).width >= 320)
                     IconButton(
                       tooltip: post.savedByMe ? 'Quitar guardado' : 'Guardar',
                       onPressed: () {
@@ -178,6 +180,11 @@ class GarraSocialPostCard extends StatelessWidget {
                         ];
                       }
                       return [
+                        if (onSave != null)
+                          PopupMenuItem(
+                            value: 'save',
+                            child: Text(post.savedByMe ? 'Quitar guardado' : 'Guardar'),
+                          ),
                         if (onOpenProfile != null)
                           const PopupMenuItem(
                             value: 'profile',
@@ -202,7 +209,7 @@ class GarraSocialPostCard extends StatelessWidget {
               if (post.originalPost case final original?)
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 if (post.content.trim().isNotEmpty) ...[
-                  LinkedText(post.content, maxLines: 4,
+                  LinkedText(post.content, maxLines: 6,
                       mentions: post.mentions,
                       onOpenMention: (id) => context.push('/comunidad/u/$id'),
                       overflow: TextOverflow.ellipsis,
@@ -244,7 +251,7 @@ class GarraSocialPostCard extends StatelessWidget {
                         )),
                       ]),
                       const SizedBox(height: 8),
-                      LinkedText(original.content, maxLines: 4,
+                      LinkedText(original.content, maxLines: 6,
                           mentions: original.mentions,
                           onOpenMention: (id) => context.push('/comunidad/u/$id'),
                           overflow: TextOverflow.ellipsis,
@@ -266,7 +273,7 @@ class GarraSocialPostCard extends StatelessWidget {
                   ),
                 )])
               else ...[
-                LinkedText(post.content, maxLines: 4,
+                LinkedText(post.content, maxLines: hasMedia ? 6 : null,
                     mentions: post.mentions,
                     onOpenMention: (id) => context.push('/comunidad/u/$id'),
                     overflow: TextOverflow.ellipsis,
@@ -287,7 +294,9 @@ class GarraSocialPostCard extends StatelessWidget {
                 onReactions: engagement.reactionCount > 0
                     ? () => showGarraReactorsSheet(context, postId: engagement.id)
                     : null,
-                onComments: onOpenOriginal ?? onOpen,
+                onComments: onComment ?? onOpenOriginal ?? onOpen,
+                // RC2 behavior: the shares counter keeps opening the post (original for shares).
+                onShares: onOpenOriginal ?? onOpen,
               ),
               const SizedBox(height: GarraSpacing.xs),
               Row(children: [
@@ -323,11 +332,12 @@ class GarraSocialPostCard extends StatelessWidget {
 }
 
 class _PostEngagementSummary extends StatelessWidget {
-  const _PostEngagementSummary({required this.post, this.onReactions, required this.onComments});
+  const _PostEngagementSummary({required this.post, this.onReactions, required this.onComments, required this.onShares});
 
   final WallPostModel post;
   final VoidCallback? onReactions;
   final VoidCallback onComments;
+  final VoidCallback onShares;
 
   @override
   Widget build(BuildContext context) {
@@ -335,30 +345,32 @@ class _PostEngagementSummary extends StatelessWidget {
     return LayoutBuilder(builder: (context, constraints) {
     final reactions = topNonZeroReactions(post.reactionSummary,
       limit: constraints.maxWidth < 310 ? 1 : 3);
-    return Row(children: [
-      Expanded(flex: 2, child: InkWell(
+    final compact = constraints.maxWidth < 310;
+    return Wrap(spacing: 10, runSpacing: 5, crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+      InkWell(
         key: const ValueKey('post_reaction_summary'),
         onTap: onReactions,
-        child: Row(children: [
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
           for (final reaction in reactions)
             Padding(padding: const EdgeInsets.only(right: 2),
               child: GarraReactionGlyph(apiValue: reaction.key, size: 15)),
           const SizedBox(width: 4),
-          Flexible(child: Text('${post.reactionCount}', style: style, overflow: TextOverflow.ellipsis)),
+          Text('${post.reactionCount}', style: style),
         ]),
-      )),
-      Expanded(flex: 3, child: InkWell(
+      ),
+      InkWell(
+        key: const ValueKey('post_comments_counter'),
         onTap: onComments,
-        child: LayoutBuilder(builder: (_, width) {
-          final compact = width.maxWidth < 175;
-          return Wrap(alignment: WrapAlignment.end, spacing: 4, children: [
-            Text(compact ? '${post.commentCount} com.' :
-              '${post.commentCount} ${post.commentCount == 1 ? 'comentario' : 'comentarios'}', style: style),
-            Text(compact ? '· ${post.shareCount} comp.' :
-              '· ${post.shareCount} ${post.shareCount == 1 ? 'compartido' : 'compartidos'}', style: style),
-          ]);
-        }),
-      )),
+        child: Text(compact ? '${post.commentCount} com.' :
+            '${post.commentCount} ${post.commentCount == 1 ? 'comentario' : 'comentarios'}', style: style),
+      ),
+      InkWell(
+        key: const ValueKey('post_shares_counter'),
+        onTap: onShares,
+        child: Text(compact ? '· ${post.shareCount} comp.' :
+            '· ${post.shareCount} ${post.shareCount == 1 ? 'compartido' : 'compartidos'}', style: style),
+      ),
       if (post.viewCount > 0) ...[
         const SizedBox(width: 6),
         Row(key: const ValueKey('post_view_count'), mainAxisSize: MainAxisSize.min,

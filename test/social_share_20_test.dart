@@ -112,6 +112,34 @@ void main() {
     expect(opened, 1);
   });
 
+  testWidgets('PRODUCT-11A.4A: comments counter and Comentar open comments; shares counter and content open the post', (tester) async {
+    var reacted = 0, commented = 0, shared = 0, opened = 0;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: GarraSocialPostCard(
+      post: _original, onOpen: () => opened++, onReact: () => reacted++,
+      onComment: () => commented++, onShare: () => shared++))));
+    await tester.tap(find.byKey(const ValueKey('post_comments_counter')));
+    expect((commented, opened), (1, 0));
+    await tester.tap(find.text('Comentar'));
+    expect((commented, opened), (2, 0));
+    await tester.tap(find.byKey(const ValueKey('post_shares_counter')));
+    expect((commented, opened), (2, 1));
+    await tester.tap(find.text('Vamos la U'));
+    expect((commented, opened), (2, 2));
+    expect((reacted, shared), (0, 0));
+  });
+
+  testWidgets('PRODUCT-11A.4A: shares counter of a share opens the original post, not comments', (tester) async {
+    var commented = 0, opened = 0, openedOriginal = 0;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: ListView(children: [GarraSocialPostCard(
+      post: _share, onOpen: () => opened++, onReact: () {}, onShare: () {},
+      onComment: () => commented++, onOpenOriginal: () => openedOriginal++)]))));
+    await tester.ensureVisible(find.byKey(const ValueKey('post_shares_counter')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('post_shares_counter')));
+    expect((commented, opened, openedOriginal), (0, 0, 1));
+    await tester.tap(find.byKey(const ValueKey('post_comments_counter')));
+    expect((commented, opened, openedOriginal), (1, 0, 1));
+  });
   testWidgets('share card distinguishes authors and opens original', (tester) async {
     var opened = 0;
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: SingleChildScrollView(

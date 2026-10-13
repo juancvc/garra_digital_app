@@ -71,7 +71,7 @@ class _HomeFeaturedMatchCardState extends ConsumerState<HomeFeaturedMatchCard> {
         container: true,
         child: Padding(
           key: const ValueKey('home_featured_match'),
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
+          padding: const EdgeInsets.fromLTRB(12, 10, 8, 2),
           child: inner,
         ),
       );
@@ -163,7 +163,7 @@ class _HomeFeaturedMatchCardState extends ConsumerState<HomeFeaturedMatchCard> {
     final center = showScore ? '${match.homeScore} - ${match.awayScore}' : 'VS';
     final countdown = confirmedSchedule ? homeMatchCountdown(match, now: instant) : null;
     final canOpen = match.id > 0 && match.competitionId.isNotEmpty;
-    final crestSize = widget.embedded ? 32.0 : 44.0;
+    final crestSize = widget.embedded ? 28.0 : 44.0;
     final scheduleLine = confirmedSchedule
         ? footballKickoffLine(match)
         : (!isLive && !isFinished)
@@ -174,7 +174,7 @@ class _HomeFeaturedMatchCardState extends ConsumerState<HomeFeaturedMatchCard> {
                     : 'Horario por confirmar')
             : null;
     final metaTail = [
-      if (countdown != null) countdown,
+      ?countdown,
       if (envelopeStale && confirmedSchedule) 'Actualizando',
     ].join(' · ');
 
@@ -289,6 +289,9 @@ class _HomeFeaturedMatchCardState extends ConsumerState<HomeFeaturedMatchCard> {
     ]);
   }
 
+  /// PRODUCT-10A.2D: compact Home variant. One status (the pill), one
+  /// competition line, teams side by side, a single schedule line with the
+  /// existing Lima-time rule, and the detail action on the same row.
   Widget _embeddedMatchContent(
     BuildContext context, {
     required FootballMatch match,
@@ -304,15 +307,43 @@ class _HomeFeaturedMatchCardState extends ConsumerState<HomeFeaturedMatchCard> {
     required bool canOpen,
     required double crestSize,
   }) {
-    final pill = today ? 'Por jugar' : status;
-    final centerPrimary = showScore
-        ? center
-        : (scheduleLine != null && scheduleLine.isNotEmpty)
-            ? _compactSchedulePrimary(scheduleLine)
-            : center;
-    final centerSecondary = showScore
-        ? (isLive ? (match.liveMinuteLabel ?? 'En vivo') : status)
-        : (scheduleLine != null && !showScore ? _compactScheduleSecondary(scheduleLine) : '');
+    final schedule = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (scheduleLine != null)
+          Text(scheduleLine, maxLines: 2, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: _cream, fontSize: 11,
+              fontWeight: FontWeight.w700, height: 1.2)),
+        if (metaTail.isNotEmpty)
+          Text(metaTail, key: const ValueKey('home_match_countdown'),
+            maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: _gold, fontSize: 10,
+              fontWeight: FontWeight.w700, height: 1.3)),
+      ],
+    );
+    final open = canOpen
+        ? TextButton.icon(
+            key: const ValueKey('home_featured_open'),
+            onPressed: () => context.push(
+              '/centro-garra/partido/${match.id}'
+              '?competition=${Uri.encodeQueryComponent(match.competitionId)}',
+              extra: match,
+            ),
+            style: TextButton.styleFrom(
+              foregroundColor: _gold,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              minimumSize: const Size(48, 40),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            ),
+            iconAlignment: IconAlignment.end,
+            icon: const Icon(Icons.chevron_right_rounded, size: 18),
+            label: const Text('Detalles del partido', maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+          )
+        : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -320,109 +351,117 @@ class _HomeFeaturedMatchCardState extends ConsumerState<HomeFeaturedMatchCard> {
       children: [
         Row(
           children: [
-            const _Eyebrow('FIJADO'),
-            const SizedBox(width: 8),
-            const Spacer(),
-            Flexible(child: _StatusPill(status: pill, live: isLive)),
-          ],
-        ),
-        if (competition.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(competition, maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: _muted, fontSize: 10, fontWeight: FontWeight.w600)),
-          ),
-        const SizedBox(height: 6),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            FootballTeamCrest(name: match.home, url: match.homeCrestUrl, size: crestSize),
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Column(
-                  children: [
-                    Text(
-                      centerPrimary,
-                      key: const ValueKey('home_match_center'),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: _cream,
-                        fontSize: showScore ? 18 : 13,
-                        fontWeight: FontWeight.w900,
-                        height: 1.15,
-                      ),
-                    ),
-                    if (centerSecondary.isNotEmpty)
-                      Text(
-                        centerSecondary,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: _muted,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          height: 1.2,
-                        ),
-                      ),
-                    if (metaTail.isNotEmpty)
-                      Text(
-                        metaTail,
-                        key: const ValueKey('home_match_countdown'),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: _gold, fontSize: 10, fontWeight: FontWeight.w700),
-                      ),
-                  ],
-                ),
+              child: Text(
+                competition.isEmpty ? 'Centro Garra' : competition,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: _muted, fontSize: 10,
+                  fontWeight: FontWeight.w700, letterSpacing: 0.3),
               ),
             ),
-            FootballTeamCrest(name: match.away, url: match.awayCrestUrl, size: crestSize),
+            const SizedBox(width: 8),
+            Flexible(child: _StatusPill(status: status, live: isLive)),
           ],
         ),
-        if (canOpen)
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              key: const ValueKey('home_featured_open'),
-              onPressed: () => context.push(
-                '/centro-garra/partido/${match.id}'
-                '?competition=${Uri.encodeQueryComponent(match.competitionId)}',
-                extra: match,
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(child: _InlineTeam(name: match.home,
+              crest: match.homeCrestUrl, size: crestSize)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    center,
+                    key: const ValueKey('home_match_center'),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    style: TextStyle(
+                      color: showScore ? _cream : _gold,
+                      fontSize: showScore ? 18 : 13,
+                      fontWeight: FontWeight.w900,
+                      height: 1.1,
+                    ),
+                  ),
+                  if (isLive && match.liveMinuteLabel != null)
+                    Text(
+                      match.liveMinuteLabel!,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      style: const TextStyle(color: _gold, fontSize: 10,
+                        fontWeight: FontWeight.w800),
+                    ),
+                ],
               ),
-              style: TextButton.styleFrom(
-                foregroundColor: _gold,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                minimumSize: const Size(0, 30),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
-              ),
-              icon: const Icon(Icons.chevron_right_rounded, size: 18),
-              label: const Text('Detalles del partido', style: TextStyle(fontWeight: FontWeight.w800)),
             ),
-          ),
+            Expanded(child: _InlineTeam(name: match.away,
+              crest: match.awayCrestUrl, size: crestSize, alignEnd: true)),
+          ],
+        ),
+        if (scheduleLine != null || metaTail.isNotEmpty || open != null)
+          const SizedBox(height: 6),
+        LayoutBuilder(builder: (context, constraints) {
+          final stacked = constraints.maxWidth < 300 ||
+              MediaQuery.textScalerOf(context).scale(1) > 1.15;
+          if (open == null) return schedule;
+          if (stacked) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                schedule,
+                Align(alignment: Alignment.centerRight, child: open),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: schedule),
+              const SizedBox(width: 4),
+              open,
+            ],
+          );
+        }),
       ],
     );
   }
 }
 
-String _compactSchedulePrimary(String line) {
-  final clock = RegExp(r'\d{1,2}:\d{2}').firstMatch(line);
-  if (clock != null) return line.substring(clock.start).trim();
-  return line.split('·').first.trim();
-}
+class _InlineTeam extends StatelessWidget {
+  const _InlineTeam({
+    required this.name,
+    required this.crest,
+    required this.size,
+    this.alignEnd = false,
+  });
+  final String name;
+  final String? crest;
+  final double size;
+  final bool alignEnd;
 
-String _compactScheduleSecondary(String line) {
-  final parts = line.split('·').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
-  if (parts.length >= 2) {
-    return parts.first;
+  @override
+  Widget build(BuildContext context) {
+    final label = Flexible(
+      child: Text(
+        name,
+        textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(color: _cream, fontSize: 12,
+          fontWeight: FontWeight.w800, height: 1.1),
+      ),
+    );
+    final logo = FootballTeamCrest(name: name, url: crest, size: size);
+    return Row(
+      mainAxisAlignment: alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
+      children: alignEnd
+          ? [label, const SizedBox(width: 6), logo]
+          : [logo, const SizedBox(width: 6), label],
+    );
   }
-  return '';
 }
 
 class _Eyebrow extends StatelessWidget {
@@ -514,13 +553,21 @@ bool _sameLimaDay(DateTime kickoff, DateTime now) {
   return kickoff.year == lima.year && kickoff.month == lima.month && kickoff.day == lima.day;
 }
 
-/// Calculated on build; no timer or provider polling is added.
-String? homeMatchCountdown(FootballMatch match, {required DateTime now}) {
+/// Absolute instant of a confirmed scheduled kickoff (`kickoff` is Lima wall
+/// clock, UTC-5), or null when the schedule is not confirmed. Shared by the
+/// Home countdown line and the match-detail countdown (PRODUCT-10A.2E).
+DateTime? footballConfirmedKickoffUtc(FootballMatch match) {
   final kickoff = match.kickoff;
   if (!match.isScheduled || match.kickoffConfirmed != true || kickoff == null) return null;
-  final utcKickoff = DateTime.utc(kickoff.year, kickoff.month, kickoff.day, kickoff.hour,
+  return DateTime.utc(kickoff.year, kickoff.month, kickoff.day, kickoff.hour,
           kickoff.minute)
       .add(const Duration(hours: 5));
+}
+
+/// Calculated on build; no timer or provider polling is added.
+String? homeMatchCountdown(FootballMatch match, {required DateTime now}) {
+  final utcKickoff = footballConfirmedKickoffUtc(match);
+  if (utcKickoff == null) return null;
   final remaining = utcKickoff.difference(now.toUtc());
   if (remaining <= Duration.zero) return null;
   final hours = remaining.inHours;

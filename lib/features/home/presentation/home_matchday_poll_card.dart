@@ -28,6 +28,8 @@ class _HomeMatchdayPollCardState extends ConsumerState<HomeMatchdayPollCard> {
   HomeMatchdayPoll? _submitted;
   bool _changing = false;
   bool _voting = false;
+  /// PRODUCT-10A.2D: options stay collapsed until the fan asks for them.
+  bool _expanded = false;
   String? _error;
 
   @override
@@ -36,6 +38,7 @@ class _HomeMatchdayPollCardState extends ConsumerState<HomeMatchdayPollCard> {
     if (_matchKey(oldWidget.featured) != _matchKey(widget.featured)) {
       _submitted = null;
       _changing = false;
+      _expanded = false;
       _error = null;
     }
   }
@@ -78,76 +81,118 @@ class _HomeMatchdayPollCardState extends ConsumerState<HomeMatchdayPollCard> {
     }
     final showResults = (poll.selectedOptionId != null || !poll.isOpen) && !_changing;
     final compact = widget.embedded;
+    final canVote = poll.isOpen && poll.selectedOptionId == null;
+    final toggleLabel = _expanded
+        ? 'Ocultar'
+        : canVote
+            ? 'Votar'
+            : 'Ver resultados';
+    final toggleSemantics = _expanded
+        ? 'Ocultar opciones de la encuesta'
+        : canVote
+            ? 'Votar en la encuesta'
+            : 'Ver resultados de la encuesta';
     return _frame(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      if (!compact)
-        const Text('ENCUESTA MATCHDAY', style: TextStyle(
-            color: Color(0xFFC7A45B), fontSize: 10, fontWeight: FontWeight.w900,
-            letterSpacing: 1.1)),
-      if (!compact) const SizedBox(height: 6),
-      Text(
-        poll.question,
-        maxLines: compact ? 1 : 2,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: const Color(0xFFF3E9D2),
-          fontSize: compact ? 12 : 14,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      SizedBox(height: compact ? 6 : 8),
-      Wrap(
-        spacing: compact ? 4 : 6,
-        runSpacing: compact ? 4 : 6,
-        children: [
-          for (final option in poll.options)
-            _PollChip(
-              key: ValueKey('home_poll_option_${option.id}'),
-              label: option.label,
-              percentage: showResults ? option.percentage : null,
-              selected: option.id == poll.selectedOptionId,
-              enabled: poll.isOpen && !_voting && (!showResults || _changing),
-              compact: compact,
-              onTap: () => _vote(key, option.id),
-            ),
-        ],
-      ),
-      if (_voting) const LinearProgressIndicator(color: Color(0xFFC7A45B)),
-      if (_error != null) Text(_error!, style: const TextStyle(color: Color(0xFFFFB4AB))),
       Row(
         children: [
+          const Icon(Icons.poll_outlined, size: 16, color: Color(0xFFC7A45B)),
+          const SizedBox(width: 6),
           Expanded(
-            child: Text(
-              poll.totalVotes == 1 ? '1 hincha' : '${poll.totalVotes} hinchas',
-              style: TextStyle(color: const Color(0xFFD3C5B0), fontSize: compact ? 10 : 12),
+            child: Semantics(
+              label: 'Encuesta Matchday',
+              child: Text(
+                poll.question,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: const Color(0xFFF3E9D2),
+                  fontSize: compact ? 12 : 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
           ),
-          if (poll.isOpen && poll.selectedOptionId != null && !_changing)
-            TextButton(
+          const SizedBox(width: 4),
+          Semantics(
+            container: true,
+            button: true,
+            expanded: _expanded,
+            label: toggleSemantics,
+            excludeSemantics: true,
+            child: TextButton(
+              key: const ValueKey('home_poll_toggle'),
               style: TextButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                foregroundColor: const Color(0xFFC7A45B),
+                minimumSize: const Size(48, 48),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                visualDensity: VisualDensity.standard,
               ),
-              onPressed: _voting ? null : () => setState(() => _changing = true),
-              child: Text('Cambiar voto', style: TextStyle(fontSize: compact ? 11 : 14)),
+              onPressed: () => setState(() {
+                _expanded = !_expanded;
+                if (!_expanded) _changing = false;
+              }),
+              child: Text(toggleLabel, style: TextStyle(
+                  fontSize: compact ? 12 : 14, fontWeight: FontWeight.w800)),
             ),
-          if (showResults)
-            TextButton(
-              style: TextButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.only(left: 8),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              onPressed: _voting ? null : () {
-                setState(() => _submitted = null);
-                ref.invalidate(homeMatchdayPollProvider(key));
-              },
-              child: Text('Actualizar', style: TextStyle(fontSize: compact ? 11 : 14)),
-            ),
+          ),
         ],
       ),
+      if (_expanded) ...[
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: compact ? 4 : 6,
+          runSpacing: 0,
+          children: [
+            for (final option in poll.options)
+              _PollChip(
+                key: ValueKey('home_poll_option_${option.id}'),
+                label: option.label,
+                percentage: showResults ? option.percentage : null,
+                selected: option.id == poll.selectedOptionId,
+                enabled: poll.isOpen && !_voting && (!showResults || _changing),
+                compact: compact,
+                onTap: () => _vote(key, option.id),
+              ),
+          ],
+        ),
+        if (_voting) const LinearProgressIndicator(color: Color(0xFFC7A45B)),
+        if (_error != null) Text(_error!, style: const TextStyle(color: Color(0xFFFFB4AB))),
+        // Wrap (not Row) so the actions move to a new line on narrow widths.
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 4,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Text(
+                poll.totalVotes == 1 ? '1 hincha' : '${poll.totalVotes} hinchas',
+                style: TextStyle(color: const Color(0xFFD3C5B0), fontSize: compact ? 10 : 12),
+              ),
+            ),
+            if (poll.isOpen && poll.selectedOptionId != null && !_changing)
+              TextButton(
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(48, 48),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                onPressed: _voting ? null : () => setState(() => _changing = true),
+                child: Text('Cambiar voto', style: TextStyle(fontSize: compact ? 11 : 14)),
+              ),
+            if (showResults)
+              TextButton(
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(48, 48),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                onPressed: _voting ? null : () {
+                  setState(() => _submitted = null);
+                  ref.invalidate(homeMatchdayPollProvider(key));
+                },
+                child: Text('Actualizar', style: TextStyle(fontSize: compact ? 11 : 14)),
+              ),
+          ],
+        ),
+      ],
       if (!poll.isOpen) const Text('Votación cerrada',
           style: TextStyle(color: Color(0xFFD3C5B0), fontWeight: FontWeight.w700)),
     ]));
@@ -156,8 +201,16 @@ class _HomeMatchdayPollCardState extends ConsumerState<HomeMatchdayPollCard> {
   Widget _frame({required Widget child}) {
     if (widget.embedded) {
       return Padding(
-        padding: const EdgeInsets.fromLTRB(10, 2, 10, 8),
-        child: child,
+        padding: const EdgeInsets.fromLTRB(12, 0, 8, 4),
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            border: Border(top: BorderSide(color: Color(0x55C7A45B))),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: child,
+          ),
+        ),
       );
     }
     return Padding(
@@ -213,32 +266,50 @@ class _PollChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final border = selected ? const Color(0xFFC7A45B) : const Color(0x997B6A59);
     final text = percentage == null ? label : '$label · $percentage %';
-    return Material(
-      color: selected ? const Color(0x332A1218) : const Color(0x22191216),
-      borderRadius: BorderRadius.circular(99),
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(99),
-        child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? 8 : 10,
-            vertical: compact ? 5 : 8,
-          ),
-          decoration: BoxDecoration(
+    return Semantics(
+      container: true,
+      button: true,
+      enabled: enabled,
+      selected: selected,
+      label: percentage == null
+          ? label
+          : '$label, $percentage por ciento${selected ? ', tu voto' : ''}',
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Material(
+            color: selected ? const Color(0x332A1218) : const Color(0x22191216),
             borderRadius: BorderRadius.circular(99),
-            border: Border.all(color: border),
-          ),
-          child: Text(
-            text,
-            maxLines: compact ? 1 : 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: const Color(0xFFF3E9D2),
-              fontSize: compact ? 10 : 12,
-              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+            child: InkWell(
+              onTap: enabled ? onTap : null,
+              borderRadius: BorderRadius.circular(99),
+              child: Container(
+                constraints: const BoxConstraints(minHeight: 48),
+                padding: EdgeInsets.symmetric(
+                  horizontal: compact ? 10 : 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(99),
+                  border: Border.all(color: border),
+                ),
+                child: Center(
+                  widthFactor: 1,
+                  heightFactor: 1,
+                  child: Text(
+                    text,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: const Color(0xFFF3E9D2),
+                      fontSize: compact ? 11 : 12,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
       ),
     );
   }

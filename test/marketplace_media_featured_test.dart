@@ -97,6 +97,22 @@ class _FakeMarketplaceService extends MarketplaceService {
 }
 
 void main() {
+  testWidgets('seller entry scrolls with content and never overlays products',
+      (tester) async {
+    final fake = _FakeMarketplaceService(listings: [sampleListing()]);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [marketplaceServiceProvider.overrideWithValue(fake)],
+      child: MaterialApp(theme: AppTheme.darkTheme,
+          home: const MarketplacePage()),
+    ));
+    await tester.pumpAndSettle();
+    final entry = find.byKey(const ValueKey('marketplace_seller_entry'));
+    expect(entry, findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsNothing);
+    expect(find.ancestor(of: entry, matching: find.byType(ListView)),
+        findsOneWidget);
+  });
+
   testWidgets('FEATURED_LABEL_VISIBLE', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

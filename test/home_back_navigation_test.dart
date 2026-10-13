@@ -62,7 +62,10 @@ GoRouter _router() => GoRouter(
 );
 
 void main() {
-  for (final view in ['Para ti', 'Siguiendo', 'Partido']) {
+  // PRODUCT-10A.2D: 'Partido' ya no es una pestaña de Home (ahora 'Marketplace',
+  // que abre una ruta); la cobertura de Back de Marketplace está en
+  // product_10a2d_home_refinement_test.dart.
+  for (final view in ['Para ti', 'Siguiendo']) {
     testWidgets('Back scrolls visible Home $view to top without refresh', (tester) async {
       await tester.binding.setSurfaceSize(const Size(500, 600));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -83,9 +86,7 @@ void main() {
         await tester.tap(find.text(view));
         await tester.pumpAndSettle();
       }
-      final lists = view == 'Partido'
-          ? find.descendant(of: find.byType(HomePage), matching: find.byType(ListView))
-          : find.descendant(of: find.byType(SocialFeedTab), matching: find.byType(ListView));
+      final lists = find.descendant(of: find.byType(SocialFeedTab), matching: find.byType(ListView));
       final list = lists.evaluate().map((element) => element.widget).whereType<ListView>().firstWhere((view) => view.controller != null);
       final controller = list.controller!;
       final listFinder = find.byWidget(list);

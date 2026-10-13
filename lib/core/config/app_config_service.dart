@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../network/dio_client.dart';
+import 'semver.dart';
 
 class AppConfigModel {
   AppConfigModel({
@@ -14,6 +15,7 @@ class AppConfigModel {
     this.privacyUrl,
     this.termsUrl,
     this.storeUrl,
+    this.fromFallback = false,
   });
 
   final String environment;
@@ -26,6 +28,10 @@ class AppConfigModel {
   final String? privacyUrl;
   final String? termsUrl;
   final String? storeUrl;
+
+  /// True only for [AppConfigModel.fallback]: no `/app-config` answer was
+  /// parsed (offline, timeout, error). PRODUCT-10A.2E.
+  final bool fromFallback;
 
   bool feature(String key) => features[key] ?? true;
 
@@ -67,8 +73,26 @@ class AppConfigModel {
         },
         privacyUrl: '/legal/privacy',
         termsUrl: '/legal/terms',
+        fromFallback: true,
       );
 }
+
+/// PRODUCT-10A.2E: a store link the optional notice can actually open.
+bool isLaunchableStoreUrl(String? raw) {
+  final uri = raw == null ? null : Uri.tryParse(raw.trim());
+  return uri != null &&
+      (uri.scheme == 'https' || uri.scheme == 'http') &&
+      uri.host.isNotEmpty;
+}
+
+/// PRODUCT-10A.2E: the optional (non-forced) update notice is shown only for
+/// a real backend answer that also offers a launchable store link. Forced
+/// update ([AppVersionStatus.updateRequired]) is decided elsewhere and is not
+/// affected by this rule.
+bool shouldShowOptionalUpdate(AppVersionStatus status, AppConfigModel config) =>
+    status == AppVersionStatus.updateAvailable &&
+    !config.fromFallback &&
+    isLaunchableStoreUrl(config.storeUrl);
 
 class AppConfigService {
   AppConfigService({Dio? dio}) : _dio = dio ?? DioClient.instance;

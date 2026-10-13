@@ -23,6 +23,7 @@ import '../../community/data/engagement_utils.dart';
 import '../../community/data/garra_view_tracker.dart';
 import '../../community/data/wall_post_model.dart';
 import '../../community/presentation/providers/community_provider.dart';
+import '../../community/presentation/post_detail_screen.dart';
 import '../../community/presentation/widgets/garra_reaction_actions.dart';
 import '../../community/presentation/widgets/garra_discovery_section.dart';
 import '../../community/presentation/widgets/garra_report_sheet.dart';
@@ -597,8 +598,9 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
         padding: const EdgeInsets.only(bottom: GarraSpacing.xxl),
         children: [
           if (widget.header != null) widget.header!,
-          _ComposerRow(displayName: me?.fullName, onCompose: _openCompose),
+          // PRODUCT-10A.2D: title -> publish access -> first post, no divider.
           if (widget.mode == 'FOR_YOU') const _EditorialFeedMarker(),
+          _ComposerRow(displayName: me?.fullName, onCompose: _openCompose),
           if (_items.isEmpty) ...widget.contextualInserts,
           if (_loading && _items.isEmpty)
             const Padding(
@@ -726,7 +728,9 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
           id: post.id,
           enabled: !mine,
           onVisible: () => _onPostSeen(post.id),
-          child: GarraSocialPostCard(
+          child: _HomePostFrame(media: (post.originalPost?.media ?? post.media).isNotEmpty ||
+              (post.originalPost?.imageUrl ?? post.imageUrl)?.isNotEmpty == true,
+            child: GarraSocialPostCard(
             post: view,
             onOpenOriginal: post.originalPost == null ? null :
                 () => context.push('/muro-crema/posts/${post.originalPost!.id}').then((_) => _refreshPost(post.originalPost!.id)),
@@ -753,10 +757,10 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
             onDelete: mine ? () => _deletePost(post.id) : null,
             onReact: () => _react(post.originalPost?.asPost() ?? post),
             onChangeReaction: () => _react(post.originalPost?.asPost() ?? post, change: true),
-            onComment: () => context
-                .push('/muro-crema/posts/${post.originalPost?.id ?? post.id}')
+            onComment: () => showPostCommentsSheet(context,
+                postId: post.originalPost?.id ?? post.id)
                 .then((_) => _refreshPost(post.originalPost?.id ?? post.id)),
-          ),
+          )),
         ),
       );
 
@@ -771,6 +775,29 @@ class _SocialFeedTabState extends ConsumerState<SocialFeedTab> {
   }
 }
 
+class _HomePostFrame extends StatelessWidget {
+  const _HomePostFrame({required this.child, required this.media});
+  final Widget child;
+  final bool media;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(GarraSpacing.lg, 0,
+      GarraSpacing.lg, GarraSpacing.sm),
+    child: media ? ClipRRect(
+      borderRadius: BorderRadius.circular(GarraRadius.lg),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: context.garraColors.surface,
+          border: Border.all(color: context.garraColors.border),
+          borderRadius: BorderRadius.circular(GarraRadius.lg),
+        ),
+        child: child,
+      ),
+    ) : child,
+  );
+}
+
 class _EditorialFeedMarker extends StatelessWidget {
   const _EditorialFeedMarker();
 
@@ -779,41 +806,19 @@ class _EditorialFeedMarker extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         GarraSpacing.lg,
-        0,
-        GarraSpacing.lg,
         GarraSpacing.md,
+        GarraSpacing.lg,
+        0,
       ),
-      child: Row(
-        children: [
-          // Capped so the pill ellipsizes (instead of overflowing) on 220 px screens.
-          ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: (MediaQuery.sizeOf(context).width -
-                      2 * GarraSpacing.lg -
-                      GarraSpacing.sm)
-                  .clamp(0.0, double.infinity),
-            ),
-            child: const GarraEditorialEyebrow(
-              label: 'La tribuna crema',
-              icon: Icons.local_fire_department_outlined,
-            ),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Semantics(
+          header: true,
+          child: const GarraEditorialEyebrow(
+            label: 'La tribuna crema',
+            icon: Icons.local_fire_department_outlined,
           ),
-          const SizedBox(width: GarraSpacing.sm),
-          Expanded(
-            child: Container(
-              height: 1,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(GarraColors.gold),
-                    context.garraColors.border,
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

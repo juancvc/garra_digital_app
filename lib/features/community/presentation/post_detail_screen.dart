@@ -52,11 +52,39 @@ class PostDetailModeration {
   final String clanSlug;
 }
 
+/// Feed entry point. The existing detail state owns comments, replies,
+/// reactions, stickers and posting; this only changes its presentation.
+Future<void> showPostCommentsSheet(BuildContext context, {required String postId}) =>
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(sheetContext).bottom),
+        child: DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.75,
+          minChildSize: 0.45,
+          maxChildSize: 0.96,
+          builder: (_, scrollController) => ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            child: PostDetailScreen(postId: postId, asCommentsSheet: true,
+                sheetScrollController: scrollController),
+          ),
+        ),
+      ),
+    );
+
 class PostDetailScreen extends ConsumerStatefulWidget {
-  const PostDetailScreen({super.key, required this.postId, this.initialCommentId, this.moderation});
+  const PostDetailScreen({super.key, required this.postId, this.initialCommentId,
+    this.moderation, this.asCommentsSheet = false, this.sheetScrollController});
 
   final String postId;
   final String? initialCommentId;
+  final bool asCommentsSheet;
+  final ScrollController? sheetScrollController;
 
   /// Enables "Ocultar publicación" / "Ocultar comentario" for clan posts.
   final PostDetailModeration? moderation;
@@ -88,7 +116,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   bool get _dirty => _commentController.text.trim().isNotEmpty;
   void _leave() => _exitGuard.leave(context, dirty: _dirty, busy: _sendingComment,
       refresh: () => setState(() {}), pop: () {
-        if (context.canPop()) { context.pop(); } else { context.go('/muro-crema'); }
+        if (widget.asCommentsSheet) { Navigator.of(context).pop(); }
+        else if (context.canPop()) { context.pop(); } else { context.go('/muro-crema'); }
       });
   bool _reacting = false;
 
@@ -737,11 +766,14 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       canPop: _exitGuard.canPop(dirty: _dirty, busy: _sendingComment),
       onPopInvokedWithResult: (didPop, _) { if (!didPop) _leave(); },
       child: Scaffold(
+      backgroundColor: widget.asCommentsSheet ? context.garraColors.surface : null,
       appBar: AppBar(
-        title: const Text('Publicación'),
+        title: Text(widget.asCommentsSheet
+            ? 'Comentarios${_post == null ? '' : ' · ${_post!.commentCount}'}'
+            : 'Publicación'),
         leading: IconButton(
-          tooltip: 'Volver',
-          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: widget.asCommentsSheet ? 'Cerrar comentarios' : 'Volver',
+          icon: Icon(widget.asCommentsSheet ? Icons.close_rounded : Icons.arrow_back_rounded),
           onPressed: _leave,
         ),
         actions: [
@@ -828,12 +860,36 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
             ),
         ],
       ),
-      body: _buildBody(),
+      body: widget.asCommentsSheet ? _buildSheetBody() : _buildBody(),
     ));
   }
 
   void _focusComposer() {
     _commentFocus.requestFocus();
+  }
+
+  Widget _buildSheetBody() {
+    if (_loadingPost || _postError != null || _post == null) return _buildBody();
+    return Column(children: [
+      Expanded(child: ListView(
+        controller: widget.sheetScrollController,
+        padding: const EdgeInsets.fromLTRB(GarraSpacing.lg, GarraSpacing.sm,
+            GarraSpacing.lg, GarraSpacing.lg),
+        children: [
+          if (_post!.content.trim().isNotEmpty) ...[
+            Text(_post!.content, maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.garraColors.textSecondary)),
+            const SizedBox(height: GarraSpacing.md),
+          ],
+          _buildCommentsSection(),
+        ],
+      )),
+      _CommentComposer(controller: _commentController, focusNode: _commentFocus,
+        sending: _sendingComment, maxLength: _maxCommentLength,
+        onSend: _sendComment, replyingTo: _replyTarget?.username,
+        onCancelReply: _cancelReply),
+    ]);
   }
 
   Future<void> _openShareSheet(WallPostModel post) async {

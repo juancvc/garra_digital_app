@@ -379,7 +379,7 @@ void main() {
       expect(opened, 1);
     });
 
-    testWidgets('comment icon prefers onComment; Ver N comentarios opens', (
+    testWidgets('comment icon and summary use the comment entry point', (
       tester,
     ) async {
       var opened = 0;
@@ -396,7 +396,7 @@ void main() {
       expect((commented, opened), (1, 0));
       await tester.tap(find.text('· 0 compartidos'));
       await tester.pump();
-      expect(opened, 1);
+      expect((commented, opened), (2, 0));
     });
   });
 

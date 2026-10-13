@@ -127,15 +127,6 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push(
-          isSeller ? '/marketplace/seller/dashboard' : '/marketplace/seller',
-        ),
-        backgroundColor: const Color(GarraColors.garnet),
-        foregroundColor: const Color(GarraColors.cream),
-        icon: const Icon(Icons.storefront_outlined),
-        label: Text(isSeller ? 'Mi negocio' : 'Publica tu emprendimiento'),
-      ),
       body: hasError
           ? GarraErrorState(onRetry: _refresh)
           : isLoading && !listingsAsync.hasValue && !categoriesAsync.hasValue
@@ -188,6 +179,18 @@ class _MarketplacePageState extends ConsumerState<MarketplacePage> {
                     key: const ValueKey('marketplace_claim_explainer'),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: context.garraColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: GarraSpacing.md),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilledButton.icon(
+                      key: const ValueKey('marketplace_seller_entry'),
+                      onPressed: () => context.push(isSeller
+                          ? '/marketplace/seller/dashboard'
+                          : '/marketplace/seller'),
+                      icon: const Icon(Icons.storefront_outlined),
+                      label: Text(isSeller ? 'Mi negocio' : 'Publica tu emprendimiento'),
                     ),
                   ),
                   const SizedBox(height: GarraSpacing.lg),

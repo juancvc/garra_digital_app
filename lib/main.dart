@@ -98,7 +98,9 @@ class _GarraDigitalAppState extends ConsumerState<GarraDigitalApp> {
         _config = cfg;
         _maintenance = cfg.maintenanceMode;
         _updateRequired = status == AppVersionStatus.updateRequired;
-        _updateAvailable = status == AppVersionStatus.updateAvailable;
+        // PRODUCT-10A.2E: optional notice only with a remote config and a
+        // launchable storeUrl; forced update above is unchanged.
+        _updateAvailable = shouldShowOptionalUpdate(status, cfg);
         _bootstrapped = true;
       });
     } catch (_) {
