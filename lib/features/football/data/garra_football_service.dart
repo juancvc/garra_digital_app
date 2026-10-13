@@ -14,16 +14,34 @@ class GarraFootballService {
         .map(FootballCompetition.fromJson).toList();
   }
 
-  Future<FootballPage<FootballMatch>> matches(FootballView view, {String? competition}) async {
+  Future<FootballPage<FootballMatch>> matches(FootballView view, {String? competition}) =>
+      matchesOn(view, competition: competition);
+
+  /// PRODUCT-11A.3: [date] is a Lima calendar day (only TODAY uses it backend-side, ±30 days);
+  /// null = today in Lima. Identical concurrent requests share one in-flight future.
+  Future<FootballPage<FootballMatch>> matchesOn(FootballView view, {String? competition, DateTime? date}) {
+    final day = date ?? limaDate(footballNow());
+    final key = '${view.wire}|${competition ?? ''}|${limaDateWire(day)}';
+    final running = _inFlight[key];
+    if (running != null) return running;
+    final future = _fetchMatches(view, competition, day);
+    _inFlight[key] = future;
+    future.whenComplete(() => _inFlight.remove(key)).ignore();
+    return future;
+  }
+
+  final Map<String, Future<FootballPage<FootballMatch>>> _inFlight = {};
+
+  Future<FootballPage<FootballMatch>> _fetchMatches(FootballView view, String? competition, DateTime day) async {
     // SONIC_01: "today" is the Lima day, whatever the device time zone.
-    final now = limaWallClock(DateTime.now());
     final response = await _dio.get('/football/matches', queryParameters: {
       'view': view.wire,
-      'date': '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
+      'date': limaDateWire(day),
       'offsetMinutes': limaUtcOffset.inMinutes,
       'competition': ?competition,
     });
-    return FootballPage.fromJson(response.data['data'] as Map<String, dynamic>, FootballMatch.fromJson);
+    return FootballPage.fromJson(response.data['data'] as Map<String, dynamic>, FootballMatch.fromJson)
+        .withFetchedAt(DateTime.now());
   }
 
   /// SONIC_04: featured team hero (live / next / last). Null when not configured or unavailable.
@@ -53,7 +71,8 @@ class GarraFootballService {
 
   Future<FootballPage<Map<String, dynamic>>> standings(String competition) async {
     final response = await _dio.get('/football/competitions/$competition/standings');
-    return FootballPage.fromJson(response.data['data'] as Map<String, dynamic>, (json) => json);
+    return FootballPage.fromJson(response.data['data'] as Map<String, dynamic>, (json) => json)
+        .withFetchedAt(DateTime.now());
   }
 
   Future<FootballDetail?> detail(FootballMatch match, {String? section}) async {

@@ -206,8 +206,18 @@ class _StateColumn extends StatelessWidget {
               style: text.labelSmall?.copyWith(color: muted)),
       ],
     );
+    // PRODUCT-11A.3: backend resultPending (started, result unconfirmed) → honest "por confirmar".
+    if (match.resultPending) {
+      return column('Por conf.', 'Resultado por confirmar', color: garra.warning);
+    }
     if (match.isUnconfirmed) {
       return column(match.isLive ? 'En juego' : 'Por conf.', 'Actualizando', color: garra.warning);
+    }
+    // SUSPENDED is in the live feed, but play is stopped: never shown as "EN VIVO".
+    if (match.status == 'SUSPENDED') return column('SUSP.', 'Suspendido', color: garra.warning);
+    // A started UNKNOWN fixture is not a pre-match: no kickoff time as if it were still to be played.
+    if (match.status == 'UNKNOWN' && match.hasKickedOff) {
+      return column('Por conf.', 'Estado por confirmar', color: garra.warning);
     }
     if (match.isLive) {
       final minute = match.liveMinuteLabel;

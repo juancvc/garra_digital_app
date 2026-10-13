@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +20,8 @@ import 'football_standings_view.dart';
 import 'football_team_center.dart';
 import 'football_team_crest.dart';
 import 'football_upcoming_rounds.dart';
+import '../../home/presentation/home_featured_match_card.dart' show footballConfirmedKickoffUtc;
+import '../../home/presentation/home_matchday_hub.dart';
 import 'match_tribuna_section.dart';
 
 final garraFootballServiceProvider = Provider<GarraFootballService>((ref) => GarraFootballService());
@@ -109,8 +113,22 @@ class CentroGarraPage extends ConsumerStatefulWidget {
   ConsumerState<CentroGarraPage> createState() => _CentroGarraPageState();
 }
 
+/// PRODUCT-11A.3: En vivo refresh interval. The backend live feed is a shared 3-min cache
+/// (single-flight, no per-user provider call), so polling faster cannot bring newer data;
+/// 120 s keeps the visible age ≤ ~TTL + 2 min with at most ~1.5 requests per cache window.
+const centroLiveRefreshInterval = Duration(seconds: 120);
+
 class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
+  /// PRODUCT-11A.3 Hoy: selected Lima day (null = today in Lima).
+  DateTime? _todayDate;
+  /// PRODUCT-11A.3 Próximos: selected Lima day filter inside the backend window (null = all days).
+  DateTime? _upcomingDay;
+  Timer? _liveTimer;
+  bool _appResumed = true;
+  ValueListenable<TickerModeData>? _tickerMode;
+  /// One in-flight load per page key (tab switching / timer never duplicates a request).
+  final Map<String, Future<void>> _loadsInFlight = {};
   late CentroGarraNav _nav;
   List<FootballCompetition> _competitions = const [];
   final Map<String, FootballPage<FootballMatch>> _pages = {};
@@ -125,7 +143,11 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
   /// SONIC_05: round picked by the user per competition (PRÓXIMOS); survives detail / Team Center.
   final Map<String, String> _rounds = {};
 
-  String get _pageKey => '${_nav.section.name}:${_nav.competition ?? 'ALL'}';
+  String get _pageKey => '${_nav.section.name}:${_nav.competition ?? 'ALL'}'
+      '${_nav.section == CentroSection.today && _todayDate != null && _todayDate != _limaToday ? '@${limaDateWire(_todayDate!)}' : ''}';
+
+  DateTime get _limaToday => limaDate(footballNow());
+  DateTime get _selectedDay => _todayDate ?? _limaToday;
 
   @override
   bool get wantKeepAlive => true;
@@ -139,7 +161,74 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
   void initState() {
     super.initState();
     _nav = ref.read(centroGarraNavProvider);
-    WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _load(); });
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) { _load(); _syncLiveTimer(); } });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final notifier = TickerMode.getValuesNotifier(context);
+    if (!identical(notifier, _tickerMode)) {
+      _tickerMode?.removeListener(_syncLiveTimer);
+      _tickerMode = notifier..addListener(_syncLiveTimer);
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _tickerMode?.removeListener(_syncLiveTimer);
+    _liveTimer?.cancel();
+    _liveTimer = null;
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _appResumed = state == AppLifecycleState.resumed;
+    _syncLiveTimer();
+  }
+
+  /// PRODUCT-11A.3: the En vivo timer only runs while that tab is selected, this route is visible
+  /// (TickerMode) and the app is in foreground. Anything else cancels it.
+  void _syncLiveTimer() {
+    final active = mounted && _nav.section == CentroSection.live && _appResumed
+        && (_tickerMode?.value.enabled ?? true);
+    if (!active) {
+      _liveTimer?.cancel();
+      _liveTimer = null;
+      return;
+    }
+    _liveTimer ??= Timer.periodic(centroLiveRefreshInterval, (_) {
+      if (mounted && _nav.section == CentroSection.live) _load();
+    });
+  }
+
+  @visibleForTesting
+  bool get liveTimerActive => _liveTimer?.isActive ?? false;
+
+  void _changeTodayDate(DateTime day) {
+    final normalized = DateTime(day.year, day.month, day.day);
+    final today = _limaToday;
+    if (normalized.isBefore(today.subtract(const Duration(days: 30)))
+        || normalized.isAfter(today.add(const Duration(days: 30)))) {
+      return;
+    }
+    setState(() => _todayDate = normalized == today ? null : normalized);
+    _load();
+  }
+
+  Future<void> _pickTodayDate() async {
+    final today = _limaToday;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDay,
+      firstDate: today.subtract(const Duration(days: 30)),
+      lastDate: today.add(const Duration(days: 30)),
+      helpText: 'Elegir fecha (hora de Lima)',
+    );
+    if (picked != null && mounted) _changeTodayDate(picked);
   }
 
   void _setNav(CentroGarraNav nav) {
@@ -176,6 +265,8 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
     final items = page.items;
     switch (_nav.hub) {
       case CentroHub.forYou:
+        // PRODUCT-11A.3: Para ti · Hoy keeps every competition of the day (featured ones first).
+        if (_nav.section == CentroSection.today) return items;
         final comps = _featuredCompetitionIds(items);
         return items.where((m) => m.featured || m.isLive || comps.contains(m.competitionId)).toList();
       case CentroHub.peru:
@@ -214,6 +305,7 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
   void _chooseSection(CentroSection section) {
     if (_nav.section == section) return;
     _setNav(_nav.copyWith(section: section, stage: () => null, group: () => null));
+    _syncLiveTimer();
     _load();
   }
 
@@ -248,7 +340,16 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
     }
   }
 
-  Future<void> _load({bool refresh = false}) async {
+  Future<void> _load({bool refresh = false}) {
+    final key = '$_pageKey|${_nav.hub.name}|${_nav.section == CentroSection.standings ? _standingsCompetition() : ''}';
+    final running = _loadsInFlight[key];
+    if (running != null) return running;
+    final future = _loadNow(refresh: refresh);
+    _loadsInFlight[key] = future;
+    return future.whenComplete(() => _loadsInFlight.remove(key));
+  }
+
+  Future<void> _loadNow({bool refresh = false}) async {
     if (ref.read(connectivityStatusProvider) == NetworkConnectivity.offline) {
       setState(() {
         _loading = false;
@@ -274,7 +375,10 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
       final section = _nav.section;
       if (section != CentroSection.standings) {
         final view = section.view!;
-        final page = await service.matches(view, competition: _nav.competition);
+        final day = section == CentroSection.today ? _todayDate : null;
+        final page = day == null
+            ? await service.matches(view, competition: _nav.competition)
+            : await service.matchesOn(view, competition: _nav.competition, date: day);
         logFootballAnswer('${view.wire}:${_nav.competition ?? 'ALL'}', page);
         if (mounted) setState(() => _pages[key] = page);
         await featured;
@@ -350,6 +454,14 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
               ),
             ),
           ),
+        if (_nav.section == CentroSection.today)
+          _DateBar(
+            day: _selectedDay,
+            isToday: _todayDate == null,
+            onPrev: () => _changeTodayDate(_selectedDay.subtract(const Duration(days: 1))),
+            onNext: () => _changeTodayDate(_selectedDay.add(const Duration(days: 1))),
+            onPick: _pickTodayDate,
+          ),
         if (_loading && !_hasCurrentContent) const LinearProgressIndicator(),
         Expanded(child: _body(page, table, standingsId, offline)),
       ]),
@@ -415,8 +527,23 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
             : 'No pudimos traer los partidos. Inténtalo más tarde.',
         retry: !offline && !unconfigured);
     }
-    final items = _visibleMatches(page);
+    var items = _visibleMatches(page);
+    // PRODUCT-11A.3 En vivo: only what the backend live feed marks in play (SUSPENDED kept);
+    // UNKNOWN / SCHEDULED are never promoted to live on the client.
+    if (_nav.section == CentroSection.live) items = items.where((m) => m.isLive).toList();
+    final upcomingDays = _nav.section == CentroSection.upcoming && _nav.competition == null
+        ? _distinctDays(items) : const <DateTime>[];
+    final upcomingDay = upcomingDays.contains(_upcomingDay) ? _upcomingDay : null;
+    if (upcomingDay != null) {
+      items = items.where((m) => m.kickoff != null && _dayOf(m.kickoff!) == upcomingDay).toList();
+    }
+    final freshness = footballFreshnessLabel(page);
     final notes = <Widget>[
+      if (freshness != null && _nav.section != CentroSection.upcoming)
+        _softNote(freshness, key: const ValueKey('freshness_label')),
+      if (upcomingDays.length > 1)
+        _UpcomingDayChips(days: upcomingDays, selected: upcomingDay,
+            onSelected: (d) => setState(() => _upcomingDay = d)),
       if (page.partial) _compactBanner('Algunas competiciones no están disponibles',
           key: const ValueKey('partial_notice')),
       if (page.stale) _softNote('Datos guardados · pueden estar desactualizados',
@@ -441,11 +568,12 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
         )),
       );
     }
-    final hero = _nav.hub == CentroHub.forYou && _nav.section == CentroSection.today
+    final hero = _nav.hub == CentroHub.forYou && _nav.section == CentroSection.today && _todayDate == null
         ? _hero(page.items) : null;
     final others = items.where((m) => m.id != hero?.match.id).toList();
     final children = <Widget>[
       ...notes,
+      if (_showMatchdayHub) const HomeMatchdayHubSection(),
       if (hero != null)
         FootballFeaturedHero(
           match: hero.match, kind: hero.kind, name: _featured?.displayName,
@@ -470,7 +598,9 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
                     ? 'No hay partidos en los próximos 7 días.'
                     : 'Esta competición no tiene fechas por jugar en el calendario guardado.'),
                 CentroSection.results => ('Sin resultados recientes', 'No hay resultados de los últimos 7 días.'),
-                _ => ('Sin partidos hoy', 'No hay partidos programados para hoy en estas competiciones.'),
+                _ => _todayDate == null
+                    ? ('Sin partidos hoy', 'No hay partidos programados para hoy en estas competiciones.')
+                    : ('Sin partidos este día', 'No hay partidos programados para ${footballFullDate(_selectedDay)}.'),
               };
         children.add(_emptyCard(emptyTitle, emptyMessage));
       }
@@ -550,15 +680,24 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
 
   List<FootballMatch> _sortWithinGroup(List<FootballMatch> list) {
     final sorted = [...list];
-    final results = _nav.section == CentroSection.results;
+    // PRODUCT-11A.3: Resultados keep the backend contract order (ascending kickoff, most recent 100).
+    if (_nav.section == CentroSection.results) return sorted;
     sorted.sort((a, b) {
       if (a.featured != b.featured) return a.featured ? -1 : 1;
       if (a.isLive != b.isLive) return a.isLive ? -1 : 1;
       final ak = a.kickoff ?? DateTime.fromMillisecondsSinceEpoch(0);
       final bk = b.kickoff ?? DateTime.fromMillisecondsSinceEpoch(0);
-      return results ? bk.compareTo(ak) : ak.compareTo(bk);
+      return ak.compareTo(bk);
     });
     return sorted;
+  }
+
+  DateTime _dayOf(DateTime limaKickoff) => DateTime(limaKickoff.year, limaKickoff.month, limaKickoff.day);
+
+  List<DateTime> _distinctDays(List<FootballMatch> items) {
+    final days = <DateTime>{for (final m in items) if (m.kickoff != null) _dayOf(m.kickoff!)}.toList()
+      ..sort();
+    return days;
   }
 
   Widget _standingsBody(FootballPage<Map<String, dynamic>>? table, String? id, bool offline) {
@@ -587,9 +726,16 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
         onStageChanged: (name) => _setNav(_nav.copyWith(stage: () => name, group: () => null)),
         onGroupChanged: (name) => _setNav(_nav.copyWith(group: () => name)),
         onTeamTap: _openTeam,
-        footer: table.stale
-            ? _softNote('Datos guardados · pueden estar desactualizados')
-            : null,
+        footer: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          _softNote(
+              [
+                if (table.season != null) 'Temporada ${table.season}',
+                'Fase: ${footballStageLabel(stage!)}',
+              ].join(' · '),
+              key: const ValueKey('standings_phase')),
+          if (footballFreshnessLabel(table) case final f?) _softNote(f, key: const ValueKey('standings_freshness')),
+          if (table.stale) _softNote('Datos guardados · pueden estar desactualizados'),
+        ]),
       )),
     );
   }
@@ -635,8 +781,14 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
       ]))),
   );
 
+  /// PRODUCT-10A.2E: Polla Crema, MVP, Check-in y Misiones/racha (ex pestaña
+  /// 'Partido' de Home) live in Centro · Para ti · Hoy.
+  bool get _showMatchdayHub =>
+      _nav.hub == CentroHub.forYou && _nav.section == CentroSection.today;
+
   Widget _notice(String title, String message, {required bool retry}) =>
       ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 24), children: [
+        if (_showMatchdayHub) const HomeMatchdayHubSection(),
         Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(
           crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(title, style: Theme.of(context).textTheme.titleMedium),
@@ -1066,6 +1218,16 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
           child: _headerExpanded
               ? Column(key: const ValueKey('detail_header_expanded'), children: [
                   _DetailHeader(match: match, stateLine: _stateLine(match), onTeamTap: _openTeam),
+                  // PRODUCT-10A.2E: full DD:HH:MM:SS countdown (ex Home 'Partido' hero),
+                  // only for a confirmed, still future kickoff.
+                  if (footballConfirmedKickoffUtc(match) case final kickoffUtc?
+                      when !match.isUnconfirmed && match.status != 'POSTPONED' &&
+                          match.status != 'SUSPENDED')
+                    Padding(
+                      key: const ValueKey('detail_countdown'),
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: MatchKickoffCountdown(kickoffUtc: kickoffUtc),
+                    ),
                   _keyMoments(match),
                   if (match.status != 'CANCELLED')
                     Padding(
@@ -1474,4 +1636,63 @@ class _DetailHeader extends StatelessWidget {
 
 extension on String {
   String ifEmpty(String fallback) => isEmpty ? fallback : this;
+}
+
+/// PRODUCT-11A.3 Hoy: Lima day selector (prev / date picker / next, ±30 days like the backend).
+class _DateBar extends StatelessWidget {
+  const _DateBar({required this.day, required this.isToday, required this.onPrev,
+    required this.onNext, required this.onPick});
+  final DateTime day;
+  final bool isToday;
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
+  final VoidCallback onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = isToday ? 'Hoy · ${footballFullDate(day)}' : footballFullDate(day);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+      child: Row(children: [
+        IconButton(key: const ValueKey('date_prev'), tooltip: 'Día anterior',
+            onPressed: onPrev, icon: const Icon(Icons.chevron_left)),
+        Expanded(child: TextButton.icon(
+          key: const ValueKey('date_pick'),
+          onPressed: onPick,
+          icon: const Icon(Icons.calendar_today_outlined, size: 16),
+          label: Text(label, key: const ValueKey('date_label'), maxLines: 1, overflow: TextOverflow.ellipsis),
+        )),
+        IconButton(key: const ValueKey('date_next'), tooltip: 'Día siguiente',
+            onPressed: onNext, icon: const Icon(Icons.chevron_right)),
+      ]),
+    );
+  }
+}
+
+/// PRODUCT-11A.3 Próximos: day chips over the days the backend returned (no client-side cut).
+class _UpcomingDayChips extends StatelessWidget {
+  const _UpcomingDayChips({required this.days, required this.selected, required this.onSelected});
+  final List<DateTime> days;
+  final DateTime? selected;
+  final ValueChanged<DateTime?> onSelected;
+
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+    child: Row(children: [
+      ChoiceChip(key: const ValueKey('upcoming_day_all'), label: const Text('Todos'),
+          selected: selected == null, onSelected: (_) => onSelected(null)),
+      for (final d in days)
+        Padding(
+          padding: const EdgeInsets.only(left: 6),
+          child: ChoiceChip(
+            key: ValueKey('upcoming_day_${limaDateWire(d)}'),
+            label: Text(footballFullDate(d)),
+            selected: selected == d,
+            onSelected: (_) => onSelected(d),
+          ),
+        ),
+    ]),
+  );
 }

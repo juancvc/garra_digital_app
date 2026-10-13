@@ -59,7 +59,7 @@ final featured = AsyncValue.data(FootballFeaturedResult(
 ));
 
 Future<void> show(WidgetTester tester, FakePollService service,
-    {double width = 390}) async {
+    {double width = 390, bool expand = true}) async {
   await tester.binding.setSurfaceSize(Size(width, 850));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(ProviderScope(
@@ -72,6 +72,12 @@ Future<void> show(WidgetTester tester, FakePollService service,
     ))),
   ));
   await tester.pumpAndSettle();
+  // PRODUCT-10A.2D: options are collapsed until the fan opens them.
+  final toggle = find.byKey(const ValueKey('home_poll_toggle'));
+  if (expand && toggle.evaluate().isNotEmpty) {
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+  }
 }
 
 void main() {

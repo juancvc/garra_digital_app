@@ -5,6 +5,19 @@ enum FootballView { today, live, upcoming, results }
 /// is independent of the device time zone.
 const limaUtcOffset = Duration(hours: -5);
 
+/// PRODUCT-11A.3: injectable clock for "now" decisions (tests override it; production = device instant).
+DateTime Function() footballNow = DateTime.now;
+
+/// Lima calendar day (00:00 wall clock) of [instant].
+DateTime limaDate(DateTime instant) {
+  final w = limaWallClock(instant);
+  return DateTime(w.year, w.month, w.day);
+}
+
+/// yyyy-MM-dd of a Lima calendar day.
+String limaDateWire(DateTime day) =>
+    '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+
 DateTime limaWallClock(DateTime instant) {
   final lima = instant.toUtc().add(limaUtcOffset);
   return DateTime(lima.year, lima.month, lima.day, lima.hour, lima.minute,
@@ -46,7 +59,8 @@ class FootballMatch {
     required this.status, this.kickoff, this.elapsed, this.elapsedExtra,
     this.homeScore, this.awayScore, this.garraMatchId, this.round,
     this.homeId, this.awayId, this.homeCrestUrl, this.awayCrestUrl,
-    this.featured = false, this.snapshotAt, this.dataState, this.venue, this.kickoffConfirmed});
+    this.featured = false, this.snapshotAt, this.dataState, this.venue, this.kickoffConfirmed,
+    this.resultPending = false});
   final int id;
   final String competitionId;
   final String competition;
@@ -74,6 +88,9 @@ class FootballMatch {
   final String? venue;
   /// SONIC_05: false when the provider marks the time TBD / postponed (date is a placeholder).
   final bool? kickoffConfirmed;
+  /// PRODUCT-11A.3 (backend 11A.2, additive): started fixture whose state/result no fresh snapshot
+  /// confirms. Absent in older backends → false.
+  final bool resultPending;
 
   /// Date shown is a provider placeholder (time to be defined or postponed).
   bool get isKickoffTentative => kickoffConfirmed == false || kickoff == null;
@@ -96,7 +113,7 @@ class FootballMatch {
       homeScore: homeScore, awayScore: awayScore, garraMatchId: garraMatchId, round: round,
       homeId: homeId, awayId: awayId, homeCrestUrl: homeCrestUrl, awayCrestUrl: awayCrestUrl,
       featured: featured, snapshotAt: snapshotAt, dataState: 'UNCONFIRMED', venue: venue,
-      kickoffConfirmed: kickoffConfirmed);
+      kickoffConfirmed: kickoffConfirmed, resultPending: resultPending);
 
   factory FootballMatch.fromJson(Map<String, dynamic> json) {
     final home = json['home'] as Map?;
@@ -124,6 +141,7 @@ class FootballMatch {
       dataState: json['dataState']?.toString(),
       venue: _text(json['venue']),
       kickoffConfirmed: json['kickoffConfirmed'] is bool ? json['kickoffConfirmed'] as bool : null,
+      resultPending: json['resultPending'] == true,
     );
   }
 
@@ -143,7 +161,15 @@ class FootballMatch {
   }.contains(status);
   bool get isFinished => status == 'FINISHED';
   bool get isScheduled => status == 'SCHEDULED';
-  bool get isPrematch => isScheduled || status == 'UNKNOWN';
+  /// PRODUCT-11A.3: UNKNOWN is pre-match only before kickoff. A started UNKNOWN (or resultPending)
+  /// fixture is "por confirmar", never a pre-match.
+  bool get isPrematch => isScheduled || (status == 'UNKNOWN' && !resultPending && !hasKickedOff);
+
+  /// Kickoff (Lima wall clock) already passed, by [footballNow]. False without kickoff.
+  bool get hasKickedOff {
+    final k = kickoff;
+    return k != null && !k.isAfter(limaWallClock(footballNow()));
+  }
 
   String? get roundLabel {
     final raw = round?.trim() ?? '';
@@ -169,6 +195,8 @@ class FootballMatch {
   /// SONIC_03: EN VIVO · 67' / DESCANSO / 1.º TIEMPO — never a local clock.
   String get statusLabel {
     final minute = liveMinuteLabel;
+    if (resultPending) return 'RESULTADO POR CONFIRMAR';
+    if (status == 'UNKNOWN' && hasKickedOff) return 'POR CONFIRMAR';
     if (isUnconfirmed) return isLive ? 'EN JUEGO · ACTUALIZANDO' : 'POR CONFIRMAR';
     return switch (status) {
       'LIVE' => minute == null ? 'EN VIVO' : 'EN VIVO · $minute',
@@ -775,12 +803,25 @@ List<List<Map<String, dynamic>>> footballStandingBlocksByRankReset(List<Map<Stri
 
 class FootballPage<T> {
   const FootballPage({required this.items, required this.stale,
-    required this.unavailable, required this.partial, this.reason});
+    required this.unavailable, required this.partial, this.reason,
+    this.snapshotAt, this.ageSeconds, this.fetchedAt, this.season});
   final List<T> items;
   final bool stale;
   final bool unavailable;
   final bool partial;
   final String? reason;
+  /// PRODUCT-11A.3 (backend 11A.2, additive): oldest provider snapshot behind the page (UTC). Null on old backends.
+  final DateTime? snapshotAt;
+  /// PRODUCT-11A.3: age of that snapshot when the backend answered. Null on old backends.
+  final int? ageSeconds;
+  /// Client receipt time (UTC), set by the service. Only used for an honest "Consultado hh:mm".
+  final DateTime? fetchedAt;
+  /// Season label only when the backend sends one (current contract does not: never invented).
+  final String? season;
+
+  FootballPage<T> withFetchedAt(DateTime at) => FootballPage(items: items, stale: stale,
+      unavailable: unavailable, partial: partial, reason: reason, snapshotAt: snapshotAt,
+      ageSeconds: ageSeconds, fetchedAt: at.toUtc(), season: season);
 
   factory FootballPage.fromJson(Map<String, dynamic> json, T Function(Map<String, dynamic>) parse) => FootballPage(
     items: ((json['items'] as List?) ?? const [])
@@ -789,7 +830,35 @@ class FootballPage<T> {
     unavailable: json['unavailable'] == true,
     partial: json['partial'] == true,
     reason: json['reason'] is String ? json['reason'] as String : null,
+    snapshotAt: DateTime.tryParse(json['snapshotAt']?.toString() ?? '')?.toUtc(),
+    ageSeconds: (json['ageSeconds'] as num?)?.toInt(),
+    season: _text(json['season']),
   );
+}
+
+/// PRODUCT-11A.3: honest freshness text for a page.
+/// - backend age known (ageSeconds / snapshotAt) → "Actualizado hace X";
+/// - otherwise, with only the client receipt time → "Consultado hh:mm" (never "actualizado");
+/// - nothing known → null (hidden).
+String? footballFreshnessLabel(FootballPage<Object?> page, {DateTime? now}) {
+  final at = (now ?? footballNow()).toUtc();
+  int? age;
+  if (page.ageSeconds != null) {
+    final since = page.fetchedAt == null ? 0 : at.difference(page.fetchedAt!).inSeconds;
+    age = page.ageSeconds! + (since > 0 ? since : 0);
+  } else if (page.snapshotAt != null) {
+    age = at.difference(page.snapshotAt!).inSeconds;
+  }
+  if (age != null) {
+    if (age < 0) age = 0;
+    if (age < 60) return 'Actualizado hace menos de 1 min';
+    if (age < 3600) return 'Actualizado hace ${age ~/ 60} min';
+    if (age < 86400) return 'Actualizado hace ${age ~/ 3600} h';
+    return 'Actualizado hace ${age ~/ 86400} d';
+  }
+  final fetched = page.fetchedAt;
+  if (fetched == null) return null;
+  return 'Consultado ${footballClock(limaWallClock(fetched))}';
 }
 
 class FootballDetail {

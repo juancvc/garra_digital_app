@@ -16,6 +16,8 @@ import 'package:garra_digital_app/features/predictions/data/create_prediction_re
 import 'package:garra_digital_app/features/predictions/data/prediction_service.dart';
 import 'package:go_router/go_router.dart';
 
+import 'centro_matchday_harness.dart';
+
 import 'home_widget_test_overrides.dart';
 
 PollaResponse samplePolla({
@@ -531,20 +533,18 @@ void main() {
   });
 
   testWidgets('HOME_POLLA_STATE', (tester) async {
-    await tester.pumpWidget(pumpHome(sampleHome(predictionState: 'PREDICTED')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Partido'));
+    // PRODUCT-10A.2E: retargeted from Home 'Partido' tab to Centro · Para ti · Hoy.
+    await tester.pumpWidget(pumpCentroMatchday(sampleHome(predictionState: 'PREDICTED')));
     await tester.pumpAndSettle();
     expect(find.textContaining('Ya jugaste'), findsOneWidget);
     expect(find.text('Ver mi predicción'), findsOneWidget);
   });
 
   testWidgets('HOME_MVP_ENTRY', (tester) async {
+    // PRODUCT-10A.2E: retargeted from Home 'Partido' tab to Centro · Para ti · Hoy.
     await tester.binding.setSurfaceSize(const Size(800, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(pumpHome(sampleHome(mvpOpen: true)));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Partido'));
+    await tester.pumpWidget(pumpCentroMatchday(sampleHome(mvpOpen: true)));
     await tester.pumpAndSettle();
     final mvp = find.text('Vota por el MVP');
     expect(mvp, findsOneWidget);
@@ -556,11 +556,10 @@ void main() {
   });
 
   testWidgets('HOME_POLLA_CTA_ROUTE', (tester) async {
+    // PRODUCT-10A.2E: retargeted from Home 'Partido' tab to Centro · Para ti · Hoy.
     await tester.binding.setSurfaceSize(const Size(800, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(pumpHome(sampleHome()));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Partido'));
+    await tester.pumpWidget(pumpCentroMatchday(sampleHome()));
     await tester.pumpAndSettle();
     expect(find.text('Haz tu predicción'), findsOneWidget);
     final cta = find.text('Hacer predicción');

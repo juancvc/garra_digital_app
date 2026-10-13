@@ -13,6 +13,8 @@ import 'package:garra_digital_app/features/home/presentation/home_matchday_poll_
 import 'package:garra_digital_app/features/football/data/garra_football_models.dart';
 import 'package:go_router/go_router.dart';
 
+import 'centro_matchday_harness.dart';
+
 HomeModel sampleHome({
   String matchdayState = 'UPCOMING',
   bool withMatch = true,
@@ -253,32 +255,25 @@ void main() {
   });
 
   testWidgets('HOME_MATCHDAY_STATE', (tester) async {
+    // PRODUCT-10A.2D: el estado del día se muestra una sola vez (pill
+    // 'Hoy juega la U'); el bloque Matchday/check-in vivía en la pestaña
+    // 'Partido', reemplazada por 'Marketplace'.
     await tester.binding.setSurfaceSize(const Size(800, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(pumpHome(sampleHome(matchdayState: 'MATCHDAY')));
     await tester.pumpAndSettle();
-    expect(find.text('HOY JUEGA LA U'), findsOneWidget);
+    expect(find.text('Hoy juega la U'), findsOneWidget);
     expect(find.text('Para ti'), findsOneWidget);
-    await tester.tap(find.text('Partido'));
-    await tester.pumpAndSettle();
-    expect(find.text('Entrar al Matchday'), findsOneWidget);
-    final checkIn = find.text('Hacer check-in');
-    await tester.ensureVisible(checkIn);
-    await tester.pumpAndSettle();
-    expect(checkIn, findsOneWidget);
-    await tester.tap(checkIn);
-    await tester.pumpAndSettle();
-    expect(find.text('MAPA_ROUTE:m1'), findsOneWidget);
+    expect(find.text('Partido'), findsNothing);
   });
 
   testWidgets('HOME_LIVE_STATE', (tester) async {
     await tester.pumpWidget(pumpHome(sampleHome(matchdayState: 'LIVE')));
     await tester.pumpAndSettle();
     expect(find.textContaining('En vivo'), findsOneWidget);
-    await tester.tap(find.text('Partido'));
-    await tester.pumpAndSettle();
-    expect(find.text('Entrar al partido'), findsOneWidget);
-    expect(find.textContaining('1 : 0'), findsOneWidget);
+    // PRODUCT-10A.2D: 'Entrar al partido' y el marcador del hero vivían en la
+    // pestaña 'Partido' (reemplazada por 'Marketplace').
+    expect(find.text('Partido'), findsNothing);
   });
 
   testWidgets('HOME_NO_MATCH_STATE', (tester) async {
@@ -297,13 +292,12 @@ void main() {
   });
 
   testWidgets('HOME_PREDICTION_CTA', (tester) async {
+    // PRODUCT-10A.2E: retargeted from Home 'Partido' tab to Centro · Para ti · Hoy.
     await tester.binding.setSurfaceSize(const Size(800, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
-      pumpHome(sampleHome(predictionState: 'NOT_PREDICTED')),
+      pumpCentroMatchday(sampleHome(predictionState: 'NOT_PREDICTED')),
     );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Partido'));
     await tester.pumpAndSettle();
     final cta = find.text('Hacer predicción');
     await tester.ensureVisible(cta);
@@ -327,7 +321,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('HOY JUEGA LA U'), findsOneWidget);
+    // PRODUCT-10A.2D: el titular repetido se eliminó; el estado queda en la pill.
+    expect(find.text('Hoy juega la U'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -378,15 +373,39 @@ void main() {
   testWidgets('HOME_MATCH_COUNTDOWN_RENDERS_DD_HH_MM_SS_BLOCKS', (
     tester,
   ) async {
-    await tester.pumpWidget(pumpHome(sampleHome(matchdayState: 'UPCOMING')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Partido'));
-    await tester.pumpAndSettle();
+    // PRODUCT-10A.2E: retargeted from the Home 'Partido' hero to the match
+    // detail (Centro Garra) expanded header.
+    final lima = limaWallClock(DateTime.now());
+    final kickoff = DateTime(lima.year, lima.month, lima.day)
+        .add(const Duration(days: 2, hours: 19));
+    await tester.pumpWidget(pumpMatchDetail(FootballMatch(id: 123,
+      competitionId: 'LIGA_1', competition: 'Liga 1', home: 'Universitario',
+      away: 'Rival FC', status: 'SCHEDULED', kickoff: kickoff,
+      kickoffConfirmed: true)));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
+    expect(find.byKey(const ValueKey('detail_countdown')), findsOneWidget);
     for (final unit in ['DD', 'HH', 'MM', 'SS']) {
       expect(find.byKey(ValueKey('countdown-$unit')), findsOneWidget);
       expect(find.text(unit), findsOneWidget);
     }
+  });
+
+  testWidgets('HOME_MATCHDAY_CHECKIN_IN_CENTRO', (tester) async {
+    // PRODUCT-10A.2E: the check-in CTA of the ex Home 'Partido' tab
+    // (HOME_MATCHDAY_STATE before 10A.2D) now lives in Centro · Para ti · Hoy.
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(pumpCentroMatchday(sampleHome(matchdayState: 'MATCHDAY')));
+    await tester.pumpAndSettle();
+    final checkIn = find.text('Hacer check-in');
+    await tester.ensureVisible(checkIn);
+    await tester.pumpAndSettle();
+    expect(checkIn, findsOneWidget);
+    await tester.tap(checkIn);
+    await tester.pumpAndSettle();
+    expect(find.text('MAPA_ROUTE:m1'), findsOneWidget);
   });
 
   testWidgets('HOME_PASSPORT_NAVIGATION', (tester) async {

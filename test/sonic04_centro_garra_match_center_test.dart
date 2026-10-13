@@ -258,8 +258,9 @@ void main() {
     expect(find.text('Equipo Destacado'), findsOneWidget, reason: 'hero is not repeated in others');
     expect(find.text('Liga Uno A'), findsOneWidget);
     expect(find.text('Europa Live'), findsOneWidget);
-    expect(find.text('Europa Programado'), findsNothing, reason: 'Para ti is not all competitions');
-    expect(find.text('Segunda A'), findsNothing);
+    // PRODUCT-11A.3: Para ti · Hoy keeps every competition of the day (featured first, none excluded).
+    expect(find.text('Europa Programado'), findsOneWidget);
+    expect(find.text('Segunda A'), findsOneWidget);
     // Featured competition group comes before the live-only group.
     final liga1 = tester.getTopLeft(find.byKey(const ValueKey('comp_group_LIGA_1'))).dy;
     final ucl = tester.getTopLeft(find.byKey(const ValueKey('comp_group_UCL'))).dy;
