@@ -26,6 +26,7 @@ import '../data/chat_service.dart';
 import 'chat_backdrop.dart';
 import 'chat_audio_composer.dart';
 import 'chat_media_grid.dart';
+import 'private_chat_media_gate.dart';
 import 'chat_message_reactions.dart';
 import 'chat_request_copy.dart';
 import 'chat_timeline.dart';
@@ -552,6 +553,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
   }
 
   Future<void> _pickPhotos() async {
+    if (!privateChatAttachmentsEnabled) return;
     if (_picking || _drafts.length >= chatMaxImages) return;
     setState(() => _picking = true);
     try {
@@ -928,7 +930,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
                 IconButton(tooltip: 'Elegir sticker',
                   onPressed: () => insertGarraSticker(context, _input),
                   icon: const Icon(Icons.emoji_emotions_outlined)),
-              if (canWrite && _editing == null)
+              if (privateChatAttachmentsEnabled && canWrite && _editing == null)
                 IconButton(
                   key: const Key('chat-attach-photo'),
                   tooltip: 'Adjuntar foto',
@@ -1274,7 +1276,9 @@ class _ChatConversationPageState extends State<ChatConversationPage>
             bottomLeft: entry.lastInGroup ? tail : joined,
           );
     final hasText = message.content.trim().isNotEmpty;
-    final images = message.media.where((item) => !item.isVideo).toList();
+    final images = privateChatAttachmentsEnabled
+        ? message.media.where((item) => !item.isVideo).toList()
+        : <ChatMediaItem>[];
     final mediaOnly = !hasText && images.isNotEmpty;
     final reactions = _reactionsOf(message);
     final hasReactions = reactions.any((r) => r.reactionType != null);
@@ -1298,6 +1302,9 @@ class _ChatConversationPageState extends State<ChatConversationPage>
               reply: message.replyTo!,
               onTap: () => _jumpToReply(message.replyTo!.id),
             ),
+          if (!privateChatAttachmentsEnabled && message.media.isNotEmpty)
+            Text('Adjunto no disponible',
+                style: TextStyle(color: foreground, fontSize: 13)),
           if (images.isNotEmpty)
             Padding(
               padding: EdgeInsets.only(bottom: hasText ? 6 : 0),

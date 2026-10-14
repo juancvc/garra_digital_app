@@ -8,6 +8,7 @@ import 'package:garra_digital_app/core/theme/garra_semantic_colors.dart';
 import 'package:garra_digital_app/features/chat/data/chat_models.dart';
 import 'package:garra_digital_app/features/chat/data/chat_service.dart';
 import 'package:garra_digital_app/features/chat/presentation/chat_conversation_page.dart';
+import 'package:garra_digital_app/features/chat/presentation/private_chat_media_gate.dart';
 import 'package:garra_digital_app/features/chat/presentation/chat_unread_badge.dart';
 import 'package:garra_digital_app/features/home/data/home_models.dart';
 import 'package:garra_digital_app/features/home/data/home_service.dart';
@@ -183,6 +184,12 @@ void main() {
       final chat = _Chat();
       await tester.pumpWidget(_conversationApp(chat, media: _Media()));
       await _settle(tester);
+
+      if (!privateChatAttachmentsEnabled) {
+        expect(find.byKey(const Key('chat-attach-photo')), findsNothing);
+        expect(_sendButton(tester).onPressed, isNull);
+        return;
+      }
 
       await tester.tap(find.byKey(const Key('chat-attach-photo')));
       await _settle(tester);

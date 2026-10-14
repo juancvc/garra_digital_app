@@ -12,6 +12,7 @@ import 'package:garra_digital_app/core/widgets/garra_avatar.dart';
 import 'package:garra_digital_app/features/chat/data/chat_models.dart';
 import 'package:garra_digital_app/features/chat/data/chat_service.dart';
 import 'package:garra_digital_app/features/chat/presentation/chat_conversation_page.dart';
+import 'package:garra_digital_app/features/chat/presentation/private_chat_media_gate.dart';
 import 'package:garra_digital_app/features/chat/presentation/chat_inbox_page.dart';
 import 'package:garra_digital_app/features/chat/presentation/chat_unread_badge.dart';
 import 'package:garra_digital_app/features/community/data/community_service.dart';
@@ -466,6 +467,12 @@ void main() {
       await tester.pumpWidget(_conversationApp(chat));
       await _settle(tester);
 
+      if (!privateChatAttachmentsEnabled) {
+        expect(find.text('Adjunto no disponible'), findsOneWidget);
+        expect(find.byKey(const Key('chat-media-image-0')), findsNothing);
+        return;
+      }
+
       expect(find.byKey(const Key('chat-media-image-0')), findsOneWidget);
       expect(find.byKey(const Key('chat-media-image-1')), findsOneWidget);
       expect(find.byKey(const Key('chat-meta-m1')), findsOneWidget);
@@ -482,6 +489,12 @@ void main() {
       final media = _Media();
       await tester.pumpWidget(_conversationApp(chat, media: media));
       await _settle(tester);
+
+      if (!privateChatAttachmentsEnabled) {
+        expect(find.byKey(const Key('chat-attach-photo')), findsNothing);
+        expect(media.picks, 0);
+        return;
+      }
 
       await tester.tap(find.byKey(const Key('chat-attach-photo')));
       await _settle(tester);

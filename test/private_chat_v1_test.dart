@@ -6,6 +6,7 @@ import 'package:garra_digital_app/features/chat/data/chat_models.dart';
 import 'package:garra_digital_app/features/chat/data/chat_service.dart';
 import 'package:garra_digital_app/features/chat/presentation/chat_conversation_page.dart';
 import 'package:garra_digital_app/features/chat/presentation/chat_inbox_page.dart';
+import 'package:garra_digital_app/features/chat/presentation/private_chat_media_gate.dart';
 import 'package:garra_digital_app/features/community/data/community_service.dart';
 import 'package:garra_digital_app/features/community/presentation/public_fan_profile_page.dart';
 import 'package:garra_digital_app/features/marketplace/presentation/marketplace_chat_button.dart';
@@ -310,7 +311,8 @@ void main() {
     // CHAT_V2_A: ACTIVE threads open the canonical /chat/:id screen.
     expect(find.byType(ChatConversationPage), findsOneWidget);
     expect(find.byKey(const Key('floating-chat-panel')), findsNothing);
-    expect(find.byKey(const Key('chat-attach-photo')), findsOneWidget);
+    expect(find.byKey(const Key('chat-attach-photo')),
+        privateChatAttachmentsEnabled ? findsOneWidget : findsNothing);
     expect(find.text('Sigue disponible'), findsOneWidget);
     final composer = tester.widget<TextField>(
       find.byKey(const Key('chat-composer')),

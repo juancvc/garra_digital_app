@@ -11,6 +11,7 @@ import 'package:garra_digital_app/core/network/offline_action_guard.dart';
 import 'package:garra_digital_app/features/chat/data/chat_models.dart';
 import 'package:garra_digital_app/features/chat/data/chat_service.dart';
 import 'package:garra_digital_app/features/chat/presentation/chat_conversation_page.dart';
+import 'package:garra_digital_app/features/chat/presentation/private_chat_media_gate.dart';
 import 'package:garra_digital_app/features/community/data/community_service.dart';
 import 'package:garra_digital_app/features/community/data/post_location.dart';
 import 'package:garra_digital_app/features/community/data/create_wall_post_request.dart';
@@ -306,6 +307,12 @@ void main() {
         'Mensaje pendiente',
       );
       await tester.pump();
+      if (!privateChatAttachmentsEnabled) {
+        expect(find.byKey(const Key('chat-attach-photo')), findsNothing);
+        expect(media.picks, 0);
+        expect(find.text('Mensaje pendiente'), findsOneWidget);
+        return;
+      }
       await tester.tap(find.byKey(const Key('chat-attach-photo')));
       await tester.pump();
       expect(media.picks, 1);
@@ -357,6 +364,11 @@ void main() {
         ),
       );
       await tester.pump();
+      if (!privateChatAttachmentsEnabled) {
+        expect(find.byKey(const Key('chat-attach-photo')), findsNothing);
+        expect(media.picks, 0);
+        return;
+      }
       await tester.tap(find.byKey(const Key('chat-attach-photo')));
       await tester.pump();
       expect(media.picks, 1);
@@ -383,6 +395,11 @@ void main() {
         ),
       );
       await tester.pump();
+      if (!privateChatAttachmentsEnabled) {
+        expect(find.byKey(const Key('chat-attach-photo')), findsNothing);
+        expect(media.picks, 0);
+        return;
+      }
       await tester.tap(find.byKey(const Key('chat-attach-photo')));
       await tester.pump();
       source.emit(ConnectivityResult.none);

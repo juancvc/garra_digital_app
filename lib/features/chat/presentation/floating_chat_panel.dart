@@ -17,6 +17,7 @@ import '../data/chat_image_uploads.dart';
 import '../data/chat_models.dart';
 import '../data/chat_service.dart';
 import 'chat_media_grid.dart';
+import 'private_chat_media_gate.dart';
 import 'chat_audio_composer.dart';
 import 'chat_linked_text.dart';
 import 'chat_message_reactions.dart';
@@ -387,6 +388,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel>
 
   /// Same pipeline as the canonical conversation screen (CHAT_V2_A).
   Future<void> _pickPhotos() async {
+    if (!privateChatAttachmentsEnabled) return;
     await pickAndUploadChatImages(
       media: _media,
       drafts: _drafts,
@@ -614,6 +616,8 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel>
                   ChatReplyTile(reply: message.replyTo!),
                 if (message.deleted)
                   const Text('Mensaje eliminado')
+                else if (!privateChatAttachmentsEnabled && message.media.isNotEmpty)
+                  const Text('Adjunto no disponible')
                 else if (message.media.isNotEmpty)
                   ChatImageStrip(media: message.media),
                 if (GarraSticker.fromContent(message.deleted ? '' : message.content) case final sticker?)
@@ -773,7 +777,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel>
                   IconButton(tooltip: 'Elegir sticker',
                     onPressed: () => insertGarraSticker(context, _input),
                     icon: const Icon(Icons.emoji_emotions_outlined)),
-                if (active)
+                if (privateChatAttachmentsEnabled && active)
                   IconButton(
                     key: const Key('chat-attach-photo'),
                     tooltip: 'Adjuntar foto',
