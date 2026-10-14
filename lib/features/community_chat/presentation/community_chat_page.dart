@@ -32,7 +32,9 @@ import '../../chat/presentation/chat_reply_tile.dart';
 import '../../chat/presentation/chat_swipe_to_reply.dart';
 import '../../clans/presentation/clan_moderation_dialogs.dart';
 import '../../clans/presentation/providers/clans_provider.dart';
+import '../../community/data/community_report.dart';
 import '../../community/data/reaction_type.dart';
+import '../../community/presentation/widgets/chat_message_safety_actions.dart';
 import '../data/community_chat_models.dart';
 import '../data/community_chat_service.dart';
 import 'community_chat_timeline.dart';
@@ -814,6 +816,15 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
         ),
       ];
     }
+    // PLAY-02: report the message / report or block its author.
+    final safety = chatMessageSafetyActions(
+      context: context,
+      messageTarget: GarraReportTarget.communityChatMessage,
+      messageId: message.id,
+      authorId: message.sender.id,
+      authorName: message.sender.label,
+      keyPrefix: 'community-chat',
+    );
     if (_info?.canModerate == true) {
       return [
         reply,
@@ -824,9 +835,10 @@ class _CommunityChatPageState extends ConsumerState<CommunityChatPage>
           destructive: true,
           onSelected: () => _confirmHide(message),
         ),
+        ...safety,
       ];
     }
-    return [reply];
+    return [reply, ...safety];
   }
 
   /// Server-confirmed self-delete: the local message only changes when the

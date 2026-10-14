@@ -615,7 +615,7 @@ class _FloatingChatPanelState extends State<_FloatingChatPanel>
                 if (message.replyTo != null)
                   ChatReplyTile(reply: message.replyTo!),
                 if (message.deleted)
-                  const Text('Mensaje eliminado')
+                  Text(message.tombstoneText)
                 else if (!privateChatAttachmentsEnabled && message.media.isNotEmpty)
                   const Text('Adjunto no disponible')
                 else if (message.media.isNotEmpty)

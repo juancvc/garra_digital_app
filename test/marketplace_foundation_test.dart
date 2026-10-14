@@ -515,7 +515,9 @@ void main() {
     await tester.tap(find.byTooltip('Reportar'));
     await tester.pumpAndSettle();
     expect(find.text('Reportar publicación'), findsOneWidget);
-    await tester.tap(find.text('Spam o engaño'));
+    // PLAY-02: backend reason codes; COUNTERFEIT is exposed.
+    expect(find.text('Falsificaci\u00f3n o infracci\u00f3n de marca'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('marketplace-report-COUNTERFEIT')));
     await tester.pumpAndSettle();
     expect(service.reportCalls, 1);
     expect(service.lastReportSlug, 'bandera-crema');

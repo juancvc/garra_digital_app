@@ -16,6 +16,9 @@ String garraReportTitle(GarraReportTarget target) {
       return 'Denunciar comentario';
     case GarraReportTarget.profile:
       return 'Denunciar perfil';
+    case GarraReportTarget.directMessage:
+    case GarraReportTarget.communityChatMessage:
+      return 'Denunciar mensaje';
   }
 }
 

@@ -155,6 +155,7 @@ class ChatMessage {
     this.editedAt,
     this.deleted = false,
     this.replyTo,
+    this.moderated = false,
   });
 
   final String id;
@@ -174,6 +175,14 @@ class ChatMessage {
   final DateTime? editedAt;
   final bool deleted;
   final ChatReplyPreview? replyTo;
+
+  /// PLAY-02.1: withdrawn by platform moderation (backend MessageResponse.moderated;
+  /// [deleted] is true as well).
+  final bool moderated;
+
+  /// Tombstone copy for a deleted message.
+  String get tombstoneText =>
+      moderated ? chatModeratedTombstoneText : 'Mensaje eliminado';
 
   /// Deterministic per-message reaction state, used by the polling diff.
   String get reactionSignature => chatReactionSignature(reactions);
@@ -195,6 +204,7 @@ class ChatMessage {
       editedAt: editedAt,
       deleted: deleted,
       replyTo: replyTo ?? this.replyTo,
+      moderated: moderated,
     );
   }
 
@@ -221,9 +231,13 @@ class ChatMessage {
               Map<String, dynamic>.from(json['replyTo'] as Map),
             )
           : null,
+      moderated: json['moderated'] == true,
     );
   }
 }
+
+/// PLAY-02.1: copy for a private message withdrawn by moderation.
+const chatModeratedTombstoneText = 'Mensaje retirado por moderaci\u00f3n';
 
 /// CHAT_REACTIONS_13: one reaction type on a message. [type] is the backend
 /// API value of a global [ReactionType]; the chat picker only offers six, but

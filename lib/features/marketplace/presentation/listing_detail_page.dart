@@ -127,6 +127,8 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
       backgroundColor: context.garraColors.surface,
       builder: (context) {
         return SafeArea(
+          // PLAY-02: six reasons; scrollable so short screens never overflow.
+          child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -137,24 +139,17 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
-              ListTile(
-                title: const Text('Contenido inapropiado'),
-                onTap: () => Navigator.pop(context, 'INAPPROPRIATE'),
-              ),
-              ListTile(
-                title: const Text('Spam o engaño'),
-                onTap: () => Navigator.pop(context, 'SPAM'),
-              ),
-              ListTile(
-                title: const Text('Derechos de autor / marca'),
-                onTap: () => Navigator.pop(context, 'IP'),
-              ),
-              ListTile(
-                title: const Text('Otro'),
-                onTap: () => Navigator.pop(context, 'OTHER'),
-              ),
+              // PLAY-02: backend MarketplaceReportReason values
+              // (POST /marketplace/reports, targetType LISTING).
+              for (final option in marketplaceListingReportReasons)
+                ListTile(
+                  key: Key('marketplace-report-${option.code}'),
+                  title: Text(option.label),
+                  onTap: () => Navigator.pop(context, option.code),
+                ),
               const SizedBox(height: GarraSpacing.md),
             ],
+          ),
           ),
         );
       },
