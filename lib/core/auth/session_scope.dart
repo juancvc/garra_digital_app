@@ -86,6 +86,9 @@ class _SessionScopeState extends ConsumerState<SessionScope>
         container.invalidate(currentFanProvider);
         final path = widget.router.routeInformationProvider.value.uri.path;
         if (path != '/complete-profile') widget.router.go('/complete-profile');
+      case SessionEventKind.legalAcceptanceRequired:
+        final current = widget.router.routeInformationProvider.value.uri.path;
+        if (current != '/legal-acceptance') widget.router.go('/legal-acceptance');
     }
   }
 

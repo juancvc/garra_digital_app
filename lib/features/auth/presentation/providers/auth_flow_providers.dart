@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/community_link_config.dart';
+import '../../../../core/legal/legal_acceptance_service.dart';
 import '../../../notifications/data/push_session_coordinator.dart';
 import '../../data/auth_service.dart';
 import '../../../retention/data/retention_service.dart';
@@ -71,6 +72,20 @@ Future<String> defaultPostVerifyDestination(AuthUser user) async {
   if (user.status == 'PENDING_PROFILE' && !user.isAdmin) {
     return '/complete-profile';
   }
+  // PLAY-02: existing users without the current Terms/Privacy acceptance get
+  // a client-side gate. The API never hard-blocks old clients; any failure
+  // here (offline, old server without the endpoint) just continues.
+  if (!user.isAdmin) {
+    try {
+      final legal = await LegalAcceptanceService().status();
+      if (!legal.accepted) return '/legal-acceptance';
+    } catch (_) {}
+  }
+  return postLegalDestination();
+}
+
+/// Rest of the post-auth flow once the legal gate is satisfied.
+Future<String> postLegalDestination() async {
   await pushSessionCoordinator.afterAuthenticated();
   // Same rule as CompleteProfilePage (GARRA38): the skippable social
   // onboarding once; any failure just goes to Home.

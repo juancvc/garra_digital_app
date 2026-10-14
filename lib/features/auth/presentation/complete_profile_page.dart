@@ -6,6 +6,8 @@ import 'package:garra_digital_app/features/predictions/presentation/providers/pr
 import 'package:garra_digital_app/features/ranking/presentation/providers/ranking_provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/legal/legal_acceptance_checkbox.dart';
+import '../../../core/legal/legal_acceptance_service.dart';
 import '../../../core/legal/legal_links.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_form.dart';
@@ -34,6 +36,8 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
   String? _tribuna;
   bool _fanDeclaration = false;
   bool _guidelines = false;
+  // PLAY-02: Terms + Privacy, never pre-checked.
+  bool _legalAccepted = false;
   bool _loading = false;
   bool _triedSubmit = false;
   String? _error;
@@ -78,10 +82,13 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     if (_loading) return;
     setState(() => _triedSubmit = true);
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    if (_tribuna == null || !_fanDeclaration || !_guidelines) return;
+    if (_tribuna == null || !_fanDeclaration || !_guidelines || !_legalAccepted) {
+      return;
+    }
 
     final router = GoRouter.of(context);
     final authService = ref.read(authServiceProvider);
+    final legalService = ref.read(legalAcceptanceServiceProvider);
     final destinationFor = ref.read(postAuthDestinationProvider);
 
     setState(() {
@@ -107,6 +114,13 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
       return;
     }
 
+    // PLAY-02: record the Terms/Privacy acceptance (server stamps acceptedAt).
+    // Best effort: if it fails the session gate asks again (UPDATE_PROMPT).
+    try {
+      await legalService.accept(LegalAcceptanceChannel.signup);
+    } catch (_) {}
+    if (!mounted) return;
+
     ref.invalidate(currentUserProvider);
     ref.invalidate(rankingProvider);
     ref.invalidate(upcomingMatchesProvider);
@@ -126,6 +140,7 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     final standMissing = _triedSubmit && _tribuna == null;
     final declarationMissing = _triedSubmit && !_fanDeclaration;
     final guidelinesMissing = _triedSubmit && !_guidelines;
+    final legalMissing = _triedSubmit && !_legalAccepted;
 
     return PopScope(
       canPop: false,
@@ -268,6 +283,14 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                             ? 'Marca esta casilla para continuar'
                             : null,
                         onChanged: (v) => setState(() => _guidelines = v),
+                      ),
+                      LegalAcceptanceCheckbox(
+                        value: _legalAccepted,
+                        enabled: !_loading,
+                        error: legalMissing
+                            ? 'Marca esta casilla para continuar'
+                            : null,
+                        onChanged: (v) => setState(() => _legalAccepted = v),
                       ),
                       // Reading the rules is optional: it never gates the
                       // checkbox or the onboarding.
