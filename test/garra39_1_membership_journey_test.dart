@@ -210,6 +210,7 @@ Future<void> _fillProfile(
   String? stand = 'Sur',
   bool fan = true,
   bool rules = true,
+  bool legal = true,
 }) async {
   await tester.enterText(_tile('profile-name'), 'Hincha Uno');
   await tester.enterText(_tile('profile-username'), username);
@@ -224,6 +225,11 @@ Future<void> _fillProfile(
   if (rules) {
     await tester.ensureVisible(_tile('accept-guidelines'));
     await tester.tap(_tile('accept-guidelines'));
+  }
+  // PLAY-02: Terms/Privacy acceptance is now required too.
+  if (legal) {
+    await tester.ensureVisible(_tile('legal-accept-checkbox'));
+    await tester.tap(_tile('legal-accept-checkbox'));
   }
   await tester.pump();
 }
@@ -491,6 +497,9 @@ void main() {
         await tester.enterText(fields.at(0), 'juan@example.com');
         await tester.enterText(fields.at(1), 'Password-123');
         await tester.enterText(fields.at(2), 'Password-123');
+        // PLAY-02: explicit Terms/Privacy acceptance.
+        await tester.tap(_tile('legal-accept-checkbox'));
+        await tester.pump();
         await tester.tap(find.widgetWithText(FilledButton, 'Crear cuenta'));
         await tester.pumpAndSettle();
 
@@ -528,6 +537,9 @@ void main() {
         await tester.enterText(fields.at(0), 'juan@example.com');
         await tester.enterText(fields.at(1), 'Password-123');
         await tester.enterText(fields.at(2), 'Password-123');
+        // PLAY-02: explicit Terms/Privacy acceptance.
+        await tester.tap(_tile('legal-accept-checkbox'));
+        await tester.pump();
         await tester.tap(find.widgetWithText(FilledButton, 'Crear cuenta'));
         await tester.pumpAndSettle();
 

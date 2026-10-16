@@ -18,7 +18,9 @@ import '../../../core/utils/garra_message_time.dart';
 import '../../../core/widgets/garra_avatar.dart';
 import '../../../core/widgets/garra_states.dart';
 import '../../../core/widgets/garra_stickers.dart';
+import '../../community/data/community_report.dart';
 import '../../community/data/reaction_type.dart';
+import '../../community/presentation/widgets/chat_message_safety_actions.dart';
 import '../../home/presentation/providers/home_provider.dart';
 import '../data/chat_image_uploads.dart';
 import '../data/chat_models.dart';
@@ -666,6 +668,16 @@ class _ChatConversationPageState extends State<ChatConversationPage>
             destructive: true,
             onSelected: () => _delete(message),
           ),
+        // PLAY-02: report the message / report or block its author.
+        if (!message.mine && !message.deleted)
+          ...chatMessageSafetyActions(
+            context: context,
+            messageTarget: GarraReportTarget.directMessage,
+            messageId: message.id,
+            authorId: message.senderId,
+            authorName: _conversation?.otherDisplayName ?? '',
+            keyPrefix: 'chat',
+          ),
       ],
     );
     if (selected == null || !mounted || !_canReact) return;
@@ -1252,7 +1264,7 @@ class _ChatConversationPageState extends State<ChatConversationPage>
           key: Key('chat-tombstone-${message.id}'),
           constraints: BoxConstraints(maxWidth: maxWidth),
           padding: const EdgeInsets.all(12),
-          child: const Text('Mensaje eliminado'),
+          child: Text(message.tombstoneText),
         ),
       );
     }

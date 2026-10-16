@@ -453,14 +453,36 @@ class MarketplaceReportRequest {
   final String reason;
   final String? details;
 
+  /// PLAY-02: backend contract CreateMarketplaceReportRequest (targetType,
+  /// targetSlug, reason = MarketplaceReportReason, details). The previous
+  /// payload (listingSlug + free reasons) was rejected by the API.
   Map<String, dynamic> toJson() {
     return {
-      'listingSlug': listingSlug,
+      'targetType': 'LISTING',
+      'targetSlug': listingSlug,
       'reason': reason,
       if (details != null && details!.trim().isNotEmpty) 'details': details,
     };
   }
 }
+
+/// One marketplace report reason; [code] is the backend MarketplaceReportReason.
+class MarketplaceReportReasonOption {
+  const MarketplaceReportReasonOption(this.code, this.label);
+
+  final String code;
+  final String label;
+}
+
+/// PLAY-02: reasons accepted by POST /marketplace/reports (incl. COUNTERFEIT).
+const marketplaceListingReportReasons = <MarketplaceReportReasonOption>[
+  MarketplaceReportReasonOption('COUNTERFEIT', 'Falsificaci\u00f3n o infracci\u00f3n de marca'),
+  MarketplaceReportReasonOption('SCAM', 'Estafa o enga\u00f1o'),
+  MarketplaceReportReasonOption('PROHIBITED_ITEM', 'Art\u00edculo prohibido'),
+  MarketplaceReportReasonOption('MISLEADING', 'Informaci\u00f3n enga\u00f1osa'),
+  MarketplaceReportReasonOption('HARASSMENT', 'Acoso'),
+  MarketplaceReportReasonOption('OTHER', 'Otro'),
+];
 
 class SellerProfile {
   const SellerProfile({

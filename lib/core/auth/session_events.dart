@@ -14,6 +14,10 @@ enum SessionEventKind {
   /// HTTP 403 + `errors.code == MEMBERSHIP_REQUIRED`: the Garra profile is
   /// still pending, so only /complete-profile makes sense.
   membershipRequired,
+
+  /// PLAY-02.1: HTTP 428 + `errors.code == LEGAL_ACCEPTANCE_REQUIRED`: the server
+  /// enforces the current Terms/Privacy for publishing; show /legal-acceptance.
+  legalAcceptanceRequired,
 }
 
 class SessionEvents {

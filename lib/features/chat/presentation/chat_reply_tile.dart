@@ -38,7 +38,13 @@ class ChatReplyTile extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    reply.deleted ? 'Mensaje eliminado' : reply.content,
+                    // PLAY-02.1: the server sends the tombstone copy (author delete
+                    // or moderation removal) as content of a deleted reply.
+                    reply.deleted
+                        ? (reply.content == chatModeratedTombstoneText
+                              ? chatModeratedTombstoneText
+                              : 'Mensaje eliminado')
+                        : reply.content,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 12),

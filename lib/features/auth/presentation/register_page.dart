@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/navigation/auth_back.dart';
 
 import '../../../core/design/garra_spacing.dart';
+import '../../../core/legal/legal_acceptance_checkbox.dart';
 import '../../../core/network/offline_action_guard.dart';
 import '../../../core/theme/garra_semantic_colors.dart';
 import '../../../core/widgets/garra_form.dart';
@@ -34,6 +35,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   bool _loading = false;
   String? _error;
+  // PLAY-02: explicit Terms/Privacy acceptance, never pre-checked. Recorded
+  // server-side once the session exists (complete profile, SIGNUP channel).
+  bool _legalAccepted = false;
+  bool _legalTried = false;
 
   @override
   void dispose() {
@@ -52,7 +57,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   /// snackbar nor navigates (the user left on purpose).
   Future<void> _register() async {
     if (_loading) return;
+    setState(() => _legalTried = true);
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!_legalAccepted) return;
     if (!allowNetworkAction(context)) return;
 
     final messenger = ScaffoldMessenger.of(context);
@@ -156,6 +163,15 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: GarraSpacing.md),
+              LegalAcceptanceCheckbox(
+                value: _legalAccepted,
+                enabled: !_loading,
+                error: _legalTried && !_legalAccepted
+                    ? 'Marca esta casilla para continuar'
+                    : null,
+                onChanged: (v) => setState(() => _legalAccepted = v),
               ),
               const SizedBox(height: GarraSpacing.lg),
               if (_error != null) AuthInlineError(message: _error!),

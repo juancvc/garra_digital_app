@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:garra_digital_app/core/config/community_link_config.dart';
 import 'package:garra_digital_app/features/auth/presentation/complete_profile_page.dart';
+import 'package:garra_digital_app/features/auth/presentation/legal_acceptance_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/clan_detail_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/clan_invitations_page.dart';
 import 'package:garra_digital_app/features/clans/presentation/clan_manage_page.dart';
@@ -226,6 +227,11 @@ List<RouteBase> _buildRoutes() => [
   GoRoute(
     path: '/complete-profile',
     builder: (context, state) => const CompleteProfilePage(),
+  ),
+  // PLAY-02: Terms/Privacy acceptance gate for existing users.
+  GoRoute(
+    path: '/legal-acceptance',
+    builder: (context, state) => const LegalAcceptancePage(),
   ),
   // Task routes are registered before the shell so parameter routes such as
   // /eventos/:id cannot capture them. A push covers MainShell; back returns

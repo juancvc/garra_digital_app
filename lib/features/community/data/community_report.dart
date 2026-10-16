@@ -1,11 +1,17 @@
-/// MODERATION_11: platform reports (post, comment, profile).
+/// MODERATION_11: platform reports (post, comment, profile; PLAY-02: chat messages).
 library;
 
 /// What is being reported. [apiValue] matches the backend `targetType`.
 enum GarraReportTarget {
   post('POST'),
   comment('COMMENT'),
-  profile('PROFILE');
+  profile('PROFILE'),
+
+  /// PLAY-02: private (direct) chat message.
+  directMessage('DIRECT_MESSAGE'),
+
+  /// PLAY-02: community (clan) chat message.
+  communityChatMessage('COMMUNITY_CHAT_MESSAGE');
 
   const GarraReportTarget(this.apiValue);
 

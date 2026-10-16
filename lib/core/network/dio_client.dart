@@ -68,6 +68,10 @@ class DioClient {
             SessionEvents.emit(SessionEventKind.membershipRequired);
             return handler.next(error);
           }
+          if (isLegalAcceptanceRequired(error)) {
+            SessionEvents.emit(SessionEventKind.legalAcceptanceRequired);
+            return handler.next(error);
+          }
           if (!_shouldAttemptRefresh(error)) {
             return handler.next(error);
           }
@@ -113,6 +117,16 @@ class DioClient {
     final body = error.response?.data;
     final errors = body is Map ? body['errors'] : null;
     return errors is Map && errors['code']?.toString() == 'MEMBERSHIP_REQUIRED';
+  }
+
+  /// PLAY-02.1: HTTP 428 + `errors.code == LEGAL_ACCEPTANCE_REQUIRED` (server-side
+  /// publishing guard, behind GARRA_LEGAL_ENFORCEMENT_ENABLED). Other 428s are left alone.
+  static bool isLegalAcceptanceRequired(DioException error) {
+    if (error.response?.statusCode != 428) return false;
+    final body = error.response?.data;
+    final errors = body is Map ? body['errors'] : null;
+    return errors is Map &&
+        errors['code']?.toString() == 'LEGAL_ACCEPTANCE_REQUIRED';
   }
 
   static bool _shouldAttemptRefresh(DioException error) {

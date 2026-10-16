@@ -194,6 +194,10 @@ Future<void> _fillRegisterForm(WidgetTester tester) async {
   await tester.enterText(fields.at(0), ' Juan@Example.com ');
   await tester.enterText(fields.at(1), 'Password-123');
   await tester.enterText(fields.at(2), 'Password-123');
+  // PLAY-02: explicit Terms/Privacy acceptance (never pre-checked).
+  final legal = find.byKey(const ValueKey('legal-accept-checkbox'));
+  await tester.ensureVisible(legal);
+  await tester.tap(legal);
   await tester.pump();
 }
 
