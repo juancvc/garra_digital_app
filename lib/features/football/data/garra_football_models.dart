@@ -60,7 +60,7 @@ class FootballMatch {
     this.homeScore, this.awayScore, this.garraMatchId, this.round,
     this.homeId, this.awayId, this.homeCrestUrl, this.awayCrestUrl,
     this.featured = false, this.snapshotAt, this.dataState, this.venue, this.kickoffConfirmed,
-    this.resultPending = false});
+    this.resultPending = false, this.scheduleVerified = false});
   final int id;
   final String competitionId;
   final String competition;
@@ -91,6 +91,8 @@ class FootballMatch {
   /// PRODUCT-11A.3 (backend 11A.2, additive): started fixture whose state/result no fresh snapshot
   /// confirms. Absent in older backends → false.
   final bool resultPending;
+  /// Additive backend flag: an administrator checked this fixture against an official schedule.
+  final bool scheduleVerified;
 
   /// Date shown is a provider placeholder (time to be defined or postponed).
   bool get isKickoffTentative => kickoffConfirmed == false || kickoff == null;
@@ -103,6 +105,8 @@ class FootballMatch {
   static FootballMatch fresher(FootballMatch current, FootballMatch incoming) {
     final a = current.snapshotAt;
     final b = incoming.snapshotAt;
+    if (incoming.scheduleVerified && !current.scheduleVerified) return incoming;
+    if (current.scheduleVerified && !incoming.scheduleVerified) return current;
     if (a != null && b != null && b.isBefore(a)) return current;
     return incoming;
   }
@@ -113,7 +117,8 @@ class FootballMatch {
       homeScore: homeScore, awayScore: awayScore, garraMatchId: garraMatchId, round: round,
       homeId: homeId, awayId: awayId, homeCrestUrl: homeCrestUrl, awayCrestUrl: awayCrestUrl,
       featured: featured, snapshotAt: snapshotAt, dataState: 'UNCONFIRMED', venue: venue,
-      kickoffConfirmed: kickoffConfirmed, resultPending: resultPending);
+      kickoffConfirmed: kickoffConfirmed, resultPending: resultPending,
+      scheduleVerified: scheduleVerified);
 
   factory FootballMatch.fromJson(Map<String, dynamic> json) {
     final home = json['home'] as Map?;
@@ -142,6 +147,7 @@ class FootballMatch {
       venue: _text(json['venue']),
       kickoffConfirmed: json['kickoffConfirmed'] is bool ? json['kickoffConfirmed'] as bool : null,
       resultPending: json['resultPending'] == true,
+      scheduleVerified: json['scheduleVerified'] == true,
     );
   }
 

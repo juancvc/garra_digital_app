@@ -165,7 +165,7 @@ class _HomeFeaturedMatchCardState extends ConsumerState<HomeFeaturedMatchCard> {
     final canOpen = match.id > 0 && match.competitionId.isNotEmpty;
     final crestSize = widget.embedded ? 28.0 : 44.0;
     final scheduleLine = confirmedSchedule
-        ? footballKickoffLine(match)
+        ? '${match.scheduleVerified ? 'Horario verificado · ' : ''}${footballKickoffLine(match)}'
         : (!isLive && !isFinished)
             ? (match.status == 'POSTPONED'
                 ? 'Nueva fecha por confirmar'
