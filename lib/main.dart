@@ -42,7 +42,7 @@ Future<void> main() async {
   unawaited(initializeDateFormatting('es_PE', null));
 
   final appearance = await GarraThemeStore().read().catchError(
-    (_) => GarraAppearance.system,
+    (_) => GarraAppearance.crema,
   );
   runApp(
     ProviderScope(

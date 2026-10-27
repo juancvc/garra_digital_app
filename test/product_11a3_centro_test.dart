@@ -308,7 +308,7 @@ void main() {
   });
 
   group('Resultados', () {
-    testWidgets('recent by competition, contract order, resultPending + SUSPENDED + CANCELLED', (tester) async {
+    testWidgets('recent by competition, newest first, resultPending + SUSPENDED + CANCELLED', (tester) async {
       final service = _Football()..pages[FootballView.results] = _page([
         _json(1, status: 'FINISHED', kickoff: '2026-10-11T20:00:00Z', hs: 2, as: 0, home: 'Primero'),
         _json(2, status: 'SUSPENDED', kickoff: '2026-10-12T20:00:00Z', hs: 1, as: 0, home: 'Segundo'),
@@ -324,7 +324,7 @@ void main() {
       final y1 = tester.getTopLeft(find.text('Primero 1')).dy;
       final y2 = tester.getTopLeft(find.text('Segundo 2')).dy;
       final y3 = tester.getTopLeft(find.text('Tercero 3')).dy;
-      expect(y1 < y2 && y2 < y3, isTrue, reason: 'backend (ascending) order preserved');
+      expect(y3 < y2 && y2 < y1, isTrue, reason: 'real kickoff descending despite older API order');
       expect(find.text('Resultado por confirmar'), findsOneWidget);
       expect(find.text('Suspendido'), findsOneWidget);
       expect(find.text('CANC.'), findsOneWidget);

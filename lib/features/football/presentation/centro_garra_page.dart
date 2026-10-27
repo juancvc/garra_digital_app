@@ -680,8 +680,12 @@ class _CentroGarraPageState extends ConsumerState<CentroGarraPage>
 
   List<FootballMatch> _sortWithinGroup(List<FootballMatch> list) {
     final sorted = [...list];
-    // PRODUCT-11A.3: Resultados keep the backend contract order (ascending kickoff, most recent 100).
-    if (_nav.section == CentroSection.results) return sorted;
+    // Defensive ordering also covers older cached/API responses.
+    if (_nav.section == CentroSection.results) {
+      sorted.sort((a, b) => (b.kickoff ?? DateTime(0))
+          .compareTo(a.kickoff ?? DateTime(0)));
+      return sorted;
+    }
     sorted.sort((a, b) {
       if (a.featured != b.featured) return a.featured ? -1 : 1;
       if (a.isLive != b.isLive) return a.isLive ? -1 : 1;
@@ -1351,7 +1355,9 @@ class _CentroGarraMatchDetailPageState extends ConsumerState<CentroGarraMatchDet
             if (match.competition.isNotEmpty) match.competition,
             ?match.roundLabel,
           ].join(' · ').ifEmpty('Por confirmar'), key: 'resumen_competition'),
-          _infoRow(Icons.event_rounded, 'Fecha y hora', footballKickoffLine(match), key: 'resumen_kickoff'),
+          _infoRow(Icons.event_rounded, 'Fecha y hora',
+              '${footballKickoffLine(match)}${match.scheduleVerified ? ' · Verificado' : ''}',
+              key: 'resumen_kickoff'),
           _infoRow(Icons.stadium_outlined, 'Estadio', match.venue ?? 'Por confirmar', key: 'resumen_venue'),
           _infoRow(Icons.flag_outlined, 'Estado', _statusWord(match), key: 'resumen_state'),
           if (match.isPrematch)

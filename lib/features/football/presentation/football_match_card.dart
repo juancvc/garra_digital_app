@@ -81,12 +81,15 @@ class FootballMatchCard extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    if (header.isNotEmpty || featured)
+                    if (header.isNotEmpty || featured || match.scheduleVerified)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 6),
                         child: Row(children: [
                           Expanded(
-                            child: Text(header, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            child: Text(match.scheduleVerified
+                                    ? (header.isEmpty ? 'Horario verificado' : '$header · Verificado')
+                                    : header,
+                                maxLines: 1, overflow: TextOverflow.ellipsis,
                                 style: text.labelSmall?.copyWith(
                                     color: featured ? garra.brandPrestige : null,
                                     fontWeight: featured ? FontWeight.w800 : FontWeight.w600)),
